@@ -1,16 +1,13 @@
 # ResearchHub Scholar
 
-Aplicação independente do ResearchHub Scholar.
+Versão independente importada de codex/prototipo-scholar-med (bff93de4bc14af8cbd093e97bc270b446b8ea090).
 
-## Vercel
+## Deploy na Vercel
 
 - Framework: Next.js
 - Branch: main
 - Root Directory: researchhub
 - Build Command: npm run build
+- Variáveis: NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY antes do deploy.
-
-O instalador deste produto é researchhub/supabase/scholar_install.sql. Os demais SQLs são arquivos herdados da versão de origem e não devem ser executados no banco Scholar.
-
-Código importado da branch codex/prototipo-scholar-med, commit bff93de4bc14af8cbd093e97bc270b446b8ea090.
+Use somente researchhub/supabase/scholar_install.sql no banco Scholar. Os demais SQLs são arquivos herdados da origem.
