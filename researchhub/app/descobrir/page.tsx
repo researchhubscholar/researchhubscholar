@@ -4,19 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type Article = {
-  pmid: string;
-  doi: string | null;
-  title: string;
-  authors: string[];
-  journal: string;
-  pubdate: string;
-  year: number | null;
-  publicationTypes: string[];
-  abstract: string | null;
-  pubmedUrl: string;
-  doiUrl: string | null;
-};
+import { Article, articleKey, sameArticle } from "@/lib/literature/types";
 
 type Result = {
   topic: string;
@@ -53,21 +41,32 @@ export default function DiscoverPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedPmids, setSavedPmids] = useState<string[]>([]);
+  const [savedArticles, setSavedArticles] = useState<Article[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [source, setSource] = useState("pubmed");
+  const [sort, setSort] = useState("recent");
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [articleTotal, setArticleTotal] = useState(0);
+  const [browsing, setBrowsing] = useState(false);
+  const [browseError, setBrowseError] = useState<string | null>(null);
+  const [identifier, setIdentifier] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
 
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]") as Article[];
-      setSavedPmids(stored.map((x) => x.pmid));
+      setSavedArticles(stored);
     } catch {
-      setSavedPmids([]);
+      setSavedArticles([]);
     }
   }, []);
 
   async function analyze(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
+    if (loading || browsing) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -80,6 +79,10 @@ export default function DiscoverPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       setResult(data);
+      setArticles(data.articles); setSource("pubmed"); setSort("recent");
+      setArticleTotal(data.sources.pubmed.total);
+      setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
+      setBrowseError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
@@ -90,13 +93,38 @@ export default function DiscoverPage() {
   function saveArticle(article: Article) {
     try {
       const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]") as Article[];
-      if (stored.some((x) => x.pmid === article.pmid)) return;
+      if (stored.some((x) => sameArticle(x, article))) return;
       const next = [{ ...article, savedAt: new Date().toISOString() }, ...stored];
       localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
-      setSavedPmids(next.map((x) => x.pmid));
+      setSavedArticles(next);
     } catch {
       setError("Não foi possível salvar este artigo no navegador.");
     }
+  }
+
+  async function browse(nextSource: string, nextSort: string, offset = 0) {
+    if (!result || browsing || loading) return;
+    setBrowsing(true); setBrowseError(null);
+    try {
+      const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
+      setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
+      setSource(nextSource); setSort(nextSort); setNextOffset(data.nextOffset); setArticleTotal(data.total);
+    } catch (error) { setBrowseError(error instanceof Error ? error.message : "Falha na busca."); }
+    finally { setBrowsing(false); }
+  }
+  async function lookup(e: React.FormEvent) {
+    e.preventDefault(); if (lookupLoading) return;
+    setLookupLoading(true); setLookupError(null); setLookupArticle(null);
+    try {
+      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Artigo não encontrado.");
+      setLookupArticle(data.article);
+    } catch (error) { setLookupError(error instanceof Error ? error.message : "Falha na busca."); }
+    finally { setLookupLoading(false); }
   }
 
   const refinements = result
@@ -115,15 +143,31 @@ export default function DiscoverPage() {
 
       <form onSubmit={analyze} className="mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <input aria-label="Tema da busca" required minLength={3} maxLength={300} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
-        <label className="text-xs text-ink-soft">Período<select disabled={loading} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
-        <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
-        <button disabled={loading} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
+        <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
+        <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
+        <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : "Analisar tema"}
         </button>
       </form>
       <p className="text-xs text-ink-soft/70 mt-2">Dica: termos em inglês costumam recuperar melhor a literatura biomédica internacional.</p>
       {result && (result.topic !== topic.trim() || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
+
+      <section className="mt-6 bg-white border border-line rounded-2xl p-5">
+        <h2 className="font-display text-xl">Já encontrou um artigo em outro lugar?</h2>
+        <p className="text-sm text-ink-soft mt-2">Busque pelo DOI, PMID ou link do PubMed/doi.org, independentemente dos resultados do Radar.</p>
+        <form onSubmit={lookup} className="flex flex-wrap gap-3 mt-4">
+          <input aria-label="DOI, PMID ou link do artigo" required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="DOI, PMID ou link" className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
+          <button disabled={lookupLoading} className="bg-ink text-white px-4 py-3 rounded-card disabled:opacity-50">{lookupLoading ? "Buscando..." : "Buscar artigo"}</button>
+        </form>
+        {lookupError && <p role="alert" className="text-red-700 text-sm mt-3">{lookupError}</p>}
+        {lookupArticle && <div className="mt-4 border-t border-line pt-4">
+          <h3 className="font-medium">{lookupArticle.title}</h3>
+          <p className="text-xs text-ink-soft mt-2">{lookupArticle.journal} · {lookupArticle.year} · {lookupArticle.pmid ? `PMID ${lookupArticle.pmid}` : `DOI ${lookupArticle.doi}`}</p>
+          {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer">Ver resumo</summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
+          <button disabled={savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
+        </div>}
+      </section>
 
       {!result && !loading && (
         <div className="mt-10 grid md:grid-cols-3 gap-4">
@@ -182,19 +226,28 @@ export default function DiscoverPage() {
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Artigos recuperados</p>
-                <h2 className="font-display text-3xl mt-2">Literatura recente do PubMed</h2>
-                <p className="text-sm text-ink-soft mt-2">Até oito artigos mais recentes no recorte selecionado, com metadados e resumo quando disponível.</p>
+                <h2 className="font-display text-3xl mt-2">Explore a literatura</h2>
+                <p className="text-sm text-ink-soft mt-2">Carregue mais artigos, compare fontes e salve os trabalhos relevantes.</p>
               </div>
               <Link href="/biblioteca" className="border border-line px-4 py-2.5 rounded-card text-sm font-medium hover:border-teal hover:text-teal">
-                Minha biblioteca ({savedPmids.length})
+                Minha biblioteca ({savedArticles.length})
               </Link>
             </div>
 
+            <div className="p-6 border-b border-line bg-paper">
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="text-xs text-ink-soft">Fonte<select aria-label="Fonte dos artigos" disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option></select></label>
+                <label className="text-xs text-ink-soft">Ordenação<select aria-label="Ordenação dos artigos" disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent">Mais recentes</option><option value="relevance">Relevância</option></select></label>
+                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString("pt-BR")} resultados em ${source === "pubmed" ? "PubMed" : "Crossref"}`}</p>
+              </div>
+              <p className="text-xs text-ink-soft mt-3">As métricas e o gráfico acima são do PubMed. Crossref reúne metadados de artigos com DOI; respeita o período, mas não aplica o filtro por desenho clínico. Há sobreposição entre as fontes e nem todos os registros têm resumo.</p>
+              {browseError && <div role="alert" className="mt-3 text-sm text-red-700">{browseError}<button className="ml-3 underline" onClick={() => browse(source, sort, nextOffset ?? 0)}>Tentar novamente</button></div>}
+            </div>
             <div className="divide-y divide-line">
-              {result.articles.map((article) => {
-                const saved = savedPmids.includes(article.pmid);
+              {articles.map((article) => {
+                const saved = savedArticles.some(a => sameArticle(a, article));
                 return (
-                  <article key={article.pmid} className="p-6">
+                  <article key={articleKey(article)} className="p-6">
                     <div className="flex flex-col md:flex-row md:justify-between gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -205,7 +258,7 @@ export default function DiscoverPage() {
                         <p className="text-sm text-ink-soft mt-2">
                           {article.authors.slice(0, 5).join(", ")}{article.authors.length > 5 ? " et al." : ""}
                         </p>
-                        <p className="text-xs text-ink-soft/80 mt-1">{article.journal} · PMID {article.pmid}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
+                        <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
 
                         {article.abstract ? (
                           <details className="mt-4 group">
@@ -217,7 +270,7 @@ export default function DiscoverPage() {
                         )}
 
                         <div className="flex flex-wrap gap-4 mt-4 text-xs">
-                          <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir no PubMed ↗</a>
+                          {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir no PubMed ↗</a>}
                           {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir DOI ↗</a>}
                         </div>
                       </div>
@@ -234,7 +287,10 @@ export default function DiscoverPage() {
                   </article>
                 );
               })}
-              {result.articles.length === 0 && <p className="p-6 text-sm text-ink-soft">Nenhum artigo detalhado foi recuperado para esta busca.</p>}
+              {articles.length === 0 && <p className="p-6 text-sm text-ink-soft">Nenhum artigo detalhado foi recuperado para esta busca.</p>}
+            </div>
+            <div className="p-6 border-t border-line text-center">
+              {nextOffset !== null ? <button disabled={browsing || loading} onClick={() => browse(source, sort, nextOffset)} className="bg-teal text-white rounded-card px-6 py-3 text-sm disabled:opacity-50">{browsing ? "Carregando..." : "Carregar mais 20 artigos"}</button> : <p className="text-sm text-ink-soft">{articleTotal > 10000 ? "Limite de navegação atingido. Refine o tema para explorar outros resultados." : "Fim dos resultados desta fonte."}</p>}
             </div>
           </section>
 

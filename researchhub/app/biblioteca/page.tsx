@@ -3,20 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-type Article = {
-  pmid: string;
-  doi: string | null;
-  title: string;
-  authors: string[];
-  journal: string;
-  pubdate: string;
-  year: number | null;
-  publicationTypes: string[];
-  abstract: string | null;
-  pubmedUrl: string;
-  doiUrl: string | null;
-  savedAt?: string;
-};
+import { Article, articleKey } from "@/lib/literature/types";
 
 type EvidenceNote = {
   objective?: string;
@@ -64,7 +51,7 @@ export default function BibliotecaPage() {
   }
 
   function removeArticle(pmid: string) {
-    persistArticles(articles.filter((article) => article.pmid !== pmid));
+    persistArticles(articles.filter((article) => articleKey(article) !== pmid));
   }
 
   function updateNote(pmid: string, field: keyof EvidenceNote, value: string) {
@@ -75,8 +62,8 @@ export default function BibliotecaPage() {
 
   async function analyzeArticle(article: Article) {
     if (!article.abstract) return;
-    setLoadingPmid(article.pmid);
-    setErrors((prev) => ({ ...prev, [article.pmid]: "" }));
+    setLoadingPmid(articleKey(article));
+    setErrors((prev) => ({ ...prev, [articleKey(article)]: "" }));
     try {
       const response = await fetch("/api/literature/extract", {
         method: "POST",
@@ -85,9 +72,9 @@ export default function BibliotecaPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Falha na pré-análise");
-      setSuggestions((prev) => ({ ...prev, [article.pmid]: data.suggestions }));
+      setSuggestions((prev) => ({ ...prev, [articleKey(article)]: data.suggestions }));
     } catch (error) {
-      setErrors((prev) => ({ ...prev, [article.pmid]: error instanceof Error ? error.message : "Não foi possível analisar o artigo." }));
+      setErrors((prev) => ({ ...prev, [articleKey(article)]: error instanceof Error ? error.message : "Não foi possível analisar o artigo." }));
     } finally {
       setLoadingPmid(null);
     }
@@ -142,7 +129,7 @@ export default function BibliotecaPage() {
       ) : view === "library" ? (
         <div className="mt-6 space-y-4">
           {articles.map((article) => (
-            <article key={article.pmid} className="bg-white border border-line rounded-2xl p-6">
+            <article key={articleKey(article)} className="bg-white border border-line rounded-2xl p-6">
               <div className="flex flex-col lg:flex-row lg:justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -151,17 +138,17 @@ export default function BibliotecaPage() {
                   </div>
                   <h2 className="font-display text-xl md:text-2xl mt-3 leading-snug">{article.title}</h2>
                   <p className="text-sm text-ink-soft mt-2">{article.authors?.slice(0, 6).join(", ")}{article.authors?.length > 6 ? " et al." : ""}</p>
-                  <p className="text-xs text-ink-soft/80 mt-1">{article.journal} · PMID {article.pmid}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
+                  <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
                   {article.abstract && <details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-teal">Ler abstract</summary><p className="text-sm text-ink-soft leading-relaxed mt-3 max-w-4xl">{article.abstract}</p></details>}
                   <div className="flex flex-wrap gap-4 mt-4 text-xs">
-                    <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>
+                    {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>}
                     {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">DOI ↗</a>}
                   </div>
                 </div>
                 <div className="flex lg:flex-col gap-2 self-start">
-                  <button disabled={!article.abstract || loadingPmid === article.pmid} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.pmid ? "Analisando..." : "Pré-analisar abstract"}</button>
-                  <button onClick={() => { setView("matrix"); if (!suggestions[article.pmid] && article.abstract) analyzeArticle(article); }} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card">Ir para matriz</button>
-                  <button onClick={() => removeArticle(article.pmid)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
+                  <button disabled={!article.abstract || loadingPmid === articleKey(article)} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === articleKey(article) ? "Analisando..." : "Pré-analisar abstract"}</button>
+                  <button onClick={() => { setView("matrix"); if (!suggestions[articleKey(article)] && article.abstract) analyzeArticle(article); }} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card">Ir para matriz</button>
+                  <button onClick={() => removeArticle(articleKey(article))} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
                 </div>
               </div>
             </article>
@@ -174,44 +161,44 @@ export default function BibliotecaPage() {
           </div>
 
           {articles.map((article, index) => {
-            const set = suggestions[article.pmid];
+            const set = suggestions[articleKey(article)];
             return (
-              <section key={article.pmid} className="bg-white border border-line rounded-2xl overflow-hidden">
+              <section key={articleKey(article)} className="bg-white border border-line rounded-2xl overflow-hidden">
                 <div className="p-5 border-b border-line bg-paper flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex gap-4">
                     <span className="w-8 h-8 rounded-full bg-teal text-white flex items-center justify-center text-sm shrink-0">{index + 1}</span>
                     <div>
                       <h2 className="font-medium leading-snug">{article.title}</h2>
-                      <p className="text-xs text-ink-soft mt-1">{article.year || "Ano não informado"} · {article.journal || "Periódico não informado"} · PMID {article.pmid}</p>
+                      <p className="text-xs text-ink-soft mt-1">{article.year || "Ano não informado"} · {article.journal || "Periódico não informado"} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}</p>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button disabled={!article.abstract || loadingPmid === article.pmid} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.pmid ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
-                    {set && <button onClick={() => acceptAll(article.pmid)} className="text-xs border border-teal text-teal px-3 py-2 rounded-card">Confirmar todos</button>}
+                    <button disabled={!article.abstract || loadingPmid === articleKey(article)} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === articleKey(article) ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
+                    {set && <button onClick={() => acceptAll(articleKey(article))} className="text-xs border border-teal text-teal px-3 py-2 rounded-card">Confirmar todos</button>}
                   </div>
                 </div>
 
-                {errors[article.pmid] && <div className="mx-5 mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-card p-3">{errors[article.pmid]}</div>}
+                {errors[articleKey(article)] && <div className="mx-5 mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-card p-3">{errors[articleKey(article)]}</div>}
 
                 {set && (
                   <div className="p-5 border-b border-line bg-teal-soft/50">
                     <p className="text-xs uppercase tracking-widest text-teal font-semibold">Sugestões do abstract</p>
                     <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 mt-3">
-                      <SuggestionCard label="Objetivo" suggestion={set.objective} onAccept={() => acceptSuggestion(article.pmid, "objective")} />
-                      <SuggestionCard label="População" suggestion={set.population} onAccept={() => acceptSuggestion(article.pmid, "population")} />
-                      <SuggestionCard label="Método" suggestion={set.method} onAccept={() => acceptSuggestion(article.pmid, "method")} />
-                      <SuggestionCard label="Achado" suggestion={set.finding} onAccept={() => acceptSuggestion(article.pmid, "finding")} />
-                      <SuggestionCard label="Limitação" suggestion={set.limitation} onAccept={() => acceptSuggestion(article.pmid, "limitation")} />
+                      <SuggestionCard label="Objetivo" suggestion={set.objective} onAccept={() => acceptSuggestion(articleKey(article), "objective")} />
+                      <SuggestionCard label="População" suggestion={set.population} onAccept={() => acceptSuggestion(articleKey(article), "population")} />
+                      <SuggestionCard label="Método" suggestion={set.method} onAccept={() => acceptSuggestion(articleKey(article), "method")} />
+                      <SuggestionCard label="Achado" suggestion={set.finding} onAccept={() => acceptSuggestion(articleKey(article), "finding")} />
+                      <SuggestionCard label="Limitação" suggestion={set.limitation} onAccept={() => acceptSuggestion(articleKey(article), "limitation")} />
                     </div>
                   </div>
                 )}
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-5">
-                  <EvidenceField label="Objetivo" value={notes[article.pmid]?.objective || ""} onChange={(v) => updateNote(article.pmid, "objective", v)} />
-                  <EvidenceField label="População / amostra" value={notes[article.pmid]?.population || ""} onChange={(v) => updateNote(article.pmid, "population", v)} />
-                  <EvidenceField label="Método" value={notes[article.pmid]?.method || ""} onChange={(v) => updateNote(article.pmid, "method", v)} />
-                  <EvidenceField label="Principal achado" value={notes[article.pmid]?.finding || ""} onChange={(v) => updateNote(article.pmid, "finding", v)} />
-                  <EvidenceField label="Limitação" value={notes[article.pmid]?.limitation || ""} onChange={(v) => updateNote(article.pmid, "limitation", v)} />
+                  <EvidenceField label="Objetivo" value={notes[articleKey(article)]?.objective || ""} onChange={(v) => updateNote(articleKey(article), "objective", v)} />
+                  <EvidenceField label="População / amostra" value={notes[articleKey(article)]?.population || ""} onChange={(v) => updateNote(articleKey(article), "population", v)} />
+                  <EvidenceField label="Método" value={notes[articleKey(article)]?.method || ""} onChange={(v) => updateNote(articleKey(article), "method", v)} />
+                  <EvidenceField label="Principal achado" value={notes[articleKey(article)]?.finding || ""} onChange={(v) => updateNote(articleKey(article), "finding", v)} />
+                  <EvidenceField label="Limitação" value={notes[articleKey(article)]?.limitation || ""} onChange={(v) => updateNote(articleKey(article), "limitation", v)} />
                 </div>
               </section>
             );
