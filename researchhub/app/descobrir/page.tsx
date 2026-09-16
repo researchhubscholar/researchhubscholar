@@ -20,6 +20,7 @@ type Article = {
 
 type Result = {
   topic: string;
+  filters: { period: string; studyType: string; searchTerm: string; endDate: string };
   sources: {
     pubmed: { total: number; recent: number; systematicReviews: number; clinicalTrials: number };
     crossref: { total: number | null };
@@ -28,7 +29,7 @@ type Result = {
   timeline: { year: number; count: number }[];
   signals: {
     breadth: "very_broad" | "broad" | "balanced" | "niche" | "scarce";
-    trend: "growing" | "stable" | "declining";
+    trend: "growing" | "stable" | "declining" | "insufficient";
     recentRatio: number;
   };
   methodology: string;
@@ -41,12 +42,14 @@ const breadthLabels = {
   niche: "Nicho específico",
   scarce: "Literatura escassa",
 };
-const trendLabels = { growing: "Em crescimento", stable: "Estável", declining: "Em redução" };
+const trendLabels = { growing: "Em crescimento", stable: "Estável", declining: "Em redução", insufficient: "Dados insuficientes" };
 const LIBRARY_KEY = "researchhub-scholar-library";
 
 export default function DiscoverPage() {
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
+  const [period, setPeriod] = useState("5");
+  const [studyType, setStudyType] = useState("all");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +67,7 @@ export default function DiscoverPage() {
 
   async function analyze(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -71,7 +75,7 @@ export default function DiscoverPage() {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, period, studyType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
@@ -109,14 +113,17 @@ export default function DiscoverPage() {
         </p>
       </div>
 
-      <form onSubmit={analyze} className="mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-col md:flex-row gap-3 shadow-sm">
-        <input value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
+      <form onSubmit={analyze} className="mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
+        <input aria-label="Tema da busca" required minLength={3} maxLength={300} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
+        <label className="text-xs text-ink-soft">Período<select disabled={loading} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
+        <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : "Analisar tema"}
         </button>
       </form>
       <p className="text-xs text-ink-soft/70 mt-2">Dica: termos em inglês costumam recuperar melhor a literatura biomédica internacional.</p>
-      {error && <div className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
+      {result && (result.topic !== topic.trim() || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
+      {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
 
       {!result && !loading && (
         <div className="mt-10 grid md:grid-cols-3 gap-4">
@@ -132,20 +139,20 @@ export default function DiscoverPage() {
       {result && (
         <div className="mt-10 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label="Resultados no PubMed" />
-            <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Últimos 5 anos" />
+            <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label="Resultados com os filtros" />
+            <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Publicados nos últimos 5 anos, dentro do recorte" />
             <Metric value={result.sources.pubmed.systematicReviews.toLocaleString("pt-BR")} label="Revisões sistemáticas" />
             <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString("pt-BR")} label="Ensaios clínicos" />
           </section>
 
           <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
             <div className="bg-white border border-line rounded-2xl p-6">
-              <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano</p>
+              <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano completo</p><p className="text-xs text-ink-soft mt-2">O ano atual é excluído da tendência para evitar uma comparação incompleta.</p>
               <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
                 {result.timeline.map((item) => (
                   <div key={item.year} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
                     <span className="text-[10px] text-ink-soft">{item.count}</span>
-                    <div className="w-full max-w-10 bg-teal rounded-t-sm" style={{ height: `${Math.max(4, (item.count / maxTimeline) * 170)}px` }} />
+                    <div className="w-full max-w-10 bg-teal rounded-t-sm" style={{ height: `${item.count === 0 ? 0 : Math.max(4, (item.count / maxTimeline) * 170)}px` }} />
                     <span className="text-[10px] text-ink-soft">{item.year}</span>
                   </div>
                 ))}
@@ -157,13 +164,16 @@ export default function DiscoverPage() {
                 <p className="text-xs uppercase tracking-wider text-teal">Leitura do tema</p>
                 <h2 className="font-display text-2xl mt-2">{breadthLabels[result.signals.breadth]}</h2>
                 <p className="text-sm text-ink-soft mt-2">
-                  Tendência: <strong className="text-ink">{trendLabels[result.signals.trend]}</strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}% dos resultados recuperados estão nos últimos cinco anos.
+                  Tendência: <strong className="text-ink">{trendLabels[result.signals.trend]}</strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}% do recorte selecionado foi publicado nos últimos cinco anos.
                 </p>
+                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? "Há bastante literatura neste recorte. Defina uma população, um contexto e um desfecho para tornar a pergunta mais precisa." : result.signals.breadth === "scarce" ? "Poucos registros foram encontrados. Teste sinônimos e termos em inglês, confira os filtros e leia os estudos antes de interpretar isso como oportunidade." : result.signals.breadth === "niche" ? "O recorte é específico. Confira se há estudos suficientes para o desenho que você pretende executar." : "O volume permite uma exploração inicial. Leia os estudos e identifique diferenças de população, método e desfechos."}</p>
+                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? "A produção aumentou nos anos completos analisados; isso não mede qualidade nem originalidade." : result.signals.trend === "insufficient" ? "A amostra anual é pequena para interpretar uma tendência." : "A tendência descreve volume de publicação, não relevância clínica."}</p>
+                <p className="text-xs text-ink-soft mt-3">A classificação de amplitude é baseada no número de resultados deste recorte; não comprova uma lacuna científica.</p>
               </div>
               <div className="bg-white border border-line rounded-2xl p-5">
                 <p className="text-xs uppercase tracking-wider text-ink-soft">Cobertura complementar</p>
                 <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString("pt-BR")}</p>
-                <p className="text-sm text-ink-soft mt-1">registros recuperados no Crossref para o termo bibliográfico.</p>
+                <p className="text-sm text-ink-soft mt-1">registros aproximados no Crossref, sem os filtros do PubMed. As contagens não são diretamente comparáveis.</p>
               </div>
             </div>
           </section>
@@ -173,7 +183,7 @@ export default function DiscoverPage() {
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Artigos recuperados</p>
                 <h2 className="font-display text-3xl mt-2">Literatura recente do PubMed</h2>
-                <p className="text-sm text-ink-soft mt-2">Os oito artigos mais recentes da busca, com metadados e resumo quando disponível.</p>
+                <p className="text-sm text-ink-soft mt-2">Até oito artigos mais recentes no recorte selecionado, com metadados e resumo quando disponível.</p>
               </div>
               <Link href="/biblioteca" className="border border-line px-4 py-2.5 rounded-card text-sm font-medium hover:border-teal hover:text-teal">
                 Minha biblioteca ({savedPmids.length})
@@ -234,7 +244,7 @@ export default function DiscoverPage() {
                 <p className="text-xs uppercase tracking-widest text-teal">Próxima decisão</p>
                 <h2 className="font-display text-2xl mt-2">Teste recortes mais específicos</h2>
               </div>
-              <Link href={`/meu-trabalho?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">Usar este tema no projeto</Link>
+              <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">Explorar ideias com este tema →</Link>
             </div>
             <div className="grid md:grid-cols-3 gap-3 mt-5">
               {refinements.map((item) => (
@@ -246,7 +256,7 @@ export default function DiscoverPage() {
             </div>
           </section>
 
-          <p className="text-xs text-ink-soft/70">{result.methodology}</p>
+          <details className="bg-white border border-line rounded-card p-4 text-xs text-ink-soft"><summary className="cursor-pointer font-medium">Como interpretar esta busca</summary><p className="mt-3">{result.methodology}</p><p className="mt-2 break-words">Consulta PubMed: {result.filters.searchTerm}</p><p className="mt-2">Consultado até {result.filters.endDate}. Os filtros por tipo dependem da indexação dos artigos.</p></details>
         </div>
       )}
     </div>

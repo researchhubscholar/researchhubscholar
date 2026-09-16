@@ -30,6 +30,7 @@ async function ncbiFetch(url: string, accept = "application/json") {
         "User-Agent": "ResearchHub-Scholar/0.1",
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
 
     lastStatus = response.status;
@@ -67,6 +68,7 @@ async function crossrefCount(term: string): Promise<number | null> {
     const response = await fetch(`${CROSSREF_WORKS}?${params.toString()}`, {
       headers: { "User-Agent": "ResearchHub-Scholar/0.1" },
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -159,25 +161,41 @@ export async function POST(request: NextRequest) {
     }
 
     const currentYear = new Date().getFullYear();
+    const period = body.period ?? "5";
+    const studyType = body.studyType ?? "all";
+    const typeFilters: Record<string, string> = {
+      all: "", systematic: "systematic review[Publication Type]",
+      trial: "clinical trial[Publication Type]", observational: "observational study[Publication Type]",
+      review: "review[Publication Type]", case: "case reports[Publication Type]",
+    };
+    if (!["all", "3", "5", "10"].includes(period) || !Object.prototype.hasOwnProperty.call(typeFilters, studyType)) {
+      return NextResponse.json({ error: "Selecione um período e um tipo de estudo válidos." }, { status: 400 });
+    }
+    const baseTerm = typeFilters[studyType] ? `(${topic}) AND (${typeFilters[studyType]})` : `(${topic})`;
     const startRecentYear = currentYear - 4;
+    const startYear = period === "all" ? null : currentYear - Number(period) + 1;
+    const endDate = new Date().toISOString().slice(0, 10).replaceAll("-", "/");
+    const searchTerm = startYear ? `${baseTerm} AND ("${startYear}/01/01"[Date - Publication] : "${endDate}"[Date - Publication])` : baseTerm;
 
     // Todas as chamadas ao NCBI ficam serializadas. Isso evita ultrapassar o
     // limite público de requisições quando não existe NCBI_API_KEY configurada.
-    const mainSearch = await throttledPubmedSearch(topic, 8, "pub date");
-    const systematic = await throttledPubmedSearch(`(${topic}) AND systematic review[Publication Type]`);
-    const trials = await throttledPubmedSearch(`(${topic}) AND clinical trial[Publication Type]`);
+    const mainSearch = await throttledPubmedSearch(searchTerm, 8, "pub date");
+    const systematic = await throttledPubmedSearch(`(${searchTerm}) AND systematic review[Publication Type]`);
+    const trials = await throttledPubmedSearch(`(${searchTerm}) AND clinical trial[Publication Type]`);
     const recent = await throttledPubmedSearch(
-      `(${topic}) AND (\"${startRecentYear}/01/01\"[Date - Publication] : \"3000\"[Date - Publication])`
+      `(${searchTerm}) AND ("${startRecentYear}/01/01"[Date - Publication] : "${endDate}"[Date - Publication])`
     );
 
     // Crossref é complementar: se cair, o Radar do PubMed continua funcionando.
     const crossref = await crossrefCount(topic);
 
-    const years = Array.from({ length: 6 }, (_, index) => currentYear - 5 + index);
+    // Compara somente anos completos; o ano atual não sugere uma queda artificial.
+    const timelineStart = startYear ?? currentYear - 6;
+    const years = Array.from({ length: currentYear - timelineStart }, (_, index) => timelineStart + index);
     const timeline: YearPoint[] = [];
     for (const year of years) {
       const result = await throttledPubmedSearch(
-        `(${topic}) AND (\"${year}/01/01\"[Date - Publication] : \"${year}/12/31\"[Date - Publication])`
+        `(${baseTerm}) AND ("${year}/01/01"[Date - Publication] : "${year}/12/31"[Date - Publication])`
       );
       timeline.push({ year, count: result.count });
     }
@@ -191,9 +209,11 @@ export async function POST(request: NextRequest) {
     }
 
     const total = mainSearch.count;
-    const trendFirst = timeline.slice(0, 3).reduce((sum, item) => sum + item.count, 0);
-    const trendLast = timeline.slice(-3).reduce((sum, item) => sum + item.count, 0);
-    const trend = trendLast > trendFirst * 1.2 ? "growing" : trendLast < trendFirst * 0.8 ? "declining" : "stable";
+    const half = Math.floor(timeline.length / 2);
+    const trendFirst = timeline.slice(0, half).reduce((sum, item) => sum + item.count, 0);
+    const trendLast = timeline.slice(-half).reduce((sum, item) => sum + item.count, 0);
+    const trend = timeline.length < 2 || trendFirst + trendLast < 20 ? "insufficient"
+      : trendLast > trendFirst * 1.2 ? "growing" : trendLast < trendFirst * 0.8 ? "declining" : "stable";
 
     let breadth: "very_broad" | "broad" | "balanced" | "niche" | "scarce" = "balanced";
     if (total >= 5000) breadth = "very_broad";
@@ -204,6 +224,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       topic,
+      filters: { period, studyType, searchTerm, endDate },
       sources: {
         pubmed: {
           total,
@@ -218,7 +239,7 @@ export async function POST(request: NextRequest) {
       signals: { breadth, trend, recentRatio: total > 0 ? recent.count / total : 0 },
       generatedAt: new Date().toISOString(),
       methodology:
-        "As contagens e artigos são recuperados do PubMed/Crossref a partir dos termos informados. Isso não equivale a uma revisão sistemática e não comprova, isoladamente, originalidade ou lacuna científica.",
+        "As contagens e artigos são recuperados do PubMed/Crossref a partir dos termos informados. As métricas do PubMed respeitam os filtros; o Crossref usa apenas o tema e não é diretamente comparável. A tendência compara blocos de anos completos e é exploratória. Isso não equivale a uma revisão sistemática e não comprova, isoladamente, originalidade ou lacuna científica.",
     });
   } catch (error) {
     console.error("literature/search error", error);

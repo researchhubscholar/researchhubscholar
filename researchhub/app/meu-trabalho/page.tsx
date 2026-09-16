@@ -10,6 +10,7 @@ type Draft = { theme: string; question: string; objective: string; studyType: st
 type SaveState = "idle" | "loading" | "saved" | "local" | "error";
 
 export default function MeuTrabalhoPage() {
+  const [incomingIdea, setIncomingIdea] = useState<Draft | null>(null);
   const [theme, setTheme] = useState("");
   const [question, setQuestion] = useState("");
   const [objective, setObjective] = useState("");
@@ -24,7 +25,14 @@ export default function MeuTrabalhoPage() {
   useEffect(() => { void loadProject(); }, []);
 
   async function loadProject() {
-    const fromUrl = new URLSearchParams(window.location.search).get("tema");
+    const params = new URLSearchParams(window.location.search);
+    const isIdea = params.get("origem") === "ideias";
+    const fromUrl = isIdea ? null : params.get("tema");
+    if (isIdea && params.get("tema")) setIncomingIdea({
+      theme: params.get("tema") || "", question: params.get("pergunta") || "",
+      objective: params.get("objetivo") || "", studyType: params.get("desenho") || "Observacional transversal",
+      population: params.get("populacao") || "", outcome: params.get("desfecho") || "",
+    });
     const supabase = supabaseBrowser();
     const { data: auth } = await supabase.auth.getUser();
 
@@ -64,6 +72,16 @@ export default function MeuTrabalhoPage() {
       } catch {}
     } else if (fromUrl) setTheme(fromUrl);
     setSaveState("local");
+  }
+
+  function applyIdea() {
+    if (!incomingIdea) return;
+    setTheme(incomingIdea.theme); setQuestion(incomingIdea.question);
+    setObjective(incomingIdea.objective); setStudyType(incomingIdea.studyType);
+    setPopulation(incomingIdea.population); setOutcome(incomingIdea.outcome);
+    setProjectId(null); setSaveState("idle"); setIncomingIdea(null);
+    setMessage("Ideia aplicada ao rascunho de um novo projeto. Revise os campos e clique em Salvar projeto.");
+    window.history.replaceState(null, "", window.location.pathname);
   }
 
   const completed = useMemo(() => [theme, question, objective, population, outcome].filter((x) => x.trim()).length, [theme, question, objective, population, outcome]);
@@ -152,6 +170,11 @@ export default function MeuTrabalhoPage() {
           <p className="text-ink-soft mt-3 leading-relaxed">As decisões ficam ligadas ao seu projeto. Ao entrar com uma conta, você pode continuar de outro dispositivo sem perder o progresso.</p>
         </div>
 
+        {incomingIdea && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5" aria-label="Ideia escolhida">
+          <p className="text-xs uppercase tracking-wider text-teal">Ideia escolhida</p><h3 className="font-display text-2xl mt-2">{incomingIdea.theme}</h3>
+          <p className="text-sm text-ink-soft mt-3">Aplique esta proposta a um novo rascunho e revise os campos antes de salvar. Seus projetos já salvos serão preservados.</p>
+          <div className="flex flex-wrap gap-3 mt-4"><button disabled={saveState === "loading"} onClick={applyIdea} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">Criar rascunho com esta ideia</button><button onClick={() => { setIncomingIdea(null); window.history.replaceState(null, "", window.location.pathname); }} className="border border-line rounded-card px-4 py-2">Continuar projeto atual</button></div>
+        </section>}
         <section className="mt-8 space-y-5">
           <Field label="Tema do trabalho" value={theme} setValue={setTheme} placeholder="Ex.: associação entre semaglutida e sintomas depressivos" />
           <div className="bg-white border border-line rounded-2xl p-6">
