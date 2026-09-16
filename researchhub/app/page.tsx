@@ -59,14 +59,18 @@ export default function ScholarHomePage() {
       </section>
 
       <section className="border-t border-line py-14 md:py-20">
-        <div className="max-w-2xl"><p className="text-xs uppercase tracking-widest text-teal font-semibold">Como funciona</p><h2 className="font-display text-3xl md:text-4xl mt-3">Uma linha de raciocínio científico, não uma caixa de texto de IA.</h2></div>
+        <div className="max-w-2xl"><p className="text-xs uppercase tracking-widest text-teal font-semibold">Como funciona</p><h2 className="font-display text-3xl md:text-4xl mt-3">Cada etapa dá direção à próxima.</h2></div>
         <div className="grid md:grid-cols-4 gap-4 mt-9">
           {steps.map((step) => <div key={step.n} className="bg-white border border-line rounded-card p-5"><span className="font-mono text-xs text-teal">{step.n}</span><h3 className="font-display text-xl mt-4">{step.title}</h3><p className="text-sm text-ink-soft leading-relaxed mt-2">{step.text}</p></div>)}
         </div>
       </section>
 
+      <section className="mb-12 grid md:grid-cols-2 gap-5">
+        <div className="bg-white border border-line rounded-2xl p-7"><p className="text-xs uppercase tracking-widest text-teal">Para quem está começando</p><h2 className="font-display text-3xl mt-3">Mais clareza para escolher e executar.</h2><p className="text-sm text-ink-soft mt-4 leading-relaxed">Organize seu TCC, artigo ou projeto de residência. Compare caminhos e desenvolva pergunta, objetivos, critérios e métodos no seu ritmo.</p><Link href="/cadastro" className="inline-block text-teal font-medium mt-5">Criar meu espaço de pesquisa →</Link></div>
+        <div className="bg-teal-soft border border-teal/20 rounded-2xl p-7"><p className="text-xs uppercase tracking-widest text-teal">No contexto da residência</p><h2 className="font-display text-3xl mt-3">Decisões organizadas para discutir com o orientador.</h2><p className="text-sm text-ink-soft mt-4 leading-relaxed">Registre o raciocínio do projeto e exporte a estrutura do protocolo para revisão. Um percurso individual que pode apoiar o desenvolvimento acadêmico dos residentes.</p><Link href="/ideias?tema=sleep%20quality%20medical%20residents" className="inline-block text-teal font-medium mt-5">Explorar um tema de residência →</Link></div>
+      </section>
       <section className="bg-ink text-white rounded-2xl p-8 md:p-12 grid md:grid-cols-[1fr_auto] gap-8 items-center">
-        <div><p className="text-xs uppercase tracking-widest text-teal-soft">Protótipo clínico-acadêmico</p><h2 className="font-display text-3xl md:text-4xl mt-3">Teste com um tema real da sua área.</h2><p className="text-white/70 mt-3 max-w-2xl">O sistema não declara lacunas científicas automaticamente. Ele mostra sinais da literatura para apoiar uma decisão que continua sendo científica e humana.</p></div>
+        <div><p className="text-xs uppercase tracking-widest text-teal-soft">Pesquisa com direção</p><h2 className="font-display text-3xl md:text-4xl mt-3">Teste com um tema real da sua área.</h2><p className="text-white/70 mt-3 max-w-2xl">Explore sua área, encontre uma pergunta viável e reúna as decisões do protocolo em um só lugar. A literatura e a orientação científica acompanham esse percurso.</p></div>
         <Link href="/descobrir" className="bg-white text-ink px-6 py-3 rounded-card font-medium text-center">Abrir Radar</Link>
       </section>
     </div>

@@ -32,7 +32,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               Research<span className="text-teal">Hub</span>{" "}
               <span className="text-xs font-sans uppercase tracking-wider text-ink-soft">Scholar</span>
             </Link>
-            <nav className="text-sm text-ink-soft flex items-center gap-4 md:gap-6">
+            <nav aria-label="Navegação principal" className="text-sm text-ink-soft flex items-center gap-4 md:gap-6">
+              {user && <Link href="/dashboard" className="hover:text-teal hidden sm:block">Meu espaço</Link>}
               <Link href="/descobrir" className="hover:text-teal hidden sm:block">Radar</Link>
               <Link href="/ideias" className="hover:text-teal hidden sm:block">Ideias</Link>
               <Link href="/biblioteca" className="hover:text-teal hidden md:block">Biblioteca</Link>
@@ -50,6 +51,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               )}
             </nav>
           </div>
+          <nav aria-label="Ferramentas no celular" className="sm:hidden flex gap-5 overflow-x-auto px-6 pb-3 text-sm text-ink-soft">
+            {user && <Link href="/dashboard" className="whitespace-nowrap">Meu espaço</Link>}<Link href="/ideias">Ideias</Link><Link href="/descobrir">Radar</Link><Link href="/biblioteca">Biblioteca</Link><Link href="/meu-trabalho" className="whitespace-nowrap">Meu projeto</Link>
+          </nav>
         </header>
         <main className="mx-auto max-w-6xl px-6 py-8 md:py-10">{children}</main>
         <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-ink-soft/70 border-t border-line mt-16 flex flex-col sm:flex-row gap-2 sm:justify-between">

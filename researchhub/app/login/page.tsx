@@ -47,7 +47,7 @@ export default function LoginPage() {
       const profileParam = profile?.user_type === "resident" ? "resident" : user.user_metadata?.scholar_stage || "student";
       router.push(`/scholar/onboarding?perfil=${encodeURIComponent(profileParam)}`);
     } else {
-      router.push("/meu-trabalho");
+      router.push("/dashboard");
     }
     router.refresh();
   }
