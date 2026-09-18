@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { Article, articleKey, sameArticle } from "@/lib/literature/types";
+import { useLibrary } from "@/lib/literature/use-library";
 
 type Result = {
   topic: string;
@@ -31,7 +32,7 @@ const breadthLabels = {
   scarce: "Literatura escassa",
 };
 const trendLabels = { growing: "Em crescimento", stable: "Estável", declining: "Em redução", insufficient: "Dados insuficientes" };
-const LIBRARY_KEY = "researchhub-scholar-library";
+
 
 export default function DiscoverPage() {
   const params = useSearchParams();
@@ -41,7 +42,9 @@ export default function DiscoverPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedArticles, setSavedArticles] = useState<Article[]>([]);
+  const library = useLibrary();
+  const savedArticles = library.articles;
+  const [projectId, setProjectId] = useState(params.get("projeto") || "");
   const [articles, setArticles] = useState<Article[]>([]);
   const [source, setSource] = useState("pubmed");
   const [sort, setSort] = useState("recent");
@@ -54,15 +57,6 @@ export default function DiscoverPage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]") as Article[];
-      setSavedArticles(stored);
-    } catch {
-      setSavedArticles([]);
-    }
-  }, []);
 
   async function analyze(e: React.FormEvent) {
     e.preventDefault();
@@ -90,16 +84,8 @@ export default function DiscoverPage() {
     }
   }
 
-  function saveArticle(article: Article) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]") as Article[];
-      if (stored.some((x) => sameArticle(x, article))) return;
-      const next = [{ ...article, savedAt: new Date().toISOString() }, ...stored];
-      localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
-      setSavedArticles(next);
-    } catch {
-      setError("Não foi possível salvar este artigo no navegador.");
-    }
+  async function saveArticle(article: Article) {
+    await library.saveArticle(article, projectId || null);
   }
 
   async function browse(nextSource: string, nextSort: string, offset = 0) {
@@ -153,6 +139,11 @@ export default function DiscoverPage() {
       {result && (result.topic !== topic.trim() || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
 
+      <section className="mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
+        {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}
+        {library.error && <p role="alert" className="text-sm text-red-700 mt-3">{library.error}</p>}
+        {library.message && <p role="status" className="text-sm text-teal mt-3">{library.message}</p>}
+      </section>
       <section className="mt-6 bg-white border border-line rounded-2xl p-5">
         <h2 className="font-display text-xl">Já encontrou um artigo em outro lugar?</h2>
         <p className="text-sm text-ink-soft mt-2">Busque pelo DOI, PMID ou link do PubMed/doi.org, independentemente dos resultados do Radar.</p>
@@ -165,7 +156,7 @@ export default function DiscoverPage() {
           <h3 className="font-medium">{lookupArticle.title}</h3>
           <p className="text-xs text-ink-soft mt-2">{lookupArticle.journal} · {lookupArticle.year} · {lookupArticle.pmid ? `PMID ${lookupArticle.pmid}` : `DOI ${lookupArticle.doi}`}</p>
           {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer">Ver resumo</summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
-          <button disabled={savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
+          <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
         </div>}
       </section>
 
@@ -277,11 +268,11 @@ export default function DiscoverPage() {
 
                       <button
                         type="button"
-                        disabled={saved}
+                        disabled={saved || library.loading || library.working || !library.userId}
                         onClick={() => saveArticle(article)}
                         className={`shrink-0 self-start px-4 py-2.5 rounded-card text-sm font-medium ${saved ? "bg-teal-soft text-teal" : "bg-ink text-white hover:bg-ink/90"}`}
                       >
-                        {saved ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}
+                        {saved ? "✓ Na biblioteca" : library.working ? "Aguarde..." : "+ Adicionar à biblioteca"}
                       </button>
                     </div>
                   </article>
