@@ -127,7 +127,7 @@ export default function BibliotecaPage() {
         {library.userId && <div className="mt-5 flex flex-wrap gap-4 items-end">
           <label className="text-xs text-ink-soft">Projeto<select aria-label="Filtrar biblioteca por projeto" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os artigos</option><option value="none">Sem projeto associado</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
           <label className="text-xs text-ink-soft flex-1">Buscar na biblioteca<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Título, autor, DOI ou PMID" className="block w-full border border-line px-3 py-2 rounded-card mt-1" /></label>
-          <Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link>
+          <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/ideias?projeto=${projectFilter}` : "/ideias"} className="text-sm text-teal">Explorar ideias com estas leituras →</Link><Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link>
         </div>}
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>

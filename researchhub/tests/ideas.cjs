@@ -1,0 +1,52 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText, filename);
+const { generate, initial, ideaBrief, referenceSignature } = require('../lib/ideas/generate.ts');
+const { readIdeaTransfer, transferKey } = require('../lib/ideas/transfer.ts');
+const a = '11111111-1111-8111-8111-111111111111';
+const b = '22222222-2222-8222-8222-222222222222';
+const token = '33333333-3333-4333-8333-333333333333';
+const context = { ...initial, theme: 'Sono e plantões', specialty: 'Educação médica', interest: 'qualidade do sono', population: 'residentes', setting: 'programa de residência', exposure: 'plantões noturnos', measure: 'escore de sono', access: 'both', uncertainty: 'Diferenças entre instrumentos', startingQuestion: 'Como investigar sono na residência?' };
+const article = { id: a, projectId: null, title: 'Selected article', year: 2025, doi: '10.1234/sleep', pmid: null, abstract: null, doiUrl: 'https://doi.org/10.1234/sleep', pubmedUrl: null, authors: [], journal: 'Journal', publicationTypes: [], pubdate: '2025' };
+const evidence = [{ article, note: { finding: 'My reading note', limitation: 'Small sample' } }];
+const ideas = generate(context, evidence);
+assert.equal(ideas.length, 4);
+for (const idea of ideas) {
+  assert(idea.question.includes(context.measure));
+  assert(idea.outcome.includes(context.measure));
+  assert.equal(idea.references.length, 1);
+  assert.equal(idea.references[0].id, a);
+  assert.equal(idea.references[0].identifier, 'DOI 10.1234/sleep');
+  assert.equal(idea.references[0].hasAbstract, false);
+  assert(idea.references[0].observations.every(value => value.includes('sua anotação')));
+  assert(idea.unresolved.some(value => value.includes(context.uncertainty)));
+  assert(idea.unresolved.some(value => value.includes('não comprova uma lacuna')));
+  assert.equal(idea.plan.length, 4);
+  const brief = ideaBrief(idea);
+  assert(brief.includes(article.title)); assert(brief.includes('My reading note'));
+  assert(brief.includes(context.startingQuestion)); assert(brief.includes('sem geração por IA'));
+}
+const noEvidence = generate({ ...context, access: 'literature' });
+assert.equal(noEvidence.length, 2);
+assert(noEvidence.every(idea => !idea.references.length));
+assert(noEvidence[0].unresolved.some(value => value.includes('Selecione e leia referências')));
+assert.notEqual(generate({ ...context, months: '3' })[2].feasibility, generate({ ...context, months: '12' })[2].feasibility);
+assert.notEqual(referenceSignature(evidence), referenceSignature([{ article, note: { finding: 'Updated note' } }]));
+const two = [...evidence, { article: { ...article, id: b }, note: {} }];
+assert.equal(referenceSignature(two), referenceSignature(two.slice().reverse()));
+const records = new Map();const storage = { getItem: key => records.get(key) || null };
+records.set(transferKey('owner-a', token), JSON.stringify({ ownerId: 'owner-a', draft: { theme: ideas[0].title, question: ideas[0].question, manuscript: ideaBrief(ideas[0]), unrelatedField: 'Not copied' }, referenceIds: [a, a, b, 'invalid'] }));
+const restored = readIdeaTransfer(storage, 'owner-a', token);
+assert.equal(restored.draft.manuscript, ideaBrief(ideas[0]));assert.deepEqual(restored.referenceIds, [a, b]);
+assert.equal(restored.draft.unrelatedField, undefined);
+assert.throws(() => readIdeaTransfer(storage, 'owner-b', token));
+assert.throws(() => readIdeaTransfer(storage, null, token));
+assert.throws(() => readIdeaTransfer(storage, 'owner-a', 'bad-token'));
+records.set(transferKey('owner-b', token), JSON.stringify({ ownerId: 'owner-a', draft: { theme: 'Wrong owner' } }));
+assert.throws(() => readIdeaTransfer(storage, 'owner-b', token));
+records.set(transferKey('owner-a', token), JSON.stringify({ ownerId: 'owner-a', draft: { theme: 'Oversized', methods: 'x'.repeat(30001) } }));
+assert.throws(() => readIdeaTransfer(storage, 'owner-a', token));
+console.log('PASS: resource-aware proposals, specific measures, explicit evidence provenance, missing evidence, changed notes, private handoff and payload limits.');

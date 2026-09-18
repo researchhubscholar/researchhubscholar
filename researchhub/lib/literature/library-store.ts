@@ -98,6 +98,19 @@ export class LibraryStore {
     const result = await this.db.from("evidence_matrix").update({ project_id: projectId }).eq("owner_id", this.ownerId).eq("article_id", id);
     this.check(result.error);
   }
+  async attachUnassigned(ids: string[], projectId: string) {
+    await this.ownedProject(projectId);
+    const articles = (await this.allRows("library_articles")).map(fromArticleRow);
+    let attached = 0, retained = 0, missing = 0;
+    for (const id of new Set(ids)) {
+      const article = articles.find(article => article.id === id);
+      if (!article) { missing++; continue; }
+      if (article.projectId && article.projectId !== projectId) { retained++; continue; }
+      await this.assignProject(id, projectId);
+      attached++;
+    }
+    return { attached, retained, missing };
+  }
   async remove(id: string) {
     const { error } = await this.db.from("library_articles").delete().eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
