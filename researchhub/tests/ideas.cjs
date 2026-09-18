@@ -27,6 +27,7 @@ for (const idea of ideas) {
   assert.equal(idea.plan.length, 4);
   const brief = ideaBrief(idea);
   assert(brief.includes(article.title)); assert(brief.includes('My reading note'));
+  assert(brief.includes(idea.resources)); assert(brief.includes(idea.variables)); assert(brief.includes(idea.difficulty));
   assert(brief.includes(context.startingQuestion)); assert(brief.includes('sem geração por IA'));
 }
 const noEvidence = generate({ ...context, access: 'literature' });
