@@ -27,12 +27,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="pt-BR">
       <body className="font-sans antialiased">
         <header className="border-b border-line bg-paper/95 sticky top-0 z-30 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4">
-            <Link href="/" className="font-display text-xl tracking-tight text-ink whitespace-nowrap">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+            <Link href="/" className="font-display text-lg sm:text-xl tracking-tight text-ink whitespace-nowrap">
               Research<span className="text-teal">Hub</span>{" "}
-              <span className="text-xs font-sans uppercase tracking-wider text-ink-soft">Scholar</span>
+              <span className="hidden sm:inline text-xs font-sans uppercase tracking-wider text-ink-soft">Scholar</span>
             </Link>
-            <nav aria-label="Navegação principal" className="text-sm text-ink-soft flex items-center gap-4 md:gap-6">
+            <nav aria-label="Navegação principal" className="text-sm text-ink-soft flex items-center gap-3 md:gap-5">
               {user && <Link href="/dashboard" className="hover:text-teal hidden sm:block">Meu espaço</Link>}
               <Link href={user ? "/descobrir" : "/radar-demo"} className="hover:text-teal hidden sm:block">{user ? "Radar" : "Testar Radar"}</Link>
               {user ? <Link href="/ideias" className="hover:text-teal hidden sm:block">Ideias</Link> : <><Link href="/como-funciona" className="hover:text-teal hidden lg:block">Como funciona</Link><Link href="/para-residencias" className="hover:text-teal hidden lg:block">Residências</Link><Link href="/planos" className="hover:text-teal hidden md:block">Planos</Link></>}
@@ -55,11 +55,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {(user ? [["/dashboard","Meu espaço"],["/ideias","Ideias"],["/descobrir","Radar"],["/biblioteca","Biblioteca"],["/meu-trabalho","Meu projeto"]] : [["/como-funciona","Como funciona"],["/para-residencias","Residências"],["/planos","Planos"],["/radar-demo","Testar Radar"]]).map(([href,label])=><Link key={href} href={href} className="whitespace-nowrap">{label}</Link>)}
           </nav>
         </header>
-        <main className="mx-auto max-w-6xl px-6 py-8 md:py-10">{children}</main>
-        <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-ink-soft/70 border-t border-line mt-16 flex flex-col sm:flex-row gap-2 sm:justify-between">
-          <div className="flex flex-wrap gap-4"><Link href="/como-funciona">Como funciona</Link><Link href="/para-residencias">Para residências</Link><Link href="/planos">Planos</Link><Link href="/contato">Contato</Link><Link href="/termos">Termos</Link><Link href="/privacidade">Privacidade</Link><Link href="/cancelamento">Cancelamento</Link></div>
-          <span>ResearchHub Scholar — transforme curiosidade em pesquisa estruturada.</span>
-          <span>Ferramenta de apoio acadêmico; não substitui orientação científica ou avaliação ética.</span>
+        <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-10">{children}</main>
+        <footer className="bg-ink text-white mt-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12 grid md:grid-cols-[1.3fr_1fr_1fr] gap-8">
+            <div><Link href="/" className="font-display text-2xl">ResearchHub <span className="text-teal-soft">Scholar</span></Link><p className="text-sm leading-relaxed text-white/60 mt-4 max-w-sm">Transforme curiosidade em pesquisa estruturada, com literatura real e um percurso para desenvolver seu trabalho.</p><p className="text-xs text-white/50 mt-4">Versão em testes · IA e pagamentos ainda não ativados.</p></div>
+            <nav aria-label="Conheça o Scholar" className="flex flex-col gap-3 text-sm text-white/70"><p className="text-xs uppercase tracking-widest text-white mb-1">Conheça</p><Link href="/como-funciona">Como funciona</Link><Link href="/para-residencias">Para residências</Link><Link href="/planos">Planos e franquias</Link><Link href="/radar-demo">Experimentar o Radar</Link></nav>
+            <nav aria-label="Ajuda e informações" className="flex flex-col gap-3 text-sm text-white/70"><p className="text-xs uppercase tracking-widest text-white mb-1">Ajuda e transparência</p><Link href="/contato">Contato</Link><Link href="/termos">Termos de uso</Link><Link href="/privacidade">Privacidade</Link><Link href="/cancelamento">Cancelamento</Link></nav>
+          </div><div className="border-t border-white/10 mx-auto max-w-6xl px-4 sm:px-6 py-6 text-xs text-white/50">Ferramenta de apoio acadêmico; não substitui orientação científica ou avaliação ética.</div>
         </footer>
       </body>
     </html>
