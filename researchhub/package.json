@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:library": "node tests/library-store.cjs",
-    "test:ideas": "node tests/ideas.cjs"
+    "test:ideas": "node tests/ideas.cjs",
+    "test:access": "node tests/access.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
@@ -25,6 +26,7 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "@electric-sql/pglite": "^0.5.8"
   }
 }

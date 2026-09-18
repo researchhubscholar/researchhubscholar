@@ -57,6 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </header>
         <main className="mx-auto max-w-6xl px-6 py-8 md:py-10">{children}</main>
         <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-ink-soft/70 border-t border-line mt-16 flex flex-col sm:flex-row gap-2 sm:justify-between">
+          <div className="flex gap-4"><Link href="/licenca">Licença e franquia</Link><Link href="/residencia">Residências</Link></div>
           <span>ResearchHub Scholar — transforme curiosidade em pesquisa estruturada.</span>
           <span>Ferramenta de apoio acadêmico; não substitui orientação científica ou avaliação ética.</span>
         </footer>
