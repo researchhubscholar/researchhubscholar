@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -68,7 +69,7 @@ export default function CadastroPage() {
       <h1 className="font-display text-4xl text-ink mt-2">Criar conta</h1>
       <p className="text-ink-soft mt-3">Salve seus temas, artigos, matriz de evidências e continue seu projeto de qualquer dispositivo.</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 bg-white border border-line rounded-2xl p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="mt-8 bg-white border border-line rounded-2xl p-6 space-y-5"><label className="flex gap-3 text-sm text-ink-soft"><input type="checkbox" required className="mt-1" /><span>Li os <Link href="/termos" target="_blank" className="text-teal underline">termos de uso</Link> e o <Link href="/privacidade" target="_blank" className="text-teal underline">aviso de privacidade</Link> da fase de testes.</span></label>
         <div>
           <label className="text-sm text-ink-soft">Nome completo</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />

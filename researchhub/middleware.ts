@@ -29,7 +29,17 @@ export async function middleware(request: NextRequest) {
 
   // O Scholar só precisa renovar a sessão. Não consulta tabelas do
   // ResearchHub institucional, pois usa um banco Supabase independente.
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user && request.nextUrl.pathname.startsWith("/api/literature/")) {
+    const denied = NextResponse.json({error:"Entre na sua conta para usar as ferramentas. Experimente o Radar público sem cadastro."},{status:401});
+    response.cookies.getAll().forEach(cookie => denied.cookies.set(cookie));
+    return denied;
+  }
+  const privateRoutes=["/descobrir","/ideias","/biblioteca","/meu-trabalho","/licenca","/residencia"];
+  if(!user && privateRoutes.some(path=>request.nextUrl.pathname===path||request.nextUrl.pathname.startsWith(path+"/"))) {
+    const target=request.nextUrl.clone();target.pathname=request.nextUrl.pathname==="/descobrir"?"/radar-demo":"/login";target.search="";
+    const redirected=NextResponse.redirect(target);response.cookies.getAll().forEach(cookie=>redirected.cookies.set(cookie));return redirected;
+  }
 
   return response;
 }

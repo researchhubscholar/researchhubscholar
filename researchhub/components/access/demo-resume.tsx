@@ -1,0 +1,4 @@
+"use client";
+import {useEffect,useState} from "react";
+import Link from "next/link";
+export default function DemoResume(){const [topic,setTopic]=useState("");useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem("scholar-demo-topic")||"null");if(saved&&typeof saved.topic==="string"&&saved.topic.length<=300&&Date.now()-saved.at<7*86400000)setTopic(saved.topic);}catch{}},[]);if(!topic)return null;function clear(){try{localStorage.removeItem("scholar-demo-topic");}catch{}setTopic("");}return <section className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><p>Você experimentou o Radar neste navegador com <strong>{topic}</strong>.</p><div className="flex gap-4 mt-3"><Link href={`/descobrir?tema=${encodeURIComponent(topic)}`} onClick={clear} className="text-teal underline">Continuar essa busca</Link><button onClick={clear} className="text-ink-soft underline">Dispensar</button></div></section>;}

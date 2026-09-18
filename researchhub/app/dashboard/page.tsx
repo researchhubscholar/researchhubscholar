@@ -1,3 +1,4 @@
+import DemoResume from "@/components/access/demo-resume";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -20,7 +21,7 @@ export default async function DashboardPage() {
   const projects = projectResult.data ?? [];
   const latest = projects[0];
   const name = profile?.name?.split(" ")[0] || user.user_metadata?.name?.split(" ")[0] || "pesquisador";
-  return <div className="max-w-5xl mx-auto">
+  return <div className="max-w-5xl mx-auto"><DemoResume />
     <section className="bg-ink text-white rounded-2xl p-6 md:p-10 relative overflow-hidden">
       <p className="text-xs uppercase tracking-widest text-teal-soft">Seu espaço de pesquisa</p>
       <h1 className="font-display text-4xl md:text-5xl mt-4">Olá, {name}. Qual é o próximo passo?</h1>
