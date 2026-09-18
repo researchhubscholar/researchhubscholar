@@ -143,3 +143,13 @@ button {
  .public-heading {grid-template-columns:1fr;padding:.75rem 0 2.5rem;gap:1.5rem;}.public-heading h1 {font-size:2.5rem;}.public-heading-mark {min-height:0;padding:1.5rem;}.public-heading-mark strong {font-size:1.8rem;margin:1rem 0;}.public-heading-mark>span:last-child {display:none;}.public-thread {margin:1rem 0 0;}.public-cta {flex-direction:column;align-items:stretch;padding:1.75rem;margin-top:2.5rem;}.public-cta h2 {font-size:1.9rem;}.journey-step {gap:1rem;grid-template-columns:35px 1fr;padding:1.75rem 0;}.journey-number {width:34px;height:34px;border-radius:10px;font-size:.75rem;}.journey-step h2 {font-size:1.65rem;}.journey-step aside {padding:1.2rem;}.feature-grid,.residency-preview,.pricing-grid,.legal-layout,.public-contact {grid-template-columns:1fr;}.feature-card {padding:1.5rem;}.pricing-card {padding:1.75rem;}.plan-price {font-size:2.2rem;}.legal-index {position:static;}.legal-index nav {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.legal-content {padding:0 1.5rem;}.home-preview {transform:none;}.public-demo form {padding:1.25rem;}
 }
 @media(prefers-reduced-motion:reduce) {html {scroll-behavior:auto;}.public-button {transition:none;}.public-button:hover {transform:none;}}
+
+/* Clear return navigation and a persistent public plans shortcut. */
+.site-return {margin-bottom:1.5rem;}
+.site-return-link {display:inline-flex;align-items:center;gap:.6rem;font-size:.8rem;color:#3d4a6b;border:1px solid #dce5e5;border-radius:999px;padding:.6rem 1rem;background:white;}
+.site-return-link:hover {color:#0f6e66;border-color:#0f6e6660;}
+.floating-plans {position:fixed;right:max(1.25rem,env(safe-area-inset-right));bottom:calc(1.25rem + env(safe-area-inset-bottom));z-index:40;display:inline-flex;align-items:center;gap:.9rem;background:#0f6e66;color:white;font-size:.85rem;font-weight:600;padding:.9rem 1.25rem;border:1px solid #ffffff40;border-radius:999px;box-shadow:0 8px 25px #14213d40;}
+.floating-plans:hover {background:#0b5953;}
+.site-return-link:focus-visible,.floating-plans:focus-visible {outline:3px solid #0f6e66;outline-offset:4px;}
+body:has(.floating-plans) footer {padding-bottom:5rem;}
+@media(max-width:640px) {.floating-plans {right:1rem;font-size:.8rem;padding:.8rem 1rem;}.site-return {margin-bottom:1rem;}}

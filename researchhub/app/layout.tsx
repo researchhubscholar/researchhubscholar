@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { supabaseServer } from "@/lib/supabase/server";
+import SiteShortcuts from "@/components/public/site-shortcuts";
 import LogoutButton from "@/components/LogoutButton";
 
 export const metadata: Metadata = {
@@ -55,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {(user ? [["/dashboard","Meu espaço"],["/ideias","Ideias"],["/descobrir","Radar"],["/biblioteca","Biblioteca"],["/meu-trabalho","Meu projeto"]] : [["/como-funciona","Como funciona"],["/para-residencias","Residências"],["/planos","Planos"],["/radar-demo","Testar Radar"]]).map(([href,label])=><Link key={href} href={href} className="whitespace-nowrap">{label}</Link>)}
           </nav>
         </header>
-        <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-10"><SiteShortcuts />{children}</main>
         <footer className="bg-ink text-white mt-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12 grid md:grid-cols-[1.3fr_1fr_1fr] gap-8">
             <div><Link href="/" className="font-display text-2xl">ResearchHub <span className="text-teal-soft">Scholar</span></Link><p className="text-sm leading-relaxed text-white/60 mt-4 max-w-sm">Transforme curiosidade em pesquisa estruturada, com literatura real e um percurso para desenvolver seu trabalho.</p><p className="text-xs text-white/50 mt-4">Versão em testes · IA e pagamentos ainda não ativados.</p></div>
