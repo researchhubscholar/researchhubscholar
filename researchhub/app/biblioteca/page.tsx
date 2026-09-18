@@ -31,13 +31,14 @@ export default function BibliotecaPage() {
     (projectFilter === "all" || (projectFilter === "none" ? !article.projectId : article.projectId === projectFilter)) &&
     `${article.title} ${article.authors.join(" ")} ${article.doi || ""} ${article.pmid || ""}`.toLowerCase().includes(query.toLowerCase()));
   const notes = { ...library.notes, ...drafts };
+  const [comparison, setComparison] = useState<string[]>([]);
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
   const [loadingPmid, setLoadingPmid] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setDrafts({}); setDirty({}); setSuggestions({}); setErrors({}); setLoadingPmid(null);
+    setComparison([]); setDrafts({}); setDirty({}); setSuggestions({}); setErrors({}); setLoadingPmid(null);
   }, [library.userId]);
   const hasUnsaved = Object.values(dirty).some(Boolean);
   useEffect(() => {
@@ -143,6 +144,9 @@ export default function BibliotecaPage() {
         <button onClick={() => setView("matrix")} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === "matrix" ? "border-teal text-teal" : "border-transparent text-ink-soft"}`}>Matriz de evidências</button>
       </div>
 
+      {view === "matrix" && library.userId && !library.loading && <section className="mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare suas leituras</h2><p className="text-sm text-ink-soft mt-2">Selecione até cinco artigos deste recorte para comparar suas anotações. As interpretações são suas; confira os resultados no artigo.</p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
+      {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3">Anotações do usuário; campos em edição estão indicados como não salvos.</caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}{dirty[article.id] && <span className="block text-xs text-amber">Alterações não salvas</span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Achado", "finding"], ["Limitação", "limitation"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft">{notes[article.id]?.[key] || "Ainda não anotado"}</td>)}</tr>)}</tbody></table></div>}</section>}
+
       {library.loading ? <p className="mt-8 text-sm text-ink-soft">Carregando artigos...</p> : !library.userId ? null : articles.length === 0 ? (
         <div className="mt-8 border border-dashed border-line rounded-2xl p-10 text-center bg-white">
           <p className="font-display text-2xl">{library.articles.length ? "Nenhum artigo corresponde a este filtro." : "Sua biblioteca ainda está vazia."}</p>
@@ -181,7 +185,7 @@ export default function BibliotecaPage() {
       ) : (
         <div className="mt-6 space-y-5">
           <div className="bg-amber-soft border border-amber/20 rounded-card p-4 text-sm text-ink-soft">
-            A pré-análise usa apenas o abstract e o tipo de publicação. Ela ajuda a organizar a leitura, mas não substitui a leitura crítica do artigo completo. Confirme cada sugestão antes de incorporar.
+            As sugestões abaixo vêm de regras aplicadas ao resumo; os campos editáveis são suas anotações e interpretações. A pré-análise usa apenas o abstract e o tipo de publicação. Ela ajuda a organizar a leitura, mas não substitui a leitura crítica do artigo completo. Confirme cada sugestão antes de incorporar.
           </div>
 
           {articles.map((article, index) => {

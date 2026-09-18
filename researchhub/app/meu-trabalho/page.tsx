@@ -6,6 +6,8 @@ import { readIdeaTransfer } from "@/lib/ideas/transfer";
 import { LibraryStore } from "@/lib/literature/library-store";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
+import { protocolChecks } from "@/lib/research/checks";
+
 type Draft = { theme: string; question: string; objective: string; studyType: string; population: string; outcome: string; hypothesis: string; inclusion: string; exclusion: string; variables: string; methods: string; analysis: string; ethics: string; manuscript: string };
 type SaveState = "loading" | "idle" | "saved" | "local" | "error";
 const empty: Draft = { theme: "", question: "", objective: "", studyType: "Observacional transversal", population: "", outcome: "", hypothesis: "", inclusion: "", exclusion: "", variables: "", methods: "", analysis: "", ethics: "", manuscript: "" };
@@ -165,6 +167,7 @@ export default function MeuTrabalhoPage() {
     const link = document.createElement("a"); link.href = url; link.download = "protocolo-scholar.txt"; link.click(); URL.revokeObjectURL(url);
   }
   const notes = [
+    ...protocolChecks(draft),
     ...groups.filter(g => !g.keys.every(k => draft[k].trim())).map(g => `Complete o bloco ${g.title.toLowerCase()} para registrar as decisões pendentes.`),
     ...(draft.studyType.includes("Revisão") ? ["Na revisão, defina bases, estratégia de busca, critérios de seleção e avaliação crítica."] : ["No estudo com dados ou participantes, registre autorizações, proteção dos dados e avaliação ética aplicável."]),
     "Confira com o orientador se pergunta, objetivo, desfecho e método respondem à mesma questão.",
@@ -184,7 +187,7 @@ export default function MeuTrabalhoPage() {
           {g.id === "objetivos" && <Field label={labels.hypothesis} value={draft.hypothesis} change={v => change("hypothesis", v)} placeholder="Registre uma hipótese apenas quando fizer sentido para o desenho." />}</div>
         </section>)}
       </fieldset>
-      <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><div className="flex flex-wrap justify-between items-center gap-3"><div><p className="text-xs uppercase text-teal">Revisão guiada</p><h3 className="font-display text-xl mt-2">O que falta decidir?</h3></div><button onClick={() => setReview(v => !v)} className="border border-teal/30 rounded-card px-4 py-2 text-sm">{review ? "Recolher checklist" : "Revisar estrutura"}</button></div>{review && <div className="mt-4 space-y-3">{notes.map(note => <p key={note} className="text-sm text-ink-soft">• {note}</p>)}<p className="text-xs text-ink-soft">Checklist de preenchimento e planejamento; não é uma avaliação automatizada da validade do estudo.</p></div>}</section>
+      <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><div className="flex flex-wrap justify-between items-center gap-3"><div><p className="text-xs uppercase text-teal">Revisão guiada</p><h3 className="font-display text-xl mt-2">O que falta decidir?</h3></div><button onClick={() => setReview(v => !v)} className="border border-teal/30 rounded-card px-4 py-2 text-sm">{review ? "Recolher checklist" : "Revisar estrutura"}</button></div>{review && <div className="mt-4 space-y-3">{notes.map(note => <p key={note} className="text-sm text-ink-soft">• {note}</p>)}<p className="text-xs text-ink-soft">Verificações por regras de texto podem deixar passar diferenças de sentido ou apontar sinônimos. Confira os itens com seu orientador; não indicam validação científica.</p></div>}</section>
       <div className="mt-6 bg-ink text-white rounded-2xl p-6 flex flex-col md:flex-row gap-5 justify-between items-start"><div><p className="text-xs uppercase text-teal-soft">Seu protocolo</p><h3 className="font-display text-2xl mt-2">{draft.theme || "Um projeto em construção"}</h3><p className="text-sm text-white/70 mt-3">{draft.question || "Comece pela pergunta que você quer responder."}</p></div><div className="flex gap-3 flex-wrap shrink-0"><button onClick={saveDraft} disabled={saveState === "loading"} className="bg-white text-ink rounded-card px-4 py-3 font-medium disabled:opacity-50">{saveState === "loading" ? "Aguarde…" : projectId ? "Salvar alterações" : "Salvar projeto"}</button>{projectId && <Link href={`/biblioteca?projeto=${projectId}`} className="border border-white/30 rounded-card px-4 py-3">Artigos deste projeto</Link>}<button onClick={exportProtocol} disabled={saveState === "loading" || !draft.theme.trim()} className="border border-white/30 rounded-card px-4 py-3 disabled:opacity-50">Exportar protocolo</button></div></div>
     </div>
   </div>;

@@ -7,6 +7,9 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { Context, Idea, initial, generate, ideaBrief, referenceSignature } from "@/lib/ideas/generate";
 import { useLibrary } from "@/lib/literature/use-library";
 import { transferKey } from "@/lib/ideas/transfer";
+import { diagnose } from "@/lib/research/checks";
+import IdeaHistory from "@/components/ideas/history";
+import { historyError, SavedIdea } from "@/lib/ideas/history";
 import { useRouter } from "next/navigation";
 
 export default function IdeasPage() {
@@ -32,6 +35,12 @@ export default function IdeasPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [revisionReason, setRevisionReason] = useState("");
+  const series = useRef<Record<string, string>>({});
+  const [diagnosisVisible, setDiagnosisVisible] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -41,6 +50,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
       setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
+      series.current = {}; setRevisionReason("");
       setContext({ ...initial }); setMessage(""); setProjectError(""); touched.current.clear();
     }
     previousOwner.current = library.userId;
@@ -83,6 +93,29 @@ export default function IdeasPage() {
     setSnapshot({ ...c }); setEvidenceSnapshot(referenceSignature(useEvidence));
     setIdeas(generate(c, useEvidence)); setSelected([]); setEditing(null); setMessage("");
   }
+  async function saveVersion(idea: Idea) {
+    if (!library.userId || !snapshot || stale || savingRef.current) return;
+    const owner = library.userId; savingRef.current = true; setSaving(true); setMessage("");
+    try {
+      const client = supabaseBrowser();
+      const { data: auth, error: authError } = await client.auth.getUser();
+      if (authError || auth.user?.id !== owner) throw new Error("Sua sessão mudou. Recarregue a página.");
+      const seriesId = series.current[idea.id] || crypto.randomUUID();
+      const { error } = await client.from("idea_versions").insert({ owner_id: owner, series_id: seriesId, context: snapshot, proposal: idea, evidence_signature: evidenceSnapshot, reason: revisionReason.trim() });
+      if (error) throw error;
+      if (previousOwner.current !== owner) return;
+      series.current[idea.id] = seriesId; setHistoryRefresh(value => value + 1); setRevisionReason(""); setMessage("Versão salva na sua conta. Os próximos ajustes podem ser salvos sem substituir esta versão.");
+    } catch (error) { if (previousOwner.current === owner) setMessage(historyError(error as { code?: string })); }
+    finally { savingRef.current = false; setSaving(false); }
+  }
+  function restoreVersion(row: SavedIdea) {
+    if (savingRef.current) return;
+    if (ideas.length && !window.confirm("Retomar esta versão? Baixe ou salve os ajustes atuais antes de continuar.")) return;
+    setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setSelected([]); setEditing(null);
+    setReferenceIds(row.proposal.references.map(ref => ref.id)); setEvidenceSnapshot(row.evidence_signature);
+    series.current = { [row.proposal.id]: row.series_id }; setRevisionReason("");
+    setMessage("Versão retomada. Se as leituras ou anotações mudaram, atualize as ideias para usar o contexto atual. A versão anterior continua no histórico.");
+  }
   function download(idea: Idea) {
     const url = URL.createObjectURL(new Blob([ideaBrief(idea)], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a"); link.href = url; link.download = "proposta-scholar.txt"; link.click(); URL.revokeObjectURL(url);
@@ -104,7 +137,7 @@ export default function IdeasPage() {
     <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa</p>
     <h1 className="font-display text-4xl md:text-5xl mt-3">Uma ideia que cabe na sua realidade.</h1>
     <p className="text-ink-soft mt-4 max-w-3xl leading-relaxed">Combine seu interesse com o prazo e os recursos disponíveis. Receba propostas estruturadas para discutir com seu orientador e explorar na literatura.</p>
-    <section className="mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between"><div><p className="text-xs uppercase tracking-wider text-teal">Um ponto de partida concreto</p><h2 className="font-display text-xl mt-2">Como investigar o sono durante a residência?</h2><p className="text-sm text-ink-soft mt-2">Explore o exemplo, ajuste as condições e compare caminhos de execução.</p></div><button disabled={profileLoading || library.loading || projectLoading} onClick={() => { const example: Context = { ...initial, theme: "Sono e jornada de plantões", specialty: "Educação médica", interest: "qualidade do sono durante a residência", population: "residentes médicos", stage: "resident", months: "6", access: "both", exposure: "número de plantões noturnos por mês", measure: "escore de qualidade do sono", setting: "um programa de residência médica" }; setContext(example); setProjectId(""); setReferenceIds([]); explore(example, []); }} className="bg-teal text-white rounded-card px-4 py-3 text-sm font-medium shrink-0 disabled:opacity-50">Explorar exemplo →</button></section>
+    <section className="mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between"><div><p className="text-xs uppercase tracking-wider text-teal">Um ponto de partida concreto</p><h2 className="font-display text-xl mt-2">Como investigar o sono durante a residência?</h2><p className="text-sm text-ink-soft mt-2">Explore o exemplo, ajuste as condições e compare caminhos de execução.</p></div><button disabled={profileLoading || library.loading || projectLoading} onClick={() => { const example: Context = { ...initial, theme: "Sono e jornada de plantões", specialty: "Educação médica", interest: "qualidade do sono durante a residência", population: "residentes médicos", stage: "resident", months: "6", access: "both", exposure: "número de plantões noturnos por mês", measure: "escore de qualidade do sono", setting: "um programa de residência médica" }; series.current = {}; setContext(example); setProjectId(""); setReferenceIds([]); explore(example, []); }} className="bg-teal text-white rounded-card px-4 py-3 text-sm font-medium shrink-0 disabled:opacity-50">Explorar exemplo →</button></section>
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <p className="text-xs uppercase tracking-wider text-teal">Conecte seu trabalho</p>
       <h2 className="font-display text-2xl mt-2">Comece pelo projeto e pelas leituras que você já tem.</h2>
@@ -130,7 +163,7 @@ export default function IdeasPage() {
       </>}
       {library.error && <p role="alert" className="mt-4 text-sm text-red-700">{library.error} <button onClick={() => window.location.reload()} className="underline">Tentar novamente</button></p>}
     </section>
-    <form onSubmit={e => { e.preventDefault(); explore(context); }} className="mt-8 bg-white border border-line rounded-2xl p-5 md:p-6">
+    <form onSubmit={e => { e.preventDefault(); setDiagnosisVisible(true); explore(context); }} className="mt-8 bg-white border border-line rounded-2xl p-5 md:p-6">
       <p className="text-xs text-ink-soft mb-4">{profileLoading ? "Carregando preferências do perfil…" : "Área e etapa de formação aproveitam seu perfil quando disponível. Você pode ajustar todos os campos."}</p>
       <div className="grid md:grid-cols-2 gap-4">
         <Text label="Tema vindo do Radar ou tema de interesse" value={context.theme} change={v => update("theme", v)} placeholder="Opcional: sleep quality medical residents" />
@@ -141,14 +174,24 @@ export default function IdeasPage() {
         <Select label="Prazo disponível" value={context.months} change={v => update("months", v)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} />
         <Select label="Acesso disponível" value={context.access} change={v => update("access", v)} options={[["literature", "Apenas literatura"], ["records", "Literatura e registros clínicos"], ["patients", "Literatura e participantes"], ["both", "Literatura, registros e participantes"]]} />
       </div>
-      <details className="mt-5 border-t border-line pt-4"><summary className="text-sm text-teal font-medium cursor-pointer">Personalizar a pergunta e as medidas</summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label="Condição ou exposição que deseja estudar" value={context.exposure} change={v => update("exposure", v)} placeholder="Ex.: número de plantões noturnos por mês" /><Text label="Resultado que deseja medir" value={context.measure} change={v => update("measure", v)} placeholder="Ex.: escore de qualidade do sono" /><Text label="Local ou contexto do estudo" value={context.setting} change={v => update("setting", v)} placeholder="Ex.: um programa de residência médica" /></div></details>
+      <details open className="mt-5 border-t border-line pt-4"><summary className="text-sm text-teal font-medium cursor-pointer">Delimite a pergunta antes de gerar</summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label="Condição ou exposição que deseja estudar" value={context.exposure} change={v => update("exposure", v)} placeholder="Ex.: número de plantões noturnos por mês" /><Text required label="Resultado que deseja medir" value={context.measure} change={v => update("measure", v)} placeholder="Ex.: escore de qualidade do sono" /><Text required label="Local ou contexto do estudo" value={context.setting} change={v => update("setting", v)} placeholder="Ex.: um programa de residência médica" /></div></details>
+      <fieldset className="mt-5 border-t border-line pt-4"><legend className="text-sm font-medium text-teal">Diagnóstico de viabilidade</legend><div className="grid md:grid-cols-2 gap-4 mt-3">
+        <Text label="Instrumento ou forma de medir" value={context.instrument || ""} change={v => update("instrument", v)} placeholder="Ex.: PSQI; confirmar adequação à população" />
+        <Text label="Participantes ou registros acessíveis" value={context.availableSample || ""} change={v => update("availableSample", v)} placeholder="Ex.: cerca de 40 residentes; confirmar disponibilidade" />
+        <Select label="Orientação disponível" value={context.support || "unknown"} change={v => update("support", v)} options={[["unknown", "Ainda preciso confirmar"], ["yes", "Tenho orientador disponível"], ["no", "Ainda não tenho orientador"]]} />
+        <Select label="Acesso autorizado ao serviço ou aos dados" value={context.authorization || "unknown"} change={v => update("authorization", v)} options={[["unknown", "Ainda preciso confirmar"], ["confirmed", "Acesso confirmado; verificar avaliação ética"], ["pending", "Depende de autorização"], ["na", "Não se aplica: apenas literatura"]]} />
+        <Text label="Exigências do curso ou serviço" value={context.requirements || ""} change={v => update("requirements", v)} placeholder="Ex.: artigo original; apresentação em dezembro" />
+      </div><button type="button" onClick={() => setDiagnosisVisible(true)} className="text-sm text-teal underline mt-4">Conferir minhas condições</button>
+      {diagnosisVisible && <div role="status" className="bg-paper p-4 rounded-card mt-3 text-sm"><p className="font-medium">Pontos para confirmar</p><ul className="list-disc pl-5 space-y-2 mt-2">{diagnose(context).map(item => <li key={item}>{item}</li>)}</ul>{!diagnose(context).length && <p className="mt-2">As condições principais foram informadas. A viabilidade ainda deve ser confirmada com o orientador.</p>}</div>}</fieldset>
       <label className="block text-sm font-medium mt-5">O que você deseja esclarecer ou aprofundar?<textarea maxLength={1500} rows={3} value={context.uncertainty || ""} onChange={e => update("uncertainty", e.target.value)} placeholder="Ex.: os estudos que li usam populações diferentes da minha; quero avaliar se a medida faz sentido no meu serviço." className="block w-full border border-line rounded-card p-3 bg-paper mt-2 font-normal" /></label>
       {context.startingQuestion && <p className="mt-4 bg-paper rounded-card p-3 text-sm"><strong>Pergunta do projeto de referência:</strong> {context.startingQuestion}</p>}
       <button disabled={profileLoading || library.loading || projectLoading} className="bg-teal text-white rounded-card px-5 py-3 mt-5 font-medium disabled:opacity-50">{ideas.length ? "Atualizar ideias" : "Explorar caminhos de pesquisa"}</button>
     </form>
     {stale && <p role="status" className="mt-4 bg-amber-soft p-4 rounded-card text-sm">Você alterou o contexto ou as referências. Clique em Atualizar ideias antes de levar uma proposta para o projeto.</p>}
+    {ideas.length > 0 && <label className="block mt-6 text-sm font-medium">Motivo desta versão ou ajuste<input maxLength={1000} value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="Ex.: reduzir o escopo para caber em três meses" className="block mt-2 w-full border border-line rounded-card p-3" /></label>}
     {ideas.length > 0 && <section className="mt-8" aria-label="Ideias sugeridas">
       <div className="flex justify-between flex-wrap gap-3 items-center"><h2 className="font-display text-3xl">Caminhos para avaliar</h2><span className="text-sm text-teal">{selected.length}/3 selecionadas para comparar</span></div>
+      <p className="text-xs text-ink-soft mt-3">Para refinar, ajuste prazo, acesso ou medidas no diagnóstico e clique em Atualizar ideias. Salve cada versão que deseja preservar.</p>
       <p className="text-xs text-ink-soft mt-3">Propostas iniciais elaboradas com estruturas guiadas, sem geração por IA nesta versão. Não atestam originalidade, viabilidade final ou adequação metodológica. Refine a pergunta e valide a literatura.</p>
       <div className="grid md:grid-cols-2 gap-5 mt-5">{ideas.map((idea, index) => <article key={idea.id} className="bg-white border border-line rounded-2xl p-5 md:p-6 flex flex-col">
         <div className="flex justify-between gap-3"><span className="text-xs text-teal">CAMINHO {index + 1}</span><label className="text-xs flex gap-2 items-center"><input type="checkbox" checked={selected.includes(idea.id)} onChange={() => toggle(idea.id)} />Comparar</label></div>
@@ -162,11 +205,12 @@ export default function IdeasPage() {
         <details className="mt-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Referências selecionadas para verificação ({idea.references.length})</summary>{idea.references.length ? <div className="mt-3 space-y-4">{idea.references.map(reference => <div key={reference.id} className="bg-paper rounded-card p-3"><p className="font-medium">{reference.label} · {reference.title}</p><p className="text-xs text-ink-soft mt-1">{reference.year || "Ano não informado"} · {reference.identifier}</p>{reference.observations.map(value => <p className="text-xs text-ink-soft mt-2" key={value}>{value}</p>)}{!reference.observations.length && <p className="text-xs text-ink-soft mt-2">Sem anotações de leitura na matriz. Confira população, método, resultados e limitações.</p>}{reference.url && <a href={reference.url} target="_blank" rel="noreferrer" className="text-xs text-teal inline-block mt-2">Conferir referência ↗</a>}</div>)}</div> : <p className="mt-3 text-ink-soft text-sm">Nenhuma referência selecionada. Busque no Radar e revise a literatura antes de defender a proposta.</p>}</details>
         <button onClick={() => setEditing(editing === idea.id ? null : idea.id)} className="self-start text-sm text-teal mt-4">{editing === idea.id ? "Concluir ajustes" : "Ajustar esta proposta"}</button>
         {editing === idea.id && <div className="mt-4 bg-paper border border-line rounded-card p-4 space-y-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="block text-sm font-medium">{label}<textarea maxLength={3000} rows={3} value={idea[key]} onChange={e => { const value = e.target.value; setIdeas(list => list.map(x => x.id === idea.id ? { ...x, [key]: value } : x)); }} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
-        <div className="mt-6 flex gap-3 flex-wrap"><Link href={`/descobrir?tema=${encodeURIComponent(idea.radar)}`} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2">Validar no Radar</Link><button disabled={stale || library.loading} onClick={() => transfer(idea)} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Levar para Meu projeto →</button><button disabled={stale} onClick={() => download(idea)} className="text-sm text-teal underline disabled:opacity-50">Baixar proposta</button></div>
+        <div className="mt-6 flex gap-3 flex-wrap"><Link href={`/descobrir?tema=${encodeURIComponent(idea.radar)}`} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2">Validar no Radar</Link><button disabled={stale || library.loading} onClick={() => transfer(idea)} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Levar para Meu projeto →</button><button disabled={stale || saving || !library.userId} onClick={() => saveVersion(idea)} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando..." : "Salvar versão na conta"}</button><button disabled={stale} onClick={() => download(idea)} className="text-sm text-teal underline disabled:opacity-50">Baixar proposta</button></div>
       </article>)}</div>
     </section>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
-    {selected.length >= 2 && <section className="mt-8 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare antes de escolher</h2><div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><caption className="sr-only">Comparação das ideias selecionadas</caption><thead><tr><th scope="col" className="p-3">Critério</th>{ideas.filter(x => selected.includes(x.id)).map(x => <th scope="col" key={x.id} className="p-3 min-w-60">{x.title}</th>)}</tr></thead><tbody>{([ ["Desenho", "studyType"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Métodos", "methods"], ["Recursos", "resources"], ["Viabilidade", "feasibility"], ["Dificuldades", "difficulty"], ["Justificativa", "justification"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{ideas.filter(x => selected.includes(x.id)).map(x => <td key={x.id} className="p-3 align-top text-ink-soft">{x[key]}</td>)}</tr>)}</tbody></table></div></section>}
+    {selected.length >= 2 && <section className="mt-8 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare antes de escolher</h2><div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><caption className="sr-only">Comparação das ideias selecionadas</caption><thead><tr><th scope="col" className="p-3">Critério</th>{ideas.filter(x => selected.includes(x.id)).map(x => <th scope="col" key={x.id} className="p-3 min-w-60">{x.title}</th>)}</tr></thead><tbody>{([ ["Desenho", "studyType"], ["Pergunta", "question"], ["Objetivo", "objective"], ["População", "population"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Recursos", "resources"], ["Prazo e acesso", "contextSummary"], ["Viabilidade", "feasibility"], ["Dificuldades", "difficulty"], ["Justificativa", "justification"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{ideas.filter(x => selected.includes(x.id)).map(x => <td key={x.id} className="p-3 align-top text-ink-soft">{x[key]}</td>)}</tr>)}</tbody></table></div></section>}
+    <IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} />
     {!ideas.length && <div className="mt-8 bg-teal-soft rounded-2xl p-6"><h2 className="font-display text-2xl">Comece pelos recursos que você já tem.</h2><p className="text-sm text-ink-soft mt-3">Sem acesso a participantes ou registros, explore caminhos com literatura. Com acesso ao serviço, avalie também possibilidades observacionais. O prazo e as autorizações precisam entrar na decisão.</p></div>}
   </div>;
 }

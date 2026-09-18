@@ -1,6 +1,7 @@
+import { diagnose } from "../research/checks";
 import type { LibraryArticle, EvidenceNote } from "../literature/library-store";
 
-export type Context = { theme: string; specialty: string; interest: string; population: string; stage: string; months: string; access: string; exposure: string; measure: string; setting: string; uncertainty?: string; startingQuestion?: string };
+export type Context = { theme: string; specialty: string; interest: string; population: string; stage: string; months: string; access: string; exposure: string; measure: string; setting: string; uncertainty?: string; startingQuestion?: string; instrument?: string; support?: string; availableSample?: string; authorization?: string; requirements?: string };
 type BaseIdea = { id: string; title: string; question: string; objective: string; studyType: string; population: string; outcome: string; resources: string; difficulty: string; feasibility: string; steps: string; radar: string; methods: string; analysis: string; variables: string };
 export const initial: Context = { theme: "", specialty: "Cardiologia", interest: "adesão ao tratamento", population: "adultos", stage: "student", months: "6", access: "literature", exposure: "", measure: "", setting: "" };
 
@@ -34,6 +35,14 @@ function generateBase(c: Context): BaseIdea[] {
         idea.objective = `Avaliar a associação entre ${exposure} e ${measure} nos registros elegíveis, considerando qualidade, dados ausentes e possíveis fatores de confusão.`;
       }
     }
+    if (measure) {
+      const focus = exposure ? `Associação entre ${exposure} e ${measure}` : `Avaliação de ${measure}`;
+      idea.title = `${focus} em ${c.population}: ${idea.id === "review" ? "medidas e limitações na literatura" : idea.id === "systematic" ? "síntese crítica dos estudos" : idea.id === "records" ? "análise de registros" : "estudo transversal"}`;
+      if (idea.id === "records" && !exposure) {
+        idea.question = `Como se distribui ${measure} nos registros de ${setting}?`;
+        idea.objective = `Descrever a distribuição de ${measure} nos registros elegíveis de ${setting}.`;
+      }
+    }
     return ({ ...idea,
     variables: idea.id === "review" || idea.id === "systematic" ? "Características dos estudos, população, desenho, medidas de resultado e limitações. Definir os campos no protocolo de extração." : [c.exposure.trim() ? `Exposição: ${c.exposure}.` : "Exposição ou condição de interesse: a delimitar.", c.measure.trim() ? `Desfecho: ${c.measure}.` : "Desfecho e forma de medida: a definir.", "Covariáveis: selecionar apenas as relevantes à pergunta e disponíveis para coleta."].join(" "),
     methods: idea.id === "review" || idea.id === "systematic" ? `Definir critérios de elegibilidade para estudos sobre ${subject} em ${setting}. Testar descritores e sinônimos nas bases escolhidas, registrar buscas e selecionar os estudos conforme o protocolo. Extrair medidas de resultado e avaliar criticamente os estudos com método adequado ao desenho.` : idea.id === "records" ? `Delimitar serviço e período dos registros. Verificar disponibilidade e qualidade das variáveis, definir critérios de elegibilidade e planejar extração sem identificação direta. Registrar dados ausentes e submeter o plano às autorizações e avaliações aplicáveis antes do acesso.` : `Definir o local, período e critérios de recrutamento para ${setting}. Planejar a amostra conforme o objetivo, escolher instrumentos adequados à população e registrar exposição e desfecho em uma coleta transversal, após as autorizações e avaliações aplicáveis.`,
@@ -62,6 +71,8 @@ export function generate(context: Context, evidence: Evidence[] = []): Idea[] {
       survey: context.exposure.trim() && context.measure.trim() ? `Você indicou ${context.exposure} como exposição e ${context.measure} como medida. Uma coleta transversal pode explorar sua associação em ${context.population}, respeitando os limites para interpretar temporalidade e causalidade.` : `Seu acesso a participantes permite descrever uma medida de ${subject} em ${context.population}. O primeiro passo é escolher como medir e verificar se há participantes suficientes no prazo informado.`,
     };
     const unresolved = [
+      ...diagnose(context),
+      ...(context.requirements?.trim() ? [`Exigências informadas do curso ou serviço: ${context.requirements.trim()}`] : []),
       ...(context.uncertainty?.trim() ? [`Dúvida que você deseja esclarecer: ${context.uncertainty.trim()}`] : []),
       ...(references.length ? [`Verifique se as ${references.length} referências selecionadas tratam da mesma população, pergunta e desfecho. A seleção não comprova uma lacuna.`] : ["Selecione e leia referências para verificar o que já foi estudado antes de defender a justificativa."]),
       ...(!context.setting.trim() ? ["Delimite o contexto ou local ao qual a pergunta se aplica."] : []),
@@ -81,7 +92,10 @@ export function generate(context: Context, evidence: Evidence[] = []): Idea[] {
       idea.id === "records" ? "Execução: extrair os dados autorizados, conferir inconsistências e registrar ausências." : "Execução: recrutar conforme critérios, aplicar os instrumentos e conferir a qualidade dos dados.",
       "Análise e escrita: responder aos objetivos, discutir vieses e limitações e revisar com o orientador.",
     ];
-    return { ...idea, justification: `${rationale[idea.id]} Problema priorizado por você: ${context.interest}.`, unresolved, plan, references, startingQuestion: context.startingQuestion || "",
+    const measurement = context.instrument?.trim();
+    const methods = idea.methods + (measurement ? ` Medida proposta por você: ${measurement}; confirme adequação, disponibilidade e condições de uso.` : "") + (!review && context.availableSample?.trim() ? ` Volume acessível informado: ${context.availableSample.trim()}; confirmar elegibilidade e planejamento amostral.` : "");
+    const requirements = context.requirements?.trim();
+    return { ...idea, methods, resources: idea.resources + (requirements ? ` Exigências do curso: ${requirements}.` : ""), justification: `${rationale[idea.id]} Problema priorizado por você: ${context.interest}.`, unresolved, plan, references, startingQuestion: context.startingQuestion || "",
       contextSummary: `${context.specialty} · ${context.population} · prazo de ${context.months} meses · ${context.access === "literature" ? "acesso apenas à literatura" : context.access === "records" ? "acesso à literatura e registros" : context.access === "patients" ? "acesso à literatura e participantes" : "acesso à literatura, registros e participantes"}` };
   });
 }
