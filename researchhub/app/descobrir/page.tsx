@@ -6,6 +6,8 @@ import Link from "next/link";
 
 import { Article, articleKey, sameArticle } from "@/lib/literature/types";
 import { useLibrary } from "@/lib/literature/use-library";
+import SavedSearches, { SearchStrategy } from "@/components/radar/saved-searches";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Result = {
   topic: string;
@@ -53,10 +55,21 @@ export default function DiscoverPage() {
   const [browsing, setBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
+  const [mesh, setMesh] = useState("");
+  const [populationTerm, setPopulationTerm] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
+  const effectiveQuery = useMemo(() => [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim()].filter(Boolean).join(" AND "), [topic, mesh, populationTerm]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
+
+  async function recordSearch(data: Result) {
+    try {
+      const db = supabaseBrowser(); const { data: auth } = await db.auth.getUser();
+      if (!auth.user) return;
+      await db.from("search_history").insert({ owner_id: auth.user.id, query: data.topic, pubmed_total: data.sources.pubmed.total, recent_total: data.sources.pubmed.recent, systematic_reviews: data.sources.pubmed.systematicReviews, clinical_trials: data.sources.pubmed.clinicalTrials, trend: data.signals.trend, breadth: data.signals.breadth });
+    } catch { /* O histórico nunca deve interromper uma busca válida. */ }
+  }
 
   async function analyze(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +81,7 @@ export default function DiscoverPage() {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, period, studyType }),
+        body: JSON.stringify({ topic: effectiveQuery, period, studyType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
@@ -77,12 +90,14 @@ export default function DiscoverPage() {
       setArticleTotal(data.sources.pubmed.total);
       setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
       setBrowseError(null);
+      void recordSearch(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
       setLoading(false);
     }
   }
+  function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   async function saveArticle(article: Article) {
     await library.saveArticle(article, projectId || null);
@@ -134,10 +149,12 @@ export default function DiscoverPage() {
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : "Analisar tema"}
         </button>
+        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH e população</summary><div className="grid md:grid-cols-2 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={150} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={150} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label></div><p className="text-xs text-ink-soft mt-3">Você também pode usar AND, OR, NOT, aspas e campos do PubMed diretamente no tema principal.</p></details>
       </form>
       <p className="text-xs text-ink-soft/70 mt-2">Dica: termos em inglês costumam recuperar melhor a literatura biomédica internacional.</p>
-      {result && (result.topic !== topic.trim() || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
+      {result && (result.topic !== effectiveQuery || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
+      <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
 
       <section className="mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
         {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}

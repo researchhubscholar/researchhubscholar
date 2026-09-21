@@ -1,11 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Article, sameArticle } from "./types";
 
-export type LibraryArticle = Article & { id: string; projectId: string | null };
-export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string };
+export type ReadingStatus = "unread" | "reading" | "reviewed" | "excluded";
+export type LibraryArticle = Article & { id: string; projectId: string | null; readingStatus: ReadingStatus; favorite: boolean; tags: string[]; exclusionReason: string; fullTextUrl: string };
+export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string; sampleSize?: string; intervention?: string; comparator?: string; outcomes?: string; evidenceLevel?: string; riskOfBias?: string };
 export type ResearchProject = { id: string; title: string | null; theme: string | null };
-export const noteFields = ["objective", "population", "method", "finding", "limitation"] as const;
-const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation" };
+export const noteFields = ["objective", "population", "method", "finding", "limitation", "sampleSize", "intervention", "comparator", "outcomes", "evidenceLevel", "riskOfBias"] as const;
+const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation", sampleSize: "sample_size", intervention: "intervention", comparator: "comparator", outcomes: "outcomes", evidenceLevel: "evidence_level", riskOfBias: "risk_of_bias" };
+const confirmableFields = new Set(["objective", "population", "method", "finding", "limitation"]);
 
 export function fromArticleRow(row: any): LibraryArticle {
   const pmid = row.pmid || null;
@@ -15,7 +17,8 @@ export function fromArticleRow(row: any): LibraryArticle {
     pubdate: String(row.publication_year || ""), year: row.publication_year,
     publicationTypes: Array.isArray(row.publication_types) ? row.publication_types : [],
     abstract: row.abstract, pubmedUrl: pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : null,
-    doiUrl: doi ? `https://doi.org/${doi}` : null, source: pmid ? "PubMed" : "Crossref", savedAt: row.created_at };
+    doiUrl: doi ? `https://doi.org/${doi}` : null, source: pmid ? "PubMed" : "Crossref", savedAt: row.created_at,
+    readingStatus: row.reading_status || "unread", favorite: Boolean(row.favorite), tags: Array.isArray(row.tags) ? row.tags : [], exclusionReason: row.exclusion_reason || "", fullTextUrl: row.full_text_url || "" };
 }
 
 // A stable DOI ID makes simultaneous saves on two devices converge on one row.
@@ -48,7 +51,7 @@ export class LibraryStore {
     this.check(projectsResult.error);
     const notes: Record<string, EvidenceNote> = {};
     for (const row of noteRows) {
-      notes[row.article_id] = { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "" };
+      notes[row.article_id] = { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "", sampleSize: row.sample_size || "", intervention: row.intervention || "", comparator: row.comparator || "", outcomes: row.outcomes || "", evidenceLevel: row.evidence_level || "", riskOfBias: row.risk_of_bias || "" };
     }
     return { articles: articleRows.map(fromArticleRow).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || "")), notes, projects: (projectsResult.data || []) as ResearchProject[] };
   }
@@ -86,7 +89,7 @@ export class LibraryStore {
       const value = String(note[field] || "");
       if (value.length > 20000) throw new Error("Uma anotação ultrapassou 20.000 caracteres. Reduza o texto antes de salvar.");
       payload[dbFields[field]] = value;
-      payload[`confirmed_${dbFields[field]}`] = Boolean(value.trim());
+      if (confirmableFields.has(field)) payload[`confirmed_${dbFields[field]}`] = Boolean(value.trim());
     }
     const { error } = await this.db.from("evidence_matrix").upsert(payload, { onConflict: "owner_id,article_id" });
     this.check(error);
@@ -97,6 +100,14 @@ export class LibraryStore {
     this.check(error);
     const result = await this.db.from("evidence_matrix").update({ project_id: projectId }).eq("owner_id", this.ownerId).eq("article_id", id);
     this.check(result.error);
+  }
+  async updateArticle(id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; exclusionReason: string; fullTextUrl: string }) {
+    await this.ownedArticle(id);
+    if (metadata.tags.length > 20 || metadata.tags.some(tag => tag.length > 50)) throw new Error("Use até 20 etiquetas com no máximo 50 caracteres.");
+    if (metadata.exclusionReason.length > 1000 || metadata.fullTextUrl.length > 1000) throw new Error("Revise os campos antes de salvar.");
+    if (metadata.fullTextUrl && !/^https?:\/\//i.test(metadata.fullTextUrl)) throw new Error("Informe um link completo iniciado por http:// ou https://.");
+    const { error } = await this.db.from("library_articles").update({ reading_status: metadata.readingStatus, favorite: metadata.favorite, tags: metadata.tags, exclusion_reason: metadata.exclusionReason || null, full_text_url: metadata.fullTextUrl || null }).eq("owner_id", this.ownerId).eq("id", id);
+    this.check(error);
   }
   async attachUnassigned(ids: string[], projectId: string) {
     await this.ownedProject(projectId);

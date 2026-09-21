@@ -7,6 +7,8 @@ import { LibraryStore } from "@/lib/literature/library-store";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 import ProjectSharing from "@/components/access/project-sharing";
+import ProjectJourney from "@/components/projects/journey";
+import { buildProtocolDoc, download } from "@/lib/exports/scientific";
 import { protocolChecks } from "@/lib/research/checks";
 
 type Draft = { theme: string; question: string; objective: string; studyType: string; population: string; outcome: string; hypothesis: string; inclusion: string; exclusion: string; variables: string; methods: string; analysis: string; ethics: string; manuscript: string };
@@ -163,9 +165,8 @@ export default function MeuTrabalhoPage() {
     }
   }
   function exportProtocol() {
-    const text = ["RESEARCHHUB SCHOLAR · RASCUNHO DE PROTOCOLO", draft.theme || "Projeto sem título", "", ...groups.flatMap(g => [g.title.toUpperCase(), ...g.keys.map(k => `${labels[k]}\n${draft[k].trim() || "A definir"}\n`), ...(g.id === "objetivos" ? [`${labels.hypothesis}\n${draft.hypothesis || "Não informada / avaliar aplicabilidade"}\n`] : [])]), "REFERÊNCIAS\nConsulte sua Biblioteca e Matriz de Evidências para revisar e incluir as referências.", "", "Estrutura em desenvolvimento. Revise conteúdo, método e questões éticas com seu orientador."].join("\n");
-    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = "protocolo-scholar.txt"; link.click(); URL.revokeObjectURL(url);
+    const sections = groups.map(g => ({ title: g.title, fields: [...g.keys.map(k => ({ label: labels[k], value: draft[k] })), ...(g.id === "objetivos" ? [{ label: labels.hypothesis, value: draft.hypothesis }] : [])] }));
+    download(buildProtocolDoc(draft.theme, sections), "application/msword;charset=utf-8", "protocolo-scholar.doc");
   }
   const notes = [
     ...protocolChecks(draft),
@@ -183,6 +184,7 @@ export default function MeuTrabalhoPage() {
       {incoming && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs text-teal uppercase">Proposta recebida</p><h3 className="font-display text-2xl mt-2">{incoming.theme}</h3><p className="text-sm text-ink-soft mt-3">Abra um novo rascunho com esta proposta. Os projetos já salvos permanecem na sua conta.</p>{incomingReferences.length > 0 && <p className="text-sm text-ink-soft mt-3">{incomingReferences.length} referências e suas observações acompanham a proposta nas notas. Ao salvar, os artigos sem projeto serão associados; os já vinculados a outro projeto permanecerão lá.</p>}<div className="flex flex-wrap gap-3 mt-4"><button disabled={saveState === "loading"} onClick={applyIncoming} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">Criar rascunho com esta ideia</button><button onClick={() => { setIncoming(null); setIncomingReferences([]); }} className="border border-line rounded-card px-4 py-2">Continuar projeto atual</button></div></section>}
       {referenceIds.length > 0 && <p className="mt-4 bg-teal-soft rounded-card p-4 text-sm">{referenceIds.length} referências aguardam associação ao salvar. A justificativa, as decisões pendentes e as referências estão nas notas do manuscrito.</p>}
       {message && <p role={saveState === "error" ? "alert" : "status"} className="mt-5 bg-white border border-line rounded-card p-4 text-sm">{message}</p>}
+      <ProjectJourney projectId={projectId} ownerId={loadedOwner} studyType={draft.studyType} />
       <fieldset disabled={saveState === "loading"} className="space-y-5 mt-8 disabled:opacity-60"><legend className="sr-only">Campos do protocolo</legend>
         {groups.map((g, index) => <section key={g.id} id={g.id} className="scroll-mt-40 bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal">Bloco {index + 1}</p><h3 className="font-display text-2xl mt-2">{g.title}</h3><div className="space-y-5 mt-5">{g.keys.map(key => key === "studyType" ? <label key={key} className="block text-sm font-medium">{labels[key]}<select value={draft[key]} onChange={e => change(key, e.target.value)} className="block w-full mt-2 border border-line rounded-card px-3 py-3 bg-paper">{["Observacional transversal", "Coorte", "Caso-controle", "Ensaio clínico", "Revisão integrativa", "Revisão sistemática", "Relato de caso"].map(v => <option key={v}>{v}</option>)}</select></label> : <Field key={key} label={labels[key]} value={draft[key]} change={v => change(key, v)} short={key === "theme" || key === "population"} placeholder={key === "question" ? "Defina população, condição ou exposição e o que deseja investigar." : key === "methods" ? "Descreva onde, como, por quem e em qual período os dados serão coletados." : key === "analysis" ? "Relacione cada objetivo às variáveis e à análise prevista. Registre dúvidas para o orientador." : key === "manuscript" ? "Planeje seções, responsáveis, prazos e pontos que precisam de revisão." : undefined} />)}
           {g.id === "objetivos" && <Field label={labels.hypothesis} value={draft.hypothesis} change={v => change("hypothesis", v)} placeholder="Registre uma hipótese apenas quando fizer sentido para o desenho." />}</div>

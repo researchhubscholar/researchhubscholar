@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { Article, articleKey } from "./types";
-import { EvidenceNote, LibraryArticle, LibraryStore, mergeImportedNote, ResearchProject } from "./library-store";
+import { EvidenceNote, LibraryArticle, LibraryStore, mergeImportedNote, ReadingStatus, ResearchProject } from "./library-store";
 
 const LEGACY_KEY = "researchhub-scholar-library";
 const NOTES_KEY = "researchhub-scholar-evidence-notes";
@@ -94,6 +94,7 @@ export function useLibrary() {
   const saveArticle = (article: Article, projectId: string | null = null) => run(async store => { await store.saveArticle(article, projectId); }, "Artigo salvo na sua conta.");
   const saveNote = (id: string, note: EvidenceNote) => run(store => store.saveNote(id, note), "Anotações salvas na sua conta.");
   const assignProject = (id: string, projectId: string | null) => run(store => store.assignProject(id, projectId), "Projeto associado ao artigo.");
+  const updateArticle = (id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; exclusionReason: string; fullTextUrl: string }) => run(store => store.updateArticle(id, metadata), "Organização do artigo atualizada.");
   const remove = (id: string) => run(store => store.remove(id), "Artigo removido da sua biblioteca.");
   const importLegacy = () => run(async (store, id) => {
     const claimed = localStorage.getItem(IMPORT_OWNER);
@@ -113,5 +114,5 @@ export function useLibrary() {
     localStorage.setItem(IMPORT_COMPLETE, stamp);
     setLegacyCount(0);
   }, "Artigos e anotações importados. A cópia antiga continua preservada neste navegador.");
-  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, remove, importLegacy, refresh };
+  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, remove, importLegacy, refresh };
 }

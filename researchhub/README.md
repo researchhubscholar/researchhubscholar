@@ -1,3 +1,9 @@
+# ResearchHub Scholar
+
+O roadmap atual do produto B2C/B2B para estudantes e programas de residência
+está em [`docs/product-roadmap.md`](docs/product-roadmap.md). A direção anterior
+do ResearchHub institucional permanece documentada abaixo apenas como histórico.
+
 # ResearchHub — MVP completo + modelo "uma instância por universidade"
 
 Plataforma de descoberta científica. Camada 1 (busca, navegação

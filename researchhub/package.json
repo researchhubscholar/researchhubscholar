@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test:library": "node tests/library-store.cjs",
     "test:ideas": "node tests/ideas.cjs",
-    "test:access": "node tests/access.cjs"
+    "test:access": "node tests/access.cjs",
+    "test:journey": "node tests/journey.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
