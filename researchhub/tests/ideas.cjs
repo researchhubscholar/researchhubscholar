@@ -35,6 +35,21 @@ assert.equal(noEvidence.length, 2);
 assert(noEvidence.every(idea => !idea.references.length));
 assert(noEvidence[0].unresolved.some(value => value.includes('Selecione e leia referências')));
 assert.notEqual(generate({ ...context, months: '3' })[2].feasibility, generate({ ...context, months: '12' })[2].feasibility);
+const reviewOnly = generate({ ...context, workType: 'review' });
+assert.deepEqual(reviewOnly.map(idea => idea.id), ['review', 'systematic']);
+const originalOnly = generate({ ...context, workType: 'original' });
+assert.deepEqual(originalOnly.map(idea => idea.id), ['records', 'survey']);
+const originalWithoutData = generate({ ...context, workType: 'original', access: 'literature' });
+assert.deepEqual(originalWithoutData.map(idea => idea.id), ['pilot']);
+assert(originalWithoutData[0].feasibility.includes('não executável'));
+const caseOnly = generate({ ...context, workType: 'case' });
+assert.equal(caseOnly.length, 1); assert.equal(caseOnly[0].studyType, 'Relato de caso');
+for (const idea of [...reviewOnly, ...originalOnly, ...caseOnly]) {
+  assert.equal(idea.refinements.length, 3);
+  assert(idea.evaluation.overall >= 0 && idea.evaluation.overall <= 100);
+  assert(['Baixa', 'Moderada', 'Alta'].includes(idea.evaluation.feasibility.label));
+}
+assert(caseOnly[0].evaluation.feasibility.score > generate({ ...context, workType: 'case', access: 'literature' })[0].evaluation.feasibility.score);
 assert.notEqual(referenceSignature(evidence), referenceSignature([{ article, note: { finding: 'Updated note' } }]));
 const two = [...evidence, { article: { ...article, id: b }, note: {} }];
 assert.equal(referenceSignature(two), referenceSignature(two.slice().reverse()));
