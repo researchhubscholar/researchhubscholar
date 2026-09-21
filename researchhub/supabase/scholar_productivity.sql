@@ -10,7 +10,7 @@ create table public.scholar_saved_searches (
   query text not null check(length(trim(query)) between 3 and 500),
   period text not null default '5' check(period in ('all','3','5','10')),
   study_type text not null default 'all' check(study_type in ('all','systematic','trial','observational','review','case')),
-  source text not null default 'pubmed' check(source in ('pubmed','crossref')),
+  source text not null default 'pubmed' check(source in ('pubmed','crossref','both')),
   sort text not null default 'recent' check(sort in ('recent','relevance')),
   alerts_enabled boolean not null default false,
   last_run_at timestamptz,

@@ -7,7 +7,9 @@ import Link from "next/link";
 import { Article, articleKey, sameArticle } from "@/lib/literature/types";
 import { useLibrary } from "@/lib/literature/use-library";
 import SavedSearches, { SearchStrategy } from "@/components/radar/saved-searches";
+import SearchHistory from "@/components/radar/search-history";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { downloadResult, resultBibtex, resultCsv, resultRis } from "@/lib/literature/result-export";
 
 type Result = {
   topic: string;
@@ -57,10 +59,14 @@ export default function DiscoverPage() {
   const [identifier, setIdentifier] = useState("");
   const [mesh, setMesh] = useState("");
   const [populationTerm, setPopulationTerm] = useState("");
+  const [outcomeTerm, setOutcomeTerm] = useState("");
+  const [operator, setOperator] = useState("AND");
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [sourceWarning, setSourceWarning] = useState<string | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
-  const effectiveQuery = useMemo(() => [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim()].filter(Boolean).join(" AND "), [topic, mesh, populationTerm]);
+  const effectiveQuery = useMemo(() => [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
 
   async function recordSearch(data: Result) {
@@ -86,7 +92,7 @@ export default function DiscoverPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       setResult(data);
-      setArticles(data.articles); setSource("pubmed"); setSort("recent");
+      setArticles(data.articles); setSource("pubmed"); setSort("recent"); setDuplicateCount(0); setSourceWarning(null);
       setArticleTotal(data.sources.pubmed.total);
       setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
       setBrowseError(null);
@@ -97,7 +103,8 @@ export default function DiscoverPage() {
       setLoading(false);
     }
   }
-  function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   async function saveArticle(article: Article) {
     await library.saveArticle(article, projectId || null);
@@ -113,6 +120,8 @@ export default function DiscoverPage() {
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
       setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
       setSource(nextSource); setSort(nextSort); setNextOffset(data.nextOffset); setArticleTotal(data.total);
+      setDuplicateCount(previous => offset === 0 ? Number(data.duplicateCount || 0) : previous + Number(data.duplicateCount || 0));
+      setSourceWarning(data.warning || null);
     } catch (error) { setBrowseError(error instanceof Error ? error.message : "Falha na busca."); }
     finally { setBrowsing(false); }
   }
@@ -143,18 +152,19 @@ export default function DiscoverPage() {
       </div>
 
       <form onSubmit={analyze} className="mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label="Tema da busca" required minLength={3} maxLength={300} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
+        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : "Analisar tema"}
         </button>
-        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH e população</summary><div className="grid md:grid-cols-2 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={150} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={150} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label></div><p className="text-xs text-ink-soft mt-3">Você também pode usar AND, OR, NOT, aspas e campos do PubMed diretamente no tema principal.</p></details>
+        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
       <p className="text-xs text-ink-soft/70 mt-2">Dica: termos em inglês costumam recuperar melhor a literatura biomédica internacional.</p>
       {result && (result.topic !== effectiveQuery || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
+      <SearchHistory onApply={applyHistory} />
 
       <section className="mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
         {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}
@@ -244,11 +254,13 @@ export default function DiscoverPage() {
 
             <div className="p-6 border-b border-line bg-paper">
               <div className="flex flex-wrap items-end gap-4">
-                <label className="text-xs text-ink-soft">Fonte<select aria-label="Fonte dos artigos" disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option></select></label>
+                <label className="text-xs text-ink-soft">Fonte<select aria-label="Fonte dos artigos" disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option><option value="both">PubMed + Crossref</option></select></label>
                 <label className="text-xs text-ink-soft">Ordenação<select aria-label="Ordenação dos artigos" disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent">Mais recentes</option><option value="relevance">Relevância</option></select></label>
-                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString("pt-BR")} resultados em ${source === "pubmed" ? "PubMed" : "Crossref"}`}</p>
+                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString("pt-BR")} registros em ${source === "pubmed" ? "PubMed" : source === "crossref" ? "Crossref" : "PubMed + Crossref"}`}</p>
               </div>
-              <p className="text-xs text-ink-soft mt-3">As métricas e o gráfico acima são do PubMed. Crossref reúne metadados de artigos com DOI; respeita o período, mas não aplica o filtro por desenho clínico. Há sobreposição entre as fontes e nem todos os registros têm resumo.</p>
+              <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft">Exportar artigos exibidos:</span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
+              <p className="text-xs text-ink-soft mt-3">As métricas e o gráfico acima são do PubMed. Crossref reúne metadados de artigos com DOI; respeita o período, mas não aplica o filtro por desenho clínico. Na visão combinada, registros com o mesmo DOI ou PMID são unidos. Nem todos os registros têm resumo.</p>
+              {sourceWarning && <p role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3">{sourceWarning}</p>}
               {browseError && <div role="alert" className="mt-3 text-sm text-red-700">{browseError}<button className="ml-3 underline" onClick={() => browse(source, sort, nextOffset ?? 0)}>Tentar novamente</button></div>}
             </div>
             <div className="divide-y divide-line">
@@ -260,6 +272,7 @@ export default function DiscoverPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
                           {article.year && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">{article.year}</span>}
+                          {article.duplicateSources && article.duplicateSources.length > 1 && <span className="bg-amber-soft text-ink px-2 py-1 rounded-full">Encontrado em PubMed + Crossref</span>}
                           {article.publicationTypes.slice(0, 2).map((type) => <span key={type}>{type}</span>)}
                         </div>
                         <h3 className="font-display text-xl mt-3 leading-snug">{article.title}</h3>

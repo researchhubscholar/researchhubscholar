@@ -144,7 +144,7 @@ export async function fetchArticleDetails(ids: string[]) {
       abstract: abstracts.get(pmid) ?? null,
       pubmedUrl: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
       doiUrl: doi ? `https://doi.org/${doi}` : null,
+      source: "PubMed" as const,
     };
   });
 }
-
