@@ -1,0 +1,15 @@
+import type { LibraryArticle, EvidenceNote } from "@/lib/literature/library-store";
+
+const clean = (value: unknown) => String(value ?? "").replace(/\r?\n/g, " ").trim();
+const csv = (value: unknown) => `"${clean(value).replaceAll('"', '""')}"`;
+const esc = (value: unknown) => clean(value).replace(/[&<>]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
+
+export function buildCsv(articles: LibraryArticle[], notes: Record<string, EvidenceNote>) {
+  const headings = ["Título","Autores","Ano","Periódico","PMID","DOI","Status","Tags","Objetivo","População","Método","Amostra","Intervenção","Comparador","Desfechos","Achado","Limitação","Nível de evidência","Risco de viés"];
+  const rows = articles.map(a => { const n=notes[a.id]||{}; return [a.title,a.authors.join("; "),a.year,a.journal,a.pmid,a.doi,a.readingStatus,a.tags.join("; "),n.objective,n.population,n.method,n.sampleSize,n.intervention,n.comparator,n.outcomes,n.finding,n.limitation,n.evidenceLevel,n.riskOfBias].map(csv).join(","); });
+  return `\uFEFF${headings.map(csv).join(",")}\n${rows.join("\n")}`;
+}
+export function buildRis(articles: LibraryArticle[]) { return articles.map(a => ["TY  - JOUR",`TI  - ${clean(a.title)}`,...a.authors.map(x=>`AU  - ${clean(x)}`),a.journal&&`JO  - ${clean(a.journal)}`,a.year&&`PY  - ${a.year}`,a.doi&&`DO  - ${clean(a.doi)}`,a.pmid&&`AN  - PMID:${clean(a.pmid)}`,a.abstract&&`AB  - ${clean(a.abstract)}`,"ER  - "].filter(Boolean).join("\n")).join("\n\n"); }
+export function buildBibtex(articles: LibraryArticle[]) { return articles.map((a,i)=>{const key=`scholar${a.year||"nd"}_${i+1}`;return `@article{${key},\n  title = {${clean(a.title)}},\n  author = {${a.authors.map(clean).join(" and ")}},\n  journal = {${clean(a.journal)}},\n  year = {${a.year||""}},\n  doi = {${clean(a.doi)}},\n  pmid = {${clean(a.pmid)}}\n}`;}).join("\n\n"); }
+export function buildProtocolDoc(title:string, sections:{title:string;fields:{label:string;value:string}[]}[]) { return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.55;margin:48px;color:#14213d}h1,h2{font-family:Georgia,serif}h2{border-bottom:1px solid #ccc;padding-bottom:8px;margin-top:28px}.field{margin:14px 0}.label{font-weight:bold;font-size:12px;text-transform:uppercase;color:#0f6e66}</style></head><body><h1>${esc(title||"Projeto sem título")}</h1><p>Rascunho de protocolo · ResearchHub Scholar</p>${sections.map(s=>`<h2>${esc(s.title)}</h2>${s.fields.map(f=>`<div class="field"><div class="label">${esc(f.label)}</div><div>${esc(f.value||"A definir")}</div></div>`).join("")}`).join("")}<p><small>Estrutura em desenvolvimento. Revise conteúdo, método e questões éticas com seu orientador.</small></p></body></html>`; }
+export function download(content:string,type:string,filename:string){const url=URL.createObjectURL(new Blob([content],{type}));const link=document.createElement("a");link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);}
