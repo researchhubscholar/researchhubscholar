@@ -27,6 +27,7 @@ create table public.scholar_project_milestones (
   project_id uuid not null references public.research_projects(id) on delete cascade,
   milestone_key text not null check(milestone_key in ('theme','question','literature','design','ethics','collection','analysis','writing','submission')),
   status text not null default 'pending' check(status in ('pending','current','done','blocked')),
+  checklist_state jsonb not null default '{}'::jsonb check(jsonb_typeof(checklist_state)='object'),
   note text check(note is null or length(note) <= 2000),
   due_date date,
   position integer not null check(position between 1 and 20),
