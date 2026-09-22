@@ -5,8 +5,8 @@ const csv = (value: unknown) => `"${clean(value).replaceAll('"', '""')}"`;
 const esc = (value: unknown) => clean(value).replace(/[&<>]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
 
 export function buildCsv(articles: LibraryArticle[], notes: Record<string, EvidenceNote>) {
-  const headings = ["Título","Autores","Ano","Periódico","PMID","DOI","Status","Tags","Objetivo","População","Método","Amostra","Intervenção","Comparador","Desfechos","Achado","Limitação","Nível de evidência","Risco de viés"];
-  const rows = articles.map(a => { const n=notes[a.id]||{}; return [a.title,a.authors.join("; "),a.year,a.journal,a.pmid,a.doi,a.readingStatus,a.tags.join("; "),n.objective,n.population,n.method,n.sampleSize,n.intervention,n.comparator,n.outcomes,n.finding,n.limitation,n.evidenceLevel,n.riskOfBias].map(csv).join(","); });
+  const headings = ["Título","Autores","Ano","Periódico","PMID","DOI","Status","Pasta","Desenho","Tags","Objetivo","População","Método","Amostra","Intervenção","Comparador","Desfechos","Achado","Limitação","Nível de evidência","Risco de viés","Notas gerais"];
+  const rows = articles.map(a => { const n=notes[a.id]||{}; return [a.title,a.authors.join("; "),a.year,a.journal,a.pmid,a.doi,a.readingStatus,a.folder,a.studyDesign,a.tags.join("; "),n.objective,n.population,n.method,n.sampleSize,n.intervention,n.comparator,n.outcomes,n.finding,n.limitation,n.evidenceLevel,n.riskOfBias,n.generalNotes].map(csv).join(","); });
   return `\uFEFF${headings.map(csv).join(",")}\n${rows.join("\n")}`;
 }
 export function buildRis(articles: LibraryArticle[]) { return articles.map(a => ["TY  - JOUR",`TI  - ${clean(a.title)}`,...a.authors.map(x=>`AU  - ${clean(x)}`),a.journal&&`JO  - ${clean(a.journal)}`,a.year&&`PY  - ${a.year}`,a.doi&&`DO  - ${clean(a.doi)}`,a.pmid&&`AN  - PMID:${clean(a.pmid)}`,a.abstract&&`AB  - ${clean(a.abstract)}`,"ER  - "].filter(Boolean).join("\n")).join("\n\n"); }

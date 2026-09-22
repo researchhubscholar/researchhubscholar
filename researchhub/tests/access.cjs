@@ -17,6 +17,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_install.sql','utf8').replace('create extension if not exists "pgcrypto";',''));
  await db.exec(fs.readFileSync('supabase/scholar_access.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  const director='11111111-1111-4111-8111-111111111111',resident='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333';
  await db.query('insert into auth.users(id,email) values($1,$2),($3,$4),($5,$6)',[director,'director@test.local',resident,'resident@test.local',outsider,'outsider@test.local']);
  const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];

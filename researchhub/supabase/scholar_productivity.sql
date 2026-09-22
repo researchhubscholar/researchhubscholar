@@ -39,8 +39,20 @@ alter table public.library_articles
   add column reading_status text not null default 'unread' check(reading_status in ('unread','reading','reviewed','excluded')),
   add column favorite boolean not null default false,
   add column tags text[] not null default '{}',
+  add column folder text,
+  add column study_design text not null default 'auto' check(study_design in ('auto','systematic-review','clinical-trial','cohort','case-control','cross-sectional','qualitative','case-report','other')),
   add column exclusion_reason text,
   add column full_text_url text;
+
+create table public.library_article_projects (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  article_id uuid not null references public.library_articles(id) on delete cascade,
+  project_id uuid not null references public.research_projects(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key(owner_id,article_id,project_id)
+);
+insert into public.library_article_projects(owner_id,article_id,project_id)
+select owner_id,id,project_id from public.library_articles where project_id is not null on conflict do nothing;
 
 alter table public.evidence_matrix
   add column sample_size text,
@@ -74,6 +86,7 @@ create table public.scholar_generation_artifacts (
 
 alter table public.scholar_saved_searches enable row level security;
 alter table public.scholar_project_milestones enable row level security;
+alter table public.library_article_projects enable row level security;
 alter table public.scholar_generation_reviews enable row level security;
 alter table public.scholar_generation_artifacts enable row level security;
 
@@ -82,6 +95,9 @@ create policy "Scholar owns saved searches" on public.scholar_saved_searches for
 create policy "Scholar owns milestones" on public.scholar_project_milestones for all to authenticated
   using(owner_id=auth.uid() and public.scholar_owns_project(project_id))
   with check(owner_id=auth.uid() and public.scholar_owns_project(project_id));
+create policy "Scholar owns article project links" on public.library_article_projects for all to authenticated
+  using(owner_id=auth.uid() and exists(select 1 from public.library_articles a where a.id=article_id and a.owner_id=auth.uid()) and public.scholar_owns_project(project_id))
+  with check(owner_id=auth.uid() and exists(select 1 from public.library_articles a where a.id=article_id and a.owner_id=auth.uid()) and public.scholar_owns_project(project_id));
 create policy "Scholar owns generation reviews" on public.scholar_generation_reviews for all to authenticated
   using(user_id=auth.uid() and exists(select 1 from public.scholar_usage u where u.id=usage_id and u.user_id=auth.uid()))
   with check(user_id=auth.uid() and exists(select 1 from public.scholar_usage u where u.id=usage_id and u.user_id=auth.uid()));
@@ -99,6 +115,7 @@ create trigger scholar_generation_artifacts_updated before update on public.scho
 
 grant select,insert,update,delete on public.scholar_saved_searches to authenticated;
 grant select,insert,update,delete on public.scholar_project_milestones to authenticated;
+grant select,insert,delete on public.library_article_projects to authenticated;
 grant select,insert,update,delete on public.scholar_generation_reviews to authenticated;
 grant select on public.scholar_generation_artifacts to authenticated;
 commit;

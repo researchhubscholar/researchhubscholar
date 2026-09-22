@@ -7,8 +7,9 @@ import { Article } from "@/lib/literature/types";
 
 import { useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/literature/use-library";
-import { EvidenceNote, LibraryArticle, ReadingStatus } from "@/lib/literature/library-store";
+import { EvidenceNote, findDuplicateGroups, LibraryArticle, ReadingStatus, ResearchProject } from "@/lib/literature/library-store";
 import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scientific";
+import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
 
 type Suggestion = { value: string; source: string; confidence: "alta" | "media" | "baixa" } | null;
 type SuggestionSet = {
@@ -30,11 +31,23 @@ export default function BibliotecaPage() {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [folderFilter, setFolderFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const [designFilter, setDesignFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
+  const folders = useMemo(() => Array.from(new Set(library.articles.map(article => article.folder).filter(Boolean))).sort(), [library.articles]);
+  const tags = useMemo(() => Array.from(new Set(library.articles.flatMap(article => article.tags))).sort(), [library.articles]);
+  const years = useMemo(() => Array.from(new Set(library.articles.map(article => article.year).filter((year): year is number => Boolean(year)))).sort((a,b)=>b-a), [library.articles]);
   const articles = library.articles.filter(article =>
-    (projectFilter === "all" || (projectFilter === "none" ? !article.projectId : article.projectId === projectFilter)) &&
+    (projectFilter === "all" || (projectFilter === "none" ? !article.projectIds.length : article.projectIds.includes(projectFilter))) &&
     (statusFilter === "all" || article.readingStatus === statusFilter || (statusFilter === "favorite" && article.favorite)) &&
+    (folderFilter === "all" || (folderFilter === "none" ? !article.folder : article.folder === folderFilter)) &&
+    (tagFilter === "all" || article.tags.includes(tagFilter)) &&
+    (designFilter === "all" || resolvedStudyDesign(article) === designFilter) &&
+    (yearFilter === "all" || String(article.year || "") === yearFilter) &&
     `${article.title} ${article.authors.join(" ")} ${article.doi || ""} ${article.pmid || ""}`.toLowerCase().includes(query.toLowerCase()));
   const notes = { ...library.notes, ...drafts };
+  const duplicateGroups = useMemo(() => findDuplicateGroups(library.articles), [library.articles]);
   const [comparison, setComparison] = useState<string[]>([]);
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
@@ -57,6 +70,14 @@ export default function BibliotecaPage() {
     if (await library.remove(id)) {
       setDrafts(previous => { const next = { ...previous }; delete next[id]; return next; });
       setDirty(previous => { const next = { ...previous }; delete next[id]; return next; });
+    }
+  }
+  async function mergeGroup(group: LibraryArticle[]) {
+    if (hasUnsaved || group.length < 2 || !window.confirm("Unir estes registros? O primeiro será mantido e as anotações, etiquetas e vínculos dos demais serão incorporados.")) return;
+    const keep = group[0];
+    for (const duplicate of group.slice(1)) {
+      const merged = await library.mergeDuplicate(keep.id, duplicate.id);
+      if (!merged) break;
     }
   }
   function updateNote(id: string, field: keyof EvidenceNote, value: string) {
@@ -133,10 +154,16 @@ export default function BibliotecaPage() {
           <label className="text-xs text-ink-soft">Projeto<select aria-label="Filtrar biblioteca por projeto" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os artigos</option><option value="none">Sem projeto associado</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
           <label className="text-xs text-ink-soft flex-1">Buscar na biblioteca<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Título, autor, DOI ou PMID" className="block w-full border border-line px-3 py-2 rounded-card mt-1" /></label>
           <label className="text-xs text-ink-soft">Leitura<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os status</option><option value="unread">Não lidos</option><option value="reading">Em leitura</option><option value="reviewed">Avaliados</option><option value="excluded">Excluídos</option><option value="favorite">Favoritos</option></select></label>
+          <label className="text-xs text-ink-soft">Pasta<select value={folderFilter} onChange={e=>setFolderFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as pastas</option><option value="none">Sem pasta</option>{folders.map(folder=><option key={folder} value={folder}>{folder}</option>)}</select></label>
+          <label className="text-xs text-ink-soft">Etiqueta<select value={tagFilter} onChange={e=>setTagFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as etiquetas</option>{tags.map(tag=><option key={tag} value={tag}>{tag}</option>)}</select></label>
+          <label className="text-xs text-ink-soft">Desenho<select value={designFilter} onChange={e=>setDesignFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os desenhos</option>{studyDesignOptions.filter(([value])=>value!=="auto").map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="text-xs text-ink-soft">Ano<select value={yearFilter} onChange={e=>setYearFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os anos</option>{years.map(year=><option key={year} value={String(year)}>{year}</option>)}</select></label>
           <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/ideias?projeto=${projectFilter}` : "/ideias"} className="text-sm text-teal">Explorar ideias com estas leituras →</Link><Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link>
         </div>}
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>
+
+      {library.userId && duplicateGroups.length > 0 && <section className="mt-5 bg-amber-soft border border-amber/20 rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-amber-800 font-semibold">Revisão de duplicados</p><h2 className="font-display text-2xl mt-2">Encontramos {duplicateGroups.length} {duplicateGroups.length===1?"possível grupo duplicado":"possíveis grupos duplicados"}</h2><p className="text-sm text-ink-soft mt-2">A união preserva as anotações preenchidas, etiquetas e vínculos com projetos. Confira os títulos antes de confirmar.</p><div className="space-y-3 mt-4">{duplicateGroups.map(group=><div key={group[0].id} className="bg-white border border-line rounded-card p-4"><ul className="text-sm space-y-1">{group.map(article=><li key={article.id}>• {article.title} {article.pmid?`· PMID ${article.pmid}`:""} {article.doi?`· DOI ${article.doi}`:""}</li>)}</ul><button disabled={library.working||hasUnsaved} onClick={()=>mergeGroup(group)} className="mt-3 bg-ink text-white px-3 py-2 rounded-card text-xs disabled:opacity-50">Unir registros neste artigo</button></div>)}</div></section>}
 
       <section className="grid sm:grid-cols-3 gap-3 mt-8">
         <Metric value={String(articles.length)} label="Artigos salvos" />
@@ -151,7 +178,7 @@ export default function BibliotecaPage() {
       {library.userId && articles.length>0 && <section className="mt-5 flex flex-wrap items-center gap-2 bg-teal-soft border border-teal/20 rounded-card p-4"><span className="text-sm font-medium mr-2">Exportar este recorte:</span><button onClick={()=>download(buildCsv(articles,notes),"text/csv;charset=utf-8","matriz-scholar.csv")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">Excel / CSV</button><button onClick={()=>download(buildRis(articles),"application/x-research-info-systems;charset=utf-8","referencias-scholar.ris")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">RIS</button><button onClick={()=>download(buildBibtex(articles),"application/x-bibtex;charset=utf-8","referencias-scholar.bib")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">BibTeX</button><span className="text-xs text-ink-soft">O CSV inclui suas anotações da matriz.</span></section>}
 
       {view === "matrix" && library.userId && !library.loading && <section className="mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare suas leituras</h2><p className="text-sm text-ink-soft mt-2">Selecione até cinco artigos deste recorte para comparar suas anotações. As interpretações são suas; confira os resultados no artigo.</p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
-      {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3">Anotações do usuário; campos em edição estão indicados como não salvos.</caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}{dirty[article.id] && <span className="block text-xs text-amber">Alterações não salvas</span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Achado", "finding"], ["Limitação", "limitation"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft">{notes[article.id]?.[key] || "Ainda não anotado"}</td>)}</tr>)}</tbody></table></div>}</section>}
+      {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3">Anotações do usuário; campos em edição estão indicados como não salvos.</caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1">{designLabels[resolvedStudyDesign(article)]}</span>{dirty[article.id] && <span className="block text-xs text-amber">Alterações não salvas</span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || "Ainda não anotado"}</td>)}</tr>)}</tbody></table></div>}</section>}
 
       {library.loading ? <p className="mt-8 text-sm text-ink-soft">Carregando artigos...</p> : !library.userId ? null : articles.length === 0 ? (
         <div className="mt-8 border border-dashed border-line rounded-2xl p-10 text-center bg-white">
@@ -167,6 +194,8 @@ export default function BibliotecaPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
                     {article.year && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">{article.year}</span>}
+                    <span className="bg-paper border border-line px-2 py-1 rounded-full">{designLabels[resolvedStudyDesign(article)]}</span>
+                    {article.folder && <span className="bg-paper border border-line px-2 py-1 rounded-full">Pasta: {article.folder}</span>}
                     {article.publicationTypes?.slice(0, 2).map((type) => <span key={type}>{type}</span>)}
                   </div>
                   <h2 className="font-display text-xl md:text-2xl mt-3 leading-snug">{article.title}</h2>
@@ -185,7 +214,7 @@ export default function BibliotecaPage() {
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
                 </div>
               </div>
-              <ArticleOrganization article={article} disabled={library.working} save={metadata=>library.updateArticle(article.id,metadata)}/>
+              <ArticleOrganization article={article} projects={library.projects} disabled={library.working} save={metadata=>library.updateArticle(article.id,metadata)} addProject={projectId=>library.addProjectLink(article.id,projectId)} removeProject={projectId=>library.removeProjectLink(article.id,projectId)}/>
             </article>
           ))}
         </div>
@@ -204,7 +233,7 @@ export default function BibliotecaPage() {
                     <span className="w-8 h-8 rounded-full bg-teal text-white flex items-center justify-center text-sm shrink-0">{index + 1}</span>
                     <div>
                       <h2 className="font-medium leading-snug">{article.title}</h2>
-                      <p className="text-xs text-ink-soft mt-1">{article.year || "Ano não informado"} · {article.journal || "Periódico não informado"} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}</p>
+                      <p className="text-xs text-ink-soft mt-1">{article.year || "Ano não informado"} · {article.journal || "Periódico não informado"} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}</p><p className="text-xs text-teal mt-1">Modelo: {designLabels[resolvedStudyDesign(article)]}</p>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -214,6 +243,7 @@ export default function BibliotecaPage() {
                 </div>
 
                 {errors[article.id] && <div className="mx-5 mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-card p-3">{errors[article.id]}</div>}
+                <div className="mx-5 mt-4 text-sm bg-paper border border-line rounded-card p-4"><strong>Orientação para este desenho:</strong><span className="text-ink-soft"> {matrixGuidance(resolvedStudyDesign(article))}</span></div>
 
                 {set && (
                   <div className="p-5 border-b border-line bg-teal-soft/50">
@@ -239,7 +269,7 @@ export default function BibliotecaPage() {
                   <EvidenceField disabled={library.working} label="Principal achado" value={notes[article.id]?.finding || ""} onChange={(v) => updateNote(article.id, "finding", v)} />
                   <EvidenceField disabled={library.working} label="Limitação" value={notes[article.id]?.limitation || ""} onChange={(v) => updateNote(article.id, "limitation", v)} />
                 </div>
-                <details className="border-t border-line p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Dados complementares da avaliação crítica</summary><div className="grid md:grid-cols-2 lg:grid-cols-3 mt-4 border border-line rounded-card overflow-hidden"><EvidenceField disabled={library.working} label="Tamanho da amostra" value={notes[article.id]?.sampleSize||""} onChange={v=>updateNote(article.id,"sampleSize",v)}/><EvidenceField disabled={library.working} label="Intervenção / exposição" value={notes[article.id]?.intervention||""} onChange={v=>updateNote(article.id,"intervention",v)}/><EvidenceField disabled={library.working} label="Comparador" value={notes[article.id]?.comparator||""} onChange={v=>updateNote(article.id,"comparator",v)}/><EvidenceField disabled={library.working} label="Desfechos" value={notes[article.id]?.outcomes||""} onChange={v=>updateNote(article.id,"outcomes",v)}/><EvidenceField disabled={library.working} label="Nível de evidência" value={notes[article.id]?.evidenceLevel||""} onChange={v=>updateNote(article.id,"evidenceLevel",v)}/><EvidenceField disabled={library.working} label="Risco de viés" value={notes[article.id]?.riskOfBias||""} onChange={v=>updateNote(article.id,"riskOfBias",v)}/></div></details>
+                <details className="border-t border-line p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Dados complementares da avaliação crítica</summary><div className="grid md:grid-cols-2 lg:grid-cols-3 mt-4 border border-line rounded-card overflow-hidden"><EvidenceField disabled={library.working} label="Tamanho da amostra" value={notes[article.id]?.sampleSize||""} onChange={v=>updateNote(article.id,"sampleSize",v)}/><EvidenceField disabled={library.working} label="Intervenção / exposição" value={notes[article.id]?.intervention||""} onChange={v=>updateNote(article.id,"intervention",v)}/><EvidenceField disabled={library.working} label="Comparador" value={notes[article.id]?.comparator||""} onChange={v=>updateNote(article.id,"comparator",v)}/><EvidenceField disabled={library.working} label="Desfechos" value={notes[article.id]?.outcomes||""} onChange={v=>updateNote(article.id,"outcomes",v)}/><EvidenceField disabled={library.working} label="Nível de evidência" value={notes[article.id]?.evidenceLevel||""} onChange={v=>updateNote(article.id,"evidenceLevel",v)}/><EvidenceField disabled={library.working} label="Risco de viés" value={notes[article.id]?.riskOfBias||""} onChange={v=>updateNote(article.id,"riskOfBias",v)}/></div><div className="mt-4 border border-line rounded-card"><EvidenceField disabled={library.working} label="Notas gerais da leitura" value={notes[article.id]?.generalNotes||""} onChange={v=>updateNote(article.id,"generalNotes",v)}/></div></details>
               </section>
             );
           })}
@@ -249,10 +279,10 @@ export default function BibliotecaPage() {
   );
 }
 
-function ArticleOrganization({article,disabled,save}:{article:LibraryArticle;disabled:boolean;save:(metadata:{readingStatus:ReadingStatus;favorite:boolean;tags:string[];exclusionReason:string;fullTextUrl:string})=>Promise<boolean>}){
-  const [status,setStatus]=useState<ReadingStatus>(article.readingStatus);const [favorite,setFavorite]=useState(article.favorite);const [tags,setTags]=useState(article.tags.join(", "));const [reason,setReason]=useState(article.exclusionReason);const [url,setUrl]=useState(article.fullTextUrl);
-  useEffect(()=>{setStatus(article.readingStatus);setFavorite(article.favorite);setTags(article.tags.join(", "));setReason(article.exclusionReason);setUrl(article.fullTextUrl)},[article]);
-  return <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal">Organizar leitura, etiquetas e texto completo</summary><div className="grid md:grid-cols-2 gap-3 mt-4"><label className="text-xs">Status<select value={status} onChange={e=>setStatus(e.target.value as ReadingStatus)} className="block w-full border rounded-card p-2 mt-1"><option value="unread">Não lido</option><option value="reading">Em leitura</option><option value="reviewed">Avaliado</option><option value="excluded">Excluído</option></select></label><label className="text-xs">Etiquetas separadas por vírgula<input value={tags} maxLength={1000} onChange={e=>setTags(e.target.value)} className="block w-full border rounded-card p-2 mt-1" placeholder="adesão, residentes, revisão"/></label><label className="text-xs">Link para texto completo<input value={url} maxLength={1000} onChange={e=>setUrl(e.target.value)} className="block w-full border rounded-card p-2 mt-1" placeholder="https://..."/></label><label className="text-xs">Motivo de exclusão<input value={reason} disabled={status!=="excluded"} maxLength={1000} onChange={e=>setReason(e.target.value)} className="block w-full border rounded-card p-2 mt-1 disabled:opacity-50"/></label></div><div className="flex gap-3 items-center mt-3"><label className="text-sm"><input type="checkbox" checked={favorite} onChange={e=>setFavorite(e.target.checked)} className="mr-2"/>Favorito</label><button disabled={disabled} onClick={()=>save({readingStatus:status,favorite,tags:[...new Set(tags.split(",").map(x=>x.trim()).filter(Boolean))],exclusionReason:status==="excluded"?reason:"",fullTextUrl:url.trim()})} className="bg-teal text-white px-3 py-2 rounded-card text-xs disabled:opacity-50">Salvar organização</button></div></details>;
+function ArticleOrganization({article,projects,disabled,save,addProject,removeProject}:{article:LibraryArticle;projects:ResearchProject[];disabled:boolean;save:(metadata:{readingStatus:ReadingStatus;favorite:boolean;tags:string[];folder:string;studyDesign:StudyDesign;exclusionReason:string;fullTextUrl:string})=>Promise<boolean>;addProject:(projectId:string)=>Promise<boolean>;removeProject:(projectId:string)=>Promise<boolean>}){
+  const [status,setStatus]=useState<ReadingStatus>(article.readingStatus);const [favorite,setFavorite]=useState(article.favorite);const [tags,setTags]=useState(article.tags.join(", "));const [folder,setFolder]=useState(article.folder);const [studyDesign,setStudyDesign]=useState<StudyDesign>(article.studyDesign);const [reason,setReason]=useState(article.exclusionReason);const [url,setUrl]=useState(article.fullTextUrl);
+  useEffect(()=>{setStatus(article.readingStatus);setFavorite(article.favorite);setTags(article.tags.join(", "));setFolder(article.folder);setStudyDesign(article.studyDesign);setReason(article.exclusionReason);setUrl(article.fullTextUrl)},[article]);
+  return <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal">Organizar leitura, pasta, desenho e projetos</summary><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4"><label className="text-xs">Status<select value={status} onChange={e=>setStatus(e.target.value as ReadingStatus)} className="block w-full border rounded-card p-2 mt-1"><option value="unread">Não lido</option><option value="reading">Em leitura</option><option value="reviewed">Avaliado</option><option value="excluded">Excluído</option></select></label><label className="text-xs">Pasta<input value={folder} maxLength={120} onChange={e=>setFolder(e.target.value)} className="block w-full border rounded-card p-2 mt-1" placeholder="Ex.: Fundamentação teórica"/></label><label className="text-xs">Desenho do estudo<select value={studyDesign} onChange={e=>setStudyDesign(e.target.value as StudyDesign)} className="block w-full border rounded-card p-2 mt-1">{studyDesignOptions.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="text-xs">Etiquetas separadas por vírgula<input value={tags} maxLength={1000} onChange={e=>setTags(e.target.value)} className="block w-full border rounded-card p-2 mt-1" placeholder="adesão, residentes, revisão"/></label><label className="text-xs">Link para texto completo<input value={url} maxLength={1000} onChange={e=>setUrl(e.target.value)} className="block w-full border rounded-card p-2 mt-1" placeholder="https://..."/></label><label className="text-xs">Motivo de exclusão<input value={reason} disabled={status!=="excluded"} maxLength={1000} onChange={e=>setReason(e.target.value)} className="block w-full border rounded-card p-2 mt-1 disabled:opacity-50"/></label></div><fieldset className="mt-4 border border-line rounded-card p-3"><legend className="text-xs font-medium px-1">Vincular também a outros projetos</legend><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-1">{projects.map(project=>{const checked=article.projectIds.includes(project.id);const primary=article.projectId===project.id;return <label key={project.id} className="text-xs flex items-start gap-2"><input type="checkbox" checked={checked} disabled={disabled||primary} onChange={e=>{if(e.target.checked) void addProject(project.id);else void removeProject(project.id)}} className="mt-0.5"/><span>{project.title||project.theme||"Projeto sem título"}{primary&&<span className="block text-teal">Projeto principal</span>}</span></label>})}{!projects.length&&<p className="text-xs text-ink-soft">Crie um projeto para organizar vínculos.</p>}</div></fieldset><div className="flex gap-3 items-center mt-3"><label className="text-sm"><input type="checkbox" checked={favorite} onChange={e=>setFavorite(e.target.checked)} className="mr-2"/>Favorito</label><button disabled={disabled} onClick={()=>save({readingStatus:status,favorite,tags:[...new Set(tags.split(",").map(x=>x.trim()).filter(Boolean))],folder:folder.trim(),studyDesign,exclusionReason:status==="excluded"?reason:"",fullTextUrl:url.trim()})} className="bg-teal text-white px-3 py-2 rounded-card text-xs disabled:opacity-50">Salvar organização</button></div></details>;
 }
 
 function Metric({ value, label }: { value: string; label: string }) {

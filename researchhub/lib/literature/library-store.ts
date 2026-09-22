@@ -1,12 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Article, sameArticle } from "./types";
+import type { StudyDesign } from "./matrix-template";
 
 export type ReadingStatus = "unread" | "reading" | "reviewed" | "excluded";
-export type LibraryArticle = Article & { id: string; projectId: string | null; readingStatus: ReadingStatus; favorite: boolean; tags: string[]; exclusionReason: string; fullTextUrl: string };
-export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string; sampleSize?: string; intervention?: string; comparator?: string; outcomes?: string; evidenceLevel?: string; riskOfBias?: string };
+export type LibraryArticle = Article & { id: string; projectId: string | null; projectIds: string[]; readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string };
+export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string; sampleSize?: string; intervention?: string; comparator?: string; outcomes?: string; evidenceLevel?: string; riskOfBias?: string; generalNotes?: string };
 export type ResearchProject = { id: string; title: string | null; theme: string | null };
-export const noteFields = ["objective", "population", "method", "finding", "limitation", "sampleSize", "intervention", "comparator", "outcomes", "evidenceLevel", "riskOfBias"] as const;
-const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation", sampleSize: "sample_size", intervention: "intervention", comparator: "comparator", outcomes: "outcomes", evidenceLevel: "evidence_level", riskOfBias: "risk_of_bias" };
+export const noteFields = ["objective", "population", "method", "finding", "limitation", "sampleSize", "intervention", "comparator", "outcomes", "evidenceLevel", "riskOfBias", "generalNotes"] as const;
+const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation", sampleSize: "sample_size", intervention: "intervention", comparator: "comparator", outcomes: "outcomes", evidenceLevel: "evidence_level", riskOfBias: "risk_of_bias", generalNotes: "notes" };
 const confirmableFields = new Set(["objective", "population", "method", "finding", "limitation"]);
 
 export function fromArticleRow(row: any): LibraryArticle {
@@ -18,7 +19,7 @@ export function fromArticleRow(row: any): LibraryArticle {
     publicationTypes: Array.isArray(row.publication_types) ? row.publication_types : [],
     abstract: row.abstract, pubmedUrl: pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : null,
     doiUrl: doi ? `https://doi.org/${doi}` : null, source: pmid ? "PubMed" : "Crossref", savedAt: row.created_at,
-    readingStatus: row.reading_status || "unread", favorite: Boolean(row.favorite), tags: Array.isArray(row.tags) ? row.tags : [], exclusionReason: row.exclusion_reason || "", fullTextUrl: row.full_text_url || "" };
+    readingStatus: row.reading_status || "unread", favorite: Boolean(row.favorite), tags: Array.isArray(row.tags) ? row.tags : [], folder: row.folder || "", studyDesign: row.study_design || "auto", projectIds: row.project_id ? [row.project_id] : [], exclusionReason: row.exclusion_reason || "", fullTextUrl: row.full_text_url || "" };
 }
 
 // A stable DOI ID makes simultaneous saves on two devices converge on one row.
@@ -43,17 +44,23 @@ export class LibraryStore {
       if ((data || []).length < 500) return rows;
     }
   }
+  private async optionalRows(table: string) {
+    try { return await this.allRows(table); } catch { return []; }
+  }
   async load() {
-    const [articleRows, noteRows, projectsResult] = await Promise.all([
+    const [articleRows, noteRows, linkRows, projectsResult] = await Promise.all([
       this.allRows("library_articles"), this.allRows("evidence_matrix"),
+      this.optionalRows("library_article_projects"),
       this.db.from("research_projects").select("id,title,theme").eq("owner_id", this.ownerId).order("updated_at", { ascending: false }),
     ]);
     this.check(projectsResult.error);
     const notes: Record<string, EvidenceNote> = {};
     for (const row of noteRows) {
-      notes[row.article_id] = { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "", sampleSize: row.sample_size || "", intervention: row.intervention || "", comparator: row.comparator || "", outcomes: row.outcomes || "", evidenceLevel: row.evidence_level || "", riskOfBias: row.risk_of_bias || "" };
+      notes[row.article_id] = { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "", sampleSize: row.sample_size || "", intervention: row.intervention || "", comparator: row.comparator || "", outcomes: row.outcomes || "", evidenceLevel: row.evidence_level || "", riskOfBias: row.risk_of_bias || "", generalNotes: row.notes || "" };
     }
-    return { articles: articleRows.map(fromArticleRow).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || "")), notes, projects: (projectsResult.data || []) as ResearchProject[] };
+    const projectIds = new Map<string, string[]>();
+    for (const row of linkRows) projectIds.set(row.article_id, [...(projectIds.get(row.article_id) || []), row.project_id]);
+    return { articles: articleRows.map(fromArticleRow).map(article => ({ ...article, projectIds: Array.from(new Set([...(projectIds.get(article.id) || []), ...(article.projectId ? [article.projectId] : [])])) })).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || "")), notes, projects: (projectsResult.data || []) as ResearchProject[] };
   }
   private async ownedProject(projectId: string | null) {
     if (!projectId) return;
@@ -70,7 +77,12 @@ export class LibraryStore {
     await this.ownedProject(projectId);
     const rows = await this.allRows("library_articles");
     const existing = rows.map(fromArticleRow).find(a => sameArticle(a, article));
-    if (existing) return existing;
+    if (existing) {
+      if (projectId) {
+        try { await this.addProjectLink(existing.id, projectId); existing.projectIds = Array.from(new Set([...existing.projectIds, projectId])); } catch { /* o vínculo principal antigo continua preservado */ }
+      }
+      return existing;
+    }
     const { data, error } = await this.db.from("library_articles").insert({ ...(article.doi ? { id: await stableDoiId(this.ownerId, article.doi) } : {}), owner_id: this.ownerId, project_id: projectId,
       pmid: article.pmid || null, doi: article.doi?.trim().toLowerCase() || null, title: article.title,
       authors: article.authors, journal: article.journal, publication_year: article.year,
@@ -80,7 +92,13 @@ export class LibraryStore {
       const duplicate = (await this.allRows("library_articles")).map(fromArticleRow).find(a => sameArticle(a, article));
       if (duplicate) return duplicate;
     }
-    this.check(error); return fromArticleRow(data);
+    this.check(error);
+    const saved = fromArticleRow(data);
+    if (projectId) {
+      try { const link = await this.db.from("library_article_projects").upsert({ owner_id: this.ownerId, article_id: saved.id, project_id: projectId }); this.check(link.error); } catch { /* project_id preserves the main link until the upgrade runs */ }
+      saved.projectIds = [projectId];
+    }
+    return saved;
   }
   async saveNote(id: string, note: EvidenceNote) {
     const article = await this.ownedArticle(id);
@@ -100,14 +118,49 @@ export class LibraryStore {
     this.check(error);
     const result = await this.db.from("evidence_matrix").update({ project_id: projectId }).eq("owner_id", this.ownerId).eq("article_id", id);
     this.check(result.error);
+    if (projectId) {
+      try { const link = await this.db.from("library_article_projects").upsert({ owner_id: this.ownerId, article_id: id, project_id: projectId }); this.check(link.error); } catch { /* project_id remains the source of truth */ }
+    }
   }
-  async updateArticle(id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; exclusionReason: string; fullTextUrl: string }) {
+  async updateArticle(id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string }) {
     await this.ownedArticle(id);
     if (metadata.tags.length > 20 || metadata.tags.some(tag => tag.length > 50)) throw new Error("Use até 20 etiquetas com no máximo 50 caracteres.");
-    if (metadata.exclusionReason.length > 1000 || metadata.fullTextUrl.length > 1000) throw new Error("Revise os campos antes de salvar.");
+    if (metadata.folder.length > 120 || metadata.exclusionReason.length > 1000 || metadata.fullTextUrl.length > 1000) throw new Error("Revise os campos antes de salvar.");
     if (metadata.fullTextUrl && !/^https?:\/\//i.test(metadata.fullTextUrl)) throw new Error("Informe um link completo iniciado por http:// ou https://.");
-    const { error } = await this.db.from("library_articles").update({ reading_status: metadata.readingStatus, favorite: metadata.favorite, tags: metadata.tags, exclusion_reason: metadata.exclusionReason || null, full_text_url: metadata.fullTextUrl || null }).eq("owner_id", this.ownerId).eq("id", id);
+    const { error } = await this.db.from("library_articles").update({ reading_status: metadata.readingStatus, favorite: metadata.favorite, tags: metadata.tags, folder: metadata.folder || null, study_design: metadata.studyDesign, exclusion_reason: metadata.exclusionReason || null, full_text_url: metadata.fullTextUrl || null }).eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
+  }
+  async addProjectLink(id: string, projectId: string) {
+    await this.ownedArticle(id); await this.ownedProject(projectId);
+    const { error } = await this.db.from("library_article_projects").upsert({ owner_id: this.ownerId, article_id: id, project_id: projectId });
+    this.check(error);
+  }
+  async removeProjectLink(id: string, projectId: string) {
+    const article = await this.ownedArticle(id); await this.ownedProject(projectId);
+    if (article.projectId === projectId) throw new Error("Troque o projeto principal antes de remover este vínculo.");
+    const { error } = await this.db.from("library_article_projects").delete().eq("owner_id", this.ownerId).eq("article_id", id).eq("project_id", projectId);
+    this.check(error);
+  }
+  async mergeDuplicate(keepId: string, removeId: string) {
+    if (keepId === removeId) throw new Error("Escolha dois registros diferentes.");
+    const keep = await this.ownedArticle(keepId); const duplicate = await this.ownedArticle(removeId);
+    if (!sameArticle(keep, duplicate) && normalizeTitle(keep.title) !== normalizeTitle(duplicate.title)) throw new Error("Os registros não parecem representar o mesmo artigo.");
+    const noteRows = await this.allRows("evidence_matrix");
+    const toNote = (row: any): EvidenceNote => row ? { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "", sampleSize: row.sample_size || "", intervention: row.intervention || "", comparator: row.comparator || "", outcomes: row.outcomes || "", evidenceLevel: row.evidence_level || "", riskOfBias: row.risk_of_bias || "", generalNotes: row.notes || "" } : {};
+    const mergedNote = mergeImportedNote(toNote(noteRows.find(row => row.article_id === keepId)), toNote(noteRows.find(row => row.article_id === removeId)));
+    if (Object.values(mergedNote).some(value => value?.trim())) await this.saveNote(keepId, mergedNote);
+    const links = await this.optionalRows("library_article_projects");
+    const projectIds = new Set(links.filter(row => row.article_id === keepId || row.article_id === removeId).map(row => row.project_id));
+    if (keep.projectId) projectIds.add(keep.projectId); if (duplicate.projectId) projectIds.add(duplicate.projectId);
+    for (const projectId of projectIds) await this.addProjectLink(keepId, projectId);
+    const { error: updateError } = await this.db.from("library_articles").update({
+      abstract: keep.abstract || duplicate.abstract,
+      favorite: keep.favorite || duplicate.favorite, tags: Array.from(new Set([...keep.tags, ...duplicate.tags])),
+      folder: keep.folder || duplicate.folder || null, study_design: keep.studyDesign !== "auto" ? keep.studyDesign : duplicate.studyDesign,
+      full_text_url: keep.fullTextUrl || duplicate.fullTextUrl || null,
+    }).eq("owner_id", this.ownerId).eq("id", keepId);
+    this.check(updateError);
+    await this.remove(removeId);
   }
   async attachUnassigned(ids: string[], projectId: string) {
     await this.ownedProject(projectId);
@@ -126,6 +179,20 @@ export class LibraryStore {
     const { error } = await this.db.from("library_articles").delete().eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
   }
+}
+
+function normalizeTitle(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+export function findDuplicateGroups(articles: LibraryArticle[]) {
+  const groups: LibraryArticle[][] = [];
+  const used = new Set<string>();
+  for (const article of articles) {
+    if (used.has(article.id)) continue;
+    const matches = articles.filter(other => other.id !== article.id && !used.has(other.id) && (sameArticle(article, other) || (article.year === other.year && normalizeTitle(article.title) === normalizeTitle(other.title))));
+    if (matches.length) {
+      const group = [article, ...matches]; group.forEach(item => used.add(item.id)); groups.push(group);
+    }
+  }
+  return groups;
 }
 
 export function mergeImportedNote(saved: EvidenceNote = {}, incoming: EvidenceNote = {}): EvidenceNote {
