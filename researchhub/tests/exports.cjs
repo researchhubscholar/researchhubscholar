@@ -1,9 +1,15 @@
 const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
-const {buildCsv,buildRis,buildBibtex,buildProtocolDoc}=require('../lib/exports/scientific.ts');
+const {buildCsv,buildRis,buildBibtex,buildProtocolDoc,buildStructuredProtocol,buildProjectSummary,buildAdvisorReport,buildProjectMatrixCsv}=require('../lib/exports/scientific.ts');
 const article={id:'a1',title:'Title, with comma',authors:['Ana Silva','Beto Lima'],year:2025,journal:'Journal',pmid:'123',doi:'10.1/test',readingStatus:'reviewed',tags:['prioritário'],abstract:'Resumo',projectId:null,favorite:true,exclusionReason:'',fullTextUrl:'',publicationTypes:[],pubdate:'2025',pubmedUrl:null,doiUrl:null,source:'PubMed',savedAt:''};
 const notes={a1:{objective:'Avaliar resultado',sampleSize:'120',riskOfBias:'Baixo'}};
 assert(buildCsv([article],notes).includes('"Title, with comma"'));assert(buildCsv([article],notes).includes('"120"'));
 assert(buildRis([article]).includes('AN  - PMID:123'));assert(buildBibtex([article]).includes('@article{scholar2025_1'));
 assert(buildProtocolDoc('<Projeto>',[]).includes('&lt;Projeto&gt;'));
-console.log('PASS: CSV/Excel, RIS, BibTeX and Word-compatible protocol exports.');
+const data={project:{id:'p1',title:'Projeto teste',theme:'Tema',question:'Pergunta?',objective:'Avaliar',hypothesis:'',studyType:'Coorte',population:'Residentes',inclusion:'Adultos',exclusion:'Sem dados',outcome:'Resultado',variables:'Variável',methods:'Coleta',analysis:'Análise',ethics:'CEP',manuscript:'Plano',status:'planning',progress:80,updatedAt:'2026-09-22T10:00:00Z'},profile:{name:'Ana',institution:'Hospital',specialty:'Clínica',trainingStage:'resident'},articles:[article],notes,milestones:[{key:'analysis',label:'Análise',status:'blocked',note:'Validar teste',dueDate:'2026-10-01'}],generatedAt:'22/09/2026'};
+assert(buildStructuredProtocol(data).includes('Referências vinculadas'));
+assert(buildProjectSummary(data).includes('Resumo executivo'));
+assert(buildAdvisorReport(data).includes('Validar teste'));
+assert(buildProjectMatrixCsv(data).includes('"Projeto teste"'));
+assert(!buildStructuredProtocol({...data,project:{...data.project,title:'<script>'}}).includes('<script>'));
+console.log('PASS: CSV/Excel, RIS, BibTeX, protocol, project summary, advisor report and evidence matrix exports.');

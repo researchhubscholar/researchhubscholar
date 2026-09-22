@@ -9,6 +9,7 @@ const tools = [
   { href: "/ideias", tag: "01 · Explorar", title: "Encontre uma direção", text: "Compare possibilidades de pesquisa com seu prazo, população e acesso a dados." },
   { href: "/descobrir", tag: "02 · Investigar", title: "Consulte a literatura", text: "Explore artigos reais do PubMed, tipos de estudo e evolução das publicações." },
   { href: "/biblioteca", tag: "03 · Organizar", title: "Leia com propósito", text: "Organize artigos e registre sua leitura na matriz de evidências." },
+  { href: "/documentos", tag: "04 · Comunicar", title: "Prepare seus documentos", text: "Gere protocolo, resumo, relatório de orientação e matriz a partir dos dados do projeto." },
 ];
 export default async function DashboardPage() {
   const db = await supabaseServer();
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
       </Link>)}</div> : <div className="bg-white border border-dashed border-line rounded-2xl p-8 mt-5"><h3 className="font-display text-2xl">Sua primeira pesquisa começa com uma pergunta.</h3><p className="text-sm text-ink-soft mt-3">Explore possibilidades no Ideias ou abra o construtor se já tiver um tema.</p><Link href="/ideias" className="inline-block mt-4 text-teal font-medium text-sm">Encontrar um tema →</Link></div>}
     </section>
     <section className="grid sm:grid-cols-2 gap-4 mt-8" aria-label="Licença e programas"><Link href="/licenca" className="bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Licença e assistência</h2><p className="text-sm text-ink-soft mt-3">Consulte sua franquia e o histórico de consumo.</p></Link><Link href="/residencia" className="bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Minha residência</h2><p className="text-sm text-ink-soft mt-3">Vincule sua conta por convite ou acompanhe o programa como coordenador.</p></Link></section>
-    <section className="mt-10"><h2 className="font-display text-3xl">Ferramentas para avançar</h2><div className="grid md:grid-cols-3 gap-4 mt-5">{tools.map(tool => <Link key={tool.href} href={tool.href} className="bg-white border border-line rounded-2xl p-5 hover:border-teal"><p className="text-xs uppercase tracking-wider text-teal">{tool.tag}</p><h3 className="font-display text-xl mt-4">{tool.title}</h3><p className="text-sm text-ink-soft mt-3 leading-relaxed">{tool.text}</p><span className="text-teal text-sm inline-block mt-5">Abrir ferramenta →</span></Link>)}</div></section>
+    <section className="mt-10"><h2 className="font-display text-3xl">Ferramentas para avançar</h2><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">{tools.map(tool => <Link key={tool.href} href={tool.href} className="bg-white border border-line rounded-2xl p-5 hover:border-teal"><p className="text-xs uppercase tracking-wider text-teal">{tool.tag}</p><h3 className="font-display text-xl mt-4">{tool.title}</h3><p className="text-sm text-ink-soft mt-3 leading-relaxed">{tool.text}</p><span className="text-teal text-sm inline-block mt-5">Abrir ferramenta →</span></Link>)}</div></section>
   </div>;
 }
 function Metric({ value, label }: { value: string; label: string }) { return <div className="bg-white border border-line rounded-card p-5"><p className="text-2xl font-semibold">{value}</p><p className="text-xs text-ink-soft mt-2">{label}</p></div>; }
