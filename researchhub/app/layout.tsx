@@ -39,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {user ? <Link href="/ideias" className="hover:text-teal hidden sm:block">Ideias</Link> : <><Link href="/como-funciona" className="hover:text-teal hidden lg:block">Como funciona</Link><Link href="/para-residencias" className="hover:text-teal hidden lg:block">Residências</Link><Link href="/planos" className="hover:text-teal hidden md:block">Planos</Link></>}
               {user && <Link href="/biblioteca" className="hover:text-teal hidden md:block">Biblioteca</Link>}
               {user && <Link href="/meu-trabalho" className="hover:text-teal hidden md:block">Meu projeto</Link>}
+              {user && <Link href="/orientacao" className="hover:text-teal hidden lg:block">Orientação</Link>}
               {user ? (
                 <>
                   {displayName && <span className="text-ink-soft/70 hidden xl:inline">{displayName}</span>}
@@ -53,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </nav>
           </div>
           <nav aria-label="Mais opções" className="lg:hidden flex gap-5 overflow-x-auto px-6 pb-3 text-sm text-ink-soft">
-            {(user ? [["/dashboard","Meu espaço"],["/ideias","Ideias"],["/descobrir","Radar"],["/biblioteca","Biblioteca"],["/meu-trabalho","Meu projeto"]] : [["/como-funciona","Como funciona"],["/para-residencias","Residências"],["/planos","Planos"],["/radar-demo","Testar Radar"]]).map(([href,label])=><Link key={href} href={href} className="whitespace-nowrap">{label}</Link>)}
+            {(user ? [["/dashboard","Meu espaço"],["/ideias","Ideias"],["/descobrir","Radar"],["/biblioteca","Biblioteca"],["/meu-trabalho","Meu projeto"],["/orientacao","Orientação"]] : [["/como-funciona","Como funciona"],["/para-residencias","Residências"],["/planos","Planos"],["/radar-demo","Testar Radar"]]).map(([href,label])=><Link key={href} href={href} className="whitespace-nowrap">{label}</Link>)}
           </nav>
         </header>
         <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-10"><SiteShortcuts />{children}</main>

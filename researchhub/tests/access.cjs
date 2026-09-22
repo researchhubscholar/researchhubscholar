@@ -19,6 +19,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_journey_checklist.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_advising.sql','utf8'));
  const director='11111111-1111-4111-8111-111111111111',resident='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333';
  await db.query('insert into auth.users(id,email) values($1,$2),($3,$4),($5,$6)',[director,'director@test.local',resident,'resident@test.local',outsider,'outsider@test.local']);
  const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];
@@ -47,6 +48,15 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await as(director);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,1);
  assert.equal((await db.query(`update research_projects set title='Changed' where id=$1 returning id`,[project])).rows.length,0);
  await as(outsider);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,0);
+ await as(resident);const advisorCode=await scalar('select scholar_create_advisor_invite($1,$2)',[project,'outsider@test.local']);
+ await as(outsider);assert.equal(await scalar('select scholar_redeem_advisor_invite($1)',[advisorCode]),project);
+ assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,1);
+ const comment=await scalar(`insert into scholar_project_comments(project_id,author_id,section_key,body) values($1,$2,'methods','Revisar o método') returning id`,[project,outsider]);
+ await assert.rejects(db.query(`select scholar_create_project_version($1,'Versão indevida')`,[project]),/Projeto indisponível/);
+ await as(resident);await db.query(`select scholar_resolve_project_comment($1,true)`,[comment]);await db.query(`select scholar_create_project_version($1,'Antes da revisão')`,[project]);
+ await as(outsider);assert.equal((await db.query('select id from scholar_project_versions where project_id=$1',[project])).rows.length,1);
+ await as(resident);await db.query('select scholar_revoke_advisor($1,$2)',[project,outsider]);
+ await as(outsider);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,0);assert.equal((await db.query('select id from scholar_project_comments where project_id=$1',[project])).rows.length,0);
  await as(resident);await assert.rejects(db.query(`select scholar_reserve(gen_random_uuid(),$1,$2,'ideas','test',10000,null)`,[wallet,resident]),/permission denied/);
  await db.exec('reset role');
  const req='44444444-4444-4444-8444-444444444444';
@@ -85,6 +95,6 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await assert.rejects(db.query('select scholar_recharge($1,$2,2000000)',[topup,lic]),/já utilizado/);
  await as(resident);await assert.rejects(db.query('select scholar_recharge(gen_random_uuid(),$1,1000000)',[lic]),/permission denied/);
  await assert.rejects(db.query('select scholar_project_owner($1)',[project]),/permission denied/);
- console.log('PASS: PostgreSQL migration, RLS isolation, seat limits, director read-only sharing, backend-only provisioning/consumption, idempotent reservations/settlement, refund, allocation floor and daily cap.');
+ console.log('PASS: PostgreSQL migration, RLS isolation, advisor invitations/comments/versions/revocation, seat limits, director read-only sharing, backend-only provisioning/consumption, idempotent reservations/settlement, refund, allocation floor and daily cap.');
  await db.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});
