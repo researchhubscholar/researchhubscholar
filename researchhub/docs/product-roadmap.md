@@ -15,7 +15,7 @@ de lançamento.
 - [x] Jornada adaptada para revisão, relato de caso e estudos originais.
 - [x] Etapas, status, prazos, progresso e checklists contextuais.
 - [x] Alertas básicos de viabilidade e coerência por regras.
-- [ ] Ampliar exemplos de preenchimento por tipo de trabalho.
+- [x] Ampliar exemplos de preenchimento por tipo de trabalho.
 - [x] Criar checklists persistentes por item, além do status da etapa.
 
 ### Ideias e viabilidade

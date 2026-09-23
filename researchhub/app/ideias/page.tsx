@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 import { Context, Idea, initial, generate, ideaBrief, referenceSignature } from "@/lib/ideas/generate";
+import { ideaExampleFor, ideaExamples } from "@/lib/ideas/examples";
 import { useLibrary } from "@/lib/literature/use-library";
 import { transferKey } from "@/lib/ideas/transfer";
 import { diagnose } from "@/lib/research/checks";
@@ -133,11 +134,24 @@ export default function IdeasPage() {
     else if (selected.length < 3) { setSelected(ids => [...ids, id]); setMessage(""); }
     else setMessage("Selecione até três ideias para comparar.");
   }
+  const activeExample = ideaExampleFor(context.workType);
+  function applyExample() {
+    if ((touched.current.size || ideas.length) && !window.confirm("Substituir os campos atuais pelo exemplo escolhido? Ideias salvas no histórico não serão alteradas.")) return;
+    const example = { ...activeExample.context };
+    touched.current = new Set(Object.keys(example));
+    series.current = {};
+    setContext(example); setProjectId(""); setReferenceIds([]); setAllReferences(false);
+    explore(example, []);
+  }
   return <div className="max-w-5xl mx-auto">
     <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa</p>
     <h1 className="font-display text-4xl md:text-5xl mt-3">Uma ideia que cabe na sua realidade.</h1>
     <p className="text-ink-soft mt-4 max-w-3xl leading-relaxed">Combine seu interesse com o prazo e os recursos disponíveis. Receba propostas estruturadas para discutir com seu orientador e explorar na literatura.</p>
-    <section className="mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between"><div><p className="text-xs uppercase tracking-wider text-teal">Um ponto de partida concreto</p><h2 className="font-display text-xl mt-2">Como investigar o sono durante a residência?</h2><p className="text-sm text-ink-soft mt-2">Explore o exemplo, ajuste as condições e compare caminhos de execução.</p></div><button disabled={profileLoading || library.loading || projectLoading} onClick={() => { const example: Context = { ...initial, theme: "Sono e jornada de plantões", specialty: "Educação médica", interest: "qualidade do sono durante a residência", population: "residentes médicos", stage: "resident", months: "6", access: "both", exposure: "número de plantões noturnos por mês", measure: "escore de qualidade do sono", setting: "um programa de residência médica" }; series.current = {}; setContext(example); setProjectId(""); setReferenceIds([]); explore(example, []); }} className="bg-teal text-white rounded-card px-4 py-3 text-sm font-medium shrink-0 disabled:opacity-50">Explorar exemplo →</button></section>
+    <section className="mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5">
+      <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between"><div><p className="text-xs uppercase tracking-wider text-teal">Exemplo para {activeExample.label}</p><h2 className="font-display text-xl mt-2">{activeExample.title}</h2><p className="text-sm text-ink-soft mt-2">{activeExample.description}</p></div><button disabled={profileLoading || library.loading || projectLoading} onClick={applyExample} className="bg-teal text-white rounded-card px-4 py-3 text-sm font-medium shrink-0 disabled:opacity-50">Explorar este exemplo →</button></div>
+      <div className="flex gap-2 overflow-x-auto mt-5 pt-4 border-t border-teal/15" aria-label="Escolher exemplo por tipo de trabalho">{ideaExamples.map(example => <button key={example.workType} type="button" onClick={() => update("workType", example.workType)} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs ${activeExample.workType === example.workType ? "bg-ink text-white border-ink" : "bg-white/70 text-teal border-teal/20"}`}>{example.label}</button>)}</div>
+      <p className="text-xs text-ink-soft mt-3">O exemplo serve para aprender o nível de recorte esperado. Ele só substitui o formulário depois da sua confirmação.</p>
+    </section>
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <p className="text-xs uppercase tracking-wider text-teal">Conecte seu trabalho</p>
       <h2 className="font-display text-2xl mt-2">Comece pelo projeto e pelas leituras que você já tem.</h2>

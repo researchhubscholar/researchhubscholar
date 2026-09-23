@@ -5,10 +5,20 @@ require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileMo
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 }).outputText, filename);
 const { generate, initial, ideaBrief, referenceSignature } = require('../lib/ideas/generate.ts');
+const { ideaExamples, ideaExampleFor } = require('../lib/ideas/examples.ts');
 const { readIdeaTransfer, transferKey } = require('../lib/ideas/transfer.ts');
 const a = '11111111-1111-8111-8111-111111111111';
 const b = '22222222-2222-8222-8222-222222222222';
 const token = '33333333-3333-4333-8333-333333333333';
+assert.deepEqual(ideaExamples.map(example => example.workType), ['tcc', 'original', 'review', 'case', 'residency']);
+for (const example of ideaExamples) {
+  assert(example.context.interest.length > 20);
+  assert(example.context.population.length > 10);
+  assert(example.context.measure.length > 15);
+  assert(example.context.setting.length > 10);
+  assert.equal(example.context.workType, example.workType);
+}
+assert.equal(ideaExampleFor('open').workType, 'residency');
 const context = { ...initial, theme: 'Sono e plantões', specialty: 'Educação médica', interest: 'qualidade do sono', population: 'residentes', setting: 'programa de residência', exposure: 'plantões noturnos', measure: 'escore de sono', access: 'both', uncertainty: 'Diferenças entre instrumentos', startingQuestion: 'Como investigar sono na residência?' };
 const article = { id: a, projectId: null, title: 'Selected article', year: 2025, doi: '10.1234/sleep', pmid: null, abstract: null, doiUrl: 'https://doi.org/10.1234/sleep', pubmedUrl: null, authors: [], journal: 'Journal', publicationTypes: [], pubdate: '2025' };
 const evidence = [{ article, note: { finding: 'My reading note', limitation: 'Small sample' } }];

@@ -1,0 +1,142 @@
+import type { Context, WorkType } from "./generate";
+
+export type IdeaExample = {
+  workType: Exclude<WorkType, "open">;
+  label: string;
+  title: string;
+  description: string;
+  context: Context;
+};
+
+export const ideaExamples: IdeaExample[] = [
+  {
+    workType: "tcc",
+    label: "TCC",
+    title: "Reconciliação medicamentosa após a alta",
+    description: "Exemplo de conclusão de curso com população, cenário, exposição e desfecho delimitados.",
+    context: {
+      theme: "Reconciliação medicamentosa na transição do cuidado",
+      specialty: "Clínica médica",
+      interest: "divergências entre a prescrição de alta e os medicamentos usados no domicílio",
+      population: "adultos com 60 anos ou mais após internação clínica",
+      stage: "student",
+      months: "6",
+      access: "records",
+      exposure: "ausência de reconciliação medicamentosa documentada na alta",
+      measure: "proporção de pacientes com ao menos uma discrepância medicamentosa não intencional",
+      setting: "enfermaria de clínica médica de um hospital de ensino",
+      workType: "tcc",
+      instrument: "formulário padronizado de comparação entre prescrição e uso domiciliar",
+      support: "yes",
+      availableSample: "altas ocorridas durante três meses; confirmar quantidade elegível",
+      authorization: "pending",
+      requirements: "trabalho de conclusão com apresentação em banca",
+      uncertainty: "confirmar se os registros permitem distinguir divergências intencionais e não intencionais",
+    },
+  },
+  {
+    workType: "original",
+    label: "Artigo original",
+    title: "Controle pressórico após ajuste terapêutico",
+    description: "Exemplo observacional com prontuários, período definido e um desfecho principal mensurável.",
+    context: {
+      theme: "Seguimento da hipertensão na atenção ambulatorial",
+      specialty: "Clínica médica",
+      interest: "controle pressórico após intensificação do tratamento anti-hipertensivo",
+      population: "adultos com hipertensão e retorno ambulatorial registrado",
+      stage: "resident",
+      months: "12",
+      access: "records",
+      exposure: "intensificação do tratamento anti-hipertensivo na consulta inicial",
+      measure: "proporção com pressão arterial abaixo da meta registrada em até 120 dias",
+      setting: "ambulatório de clínica médica de um hospital universitário",
+      workType: "original",
+      instrument: "formulário de extração de prontuário com critérios operacionais prévios",
+      support: "yes",
+      availableSample: "prontuários de um ano; estimar elegibilidade antes do protocolo",
+      authorization: "pending",
+      requirements: "manuscrito em formato de artigo original",
+      uncertainty: "definir como tratar medidas repetidas e perdas de seguimento",
+    },
+  },
+  {
+    workType: "review",
+    label: "Revisão",
+    title: "Intervenções para reduzir burnout em residentes",
+    description: "Exemplo de revisão com intervenção, população e resultado previamente recortados.",
+    context: {
+      theme: "Prevenção de burnout durante a residência médica",
+      specialty: "Educação médica",
+      interest: "efeito de intervenções institucionais sobre burnout em residentes",
+      population: "médicos residentes de programas hospitalares",
+      stage: "resident",
+      months: "6",
+      access: "literature",
+      exposure: "intervenções organizacionais sobre carga, supervisão ou apoio ao residente",
+      measure: "mudança em burnout medida por instrumento validado",
+      setting: "programas de residência médica",
+      workType: "review",
+      instrument: "instrumentos validados de burnout informados nos estudos elegíveis",
+      support: "yes",
+      availableSample: "não se aplica; confirmar quantidade e comparabilidade dos estudos",
+      authorization: "na",
+      requirements: "revisão com estratégia de busca reproduzível",
+      uncertainty: "avaliar se intervenções e medidas são comparáveis para uma síntese conjunta",
+    },
+  },
+  {
+    workType: "case",
+    label: "Relato de caso",
+    title: "Evento adverso raro com desafio diagnóstico",
+    description: "Exemplo centrado em uma mensagem clínica, com consentimento e anonimização como condições essenciais.",
+    context: {
+      theme: "Evento adverso medicamentoso com apresentação atípica",
+      specialty: "Clínica médica",
+      interest: "processo diagnóstico e manejo de um evento adverso raro com manifestação atípica",
+      population: "um paciente atendido durante a residência",
+      stage: "resident",
+      months: "3",
+      access: "patients",
+      exposure: "uso do medicamento temporalmente associado ao evento",
+      measure: "evolução clínica, exames relevantes e resposta após a conduta",
+      setting: "serviço hospitalar em que o caso foi acompanhado",
+      workType: "case",
+      instrument: "linha do tempo clínica baseada em registros autorizados",
+      support: "yes",
+      availableSample: "um caso com documentação clínica suficiente",
+      authorization: "pending",
+      requirements: "relato conforme diretriz CARE e regras do serviço",
+      uncertainty: "confirmar singularidade, consentimento e remoção de identificadores",
+    },
+  },
+  {
+    workType: "residency",
+    label: "Projeto da residência",
+    title: "Sono e jornada de plantões na residência",
+    description: "Exemplo viável para discutir prazo, acesso aos participantes e instrumento de medida.",
+    context: {
+      theme: "Sono e jornada de plantões",
+      specialty: "Educação médica",
+      interest: "qualidade do sono durante a residência",
+      population: "residentes médicos",
+      stage: "resident",
+      months: "6",
+      access: "both",
+      exposure: "número de plantões noturnos por mês",
+      measure: "escore de qualidade do sono",
+      setting: "um programa de residência médica",
+      workType: "residency",
+      instrument: "PSQI; confirmar adequação e condições de uso",
+      support: "yes",
+      availableSample: "residentes ativos do programa; confirmar adesão provável",
+      authorization: "pending",
+      requirements: "projeto científico da residência",
+      uncertainty: "definir período de exposição e possíveis fatores de confusão",
+    },
+  },
+];
+
+export function ideaExampleFor(workType: WorkType = "open") {
+  return ideaExamples.find(example => example.workType === workType)
+    || ideaExamples.find(example => example.workType === "residency")!;
+}
