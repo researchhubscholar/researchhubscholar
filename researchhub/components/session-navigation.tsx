@@ -16,8 +16,8 @@ const publicLinks = [
 
 const privateLinks = [
   ["/dashboard", "Meu espaço"],
-  ["/ideias", "Ideias"],
   ["/descobrir", "Radar"],
+  ["/ideias", "Ideias"],
   ["/biblioteca", "Biblioteca"],
   ["/meu-trabalho", "Meu projeto"],
   ["/orientacao", "Orientação"],
@@ -57,7 +57,7 @@ export default function SessionNavigation() {
 
   return <>
     <nav aria-label="Navegação principal" className="flex items-center justify-self-end gap-3 text-sm text-ink-soft md:gap-5">
-      {links.slice(0, 3).map(([href, label], index) => <Link key={href} href={href} className={`hover:text-teal ${index === 0 ? "hidden sm:block" : "hidden lg:block"}`}>{label}</Link>)}
+      {links.map(([href, label], index) => <Link key={href} href={href} className={`hover:text-teal ${index === 0 ? "hidden sm:block" : "hidden lg:block"}`}>{label}</Link>)}
       {session.authenticated ? <>
         {session.displayName && <span className="text-ink-soft/70 hidden xl:inline">{session.displayName}</span>}
         <LogoutButton />
