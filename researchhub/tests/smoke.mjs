@@ -60,16 +60,43 @@ try {
   await waitForServer();
 
   const home = await expectPage("/", /ResearchHub/);
-  assert.match(await (await request("/login")).text(), /Entrar|Acessar/);
-  await expectPage("/radar-demo", /Radar/);
+  const publicPages = [
+    ["/login", /Entrar|Acessar/],
+    ["/cadastro", /Criar|cadastro|conta/i],
+    ["/como-funciona", /Como funciona|percurso/i],
+    ["/para-residencias", /residência/i],
+    ["/planos", /planos|licença/i],
+    ["/radar-demo", /Radar/],
+    ["/contato", /contato/i],
+    ["/termos", /termos/i],
+    ["/privacidade", /privacidade/i],
+    ["/cancelamento", /cancelamento/i],
+    ["/esqueci-senha", /senha/i],
+    ["/redefinir-senha", /senha/i],
+  ];
+  for (const [path, expected] of publicPages) await expectPage(path, expected);
 
   assert.match(home.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
   assert.equal(home.headers.get("x-content-type-options"), "nosniff");
   assert.equal(home.headers.get("x-frame-options"), "DENY");
 
-  const privatePage = await request("/biblioteca");
-  assert.ok([307, 308].includes(privatePage.status));
-  assert.equal(new URL(privatePage.headers.get("location"), baseUrl).pathname, "/login");
+  const privatePages = [
+    "/dashboard",
+    "/ideias",
+    "/biblioteca",
+    "/meu-trabalho",
+    "/documentos",
+    "/licenca",
+    "/orientacao",
+    "/residencia",
+    "/residencia/projeto",
+    "/scholar/onboarding",
+  ];
+  for (const path of privatePages) {
+    const response = await request(path);
+    assert.ok([307, 308].includes(response.status), `${path} deveria exigir autenticação`);
+    assert.equal(new URL(response.headers.get("location"), baseUrl).pathname, "/login");
+  }
 
   const privateRadar = await request("/descobrir");
   assert.ok([307, 308].includes(privateRadar.status));
@@ -92,7 +119,7 @@ try {
     assert.equal(response.status, 200, `${path} deveria responder 200`);
   }
 
-  console.log("PASS: home, autenticação, rotas privadas, API protegida, redirects legados, SEO e headers.");
+  console.log("PASS: páginas públicas, autenticação, todas as rotas privadas, API protegida, redirects legados, SEO e headers.");
 } finally {
   server.kill("SIGTERM");
   await Promise.race([once(server, "exit"), delay(3000)]);

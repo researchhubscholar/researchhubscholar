@@ -16,15 +16,16 @@ de lançamento.
 - [x] Etapas, status, prazos, progresso e checklists contextuais.
 - [x] Alertas básicos de viabilidade e coerência por regras.
 - [ ] Ampliar exemplos de preenchimento por tipo de trabalho.
-- [ ] Criar checklists persistentes por item, além do status da etapa.
+- [x] Criar checklists persistentes por item, além do status da etapa.
 
 ### Ideias e viabilidade
 
 - [x] Recorte guiado, população, desfecho, recursos, prazo e acesso.
 - [x] Diagnóstico explicável de viabilidade e versões da ideia.
 - [x] Transferência da proposta para um novo projeto.
-- [ ] Comparação visual de até três ideias salvas.
-- [ ] Modelos específicos para TCC, artigo, revisão, relato e residência.
+- [x] Comparação visual de até três ideias geradas.
+- [x] Modelos específicos para TCC, artigo, revisão, relato e residência.
+- [ ] Comparação direta entre versões salvas no histórico.
 
 ### Radar
 
@@ -38,7 +39,7 @@ de lançamento.
 
 - [x] Status, etiquetas, favoritos, notas, exclusão e matriz ampliada.
 - [x] Risco de viés, nível de evidência, amostra, intervenção e comparador.
-- [ ] Pastas e vínculo explícito do mesmo artigo a múltiplos projetos.
+- [x] Pastas e vínculo explícito do mesmo artigo a múltiplos projetos.
 - [ ] Comparação visual e união de registros duplicados.
 
 ### Projeto e operação
@@ -46,8 +47,8 @@ de lançamento.
 - [x] Construtor do protocolo e exportação inicial.
 - [x] Landing, páginas institucionais e legais.
 - [x] Base de licenças, turmas, convites, vagas e consumo futuro.
-- [ ] Documento específico para reunião com orientador.
-- [ ] Relatório geral do projeto e exportações estruturadas.
+- [x] Documento específico para reunião com orientador.
+- [x] Relatório geral do projeto e exportações estruturadas.
 - [ ] Exclusão/exportação da conta, suporte, monitoramento e métricas.
 - [ ] Revisão mobile completa e painel administrativo de operação.
 
