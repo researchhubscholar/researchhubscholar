@@ -1,10 +1,11 @@
 "use client";
 
-import { signOutAction } from "@/lib/auth";
+import { signOutAction } from "@/lib/supabase/actions";
 
 export default function LogoutButton({ variant = "text" }: { variant?: "text" | "button" }) {
   return (
     <button
+      type="button"
       onClick={() => signOutAction()}
       className={
         variant === "button"

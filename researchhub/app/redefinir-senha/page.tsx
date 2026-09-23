@@ -109,10 +109,14 @@ export default function RedefinirSenhaPage() {
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
-          <label className="text-sm text-ink-soft">Nova senha</label>
+          <label htmlFor="new-password" className="text-sm text-ink-soft">Nova senha</label>
           <input
+            id="new-password"
+            name="password"
+            autoComplete="new-password"
             required
-            minLength={6}
+            minLength={8}
+            maxLength={128}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -121,10 +125,14 @@ export default function RedefinirSenhaPage() {
         </div>
 
         <div>
-          <label className="text-sm text-ink-soft">Confirme a nova senha</label>
+          <label htmlFor="confirm-password" className="text-sm text-ink-soft">Confirme a nova senha</label>
           <input
+            id="confirm-password"
+            name="passwordConfirmation"
+            autoComplete="new-password"
             required
-            minLength={6}
+            minLength={8}
+            maxLength={128}
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -132,7 +140,7 @@ export default function RedefinirSenhaPage() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"

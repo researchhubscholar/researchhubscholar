@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -39,6 +39,20 @@ const trendLabels = { growing: "Em crescimento", stable: "Estável", declining: 
 
 
 export default function DiscoverPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="p-6 text-sm text-ink-soft" role="status">
+          Carregando o Radar...
+        </p>
+      }
+    >
+      <DiscoverContent />
+    </Suspense>
+  );
+}
+
+function DiscoverContent() {
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
   const [period, setPeriod] = useState("5");

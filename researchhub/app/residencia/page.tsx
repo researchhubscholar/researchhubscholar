@@ -29,18 +29,18 @@ export default function ResidencyPage(){
  },[refresh]);
  useEffect(()=>setCreatedCode(""),[org,owner]);
  const director=memberships.some(m=>m.organization_id===org&&m.role==="director"&&m.active);
- useEffect(()=>{const ticket=++request.current;setResidents([]);setProjects([]);setInvites([]);setCohorts([]);setLicense(null);setCohort("");
+ useEffect(()=>{const requestRef=request;const ticket=++requestRef.current;setResidents([]);setProjects([]);setInvites([]);setCohorts([]);setLicense(null);setCohort("");
   if(!org||!owner)return;
   void(async()=>{try{
    const client=supabaseBrowser();const results=await Promise.all([client.from("scholar_cohorts").select("id,name").eq("organization_id",org),client.from("scholar_licenses").select("seats,token_allowance,status,ends_at").eq("organization_id",org).maybeSingle()]);
-   if(ticket!==request.current)return;for(const result of results)if(result.error)throw result.error;setCohorts(results[0].data||[]);setLicense(results[1].data);
+   if(ticket!==requestRef.current)return;for(const result of results)if(result.error)throw result.error;setCohorts(results[0].data||[]);setLicense(results[1].data);
    if(!director)return;
    const [roster,invitation,shares]=await Promise.all([client.rpc("scholar_roster",{p_org:org}),client.from("scholar_invites").select("id,email,expires_at,uses,max_uses,revoked").eq("organization_id",org).order("expires_at",{ascending:false}).limit(100),client.from("scholar_project_shares").select("project_id").eq("organization_id",org)]);
-   if(ticket!==request.current)return;if(roster.error||invitation.error||shares.error)throw roster.error||invitation.error||shares.error;
+   if(ticket!==requestRef.current)return;if(roster.error||invitation.error||shares.error)throw roster.error||invitation.error||shares.error;
    setResidents(roster.data||[]);setInvites(invitation.data||[]);
-   if(shares.data?.length){const result=await client.from("research_projects").select("id,owner_id,title,status,progress").in("id",shares.data.map(s=>s.project_id));if(ticket!==request.current)return;if(result.error)throw result.error;setProjects(result.data||[]);}
-  }catch{if(ticket===request.current)setMessage("Não foi possível carregar os dados deste programa.");}})();
-  return()=>{++request.current;};
+   if(shares.data?.length){const result=await client.from("research_projects").select("id,owner_id,title,status,progress").in("id",shares.data.map(s=>s.project_id));if(ticket!==requestRef.current)return;if(result.error)throw result.error;setProjects(result.data||[]);}
+  }catch{if(ticket===requestRef.current)setMessage("Não foi possível carregar os dados deste programa.");}})();
+  return()=>{++requestRef.current;};
  },[org,owner,director,refresh]);
  async function action(name:string,args:Record<string,unknown>,success:string){
   if(busyRef.current||!owner)return;const who=owner;busyRef.current=true;setBusy(true);setMessage("");

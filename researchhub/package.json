@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint app components lib middleware.ts --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/library-store.cjs && node tests/ideas.cjs && node tests/access.cjs && node tests/journey.cjs && node tests/radar.cjs && node tests/exports.cjs && node tests/literature-analysis.cjs && node tests/public.cjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:smoke",
+    "test:smoke": "node tests/smoke.mjs",
     "test:library": "node tests/library-store.cjs",
     "test:ideas": "node tests/ideas.cjs",
     "test:access": "node tests/access.cjs",
@@ -14,21 +18,23 @@
     "test:radar": "node tests/radar.cjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.1",
-    "@supabase/supabase-js": "^2.45.0",
-    "resend": "^4.0.0",
-    "next": "^15.5.7",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@supabase/ssr": "0.5.2",
+    "@supabase/supabase-js": "2.116.0",
+    "next": "15.5.26",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.2",
-    "@electric-sql/pglite": "^0.5.8"
+    "@electric-sql/pglite": "0.5.8",
+    "@eslint/eslintrc": "3.3.7",
+    "@types/node": "20.19.43",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "autoprefixer": "10.4.21",
+    "eslint": "9.39.5",
+    "eslint-config-next": "15.5.26",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.9.3"
   }
 }

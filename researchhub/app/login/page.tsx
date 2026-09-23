@@ -61,15 +61,15 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4 bg-white border border-line rounded-2xl p-6">
         <div>
-          <label className="text-sm text-ink-soft">E-mail</label>
-          <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />
+          <label htmlFor="login-email" className="text-sm text-ink-soft">E-mail</label>
+          <input id="login-email" name="email" autoComplete="email" required type="email" maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />
         </div>
         <div>
-          <label className="text-sm text-ink-soft">Senha</label>
-          <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />
+          <label htmlFor="login-password" className="text-sm text-ink-soft">Senha</label>
+          <input id="login-password" name="password" autoComplete="current-password" required type="password" maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />
           <a href="/esqueci-senha" className="text-xs text-teal hover:underline mt-1 inline-block">Esqueci minha senha</a>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-2.5 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? "Entrando..." : "Entrar"}</button>
       </form>
 

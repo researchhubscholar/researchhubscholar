@@ -7,9 +7,7 @@ const steps = [
   { n: "04", title: "Construa", text: "Transforme o tema em pergunta, objetivos, desenho, população e desfechos." },
 ];
 
-import { supabaseServer } from "@/lib/supabase/server";
-export default async function ScholarHomePage() {
-  const db=await supabaseServer();const {data:{user}}=await db.auth.getUser();
+export default function ScholarHomePage() {
   return (
     <div className="marketing-page">
       <section className="home-hero grid lg:grid-cols-[1.12fr_.88fr] gap-10 lg:gap-16 items-center py-8 md:py-14">
@@ -26,7 +24,7 @@ export default async function ScholarHomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             <Link href="/radar-demo" className="bg-teal text-white px-6 py-3.5 rounded-card font-medium text-center hover:bg-teal/90 transition-colors">Experimentar o Radar</Link>
-            <Link href={user ? "/dashboard" : "/cadastro"} className="bg-white border border-line text-ink px-6 py-3.5 rounded-card font-medium text-center hover:border-teal transition-colors">{user ? "Continuar no meu espaço" : "Criar meu espaço"}</Link>
+            <Link href="/cadastro" className="bg-white border border-line text-ink px-6 py-3.5 rounded-card font-medium text-center hover:border-teal transition-colors">Criar meu espaço</Link>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-7 text-xs text-ink-soft">
             <span>✓ Busca real no PubMed</span><span>✓ Biblioteca científica</span><span>✓ Matriz de evidências</span><span>✓ Estrutura metodológica</span>

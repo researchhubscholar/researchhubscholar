@@ -38,40 +38,41 @@ export function useLibrary() {
     setArticles(data.articles); setNotes(data.notes); setProjects(data.projects);
   }, [db]);
   useEffect(() => {
+    const versionRef = version;
     let active = true;
     async function load() {
-      const current = ++version.current;
+      const current = ++versionRef.current;
       setLoading(true); setError(null);
       try {
         const { data, error: authError } = await db.auth.getUser();
-        if (!active || current !== version.current) return;
+        if (!active || current !== versionRef.current) return;
         if (authError && authError.name !== "AuthSessionMissingError") throw authError;
         const id = data.user?.id || null;
         owner.current = id; setUserId(id);
         if (!id) { setArticles([]); setNotes({}); setProjects([]); setLegacyCount(0); return; }
         await refresh();
-        if (!active || current !== version.current) return;
+        if (!active || current !== versionRef.current) return;
         try {
           const claimed = localStorage.getItem(IMPORT_OWNER);
           const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || "[]");
           const completed = claimed === id && localStorage.getItem(IMPORT_COMPLETE) === legacyStamp();
           setLegacyCount(!completed && (!claimed || claimed === id) && Array.isArray(legacy) ? legacy.length : 0);
         } catch { setLegacyCount(0); }
-      } catch { if (active && current === version.current) setError("Não foi possível carregar sua biblioteca. Tente novamente."); }
-      finally { if (active && current === version.current) setLoading(false); }
+      } catch { if (active && current === versionRef.current) setError("Não foi possível carregar sua biblioteca. Tente novamente."); }
+      finally { if (active && current === versionRef.current) setLoading(false); }
     }
     void load();
     const { data: subscription } = db.auth.onAuthStateChange((_event, session) => {
       const nextOwner = session?.user.id || null;
       if (nextOwner === owner.current) return;
-      ++version.current; owner.current = nextOwner;
+      ++versionRef.current; owner.current = nextOwner;
       setUserId(nextOwner); setArticles([]); setNotes({}); setProjects([]); setMessage(null); setLegacyCount(0);
       // Run outside the auth callback to avoid awaiting another auth call inside it.
       setTimeout(() => { if (active) void load(); }, 0);
     });
     const onFocus = () => { if (!busy.current) void refresh().catch(() => setError("Não foi possível atualizar a biblioteca.")); };
     window.addEventListener("focus", onFocus);
-    return () => { active = false; ++version.current; subscription.subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
+    return () => { active = false; ++versionRef.current; subscription.subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
   }, [db, refresh]);
 
   async function run(operation: (store: LibraryStore, id: string) => Promise<void>, success: string) {

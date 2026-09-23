@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { Article } from "@/lib/literature/types";
@@ -24,6 +24,20 @@ type SuggestionField = keyof SuggestionSet;
 
 
 export default function BibliotecaPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="p-6 text-sm text-ink-soft" role="status">
+          Carregando a biblioteca...
+        </p>
+      }
+    >
+      <BibliotecaContent />
+    </Suspense>
+  );
+}
+
+function BibliotecaContent() {
   const library = useLibrary();
   const params = useSearchParams();
   const [projectFilter, setProjectFilter] = useState(params.get("projeto") || "all");
