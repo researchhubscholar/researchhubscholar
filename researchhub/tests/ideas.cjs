@@ -86,10 +86,16 @@ assert(detailed.find(x => x.id === 'records').methods.includes('40 residentes'))
 assert(protocolChecks({ question: 'Impacto dos plantões sobre sono em residentes', objective: 'Avaliar efeito sobre sono', population: 'residentes', outcome: 'sono', studyType: 'Observacional transversal', variables: 'sono e plantões', methods: '', analysis: '' }).some(x => x.includes('causalidade')));
 assert(protocolChecks({ question: 'Frequência de sono em residentes', objective: 'Descrever sono em residentes', population: 'residentes', outcome: 'sono', studyType: 'Observacional transversal', variables: 'sono', methods: 'coleta', analysis: 'descrição' }).length === 0);
 console.log('PASS: feasibility diagnosis, specific proposal titles, user measurement/resources and protocol consistency flags.');
-const { validSavedIdea, historyError } = require('../lib/ideas/history.ts');
+const { compareSavedIdeas, validSavedIdea, historyError } = require('../lib/ideas/history.ts');
 const saved = { context, proposal: ideas[0], series_id: token, id: token, evidence_signature: referenceSignature(evidence), reason: 'Initial', created_at: '2026-09-18T00:00:00Z' };
 assert(validSavedIdea(JSON.parse(JSON.stringify(saved))));
 assert(!validSavedIdea({ ...saved, proposal: { ...saved.proposal, plan: null } }));
 assert(!validSavedIdea({ ...saved, context: { theme: 'incomplete' } }));
 assert(historyError({ code: 'PGRST205' }).includes('scholar_idea_history.sql'));
+const later = { ...saved, id: b, reason: 'Recorte reduzido', created_at: '2026-09-19T00:00:00Z', context: { ...context, workType: 'review' }, proposal: { ...ideas[0], title: 'Versão delimitada', question: 'Pergunta revisada', evaluation: { relevance: { score: 80, label: 'Alta', reason: 'Recorte definido' }, feasibility: { score: 70, label: 'Moderada', reason: 'Prazo possível' }, execution: { score: 60, label: 'Moderada', reason: 'Confirmar acesso' }, overall: 70 } } };
+const comparison = compareSavedIdeas([saved, later]);
+assert.equal(comparison.find(row => row.key === 'question').values[1], 'Pergunta revisada');
+assert.deepEqual(comparison.find(row => row.key === 'score').values, [`${saved.proposal.evaluation.overall}/100`, '70/100']);
+assert.equal(comparison.find(row => row.key === 'workType').values[1], 'Revisão de literatura');
+assert.equal(comparison.find(row => row.key === 'reason').values[1], 'Recorte reduzido');
 console.log('PASS: immutable history snapshot round-trip, malformed version rejection and migration guidance.');

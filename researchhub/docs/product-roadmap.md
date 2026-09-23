@@ -25,7 +25,7 @@ de lançamento.
 - [x] Transferência da proposta para um novo projeto.
 - [x] Comparação visual de até três ideias geradas.
 - [x] Modelos específicos para TCC, artigo, revisão, relato e residência.
-- [ ] Comparação direta entre versões salvas no histórico.
+- [x] Comparação direta entre versões salvas no histórico.
 
 ### Radar
 
