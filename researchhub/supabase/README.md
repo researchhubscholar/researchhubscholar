@@ -15,6 +15,7 @@ Para um projeto Supabase vazio, execute no SQL Editor, uma vez e nesta ordem:
 7. `scholar_journey_checklist.sql` — checklist e progresso das etapas;
 8. `scholar_advising.sql` — orientadores, comentários, reuniões e versões;
 9. `scholar_public.sql` — limite do Radar público e solicitações de contato.
+10. `scholar_library_duplicates.sql` — união transacional de registros duplicados da Biblioteca.
 
 `scholar_idea_history.sql` é uma migração de compatibilidade para instalações antigas. A instalação atual já contém essa estrutura; não a execute novamente em uma instalação nova.
 
@@ -37,4 +38,3 @@ Não rode novamente a sequência inteira. Alguns arquivos usam `create table` e 
 - nunca exponha a chave `service_role` no navegador ou na Vercel como `NEXT_PUBLIC_*`;
 - toda tabela com dados de usuário deve ter RLS e políticas testadas;
 - mudanças futuras devem ser adicionadas em novos arquivos de migração, sem editar uma migração já aplicada em produção.
-

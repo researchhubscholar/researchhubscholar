@@ -99,7 +99,7 @@ export function useLibrary() {
   const updateArticle = (id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string }) => run(store => store.updateArticle(id, metadata), "Organização do artigo atualizada.");
   const addProjectLink = (id: string, projectId: string) => run(store => store.addProjectLink(id, projectId), "Artigo vinculado ao projeto.");
   const removeProjectLink = (id: string, projectId: string) => run(store => store.removeProjectLink(id, projectId), "Vínculo removido.");
-  const mergeDuplicate = (keepId: string, removeId: string) => run(store => store.mergeDuplicate(keepId, removeId), "Registros duplicados unidos; anotações e vínculos foram preservados.");
+  const mergeDuplicates = (keepId: string, removeIds: string[]) => run(store => store.mergeDuplicates(keepId, removeIds), "Registros duplicados unidos; anotações e vínculos foram preservados.");
   const remove = (id: string) => run(store => store.remove(id), "Artigo removido da sua biblioteca.");
   const importLegacy = () => run(async (store, id) => {
     const claimed = localStorage.getItem(IMPORT_OWNER);
@@ -119,5 +119,5 @@ export function useLibrary() {
     localStorage.setItem(IMPORT_COMPLETE, stamp);
     setLegacyCount(0);
   }, "Artigos e anotações importados. A cópia antiga continua preservada neste navegador.");
-  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, addProjectLink, removeProjectLink, mergeDuplicate, remove, importLegacy, refresh };
+  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
 }

@@ -10,6 +10,7 @@ import { useLibrary } from "@/lib/literature/use-library";
 import { EvidenceNote, findDuplicateGroups, LibraryArticle, ReadingStatus, ResearchProject } from "@/lib/literature/library-store";
 import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scientific";
 import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
+import { DuplicateReview } from "@/components/library/duplicate-review";
 
 type Suggestion = { value: string; source: string; confidence: "alta" | "media" | "baixa" } | null;
 type SuggestionSet = {
@@ -84,14 +85,6 @@ function BibliotecaContent() {
     if (await library.remove(id)) {
       setDrafts(previous => { const next = { ...previous }; delete next[id]; return next; });
       setDirty(previous => { const next = { ...previous }; delete next[id]; return next; });
-    }
-  }
-  async function mergeGroup(group: LibraryArticle[]) {
-    if (hasUnsaved || group.length < 2 || !window.confirm("Unir estes registros? O primeiro será mantido e as anotações, etiquetas e vínculos dos demais serão incorporados.")) return;
-    const keep = group[0];
-    for (const duplicate of group.slice(1)) {
-      const merged = await library.mergeDuplicate(keep.id, duplicate.id);
-      if (!merged) break;
     }
   }
   function updateNote(id: string, field: keyof EvidenceNote, value: string) {
@@ -177,7 +170,7 @@ function BibliotecaContent() {
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>
 
-      {library.userId && duplicateGroups.length > 0 && <section className="mt-5 bg-amber-soft border border-amber/20 rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-amber-800 font-semibold">Revisão de duplicados</p><h2 className="font-display text-2xl mt-2">Encontramos {duplicateGroups.length} {duplicateGroups.length===1?"possível grupo duplicado":"possíveis grupos duplicados"}</h2><p className="text-sm text-ink-soft mt-2">A união preserva as anotações preenchidas, etiquetas e vínculos com projetos. Confira os títulos antes de confirmar.</p><div className="space-y-3 mt-4">{duplicateGroups.map(group=><div key={group[0].id} className="bg-white border border-line rounded-card p-4"><ul className="text-sm space-y-1">{group.map(article=><li key={article.id}>• {article.title} {article.pmid?`· PMID ${article.pmid}`:""} {article.doi?`· DOI ${article.doi}`:""}</li>)}</ul><button disabled={library.working||hasUnsaved} onClick={()=>mergeGroup(group)} className="mt-3 bg-ink text-white px-3 py-2 rounded-card text-xs disabled:opacity-50">Unir registros neste artigo</button></div>)}</div></section>}
+      {library.userId && <DuplicateReview groups={duplicateGroups} notes={library.notes} disabled={library.working || hasUnsaved} onMerge={library.mergeDuplicates} />}
 
       <section className="grid sm:grid-cols-3 gap-3 mt-8">
         <Metric value={String(articles.length)} label="Artigos salvos" />

@@ -18,6 +18,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_access.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_library_duplicates.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_journey_checklist.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_advising.sql','utf8'));
  const director='11111111-1111-4111-8111-111111111111',resident='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333';
@@ -95,6 +96,20 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await assert.rejects(db.query('select scholar_recharge($1,$2,2000000)',[topup,lic]),/já utilizado/);
  await as(resident);await assert.rejects(db.query('select scholar_recharge(gen_random_uuid(),$1,1000000)',[lic]),/permission denied/);
  await assert.rejects(db.query('select scholar_project_owner($1)',[project]),/permission denied/);
- console.log('PASS: PostgreSQL migration, RLS isolation, advisor invitations/comments/versions/revocation, seat limits, director read-only sharing, backend-only provisioning/consumption, idempotent reservations/settlement, refund, allocation floor and daily cap.');
+ await db.exec('reset role');
+ const articleKeep='66666666-6666-4666-8666-666666666666',articleRemove='77777777-7777-4777-8777-777777777777';
+ await db.query(`insert into library_articles(id,owner_id,project_id,title,publication_year,authors,publication_types,tags,folder) values
+  ($1,$3,$4,'Sono na residência médica',2025,'[]','[]',array['principal'],null),
+  ($2,$3,$4,'Sono na residência médica',2025,'[]','[]',array['duplicado'],'Leitura')`,[articleKeep,articleRemove,resident,project]);
+ await db.query(`insert into evidence_matrix(owner_id,project_id,article_id,objective,notes) values
+  ($1,$2,$3,'Objetivo principal','Nota principal'),($1,$2,$4,null,'Nota complementar')`,[resident,project,articleKeep,articleRemove]);
+ await db.query(`insert into library_article_projects(owner_id,article_id,project_id) values($1,$2,$3)`,[resident,articleRemove,project]);
+ await as(resident);assert.equal(await scalar('select scholar_merge_library_duplicates($1,$2::uuid[])',[articleKeep,[articleRemove]]),articleKeep);
+ await db.exec('reset role');
+ assert.equal((await db.query('select id from library_articles where owner_id=$1',[resident])).rows.length,1);
+ assert.deepEqual((await db.query('select tags from library_articles where id=$1',[articleKeep])).rows[0].tags.sort(),['duplicado','principal']);
+ assert((await db.query('select notes from evidence_matrix where article_id=$1',[articleKeep])).rows[0].notes.includes('Nota complementar'));
+ await as(outsider);await assert.rejects(db.query('select scholar_merge_library_duplicates($1,$2::uuid[])',[articleKeep,[articleRemove]]),/principal não encontrado/);
+ console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting.');
  await db.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});

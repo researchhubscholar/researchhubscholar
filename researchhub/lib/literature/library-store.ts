@@ -141,26 +141,19 @@ export class LibraryStore {
     const { error } = await this.db.from("library_article_projects").delete().eq("owner_id", this.ownerId).eq("article_id", id).eq("project_id", projectId);
     this.check(error);
   }
-  async mergeDuplicate(keepId: string, removeId: string) {
-    if (keepId === removeId) throw new Error("Escolha dois registros diferentes.");
-    const keep = await this.ownedArticle(keepId); const duplicate = await this.ownedArticle(removeId);
-    if (!sameArticle(keep, duplicate) && normalizeTitle(keep.title) !== normalizeTitle(duplicate.title)) throw new Error("Os registros não parecem representar o mesmo artigo.");
-    const noteRows = await this.allRows("evidence_matrix");
-    const toNote = (row: any): EvidenceNote => row ? { objective: row.objective || "", population: row.population || "", method: row.method || "", finding: row.main_finding || "", limitation: row.limitation || "", sampleSize: row.sample_size || "", intervention: row.intervention || "", comparator: row.comparator || "", outcomes: row.outcomes || "", evidenceLevel: row.evidence_level || "", riskOfBias: row.risk_of_bias || "", generalNotes: row.notes || "" } : {};
-    const mergedNote = mergeImportedNote(toNote(noteRows.find(row => row.article_id === keepId)), toNote(noteRows.find(row => row.article_id === removeId)));
-    if (Object.values(mergedNote).some(value => value?.trim())) await this.saveNote(keepId, mergedNote);
-    const links = await this.optionalRows("library_article_projects");
-    const projectIds = new Set(links.filter(row => row.article_id === keepId || row.article_id === removeId).map(row => row.project_id));
-    if (keep.projectId) projectIds.add(keep.projectId); if (duplicate.projectId) projectIds.add(duplicate.projectId);
-    for (const projectId of projectIds) await this.addProjectLink(keepId, projectId);
-    const { error: updateError } = await this.db.from("library_articles").update({
-      abstract: keep.abstract || duplicate.abstract,
-      favorite: keep.favorite || duplicate.favorite, tags: Array.from(new Set([...keep.tags, ...duplicate.tags])),
-      folder: keep.folder || duplicate.folder || null, study_design: keep.studyDesign !== "auto" ? keep.studyDesign : duplicate.studyDesign,
-      full_text_url: keep.fullTextUrl || duplicate.fullTextUrl || null,
-    }).eq("owner_id", this.ownerId).eq("id", keepId);
-    this.check(updateError);
-    await this.remove(removeId);
+  async mergeDuplicates(keepId: string, removeIds: string[]) {
+    const uniqueRemoveIds = Array.from(new Set(removeIds)).filter(id => id !== keepId);
+    if (!uniqueRemoveIds.length) throw new Error("Escolha ao menos um registro duplicado.");
+    const { error } = await this.db.rpc("scholar_merge_library_duplicates", {
+      p_keep: keepId,
+      p_remove: uniqueRemoveIds,
+    });
+    if (error) {
+      if (error.code === "PGRST202" || /scholar_merge_library_duplicates/i.test(error.message || "")) {
+        throw new Error("Ative a união segura executando scholar_library_duplicates.sql no Supabase.");
+      }
+      throw new Error(error.message || "Não foi possível unir os registros. Nenhum artigo foi removido.");
+    }
   }
   async attachUnassigned(ids: string[], projectId: string) {
     await this.ownedProject(projectId);
@@ -182,12 +175,20 @@ export class LibraryStore {
 }
 
 function normalizeTitle(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+export function duplicateMatchReason(a: LibraryArticle, b: LibraryArticle): "doi" | "pmid" | "title-year" | null {
+  const doiA = a.doi?.trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
+  const doiB = b.doi?.trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
+  if (doiA && doiB && doiA === doiB) return "doi";
+  if (a.pmid && b.pmid && a.pmid.trim() === b.pmid.trim()) return "pmid";
+  if (a.year && a.year === b.year && normalizeTitle(a.title) === normalizeTitle(b.title)) return "title-year";
+  return null;
+}
 export function findDuplicateGroups(articles: LibraryArticle[]) {
   const groups: LibraryArticle[][] = [];
   const used = new Set<string>();
   for (const article of articles) {
     if (used.has(article.id)) continue;
-    const matches = articles.filter(other => other.id !== article.id && !used.has(other.id) && (sameArticle(article, other) || (article.year === other.year && normalizeTitle(article.title) === normalizeTitle(other.title))));
+    const matches = articles.filter(other => other.id !== article.id && !used.has(other.id) && duplicateMatchReason(article, other));
     if (matches.length) {
       const group = [article, ...matches]; group.forEach(item => used.add(item.id)); groups.push(group);
     }

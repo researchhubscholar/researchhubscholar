@@ -49,7 +49,31 @@ class Query {
     return { data, error: null };
   }
 }
-const db = { from: table => new Query(table) };
+const db = { from: table => new Query(table), rpc: async (name, args) => {
+  if (name !== 'scholar_merge_library_duplicates') return { error: { code: 'PGRST202', message: 'missing function' } };
+  const keep = tables.library_articles.find(row => row.id === args.p_keep && row.owner_id === 'owner-a');
+  const duplicates = tables.library_articles.filter(row => args.p_remove.includes(row.id) && row.owner_id === 'owner-a');
+  if (!keep || duplicates.length !== args.p_remove.length) return { error: { message: 'Registro inválido' } };
+  for (const duplicate of duplicates) {
+    keep.tags = Array.from(new Set([...(keep.tags || []), ...(duplicate.tags || [])]));
+    keep.folder ||= duplicate.folder;
+    keep.abstract ||= duplicate.abstract;
+    const keepNote = tables.evidence_matrix.find(row => row.article_id === keep.id);
+    const duplicateNote = tables.evidence_matrix.find(row => row.article_id === duplicate.id);
+    if (duplicateNote) {
+      if (keepNote) keepNote.notes ||= duplicateNote.notes;
+      else tables.evidence_matrix.push({ ...duplicateNote, id: `row-${++sequence}`, article_id: keep.id });
+    }
+    for (const link of tables.library_article_projects.filter(row => row.article_id === duplicate.id)) {
+      if (!tables.library_article_projects.some(row => row.article_id === keep.id && row.project_id === link.project_id)) tables.library_article_projects.push({ ...link, article_id: keep.id });
+    }
+  }
+  const removed = new Set(duplicates.map(row => row.id));
+  tables.library_articles = tables.library_articles.filter(row => !removed.has(row.id));
+  tables.evidence_matrix = tables.evidence_matrix.filter(row => !removed.has(row.article_id));
+  tables.library_article_projects = tables.library_article_projects.filter(row => !removed.has(row.article_id));
+  return { data: args.p_keep, error: null };
+} };
 const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents', authors: ['A'], journal: 'Journal', pubdate: '2025', year: 2025, publicationTypes: ['Trial'], abstract: 'Summary', pubmedUrl: 'https://pubmed.ncbi.nlm.nih.gov/123/', doiUrl: 'https://doi.org/10.1234/SLEEP' };
 (async () => {
   const a = new LibraryStore(db, 'owner-a');
@@ -108,7 +132,7 @@ const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents'
   tables.evidence_matrix.push({ id: 'duplicate-note', owner_id: 'owner-a', article_id: duplicateFixture.id, notes: 'Preserved general note' });
   const duplicateGroup = findDuplicateGroups((await a.load()).articles);
   assert(duplicateGroup.some(group => group.some(item => item.id === crossref.id) && group.some(item => item.id === duplicateFixture.id)));
-  await a.mergeDuplicate(crossref.id, duplicateFixture.id);
+  await a.mergeDuplicates(crossref.id, [duplicateFixture.id]);
   const afterMerge = await a.load();
   assert(!afterMerge.articles.some(item => item.id === duplicateFixture.id));
   assert(afterMerge.articles.find(item => item.id === crossref.id).tags.includes('duplicate-tag'));
