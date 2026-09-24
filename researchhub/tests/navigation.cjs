@@ -25,6 +25,7 @@ const publicPages = [
 
 const privatePages = [
   "/dashboard",
+  "/conta",
   "/descobrir",
   "/ideias",
   "/biblioteca",
@@ -61,6 +62,7 @@ const requiredPrivateLinks = [
   ["/biblioteca", "Biblioteca"],
   ["/meu-trabalho", "Meu projeto"],
   ["/orientacao", "Orientação"],
+  ["/conta", "Conta"],
 ];
 
 for (const [href, label] of requiredPrivateLinks) {

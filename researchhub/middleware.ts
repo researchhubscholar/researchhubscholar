@@ -69,6 +69,7 @@ export async function middleware(request: NextRequest) {
     "/residencia",
     "/orientacao",
     "/documentos",
+    "/conta",
     "/scholar/onboarding",
   ];
   if(!user && privateRoutes.some(path=>request.nextUrl.pathname===path||request.nextUrl.pathname.startsWith(path+"/"))) {
@@ -90,6 +91,8 @@ export const config = {
     "/residencia/:path*",
     "/orientacao/:path*",
     "/documentos/:path*",
+    "/conta/:path*",
+    "/api/account/:path*",
     "/scholar/onboarding/:path*",
     "/api/literature/:path*",
     "/admin/:path*",

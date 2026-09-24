@@ -20,6 +20,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_duplicates.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_search_alerts.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_account_support.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_journey_checklist.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_advising.sql','utf8'));
  const director='11111111-1111-4111-8111-111111111111',resident='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333';
@@ -50,7 +51,15 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await as(director);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,1);
  assert.equal((await db.query(`update research_projects set title='Changed' where id=$1 returning id`,[project])).rows.length,0);
  await as(outsider);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,0);
- await as(resident);const advisorCode=await scalar('select scholar_create_advisor_invite($1,$2)',[project,'outsider@test.local']);
+ await as(resident);
+ const supportRequest=await scalar("select scholar_create_support_request('technical','Problema no Radar','A busca não carregou corretamente.')");
+ const deletionRequest=await scalar("select scholar_request_account_deletion()");
+ await as(outsider);assert.equal((await db.query('select id from scholar_support_requests where id=$1',[supportRequest])).rows.length,0);
+ assert.equal((await db.query('select id from scholar_account_requests where id=$1',[deletionRequest])).rows.length,0);
+ await assert.rejects(db.query("select scholar_add_support_message($1,'Tentativa indevida')",[supportRequest]),/indisponível/);
+ await as(resident);await scalar("select scholar_add_support_message($1,'Informação complementar')",[supportRequest]);
+ assert.equal(await scalar("select scholar_cancel_account_deletion($1)",[deletionRequest]),true);
+ const advisorCode=await scalar('select scholar_create_advisor_invite($1,$2)',[project,'outsider@test.local']);
  await as(outsider);assert.equal(await scalar('select scholar_redeem_advisor_invite($1)',[advisorCode]),project);
  assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,1);
  const comment=await scalar(`insert into scholar_project_comments(project_id,author_id,section_key,body) values($1,$2,'methods','Revisar o método') returning id`,[project,outsider]);
@@ -111,6 +120,6 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  assert.deepEqual((await db.query('select tags from library_articles where id=$1',[articleKeep])).rows[0].tags.sort(),['duplicado','principal']);
  assert((await db.query('select notes from evidence_matrix where article_id=$1',[articleKeep])).rows[0].notes.includes('Nota complementar'));
  await as(outsider);await assert.rejects(db.query('select scholar_merge_library_duplicates($1,$2::uuid[])',[articleKeep,[articleRemove]]),/principal não encontrado/);
- console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting.');
+ console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support and reversible deletion requests.');
  await db.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});

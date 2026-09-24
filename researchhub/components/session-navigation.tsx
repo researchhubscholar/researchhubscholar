@@ -21,6 +21,7 @@ const privateLinks = [
   ["/biblioteca", "Biblioteca"],
   ["/meu-trabalho", "Meu projeto"],
   ["/orientacao", "Orientação"],
+  ["/conta", "Conta"],
 ] as const;
 
 export default function SessionNavigation() {
@@ -59,7 +60,7 @@ export default function SessionNavigation() {
     <nav aria-label="Navegação principal" className="flex items-center justify-self-end gap-3 text-sm text-ink-soft md:gap-5">
       {links.map(([href, label], index) => <Link key={href} href={href} className={`hover:text-teal ${index === 0 ? "hidden sm:block" : "hidden lg:block"}`}>{label}</Link>)}
       {session.authenticated ? <>
-        {session.displayName && <span className="text-ink-soft/70 hidden xl:inline">{session.displayName}</span>}
+        {session.displayName && <Link href="/conta" className="text-ink-soft/70 hidden xl:inline hover:text-teal">{session.displayName}</Link>}
         <LogoutButton />
       </> : <>
         <Link href="/login" className="hover:text-teal">Entrar</Link>

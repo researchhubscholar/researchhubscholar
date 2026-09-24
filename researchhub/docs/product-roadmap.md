@@ -50,7 +50,8 @@ de lançamento.
 - [x] Base de licenças, turmas, convites, vagas e consumo futuro.
 - [x] Documento específico para reunião com orientador.
 - [x] Relatório geral do projeto e exportações estruturadas.
-- [ ] Exclusão/exportação da conta, suporte, monitoramento e métricas.
+- [x] Exportação da conta, exclusão agendada e suporte privado.
+- [ ] Monitoramento, métricas e painel operacional.
 - [ ] Revisão mobile completa e painel administrativo de operação.
 
 ## Fase 2 — Inserção e validação da IA
