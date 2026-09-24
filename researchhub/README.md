@@ -9,7 +9,7 @@ O Scholar é um produto independente do ResearchHub institucional antigo. O cód
 - cadastro, confirmação de e-mail e recuperação de senha;
 - onboarding e diagnóstico de viabilidade por regras;
 - gerador estruturado e comparação de ideias;
-- Radar com PubMed e Crossref;
+- Radar com PubMed, Crossref e localização legal de texto aberto por Unpaywall, Europe PMC e SciELO;
 - biblioteca, matriz de evidências e exportações;
 - jornada do projeto com etapas e checklists;
 - colaboração com orientadores;

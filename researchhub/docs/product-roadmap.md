@@ -32,7 +32,8 @@ de lançamento.
 - [x] PubMed e Crossref, paginação, filtros, ordenação e busca avançada.
 - [x] Salvar buscas, histórico e envio à biblioteca.
 - [x] Exportações RIS, BibTeX e CSV.
-- [ ] Interface dedicada para duplicados e união segura.
+- [x] Interface dedicada para duplicados e união segura.
+- [x] Localizar versões abertas legais por Unpaywall, Europe PMC e SciELO.
 - [ ] Alertas recorrentes de novas publicações.
 
 ### Biblioteca e evidências
@@ -40,7 +41,7 @@ de lançamento.
 - [x] Status, etiquetas, favoritos, notas, exclusão e matriz ampliada.
 - [x] Risco de viés, nível de evidência, amostra, intervenção e comparador.
 - [x] Pastas e vínculo explícito do mesmo artigo a múltiplos projetos.
-- [ ] Comparação visual e união de registros duplicados.
+- [x] Comparação visual e união de registros duplicados.
 
 ### Projeto e operação
 

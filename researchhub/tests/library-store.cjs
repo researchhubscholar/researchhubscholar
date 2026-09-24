@@ -74,7 +74,7 @@ const db = { from: table => new Query(table), rpc: async (name, args) => {
   tables.library_article_projects = tables.library_article_projects.filter(row => !removed.has(row.article_id));
   return { data: args.p_keep, error: null };
 } };
-const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents', authors: ['A'], journal: 'Journal', pubdate: '2025', year: 2025, publicationTypes: ['Trial'], abstract: 'Summary', pubmedUrl: 'https://pubmed.ncbi.nlm.nih.gov/123/', doiUrl: 'https://doi.org/10.1234/SLEEP' };
+const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents', authors: ['A'], journal: 'Journal', pubdate: '2025', year: 2025, publicationTypes: ['Trial'], abstract: 'Summary', pubmedUrl: 'https://pubmed.ncbi.nlm.nih.gov/123/', doiUrl: 'https://doi.org/10.1234/SLEEP', fullTextUrl: 'https://repository.test/article.pdf' };
 (async () => {
   const a = new LibraryStore(db, 'owner-a');
   const b = new LibraryStore(db, 'owner-b');
@@ -85,6 +85,7 @@ const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents'
   assert.equal(recovered.articles[0].projectId, 'project-a');
   assert.equal(recovered.notes[article.id].objective, 'My objective');
   assert.equal(recovered.notes[article.id].generalNotes, 'General reading note');
+  assert.equal(recovered.articles[0].fullTextUrl, 'https://repository.test/article.pdf');
   assert.deepEqual(recovered.articles[0].projectIds, ['project-a']);
   assert.equal(tables.evidence_matrix[0].confirmed_main_finding, true);
   assert.equal(tables.evidence_matrix[0].confirmed_method, false);
@@ -126,6 +127,9 @@ const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents'
   await a.removeProjectLink(crossref.id, 'project-a2');
   assert.deepEqual((await a.load()).articles.find(row => row.id === crossref.id).projectIds, ['project-a']);
   await assert.rejects(() => a.removeProjectLink(crossref.id, 'project-a'));
+  await a.setFullTextUrl(crossref.id, 'https://europepmc.org/articles/PMC123');
+  assert.equal((await a.load()).articles.find(row => row.id === crossref.id).fullTextUrl, 'https://europepmc.org/articles/PMC123');
+  await assert.rejects(() => a.setFullTextUrl(crossref.id, 'javascript:alert(1)'));
   const duplicateFixture = { ...tables.library_articles.find(row => row.id === crossref.id), id: 'manual-duplicate', doi: '10.1234/manual-duplicate', project_id: 'project-a2', tags: ['duplicate-tag'], folder: 'Secondary' };
   tables.library_articles.push(duplicateFixture);
   tables.library_article_projects.push({ owner_id: 'owner-a', article_id: duplicateFixture.id, project_id: 'project-a2' });

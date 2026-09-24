@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import { Article } from "@/lib/literature/types";
+import { Article, articleKey } from "@/lib/literature/types";
 
 import { useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/literature/use-library";
@@ -11,6 +11,8 @@ import { EvidenceNote, findDuplicateGroups, LibraryArticle, ReadingStatus, Resea
 import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scientific";
 import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
 import { DuplicateReview } from "@/components/library/duplicate-review";
+import { OpenAccessStatus } from "@/components/library/open-access-status";
+import { useOpenAccess } from "@/lib/literature/use-open-access";
 
 type Suggestion = { value: string; source: string; confidence: "alta" | "media" | "baixa" } | null;
 type SuggestionSet = {
@@ -68,6 +70,7 @@ function BibliotecaContent() {
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
   const [loadingPmid, setLoadingPmid] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const openAccess = useOpenAccess();
 
   useEffect(() => {
     setComparison([]); setDrafts({}); setDirty({}); setSuggestions({}); setErrors({}); setLoadingPmid(null);
@@ -213,6 +216,7 @@ function BibliotecaContent() {
                     {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>}
                     {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">DOI ↗</a>}
                   </div>
+                  <OpenAccessStatus existingUrl={article.fullTextUrl} result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => openAccess.results[articleKey(article)] ? void openAccess.retry(article) : void openAccess.lookup([article])} onSave={url => void library.setFullTextUrl(article.id, url)} disabled={library.working} />
                 </div>
                 <div className="flex lg:flex-col gap-2 self-start">
                   <label className="text-xs text-ink-soft">Projeto associado<select aria-label={`Projeto do artigo ${article.title}`} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="block border border-line rounded-card px-2 py-2 mt-1 max-w-56"><option value="">Sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>

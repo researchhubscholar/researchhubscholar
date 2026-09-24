@@ -97,6 +97,7 @@ export function useLibrary() {
   const saveNote = (id: string, note: EvidenceNote) => run(store => store.saveNote(id, note), "Anotações salvas na sua conta.");
   const assignProject = (id: string, projectId: string | null) => run(store => store.assignProject(id, projectId), "Projeto associado ao artigo.");
   const updateArticle = (id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string }) => run(store => store.updateArticle(id, metadata), "Organização do artigo atualizada.");
+  const setFullTextUrl = (id: string, url: string) => run(store => store.setFullTextUrl(id, url), "Acesso ao texto completo salvo na Biblioteca.");
   const addProjectLink = (id: string, projectId: string) => run(store => store.addProjectLink(id, projectId), "Artigo vinculado ao projeto.");
   const removeProjectLink = (id: string, projectId: string) => run(store => store.removeProjectLink(id, projectId), "Vínculo removido.");
   const mergeDuplicates = (keepId: string, removeIds: string[]) => run(store => store.mergeDuplicates(keepId, removeIds), "Registros duplicados unidos; anotações e vínculos foram preservados.");
@@ -119,5 +120,5 @@ export function useLibrary() {
     localStorage.setItem(IMPORT_COMPLETE, stamp);
     setLegacyCount(0);
   }, "Artigos e anotações importados. A cópia antiga continua preservada neste navegador.");
-  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
+  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, setFullTextUrl, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
 }

@@ -87,6 +87,7 @@ export class LibraryStore {
       pmid: article.pmid || null, doi: article.doi?.trim().toLowerCase() || null, title: article.title,
       authors: article.authors, journal: article.journal, publication_year: article.year,
       publication_types: article.publicationTypes, abstract: article.abstract, source_url: article.pubmedUrl || article.doiUrl,
+      full_text_url: article.fullTextUrl || null,
     }).select("*").single();
     if (error?.code === "23505") {
       const duplicate = (await this.allRows("library_articles")).map(fromArticleRow).find(a => sameArticle(a, article));
@@ -128,6 +129,12 @@ export class LibraryStore {
     if (metadata.folder.length > 120 || metadata.exclusionReason.length > 1000 || metadata.fullTextUrl.length > 1000) throw new Error("Revise os campos antes de salvar.");
     if (metadata.fullTextUrl && !/^https?:\/\//i.test(metadata.fullTextUrl)) throw new Error("Informe um link completo iniciado por http:// ou https://.");
     const { error } = await this.db.from("library_articles").update({ reading_status: metadata.readingStatus, favorite: metadata.favorite, tags: metadata.tags, folder: metadata.folder || null, study_design: metadata.studyDesign, exclusion_reason: metadata.exclusionReason || null, full_text_url: metadata.fullTextUrl || null }).eq("owner_id", this.ownerId).eq("id", id);
+    this.check(error);
+  }
+  async setFullTextUrl(id: string, fullTextUrl: string) {
+    await this.ownedArticle(id);
+    if (fullTextUrl.length > 1000 || !/^https?:\/\//i.test(fullTextUrl)) throw new Error("O endereço do texto completo é inválido.");
+    const { error } = await this.db.from("library_articles").update({ full_text_url: fullTextUrl }).eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
   }
   async addProjectLink(id: string, projectId: string) {

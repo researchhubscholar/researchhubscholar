@@ -10,6 +10,8 @@ import SavedSearches, { SearchStrategy } from "@/components/radar/saved-searches
 import SearchHistory from "@/components/radar/search-history";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { downloadResult, resultBibtex, resultCsv, resultRis } from "@/lib/literature/result-export";
+import { useOpenAccess } from "@/lib/literature/use-open-access";
+import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
   topic: string;
@@ -80,6 +82,8 @@ function DiscoverContent() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
+  const accessArticles = useMemo(() => lookupArticle ? [...articles, lookupArticle] : articles, [articles, lookupArticle]);
+  const openAccess = useOpenAccess(accessArticles);
   const effectiveQuery = useMemo(() => [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
 
@@ -121,7 +125,8 @@ function DiscoverContent() {
   function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   async function saveArticle(article: Article) {
-    await library.saveArticle(article, projectId || null);
+    const access = openAccess.results[articleKey(article)];
+    await library.saveArticle({ ...article, fullTextUrl: access?.status === "open" ? access.url : article.fullTextUrl }, projectId || null);
   }
 
   async function browse(nextSource: string, nextSort: string, offset = 0) {
@@ -197,6 +202,7 @@ function DiscoverContent() {
           <h3 className="font-medium">{lookupArticle.title}</h3>
           <p className="text-xs text-ink-soft mt-2">{lookupArticle.journal} · {lookupArticle.year} · {lookupArticle.pmid ? `PMID ${lookupArticle.pmid}` : `DOI ${lookupArticle.doi}`}</p>
           {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer">Ver resumo</summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
+          <OpenAccessStatus result={openAccess.results[articleKey(lookupArticle)]} loading={openAccess.loading.has(articleKey(lookupArticle))} onCheck={() => void openAccess.retry(lookupArticle)} />
           <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
         </div>}
       </section>
@@ -287,6 +293,7 @@ function DiscoverContent() {
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
                           {article.year && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">{article.year}</span>}
                           {article.duplicateSources && article.duplicateSources.length > 1 && <span className="bg-amber-soft text-ink px-2 py-1 rounded-full">Encontrado em PubMed + Crossref</span>}
+                          {openAccess.results[articleKey(article)]?.status === "open" && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">Texto completo aberto</span>}
                           {article.publicationTypes.slice(0, 2).map((type) => <span key={type}>{type}</span>)}
                         </div>
                         <h3 className="font-display text-xl mt-3 leading-snug">{article.title}</h3>
@@ -308,6 +315,7 @@ function DiscoverContent() {
                           {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir no PubMed ↗</a>}
                           {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir DOI ↗</a>}
                         </div>
+                        <OpenAccessStatus result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => void openAccess.retry(article)} />
                       </div>
 
                       <button
