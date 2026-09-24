@@ -19,6 +19,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_duplicates.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_search_alerts.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_journey_checklist.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_advising.sql','utf8'));
  const director='11111111-1111-4111-8111-111111111111',resident='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333';

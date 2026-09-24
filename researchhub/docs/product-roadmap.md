@@ -34,7 +34,7 @@ de lançamento.
 - [x] Exportações RIS, BibTeX e CSV.
 - [x] Interface dedicada para duplicados e união segura.
 - [x] Localizar versões abertas legais por Unpaywall, Europe PMC e SciELO.
-- [ ] Alertas recorrentes de novas publicações.
+- [x] Alertas recorrentes de novas publicações, com linha de base e central no produto.
 
 ### Biblioteca e evidências
 

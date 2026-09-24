@@ -16,6 +16,7 @@ Para um projeto Supabase vazio, execute no SQL Editor, uma vez e nesta ordem:
 8. `scholar_advising.sql` — orientadores, comentários, reuniões e versões;
 9. `scholar_public.sql` — limite do Radar público e solicitações de contato.
 10. `scholar_library_duplicates.sql` — união transacional de registros duplicados da Biblioteca.
+11. `scholar_search_alerts.sql` — linha de base e central privada de novas publicações.
 
 `scholar_idea_history.sql` é uma migração de compatibilidade para instalações antigas. A instalação atual já contém essa estrutura; não a execute novamente em uma instalação nova.
 
