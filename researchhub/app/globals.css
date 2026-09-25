@@ -153,3 +153,215 @@ button {
 .site-return-link:focus-visible,.floating-plans:focus-visible {outline:3px solid #0f6e66;outline-offset:4px;}
 body:has(.floating-plans) footer {padding-bottom:5rem;}
 @media(max-width:640px) {.floating-plans {right:1rem;font-size:.8rem;padding:.8rem 1rem;}.site-return {margin-bottom:1rem;}}
+
+
+/* ============================================================
+   SCHOLAR UI SYSTEM — visual refinement layer
+   Keeps research flows intact while unifying newer modules.
+   ============================================================ */
+:root {
+  --scholar-paper: #f8f9f6;
+  --scholar-surface: #ffffff;
+  --scholar-ink: #14213d;
+  --scholar-muted: #596580;
+  --scholar-teal: #0f6e66;
+  --scholar-teal-dark: #0a5650;
+  --scholar-line: #dfe5e2;
+  --scholar-shadow: 0 18px 46px -36px rgba(20, 33, 61, .5);
+  --scholar-shadow-raised: 0 24px 60px -40px rgba(20, 33, 61, .6);
+}
+
+::selection { background: #bfe2dc; color: var(--scholar-ink); }
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 88% 2%, rgba(196, 228, 222, .24), transparent 27rem),
+    linear-gradient(180deg, #fbfbf8 0, var(--scholar-paper) 38rem);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(211, 220, 216, .88);
+  background: rgba(250, 250, 247, .88);
+  backdrop-filter: blur(18px) saturate(135%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.75);
+}
+
+.app-header-inner {
+  width: 100%;
+  max-width: 78rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .8rem 1.5rem;
+  padding: .8rem 1rem;
+}
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: .7rem;
+  min-height: 2.35rem;
+  color: var(--scholar-ink);
+}
+
+.brand-symbol {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--scholar-ink);
+  color: #fff;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1rem;
+  box-shadow: 0 8px 18px -12px rgba(20,33,61,.8);
+}
+
+.brand-name { font-family: "Source Serif 4", Georgia, serif; font-size: 1.18rem; letter-spacing: -.02em; line-height: 1; }
+.brand-product { color: var(--scholar-teal); }
+.brand-edition { display: block; margin-top: .25rem; color: #69748c; font-size: .6rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; }
+
+.primary-nav { display: flex; align-items: center; justify-content: flex-end; gap: .2rem; min-width: 0; }
+.primary-nav-link {
+  position: relative;
+  white-space: nowrap;
+  border-radius: 9px;
+  padding: .58rem .68rem;
+  color: #4c5873;
+  font-size: .78rem;
+  font-weight: 500;
+  transition: color .16s ease, background-color .16s ease;
+}
+.primary-nav-link:hover { background: rgba(228,241,239,.8); color: var(--scholar-teal); }
+.primary-nav-link[aria-current="page"] { background: #e4f1ef; color: var(--scholar-teal); }
+.account-link { color: #69748c; }
+.nav-signup { margin-left: .25rem; background: var(--scholar-teal); color: #fff; box-shadow: 0 10px 20px -16px #0f6e66; }
+.nav-signup:hover { background: var(--scholar-teal-dark); color: #fff; }
+.nav-signout { border-radius: 9px; padding: .58rem .65rem; color: #69748c; font-size: .78rem; }
+.nav-signout:hover { background: #f1f3f1; color: var(--scholar-teal); }
+
+.mobile-nav {
+  grid-column: 1 / -1;
+  display: none;
+  gap: .35rem;
+  overflow-x: auto;
+  margin: 0 -1rem -.8rem;
+  padding: .55rem 1rem .7rem;
+  border-top: 1px solid rgba(211,220,216,.75);
+  scrollbar-width: none;
+}
+.mobile-nav::-webkit-scrollbar { display: none; }
+.mobile-nav .primary-nav-link { flex: 0 0 auto; padding: .48rem .65rem; }
+
+.app-content {
+  width: 100%;
+  max-width: 78rem;
+  min-height: calc(100vh - 22rem);
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.app-footer { margin-top: 5rem; background: linear-gradient(125deg,#111e39,#173a45); color: #fff; }
+.app-footer-inner { max-width: 78rem; margin: 0 auto; padding: 3rem 1rem; }
+.app-footer a { transition: color .15s ease; }
+.app-footer nav a:hover { color: #b8e1da; }
+
+main h1, main h2, main h3 { text-wrap: balance; }
+main p { text-wrap: pretty; }
+main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: 2.85rem;
+  border-color: #d7dfdc;
+  border-radius: 10px;
+  background-color: rgba(255,255,255,.9);
+  box-shadow: inset 0 1px 1px rgba(20,33,61,.025);
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):hover { border-color: #afc5c0; }
+main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus-visible {
+  border-color: var(--scholar-teal);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(15,110,102,.12);
+  background-color: #fff;
+}
+main textarea { line-height: 1.65; }
+main button, main a { transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+main button:not(:disabled):active, main a:active { transform: translateY(1px); }
+main button:disabled { cursor: not-allowed; }
+
+main :is(section, article, form).bg-white.border,
+main div.bg-white.border {
+  border-color: var(--scholar-line);
+  box-shadow: var(--scholar-shadow);
+}
+main :is(section, article).rounded-2xl,
+main form.rounded-2xl { border-radius: 18px; }
+
+main table { border-collapse: separate; border-spacing: 0; }
+main thead th {
+  color: #69748c;
+  font-size: .69rem;
+  font-weight: 600;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+main tbody tr { transition: background-color .14s ease; }
+main tbody tr:hover { background: rgba(228,241,239,.35); }
+main details > summary { border-radius: 8px; outline: none; }
+main details > summary:focus-visible { box-shadow: 0 0 0 3px rgba(15,110,102,.14); }
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0,.9fr) minmax(25rem,1fr);
+  gap: 3rem;
+  align-items: center;
+  max-width: 64rem;
+  margin: 1.5rem auto 2rem;
+}
+.auth-intro { padding: 2rem 0; }
+.auth-kicker { color: var(--scholar-teal); font-size: .69rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.auth-title { margin-top: .8rem; font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2.5rem,5vw,4rem); line-height: 1.02; letter-spacing: -.035em; }
+.auth-description { max-width: 29rem; margin-top: 1.25rem; color: #596580; line-height: 1.75; }
+.auth-points { display: grid; gap: .75rem; margin-top: 2rem; color: #4c5873; font-size: .84rem; }
+.auth-points li { display: flex; gap: .65rem; align-items: center; }
+.auth-points li::before { content: ""; width: .45rem; height: .45rem; flex: 0 0 auto; border-radius: 50%; background: var(--scholar-teal); box-shadow: 0 0 0 4px #e4f1ef; }
+.auth-card {
+  border: 1px solid var(--scholar-line);
+  border-radius: 22px;
+  background: rgba(255,255,255,.94);
+  padding: 2rem;
+  box-shadow: var(--scholar-shadow-raised);
+}
+.auth-card-title { font-family: "Source Serif 4", Georgia, serif; font-size: 1.75rem; }
+.auth-field-label { color: #35415d; font-size: .82rem; font-weight: 500; }
+.auth-submit { width: 100%; border-radius: 10px; background: var(--scholar-teal); color: white; font-weight: 600; padding: .82rem 1rem; box-shadow: 0 14px 25px -20px #0f6e66; }
+.auth-submit:hover { background: var(--scholar-teal-dark); }
+.auth-switch { margin-top: 1.4rem; color: #68738b; text-align: center; font-size: .83rem; }
+
+@media (min-width: 640px) {
+  .app-header-inner, .app-content, .app-footer-inner { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+@media (max-width: 1090px) {
+  .desktop-only-link { display: none; }
+  .mobile-nav { display: flex; }
+}
+@media (max-width: 720px) {
+  .brand-symbol { width: 1.85rem; height: 1.85rem; }
+  .brand-name { font-size: 1.08rem; }
+  .brand-edition { display: none; }
+  .primary-nav-link { padding: .52rem .58rem; }
+  .auth-shell { grid-template-columns: 1fr; gap: 1rem; margin-top: 0; }
+  .auth-intro { padding: .5rem 0; }
+  .auth-title { font-size: 2.65rem; }
+  .auth-points { display: none; }
+  .auth-card { padding: 1.35rem; border-radius: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  main button, main a, main tbody tr, .primary-nav-link { transition: none; }
+}
