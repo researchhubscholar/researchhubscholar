@@ -51,7 +51,7 @@ de lançamento.
 - [x] Documento específico para reunião com orientador.
 - [x] Relatório geral do projeto e exportações estruturadas.
 - [x] Exportação da conta, exclusão agendada e suporte privado.
-- [ ] Monitoramento, métricas e painel operacional.
+- [x] Monitoramento mínimo, métricas e painel operacional restrito.
 - [ ] Revisão mobile completa e painel administrativo de operação.
 
 ## Fase 2 — Inserção e validação da IA

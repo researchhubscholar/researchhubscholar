@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import SiteShortcuts from "@/components/public/site-shortcuts";
 import SessionNavigation from "@/components/session-navigation";
+import ProductTelemetry from "@/components/product-telemetry";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://researchhubscholar.vercel.app"),
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">
+        <ProductTelemetry />
         <header className="border-b border-line bg-paper/95 sticky top-0 z-30 backdrop-blur">
           <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr] items-center gap-3 px-4 py-4 sm:px-6">
             <Link href="/" className="font-display text-lg sm:text-xl tracking-tight text-ink whitespace-nowrap">

@@ -33,6 +33,7 @@ const privatePages = [
   "/documentos",
   "/licenca",
   "/orientacao",
+  "/operacao",
   "/residencia",
   "/residencia/projeto",
   "/scholar/onboarding",
@@ -68,6 +69,8 @@ const requiredPrivateLinks = [
 for (const [href, label] of requiredPrivateLinks) {
   assert.match(source, new RegExp(`\\["${href}", "${label}"\\]`));
 }
+
+assert.match(source, /\["\/operacao", "Operação"\]/);
 
 assert.doesNotMatch(
   source,
