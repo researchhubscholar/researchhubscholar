@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import LogoutButton from "@/components/LogoutButton";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean };
+type SessionState = { authenticated: boolean; displayName: string | null };
 
 const publicLinks = [
   ["/como-funciona", "Como funciona"],
@@ -24,10 +24,8 @@ const privateLinks = [
   ["/conta", "Conta"],
 ] as const;
 
-const adminLinks = [["/operacao", "Operação"]] as const;
-
 export default function SessionNavigation() {
-  const [session, setSession] = useState<SessionState>({ authenticated: false, displayName: null, isAdmin: false });
+  const [session, setSession] = useState<SessionState>({ authenticated: false, displayName: null });
 
   useEffect(() => {
     const db = supabaseBrowser();
@@ -36,18 +34,14 @@ export default function SessionNavigation() {
     async function load() {
       const { data: { user } } = await db.auth.getUser();
       if (!active || !user) {
-        if (active) setSession({ authenticated: false, displayName: null, isAdmin: false });
+        if (active) setSession({ authenticated: false, displayName: null });
         return;
       }
-      const [profileResult, adminResult] = await Promise.all([
-        db.from("profiles").select("name").eq("id", user.id).maybeSingle(),
-        db.from("scholar_platform_admins").select("role").eq("user_id", user.id).maybeSingle(),
-      ]);
+      const { data: profile } = await db.from("profiles").select("name").eq("id", user.id).maybeSingle();
       if (active) {
         setSession({
           authenticated: true,
-          displayName: profileResult.data?.name || user.user_metadata?.name || user.email?.split("@")[0] || null,
-          isAdmin: Boolean(adminResult.data),
+          displayName: profile?.name || user.user_metadata?.name || user.email?.split("@")[0] || null,
         });
       }
     }
@@ -60,9 +54,7 @@ export default function SessionNavigation() {
     };
   }, []);
 
-  const links = session.authenticated
-    ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])]
-    : [...publicLinks];
+  const links = session.authenticated ? privateLinks : publicLinks;
 
   return <>
     <nav aria-label="Navegação principal" className="flex items-center justify-self-end gap-3 text-sm text-ink-soft md:gap-5">
