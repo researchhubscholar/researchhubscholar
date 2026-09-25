@@ -31,6 +31,7 @@ export async function GET() {
       {key:"accountRequests",table:"scholar_account_requests",ownerColumn:"owner_id"},
       {key:"productEvents",table:"scholar_product_events",ownerColumn:"owner_user_id"},
       {key:"errorEvents",table:"scholar_error_events",ownerColumn:"owner_user_id"},
+      {key:"purchaseRequests",table:"scholar_purchase_requests",ownerColumn:"requester_id"},
       {key:"commentsAuthored",table:"scholar_project_comments",ownerColumn:"author_id"},
     ];
     const results=await Promise.all(sources.map(async source=>{

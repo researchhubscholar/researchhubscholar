@@ -26,6 +26,7 @@ const publicPages = [
 const privatePages = [
   "/dashboard",
   "/conta",
+  "/contratacao",
   "/descobrir",
   "/ideias",
   "/biblioteca",

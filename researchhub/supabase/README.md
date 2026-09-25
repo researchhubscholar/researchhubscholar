@@ -18,7 +18,8 @@ Para um projeto Supabase vazio, execute no SQL Editor, uma vez e nesta ordem:
 10. `scholar_library_duplicates.sql` — união transacional de registros duplicados da Biblioteca.
 11. `scholar_search_alerts.sql` — linha de base e central privada de novas publicações.
 12. `scholar_account_support.sql` — conta, exportação, exclusão agendada e suporte privado.
-13. `scholar_operations.sql` — telemetria mínima, erros e painel operacional restrito.
+13. `scholar_operations.sql` — telemetria mínima, erros e painel operacional restrito;
+14. `scholar_commerce.sql` — catálogo, solicitações, cupons, recargas e preparação segura para pagamentos.
 
 `scholar_idea_history.sql` é uma migração de compatibilidade para instalações antigas. A instalação atual já contém essa estrutura; não a execute novamente em uma instalação nova.
 

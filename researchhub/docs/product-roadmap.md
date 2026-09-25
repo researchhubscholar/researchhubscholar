@@ -52,7 +52,9 @@ de lançamento.
 - [x] Relatório geral do projeto e exportações estruturadas.
 - [x] Exportação da conta, exclusão agendada e suporte privado.
 - [x] Monitoramento mínimo, métricas e painel operacional restrito.
-- [ ] Revisão mobile completa e painel administrativo de operação.
+- [x] Painel administrativo de operação.
+- [x] Estrutura comercial: planos, pedidos, cupons, vagas flexíveis, recargas e ativação de testes.
+- [ ] Revisão mobile completa.
 
 ## Fase 2 — Inserção e validação da IA
 
@@ -65,8 +67,7 @@ coerência, custo, consumo, avaliação do usuário e comparação entre modelos
 
 ## Fase 3 — Compra e primeira liberação
 
-Preparar em modo de teste: plano individual, checkout, licença automática,
-franquia, recargas, cancelamento, renovação, e-mails e administração.
+Base concluída em modo seguro: planos individuais e institucionais, pedidos, franquias, recargas, cancelamento, cupons, testes e administração. Próximos itens: checkout Stripe, webhook, renovação e e-mails transacionais.
 
 Sequência de lançamento: produto-base validado, IA interna, cinco convidados,
 correções, checkout real, grupo fundador de 20–30 residentes e oferta para

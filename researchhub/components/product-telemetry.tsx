@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const modules: [string,string][] = [
   ["/dashboard","dashboard"],["/descobrir","radar"],["/ideias","ideas"],["/biblioteca","library"],
   ["/meu-trabalho","project"],["/orientacao","advising"],["/documentos","documents"],
-  ["/licenca","license"],["/residencia","residency"],["/conta","account"],["/operacao","operation"],
+  ["/licenca","license"],["/contratacao","license"],["/residencia","residency"],["/conta","account"],["/operacao","operation"],
 ];
 
 export function moduleFromPath(pathname:string) {

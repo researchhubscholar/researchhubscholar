@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -53,7 +54,7 @@ export default function OperationPage(){
   if(denied)return <div className="max-w-2xl mx-auto"><p className="text-xs uppercase tracking-widest text-teal">Operação</p><h1 className="font-display text-4xl mt-3">Acesso restrito.</h1><p className="text-ink-soft mt-4">Este painel é exclusivo da equipe responsável pelo ResearchHub Scholar.</p></div>;
   return <div className="max-w-6xl mx-auto">
     <p className="text-xs uppercase tracking-widest text-teal">Operação do produto</p><h1 className="font-display text-4xl mt-3">Saúde, uso e atendimento.</h1>
-    <p className="text-ink-soft mt-4 max-w-3xl">Indicadores operacionais sem conteúdo científico dos usuários. Use-os para identificar falhas, atender solicitações e acompanhar adoção.</p>
+    <p className="text-ink-soft mt-4 max-w-3xl">Indicadores operacionais sem conteúdo científico dos usuários. Use-os para identificar falhas, atender solicitações e acompanhar adoção.</p><Link href="/operacao/comercial" className="inline-block mt-4 text-sm text-teal underline">Abrir operação comercial →</Link>
     {message&&<p role="status" className="mt-5 bg-teal-soft rounded-card p-4 text-sm">{message}</p>}
     {summary&&<section className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-7">{[
       ["Contas",summary.users],["Ativos · 7 dias",summary.active7d],["Eventos · 7 dias",summary.events7d],
