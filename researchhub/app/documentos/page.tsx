@@ -42,9 +42,9 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     generatedAt:new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
-    <div className="flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção científica</p><h1 className="font-display text-4xl md:text-5xl mt-3">Central de documentos</h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed">Transforme os registros do projeto, da jornada e da biblioteca em materiais organizados para revisar, discutir e exportar.</p></div>
-      <form method="get" className="bg-white border border-line rounded-card p-4 min-w-[260px]"><label className="text-xs text-ink-soft">Projeto selecionado<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="text-sm text-teal mt-3">Abrir documentos deste projeto →</button></form>
-    </div>
+    <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção científica</p><h1 className="font-display text-4xl md:text-5xl mt-3">Central de documentos</h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed">Transforme os registros do projeto, da jornada e da biblioteca em materiais organizados para revisar, discutir e exportar.</p></div>
+      <form method="get" className="documents-project-picker bg-white border border-line rounded-card p-4 min-w-[260px]"><label className="text-xs text-ink-soft">Projeto selecionado<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="text-sm text-teal mt-3">Abrir documentos deste projeto →</button></form>
+    </header>
     <DocumentCenter data={data}/>
   </div>;
 }
