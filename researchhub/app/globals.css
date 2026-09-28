@@ -806,3 +806,344 @@ main details > summary:focus-visible { box-shadow: 0 0 0 3px rgba(15,110,102,.14
   .documents-page > div:first-child { padding: 1rem; }
   .admin-page section.grid > article { min-height: 5.5rem; }
 }
+
+
+/* ============================================================
+   SCHOLAR MOBILE REVIEW — responsive and touch refinement
+   Preserves every route and desktop flow.
+   ============================================================ */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.overflow-x-auto,
+.table-scroll,
+.project-sidebar nav,
+.mobile-nav {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+@media (max-width: 768px) {
+  .app-header-inner {
+    gap: .65rem;
+    padding-top: max(.65rem, env(safe-area-inset-top));
+  }
+
+  .brand-lockup { min-width: 0; }
+  .brand-symbol { flex: 0 0 auto; }
+  .brand-name { white-space: nowrap; }
+
+  .primary-nav {
+    gap: .1rem;
+  }
+
+  .primary-nav-link,
+  .nav-signout {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-nav {
+    scroll-padding-inline: 1rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .mobile-nav .primary-nav-link {
+    min-height: 2.65rem;
+    scroll-snap-align: start;
+  }
+
+  .app-content {
+    min-height: calc(100vh - 17rem);
+    padding-top: 1.35rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .app-footer { margin-top: 3rem; }
+  .app-footer-inner { padding-top: 2.25rem; padding-bottom: calc(2.25rem + env(safe-area-inset-bottom)); }
+
+  main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    min-height: 3rem;
+    font-size: 16px;
+  }
+
+  main button,
+  main a.bg-teal,
+  main a.bg-ink,
+  main a.border.rounded-card,
+  main label:has(input[type="checkbox"]),
+  main label:has(input[type="radio"]) {
+    min-height: 2.75rem;
+  }
+
+  main button,
+  main a.bg-teal,
+  main a.bg-ink {
+    touch-action: manipulation;
+  }
+
+  main :is(h1.text-5xl, h1.text-6xl) {
+    font-size: clamp(2.25rem, 10vw, 3.15rem);
+    line-height: 1.04;
+  }
+
+  main h2.text-3xl { font-size: 1.75rem; }
+  main h3.text-2xl { font-size: 1.4rem; }
+
+  .scholar-workspace > h1,
+  .scholar-workspace .module-intro > h1,
+  .secondary-page > h1,
+  .secondary-page > div:first-child h1 {
+    font-size: clamp(2.2rem, 10vw, 3rem);
+  }
+
+  .scholar-workspace :is(section, article, form).p-8,
+  .secondary-page :is(section, article, form).p-8 {
+    padding: 1.25rem;
+  }
+
+  .workspace-hero {
+    padding: 1.4rem;
+  }
+
+  .workspace-hero h1 {
+    font-size: clamp(2rem, 9vw, 2.75rem);
+  }
+
+  .workspace-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-metrics > div {
+    min-height: 5.75rem;
+  }
+
+  .module-commandbar {
+    align-items: stretch;
+    gap: .75rem;
+  }
+
+  .module-commandbar > :is(input, label, select, details, button) {
+    width: 100%;
+    max-width: none;
+  }
+
+  .module-commandbar > input:first-child {
+    min-width: 0;
+  }
+
+  .radar-page article :is(.flex.justify-between, .flex.items-center.justify-between),
+  .library-page article :is(.flex.justify-between, .flex.items-center.justify-between),
+  .secondary-page section :is(.flex.justify-between, .flex.items-center.justify-between) {
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+
+  .radar-page article button,
+  .library-page article button {
+    white-space: normal;
+  }
+
+  .ideas-page button[role="radio"],
+  .ideas-page button[aria-pressed] {
+    min-height: 3.25rem;
+    text-align: left;
+  }
+
+  .library-page > div:first-child {
+    gap: 1rem;
+  }
+
+  .project-sidebar {
+    margin-inline: -.15rem;
+  }
+
+  .project-sidebar nav {
+    scroll-padding-inline: .25rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .project-sidebar nav a {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    scroll-snap-align: start;
+  }
+
+  .project-content > h2 {
+    font-size: clamp(2.1rem, 10vw, 2.8rem);
+  }
+
+  .project-content > div.bg-ink {
+    padding: 1.25rem;
+  }
+
+  .project-content > div.bg-ink :is(.flex.justify-between, .flex.items-center.justify-between) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .project-content > div.bg-ink button {
+    width: 100%;
+  }
+
+  .secondary-page section,
+  .account-page section,
+  .commerce-page section {
+    padding: 1.2rem;
+  }
+
+  .secondary-page .overflow-x-auto,
+  .admin-page .overflow-x-auto,
+  .table-scroll {
+    max-width: 100%;
+    border-radius: 14px;
+  }
+
+  .secondary-page table,
+  .admin-page table,
+  .plan-comparison table {
+    font-size: .8rem;
+  }
+
+  .secondary-page table th,
+  .secondary-page table td,
+  .admin-page table th,
+  .admin-page table td {
+    padding: .75rem;
+  }
+
+  .documents-page button,
+  .documents-page a.bg-teal,
+  .commerce-page button,
+  .residency-page button,
+  .account-page button {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .floating-plans {
+    right: max(.75rem, env(safe-area-inset-right));
+    bottom: calc(.75rem + env(safe-area-inset-bottom));
+    min-height: 2.9rem;
+    padding: .72rem 1rem;
+  }
+
+  body:has(.floating-plans) footer {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  .public-heading,
+  .public-cta,
+  .residency-preview,
+  .feature-card,
+  .pricing-card,
+  .contact-note {
+    border-radius: 18px;
+  }
+
+  .public-button {
+    min-height: 2.9rem;
+  }
+
+  .public-demo article h4 {
+    font-size: 1.18rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-inline: .75rem;
+  }
+
+  .brand-lockup { gap: .5rem; }
+  .brand-symbol { width: 1.75rem; height: 1.75rem; border-radius: 8px; }
+  .brand-name { font-size: 1rem; }
+
+  .primary-nav-link,
+  .nav-signout {
+    padding-inline: .5rem;
+    font-size: .74rem;
+  }
+
+  .nav-signup { margin-left: 0; }
+
+  .mobile-nav {
+    margin-inline: -.75rem;
+    padding-inline: .75rem;
+  }
+
+  .app-content {
+    padding-inline: .75rem;
+  }
+
+  .workspace-metrics {
+    gap: .6rem;
+  }
+
+  .workspace-metrics > div {
+    min-width: 0;
+    padding: .9rem;
+  }
+
+  .workspace-metrics > div p:first-child {
+    font-size: 1.35rem;
+  }
+
+  .project-block,
+  .ideas-page > section,
+  .ideas-page > form,
+  .ideas-page > div.bg-white,
+  .library-page article,
+  .library-page > section,
+  .secondary-page > section,
+  .secondary-page > div.bg-white,
+  .secondary-page > form {
+    border-radius: 15px;
+  }
+
+  .scholar-workspace :is(section, article, form).p-6,
+  .secondary-page :is(section, article, form).p-6 {
+    padding: 1rem;
+  }
+
+  .legal-index nav {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-content {
+    padding-inline: 1rem;
+  }
+
+  .public-heading h1 {
+    font-size: 2.25rem;
+  }
+
+  .public-heading-mark,
+  .public-cta,
+  .residency-preview,
+  .pricing-card {
+    padding: 1.25rem;
+  }
+
+  .floating-plans {
+    gap: .55rem;
+    font-size: .76rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .brand-product { display: none; }
+  .workspace-metrics { grid-template-columns: 1fr; }
+  .workspace-metrics > div { min-height: 5rem; }
+  .primary-nav-link, .nav-signout { padding-inline: .42rem; }
+}
