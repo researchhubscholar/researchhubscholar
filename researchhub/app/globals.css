@@ -2071,3 +2071,511 @@ body {
   .advising-project-summary > div { flex-direction: column; gap: .35rem; }
   .advising-comments article { padding: 1rem; }
 }
+
+
+/* ============================================================
+   SCHOLAR CORE POLISH — ROUND 4
+   Account, licensing, commerce, residency and operations.
+   Visual-only refinement; all application flows remain intact.
+   ============================================================ */
+.account-page,
+.license-page,
+.commerce-page,
+.residency-page,
+.operation-page {
+  position: relative;
+  isolation: isolate;
+  padding-top: 1.75rem;
+}
+.account-page::before,
+.license-page::before,
+.commerce-page::before,
+.residency-page::before,
+.operation-page::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: .25rem -1.25rem auto;
+  height: 13.5rem;
+  border: 1px solid #d8e4e0;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 18%,rgba(15,110,102,.075) 0 1px,transparent 1.6px) 0 0 / 17px 17px,
+    linear-gradient(125deg,rgba(255,255,255,.96),rgba(238,247,244,.9));
+  box-shadow: 0 22px 52px -44px rgba(20,33,61,.68);
+  pointer-events: none;
+}
+.account-page > *,
+.license-page > *,
+.commerce-page > *,
+.residency-page > *,
+.operation-page > * {
+  position: relative;
+  z-index: 1;
+}
+.account-page > p:first-child,
+.license-page > p:first-child,
+.commerce-page > p:first-child,
+.residency-page > p:first-child,
+.operation-page > p:first-child {
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+.account-page > h1,
+.license-page > h1,
+.commerce-page > h1,
+.residency-page > h1,
+.operation-page > h1 {
+  max-width: 44rem;
+  letter-spacing: -.035em;
+}
+.account-page > h1 + p,
+.license-page > h1 + p,
+.commerce-page > h1 + p,
+.residency-page > h1 + p,
+.operation-page > h1 + p {
+  max-width: 48rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.account-page > section,
+.license-page > section,
+.commerce-page > section,
+.residency-page > form,
+.residency-page fieldset > section,
+.residency-page fieldset > form,
+.operation-page > section {
+  box-shadow: 0 22px 52px -44px rgba(20,33,61,.72);
+}
+
+/* Conta */
+.account-page > section {
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(180deg,#fff,#fdfefd);
+}
+.account-page > section:not(.border-red-200)::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(var(--scholar-teal),#afdcd4);
+}
+.account-page > section > h2 {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+.account-page > section > h2::before {
+  content: "";
+  display: block;
+  width: .55rem;
+  height: .55rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--scholar-teal);
+  box-shadow: 0 0 0 5px rgba(15,110,102,.08);
+}
+.account-page input,
+.account-page select,
+.account-page textarea {
+  background: #fcfdfc;
+  transition: border-color .15s ease,box-shadow .15s ease,background-color .15s ease;
+}
+.account-page input:focus,
+.account-page select:focus,
+.account-page textarea:focus {
+  border-color: rgba(15,110,102,.55);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(15,110,102,.08);
+  outline: 0;
+}
+.account-page article {
+  background: #fafcfb;
+  transition: border-color .15s ease,background-color .15s ease;
+}
+.account-page article:hover {
+  border-color: rgba(15,110,102,.32);
+  background: #fff;
+}
+.account-page section.border-red-200 {
+  border-left: 3px solid rgba(185,28,28,.45);
+  background: linear-gradient(135deg,rgba(254,242,242,.82),rgba(255,255,255,.9));
+}
+
+/* Licença */
+.license-page > .mt-5.flex {
+  width: fit-content;
+  max-width: 100%;
+  gap: .45rem;
+  padding: .35rem;
+  border: 1px solid rgba(15,110,102,.15);
+  border-radius: 999px;
+  background: rgba(255,255,255,.78);
+}
+.license-page > .mt-5.flex a {
+  padding: .5rem .75rem;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background-color .15s ease,color .15s ease;
+}
+.license-page > .mt-5.flex a:hover { background: #e5f2ef; }
+.license-page > section.bg-white {
+  overflow: hidden;
+  border-radius: 20px;
+  border-color: #cfdfda;
+  background: linear-gradient(180deg,#fff,#fbfdfc);
+}
+.license-page > section.bg-white::before {
+  content: "LICENÇA ATIVA";
+  display: block;
+  margin: -1.25rem -1.25rem 1.25rem;
+  padding: .65rem 1.25rem;
+  background: linear-gradient(110deg,#14213d,#17414a);
+  color: #bfe2dc;
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .13em;
+}
+.license-page > section.bg-white .grid > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 6.6rem;
+  border: 1px solid #e2e9e6;
+  background: linear-gradient(180deg,#f9fcfb,#f2f7f5);
+}
+.license-page > section.bg-white .grid > div::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg,var(--scholar-teal),#add9d1);
+}
+.license-page > section.grid article {
+  position: relative;
+  overflow: hidden;
+  min-height: 15rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg,#fff,#fbfdfc);
+  transition: transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.license-page > section.grid article:nth-child(2) {
+  border-color: rgba(15,110,102,.42);
+  background: linear-gradient(145deg,#eaf5f2,#fff 62%);
+  box-shadow: 0 24px 52px -40px rgba(15,110,102,.55);
+}
+.license-page > section.grid article:nth-child(2)::after {
+  content: "RECOMENDADO";
+  position: absolute;
+  right: -2.9rem;
+  top: 1.25rem;
+  width: 10rem;
+  padding: .28rem;
+  transform: rotate(38deg);
+  background: var(--scholar-teal);
+  color: #fff;
+  text-align: center;
+  font-size: .54rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.license-page > section.grid article:hover {
+  transform: translateY(-2px);
+  border-color: rgba(15,110,102,.42);
+}
+.license-page > section.bg-teal-soft {
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(120deg,#e7f4f1,#f8fbfa);
+}
+
+/* Contratação */
+.commerce-page > .bg-teal-soft,
+.commerce-page > .border-teal\/20 {
+  border-radius: 15px;
+  background: rgba(229,243,239,.9);
+  box-shadow: inset 3px 0 0 rgba(15,110,102,.55);
+}
+.commerce-page > section {
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(180deg,#fff,#fdfefd);
+}
+.commerce-page > section:first-of-type {
+  border-color: rgba(15,110,102,.32);
+}
+.commerce-page > section > h2 {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+}
+.commerce-page > section > h2::before {
+  content: "";
+  width: .5rem;
+  height: .5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--scholar-teal);
+  box-shadow: 0 0 0 5px rgba(15,110,102,.08);
+}
+.commerce-page section .bg-paper {
+  position: relative;
+  min-height: 6.5rem;
+  overflow: hidden;
+  background: linear-gradient(180deg,#f9fcfb,#f2f7f5);
+}
+.commerce-page section .bg-paper::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg,var(--scholar-teal),#add9d1);
+}
+.commerce-page input,
+.commerce-page select {
+  background: #fcfdfc;
+}
+.commerce-page input:focus,
+.commerce-page select:focus {
+  border-color: rgba(15,110,102,.55);
+  box-shadow: 0 0 0 3px rgba(15,110,102,.08);
+  outline: 0;
+}
+.commerce-page table tbody tr {
+  transition: background-color .15s ease;
+}
+
+/* Residência */
+.residency-page > form {
+  overflow: hidden;
+  border-radius: 20px;
+  border-style: dashed;
+  background: linear-gradient(125deg,#fff,#f3f9f7);
+}
+.residency-page > label {
+  padding: 1rem;
+  border: 1px solid var(--scholar-line);
+  border-radius: 14px;
+  background: rgba(255,255,255,.86);
+}
+.residency-page fieldset > section,
+.residency-page fieldset > form {
+  border-radius: 20px;
+}
+.residency-page fieldset > section.bg-ink {
+  position: relative;
+  background: linear-gradient(120deg,#13213d,#17434b);
+}
+.residency-page fieldset > section.bg-ink::after {
+  content: "";
+  position: absolute;
+  width: 16rem;
+  height: 16rem;
+  right: -7rem;
+  bottom: -10rem;
+  border: 1px solid rgba(191,226,220,.15);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.residency-page fieldset > section.bg-ink > * {
+  position: relative;
+  z-index: 1;
+}
+.residency-page fieldset > section.bg-white,
+.residency-page fieldset > form.bg-white {
+  background: linear-gradient(180deg,#fff,#fcfdfc);
+}
+.residency-page fieldset > section.bg-white > h2,
+.residency-page fieldset > form.bg-white > h2 {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+}
+.residency-page fieldset > section.bg-white > h2::before,
+.residency-page fieldset > form.bg-white > h2::before {
+  content: "";
+  width: .5rem;
+  height: .5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--scholar-teal);
+  box-shadow: 0 0 0 5px rgba(15,110,102,.08);
+}
+.residency-page fieldset > section.bg-white > div.space-y-4 > div,
+.residency-page fieldset > section.bg-white > div.mt-4.border {
+  background: #fafcfb;
+  transition: background-color .15s ease,border-color .15s ease,transform .15s ease;
+}
+.residency-page fieldset > section.bg-white > div.space-y-4 > div:hover,
+.residency-page fieldset > section.bg-white > div.mt-4.border:hover {
+  border-color: rgba(15,110,102,.34);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+/* Operação */
+.operation-page > a {
+  display: inline-flex !important;
+  align-items: center;
+  min-height: 2.55rem;
+  padding: .55rem .8rem;
+  border: 1px solid rgba(15,110,102,.2);
+  border-radius: 999px;
+  background: rgba(255,255,255,.75);
+  text-decoration: none;
+}
+.operation-page > section.grid > article {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg,#fff,#f9fbfa);
+  box-shadow: 0 16px 34px -30px rgba(20,33,61,.72);
+}
+.operation-page > section.grid > article::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg,var(--scholar-teal),#add9d1);
+}
+.operation-page > section:not(.grid),
+.operation-page > section > div > article {
+  border-radius: 20px;
+}
+.operation-page > section > h2 {
+  padding-bottom: .85rem;
+  border-bottom: 1px solid #e7ece9;
+}
+.operation-page > section > div > article {
+  background: linear-gradient(180deg,#fff,#fbfdfc);
+  transition: border-color .15s ease,box-shadow .15s ease;
+}
+.operation-page > section > div > article:hover {
+  border-color: rgba(15,110,102,.34);
+  box-shadow: 0 20px 42px -36px rgba(15,110,102,.5);
+}
+.operation-page table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.operation-page tbody tr:hover {
+  background: #eff6f4;
+}
+
+/* Planos públicos */
+.marketing-page .plan-phase {
+  border-color: rgba(15,110,102,.22);
+  border-radius: 999px;
+  background: linear-gradient(110deg,#edf7f4,#fff);
+}
+.marketing-page .pricing-card {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 22px 52px -44px rgba(20,33,61,.72);
+  transition: transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.marketing-page .pricing-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg,#b7d8d2,#edf4f2);
+}
+.marketing-page .pricing-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(15,110,102,.38);
+  box-shadow: 0 28px 60px -42px rgba(15,110,102,.45);
+}
+.marketing-page .pricing-featured {
+  border-color: rgba(15,110,102,.48);
+  background: linear-gradient(145deg,#e8f4f1,#fff 58%);
+}
+.marketing-page .pricing-featured::before {
+  height: 4px;
+  background: linear-gradient(90deg,var(--scholar-teal),#8bc8be);
+}
+.marketing-page .plan-comparison {
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 22px 52px -44px rgba(20,33,61,.68);
+}
+.marketing-page .plan-comparison thead {
+  background: #eff6f4;
+}
+
+@media (max-width: 768px) {
+  .account-page,
+  .license-page,
+  .commerce-page,
+  .residency-page,
+  .operation-page {
+    padding-top: 1.1rem;
+  }
+  .account-page::before,
+  .license-page::before,
+  .commerce-page::before,
+  .residency-page::before,
+  .operation-page::before {
+    inset-inline: -.3rem;
+    height: 14rem;
+    border-radius: 18px;
+  }
+  .license-page > .mt-5.flex {
+    width: 100%;
+    border-radius: 14px;
+  }
+  .license-page > .mt-5.flex a {
+    flex: 1 1 12rem;
+    text-align: center;
+  }
+  .license-page > section.grid article,
+  .commerce-page section .bg-paper {
+    min-height: 0;
+  }
+  .license-page > section.grid article:hover,
+  .marketing-page .pricing-card:hover,
+  .residency-page fieldset > section.bg-white > div.space-y-4 > div:hover,
+  .residency-page fieldset > section.bg-white > div.mt-4.border:hover {
+    transform: none;
+  }
+  .residency-page fieldset > section.bg-ink > div:first-child {
+    align-items: flex-start;
+  }
+  .operation-page > section.grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width: 480px) {
+  .account-page::before,
+  .license-page::before,
+  .commerce-page::before,
+  .residency-page::before,
+  .operation-page::before {
+    height: 15.5rem;
+  }
+  .account-page > h1,
+  .license-page > h1,
+  .commerce-page > h1,
+  .residency-page > h1,
+  .operation-page > h1 {
+    font-size: 2.15rem;
+  }
+  .account-page > section,
+  .license-page > section,
+  .commerce-page > section,
+  .residency-page > form,
+  .residency-page fieldset > section,
+  .residency-page fieldset > form,
+  .operation-page > section {
+    border-radius: 16px;
+  }
+  .license-page > .mt-5.flex {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .operation-page > section.grid {
+    grid-template-columns: 1fr;
+  }
+  .marketing-page .plan-phase {
+    border-radius: 14px;
+  }
+}
