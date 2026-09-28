@@ -101,7 +101,7 @@ export default function AccountPage() {
   const grouped=useMemo(()=>Object.fromEntries(requests.map(request=>[request.id,messages.filter(item=>item.request_id===request.id)])),[requests,messages]);
   if(loading)return <p role="status">Carregando sua conta...</p>;
 
-  return <div className="max-w-4xl mx-auto">
+  return <div className="scholar-workspace secondary-page account-page max-w-4xl mx-auto">
     <p className="text-xs uppercase tracking-widest text-teal">Conta e privacidade</p>
     <h1 className="font-display text-4xl mt-3">Seus dados e seu atendimento.</h1>
     <p className="text-ink-soft mt-4 max-w-2xl">Atualize informações do perfil, exporte seus dados e acompanhe solicitações sem misturar esse histórico com seus projetos científicos.</p>

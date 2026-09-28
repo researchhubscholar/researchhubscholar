@@ -146,12 +146,12 @@ export default function CommercePage() {
   }
 
   if (loading) return <p role="status">Carregando opções de contratação...</p>;
-  if (!userId) return <div className="max-w-3xl mx-auto">
+  if (!userId) return <div className="scholar-workspace secondary-page commerce-page max-w-3xl mx-auto">
     <h1 className="font-display text-4xl">Entre para escolher sua licença.</h1>
     <Link href="/login" className="inline-block mt-5 text-teal underline">Entrar na conta</Link>
   </div>;
 
-  return <div className="max-w-5xl mx-auto">
+  return <div className="scholar-workspace secondary-page commerce-page max-w-5xl mx-auto">
     <p className="text-xs uppercase tracking-widest text-teal">Contratação e recargas</p>
     <h1 className="font-display text-4xl mt-3">Prepare sua licença anual.</h1>
     <p className="text-ink-soft mt-4 max-w-3xl">

@@ -108,7 +108,7 @@ export default function CommerceAdminPage() {
 
   if (loading) return <p role="status">Carregando operação comercial...</p>;
 
-  return <div className="max-w-6xl mx-auto">
+  return <div className="scholar-workspace secondary-page admin-page sales-page max-w-6xl mx-auto">
     <Link href="/operacao" className="text-sm text-teal underline">← Voltar para Operação</Link>
     <p className="mt-6 text-xs uppercase tracking-widest text-teal">Operação comercial</p>
     <h1 className="font-display text-4xl mt-3">Pedidos, licenças e testes.</h1>

@@ -21,7 +21,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   ]);
   if(projectError) return <Message title="Não foi possível carregar seus projetos." text="Atualize a página para tentar novamente." />;
   const project=(projects||[]).find(item=>item.id===params.projeto)||(projects||[])[0];
-  if(!project) return <div className="max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/meu-trabalho?novo=1" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
+  if(!project) return <div className="scholar-workspace secondary-page documents-page max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/meu-trabalho?novo=1" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
   const [{data:articleRows},{data:linkRows},{data:noteRows},{data:milestoneRows}]=await Promise.all([
     db.from("library_articles").select("*").eq("owner_id",user.id),
     db.from("library_article_projects").select("article_id,project_id").eq("owner_id",user.id).eq("project_id",project.id),
@@ -41,7 +41,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     milestones:(milestoneRows||[]).map(row=>({key:row.milestone_key,label:milestoneLabels[row.milestone_key]||row.milestone_key,status:row.status,note:row.note||"",dueDate:row.due_date||""})),
     generatedAt:new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),
   };
-  return <div className="max-w-5xl mx-auto">
+  return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
     <div className="flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção científica</p><h1 className="font-display text-4xl md:text-5xl mt-3">Central de documentos</h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed">Transforme os registros do projeto, da jornada e da biblioteca em materiais organizados para revisar, discutir e exportar.</p></div>
       <form method="get" className="bg-white border border-line rounded-card p-4 min-w-[260px]"><label className="text-xs text-ink-soft">Projeto selecionado<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="text-sm text-teal mt-3">Abrir documentos deste projeto →</button></form>
     </div>

@@ -590,3 +590,219 @@ main details > summary:focus-visible { box-shadow: 0 0 0 3px rgba(15,110,102,.14
   .project-content > h2 { font-size: 2.35rem; }
   .project-block { padding: 1.15rem; }
 }
+
+
+/* Secondary and operational areas. */
+.secondary-page > h1,
+.secondary-page > div:first-child h1 {
+  max-width: 54rem;
+  letter-spacing: -.035em;
+  line-height: 1.06;
+}
+.secondary-page > h1 + p,
+.secondary-page > div:first-child h1 + p {
+  max-width: 49rem;
+  color: var(--scholar-muted);
+  font-size: .98rem;
+  line-height: 1.75;
+}
+.secondary-page > section,
+.secondary-page > div.bg-white,
+.secondary-page > form {
+  border-radius: 20px;
+}
+.secondary-page section.bg-white.border {
+  border-color: var(--scholar-line);
+  box-shadow: var(--scholar-shadow);
+}
+.secondary-page section > h2.font-display {
+  letter-spacing: -.025em;
+}
+.secondary-page section + section { margin-top: 1.5rem; }
+.secondary-page table { min-width: 42rem; }
+.secondary-page table th,
+.secondary-page table td { vertical-align: top; }
+.secondary-page table tbody td { border-top-color: #e5ebe8; }
+.secondary-page > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--scholar-line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.8);
+  padding: .55rem .9rem;
+  text-decoration: none;
+}
+.secondary-page > a:first-child:hover { border-color: rgba(15,110,102,.45); }
+
+/* Orientação */
+.advising-page > div:first-of-type {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--scholar-line);
+}
+.advising-page select { background-color: #fff; }
+.advising-page article,
+.advising-page section { overflow: hidden; }
+.advising-page article.bg-white:hover { border-color: rgba(15,110,102,.36); }
+.advising-page form { background: rgba(255,255,255,.72); }
+.advising-page .bg-teal-soft { border-color: rgba(15,110,102,.18); }
+
+/* Documentos */
+.documents-page > div:first-child {
+  padding: 1.35rem 1.5rem;
+  border: 1px solid var(--scholar-line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.7);
+}
+.documents-page article,
+.documents-page section.bg-white {
+  position: relative;
+  overflow: hidden;
+}
+.documents-page article::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(#0f6e66,#a8d8d0);
+}
+.documents-page button,
+.documents-page a.bg-teal { min-height: 2.8rem; }
+
+/* Licença */
+.license-page > .mt-5.flex {
+  border-bottom: 1px solid var(--scholar-line);
+  padding-bottom: 1.35rem;
+}
+.license-page section.bg-white {
+  background: rgba(255,255,255,.88);
+}
+.license-page section.bg-white > div:first-child {
+  align-items: flex-start;
+}
+.license-page .h-2,
+.license-page .h-3 {
+  overflow: hidden;
+  border-radius: 999px;
+}
+.license-page table td,
+.license-page table th { padding-block: .75rem; }
+
+/* Contratação */
+.commerce-page > .bg-teal-soft,
+.commerce-page > .border-teal\/20 {
+  border-radius: 16px;
+}
+.commerce-page section {
+  padding: 1.5rem;
+}
+.commerce-page section > h2 {
+  padding-bottom: .9rem;
+  border-bottom: 1px solid #e8ecea;
+}
+.commerce-page section .bg-paper {
+  border: 1px solid #e7ece9;
+  border-radius: 14px;
+}
+.commerce-page section .bg-paper p.text-xl {
+  color: var(--scholar-teal);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.6rem;
+}
+.commerce-page table tbody tr:hover { background: #f1f7f5; }
+
+/* Residência */
+.residency-page > h1 + p {
+  max-width: 52rem;
+}
+.residency-page section {
+  overflow: hidden;
+}
+.residency-page section.bg-white > h2 {
+  padding-bottom: .85rem;
+  border-bottom: 1px solid #e8ecea;
+}
+.residency-page article {
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.residency-page article:hover {
+  transform: translateY(-2px);
+  border-color: rgba(15,110,102,.38);
+}
+.residency-page code {
+  border-radius: 8px;
+  background: #edf5f3;
+  padding: .2rem .45rem;
+  color: var(--scholar-teal);
+}
+
+/* Conta */
+.account-page > h1 + p {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--scholar-line);
+}
+.account-page section {
+  padding: 1.5rem;
+}
+.account-page section > h2 {
+  padding-bottom: .85rem;
+  border-bottom: 1px solid #e8ecea;
+}
+.account-page section.border-red-200 {
+  box-shadow: none;
+  background: rgba(254,242,242,.72);
+}
+.account-page article {
+  border-radius: 14px;
+}
+
+/* Operação */
+.admin-page {
+  --admin-line: #dce3e0;
+}
+.admin-page > h1 + p {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--admin-line);
+}
+.admin-page > section,
+.admin-page article {
+  border-color: var(--admin-line);
+}
+.admin-page section.grid > article {
+  min-height: 6.5rem;
+  border-radius: 14px;
+}
+.admin-page section.grid > article p:first-child {
+  color: var(--scholar-teal);
+}
+.admin-page section.overflow-x-auto,
+.admin-page section.bg-white {
+  border-radius: 18px;
+}
+.admin-page thead {
+  background: #f2f6f4;
+}
+.admin-page thead th {
+  position: sticky;
+  top: 0;
+  background: #f2f6f4;
+}
+.admin-page tbody tr:nth-child(even) {
+  background: rgba(247,249,247,.7);
+}
+.operation-page form,
+.sales-page form {
+  border-radius: 12px;
+}
+.sales-page > a:first-child { margin-bottom: .5rem; }
+.sales-page section > div.grid > div {
+  border-radius: 14px;
+}
+
+@media (max-width: 640px) {
+  .secondary-page > h1,
+  .secondary-page > div:first-child h1 { font-size: 2.35rem; }
+  .secondary-page section { padding: 1.15rem; }
+  .secondary-page table { min-width: 36rem; }
+  .documents-page > div:first-child { padding: 1rem; }
+  .admin-page section.grid > article { min-height: 5.5rem; }
+}
