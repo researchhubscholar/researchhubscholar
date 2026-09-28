@@ -1487,3 +1487,357 @@ body {
     min-height: 5.5rem;
   }
 }
+
+
+/* ============================================================
+   SCHOLAR CORE POLISH — ROUND 2
+   Ideas and Project as guided scientific journeys.
+   ============================================================ */
+.ideas-intro {
+  position: relative;
+  overflow: hidden;
+  padding: 2.25rem;
+  border: 1px solid #d7e4e0;
+  border-radius: 24px;
+  background: linear-gradient(128deg,rgba(255,255,255,.96),rgba(239,247,245,.9));
+  box-shadow: 0 24px 55px -44px rgba(20,33,61,.68);
+}
+.ideas-intro::after {
+  content: "?";
+  position: absolute;
+  right: 2rem;
+  top: -.9rem;
+  color: rgba(15,110,102,.065);
+  font-family: "Source Serif 4",Georgia,serif;
+  font-size: 11rem;
+  line-height: 1;
+  pointer-events: none;
+}
+.ideas-intro > * { position: relative; z-index: 1; }
+.ideas-flow {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: .65rem;
+  max-width: 48rem;
+  margin-top: 1.75rem;
+}
+.ideas-flow span {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  min-height: 2.5rem;
+  padding: .55rem .7rem;
+  border: 1px solid rgba(15,110,102,.13);
+  border-radius: 10px;
+  background: rgba(255,255,255,.72);
+  color: #4c5873;
+  font-size: .72rem;
+}
+.ideas-flow b {
+  color: var(--scholar-teal);
+  font-family: "IBM Plex Mono",monospace;
+  font-size: .64rem;
+}
+.ideas-example-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(115deg,#e7f4f1,#f8fbfa);
+}
+.ideas-example-card::before {
+  content: "EXEMPLO";
+  position: absolute;
+  right: 1.25rem;
+  top: 1rem;
+  color: rgba(15,110,102,.09);
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.ideas-example-card > * { position: relative; z-index: 1; }
+.ideas-context-card {
+  border-radius: 20px;
+  background: rgba(255,255,255,.86);
+  box-shadow: 0 20px 46px -38px rgba(20,33,61,.65) !important;
+}
+.ideas-context-card details { border-radius: 14px; }
+.ideas-context-card details > div > div {
+  transition: border-color .15s ease,background-color .15s ease;
+}
+.ideas-context-card details > div > div:hover {
+  border-color: rgba(15,110,102,.35);
+  background: #fbfdfc;
+}
+.ideas-diagnostic-form {
+  position: relative;
+  border-color: #d3dfdb;
+  border-radius: 22px;
+  box-shadow: 0 26px 60px -46px rgba(20,33,61,.72) !important;
+}
+.ideas-form-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--scholar-line);
+}
+.ideas-form-heading > span {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--scholar-ink);
+  color: #fff;
+  font-family: "IBM Plex Mono",monospace;
+  font-size: .72rem;
+}
+.ideas-diagnostic-form details,
+.ideas-diagnostic-form fieldset {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid #e0e6e3;
+  border-radius: 15px;
+  background: #fafcfb;
+}
+.ideas-diagnostic-form details { border-top: 1px solid #e0e6e3; }
+.ideas-diagnostic-form fieldset > legend { padding-inline: .4rem; }
+.ideas-diagnostic-form > button:last-child {
+  min-height: 3.2rem;
+  padding-inline: 1.4rem;
+  box-shadow: 0 14px 28px -20px rgba(15,110,102,.85);
+}
+.ideas-results {
+  padding-top: 2rem;
+  border-top: 1px solid var(--scholar-line);
+}
+.idea-result-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(180deg,#fff,#fcfdfc);
+  box-shadow: 0 20px 48px -40px rgba(20,33,61,.72) !important;
+}
+.idea-result-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg,var(--scholar-teal),#9fd4ca);
+}
+.idea-result-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 52px -38px rgba(15,110,102,.38) !important;
+}
+.idea-score-grid > div { border-radius: 12px; background: #f8fbfa; }
+.idea-score-grid > div:nth-child(2) {
+  background: #edf6f4;
+  border-color: rgba(15,110,102,.25);
+}
+.idea-result-card details {
+  padding: .85rem 0;
+  border-top: 1px solid #e8edeb;
+}
+.idea-result-card details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.idea-result-card details > summary::after {
+  content: "+";
+  color: var(--scholar-teal);
+  font-size: 1rem;
+}
+.idea-result-card details[open] > summary::after { content: "−"; }
+.idea-result-card > div:last-child {
+  padding-top: 1rem;
+  border-top: 1px solid var(--scholar-line);
+}
+.ideas-comparison {
+  border-radius: 20px;
+  box-shadow: 0 22px 50px -42px rgba(20,33,61,.68) !important;
+}
+.ideas-empty {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(15,110,102,.14);
+  background: linear-gradient(115deg,#e8f4f1,#f7fbfa);
+}
+.ideas-empty::after {
+  content: "01 → 04";
+  position: absolute;
+  right: 1.5rem;
+  bottom: .8rem;
+  color: rgba(15,110,102,.1);
+  font-family: "IBM Plex Mono",monospace;
+  font-size: 2rem;
+}
+
+/* Meu projeto */
+.project-intro {
+  position: relative;
+  overflow: hidden;
+  padding: 2rem 2.15rem;
+  border: 1px solid #d8e4e0;
+  border-radius: 22px;
+  background: linear-gradient(125deg,rgba(255,255,255,.96),rgba(239,247,245,.88));
+  box-shadow: 0 22px 52px -44px rgba(20,33,61,.68);
+}
+.project-intro::after {
+  content: "";
+  position: absolute;
+  width: 13rem;
+  height: 13rem;
+  right: -5rem;
+  top: -7rem;
+  border: 1px solid rgba(15,110,102,.13);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5rem rgba(15,110,102,.035);
+}
+.project-intro > * { position: relative; z-index: 1; }
+.project-intro-steps {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin-top: 1.5rem;
+  color: #596580;
+  font-size: .72rem;
+  font-weight: 500;
+}
+.project-intro-steps i {
+  width: 2.6rem;
+  height: 1px;
+  background: linear-gradient(90deg,#8dbbb4,#d2e2de);
+}
+.project-sidebar { overflow: hidden; }
+.project-sidebar::before {
+  content: "JORNADA";
+  display: block;
+  margin: -1.25rem -1.25rem 1.1rem;
+  padding: .65rem 1.25rem;
+  background: linear-gradient(110deg,#14213d,#17414a);
+  color: #bfe2dc;
+  font-size: .6rem;
+  font-weight: 600;
+  letter-spacing: .14em;
+}
+.project-sidebar nav a { position: relative; }
+.project-sidebar nav a::after {
+  content: "";
+  position: absolute;
+  left: 1.28rem;
+  top: 100%;
+  width: 1px;
+  height: .35rem;
+  background: #dce5e2;
+}
+.project-sidebar nav a:last-child::after { display: none; }
+.project-incoming {
+  border-radius: 18px;
+  background: linear-gradient(120deg,#e7f4f1,#f7fbfa);
+}
+.project-sections { counter-reset: project-stage; }
+.project-stage-card {
+  counter-increment: project-stage;
+  min-height: 15rem;
+  padding-left: 2rem;
+  box-shadow: 0 20px 48px -42px rgba(20,33,61,.65) !important;
+}
+.project-stage-card::before { width: 4px; }
+.project-stage-card > p:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+}
+.project-stage-card > p:first-child::before {
+  content: counter(project-stage,decimal-leading-zero);
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 9px;
+  background: #e4f1ef;
+  color: var(--scholar-teal);
+  font-family: "IBM Plex Mono",monospace;
+  font-size: .62rem;
+}
+.project-stage-card:focus-within {
+  border-color: rgba(15,110,102,.45);
+  box-shadow: 0 24px 56px -42px rgba(15,110,102,.48) !important;
+}
+.project-stage-card textarea { min-height: 7rem; resize: vertical; }
+.project-review-card {
+  border-radius: 18px;
+  background: linear-gradient(120deg,#e8f4f1,#f8fbfa);
+}
+.project-action-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(120deg,#13213d,#17434b);
+}
+.project-action-panel::after {
+  content: "";
+  position: absolute;
+  width: 15rem;
+  height: 15rem;
+  right: -7rem;
+  bottom: -9rem;
+  border: 1px solid rgba(191,226,220,.14);
+  border-radius: 50%;
+}
+.project-action-panel > * { position: relative; z-index: 1; }
+.project-action-panel button,
+.project-action-panel a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1023px) {
+  .project-sidebar::before {
+    margin: -1rem -1rem 1rem;
+    padding-inline: 1rem;
+  }
+  .project-sidebar nav a::after { display: none; }
+}
+
+@media (max-width: 768px) {
+  .ideas-intro,
+  .project-intro {
+    padding: 1.35rem;
+    border-radius: 18px;
+  }
+  .ideas-flow { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ideas-example-card::before { display: none; }
+  .ideas-diagnostic-form details,
+  .ideas-diagnostic-form fieldset { padding: .85rem; }
+  .idea-result-card:hover { transform: none; }
+  .project-intro-steps { flex-wrap: wrap; }
+  .project-intro-steps i { width: 1.25rem; }
+  .project-stage-card { min-height: 0; padding-left: 1.25rem; }
+  .project-action-panel > div:last-child { width: 100%; }
+  .project-action-panel button,
+  .project-action-panel a { flex: 1 1 12rem; }
+}
+
+@media (max-width: 480px) {
+  .ideas-flow { grid-template-columns: 1fr; }
+  .ideas-flow span { min-height: 2.25rem; }
+  .ideas-form-heading { align-items: flex-start; }
+  .idea-score-grid { grid-template-columns: 1fr; }
+  .project-intro-steps i { display: none; }
+  .project-intro-steps span {
+    padding: .35rem .55rem;
+    border: 1px solid rgba(15,110,102,.15);
+    border-radius: 999px;
+    background: rgba(255,255,255,.72);
+  }
+  .project-action-panel button,
+  .project-action-panel a {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
