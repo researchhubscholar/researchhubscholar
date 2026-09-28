@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { crossrefArticle, crossrefFetch } from "./crossref";
 import { fetchArticleDetails, pubmedSearch } from "./pubmed";
 import { articleKey, mergeArticles, type Article } from "./types";
+import { buildSearchStrategy } from "./query-strategy";
 
 export type SavedSearchAlertDefinition = {
   id: string; owner_id: string; name: string; query: string; period: string;
@@ -17,7 +18,8 @@ const publicationTypeFilters: Record<string, string> = {
 
 export function buildAlertPubmedTerm(search: Pick<SavedSearchAlertDefinition, "query" | "period" | "study_type">, now = new Date()) {
   const typeFilter = publicationTypeFilters[search.study_type] || "";
-  const base = typeFilter ? `(${search.query}) AND (${typeFilter})` : `(${search.query})`;
+  const interpreted = buildSearchStrategy(search.query);
+  const base = typeFilter ? `(${interpreted.pubmedQuery}) AND (${typeFilter})` : `(${interpreted.pubmedQuery})`;
   if (search.period === "all") return base;
   const startYear = now.getUTCFullYear() - Number(search.period) + 1;
   const endDate = now.toISOString().slice(0, 10).replaceAll("-", "/");
@@ -43,7 +45,7 @@ export async function collectSavedSearchArticles(search: SavedSearchAlertDefinit
     const filters = ["type:journal-article", `until-pub-date:${end}`];
     if (search.period !== "all") filters.push(`from-pub-date:${new Date().getFullYear() - Number(search.period) + 1}-01-01`);
     const params = new URLSearchParams({
-      "query.bibliographic": search.query, rows: "20", filter: filters.join(","),
+      "query.bibliographic": buildSearchStrategy(search.query).crossrefQuery, rows: "20", filter: filters.join(","),
       sort: search.sort === "recent" ? "published" : "score", order: "desc",
     });
     const result = await crossrefFetch(`?${params}`);

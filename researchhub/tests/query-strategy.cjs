@@ -1,0 +1,45 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const ts = require("typescript");
+
+require.extensions[".ts"] = (module, filename) => module._compile(
+  ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText,
+  filename,
+);
+
+const { buildSearchStrategy } = require("../lib/literature/query-strategy.ts");
+
+const sleep = buildSearchStrategy("Qual a relação entre qualidade do sono e burnout em residentes de medicina?");
+assert.equal(sleep.mode, "interpreted");
+assert.deepEqual(sleep.concepts, ["medical residents", "sleep quality", "burnout"]);
+assert.match(sleep.pubmedQuery, /"sleep quality"\[Title\/Abstract\]/);
+assert.match(sleep.pubmedQuery, /"Internship and Residency"\[MeSH Terms\]/);
+assert.doesNotMatch(sleep.pubmedQuery, /\bqual\b|relacao/);
+assert.equal(sleep.crossrefQuery, "medical residents sleep quality burnout");
+
+const adherence = buildSearchStrategy("adesão ao tratamento da hipertensão");
+assert.deepEqual(adherence.concepts, ["medication adherence", "hypertension"]);
+assert.match(adherence.pubmedQuery, /Medication Adherence/);
+
+const breastCancer = buildSearchStrategy("câncer de mama em mulheres jovens");
+assert.deepEqual(breastCancer.concepts, ["breast cancer", "women", "young adults"]);
+assert.equal(breastCancer.warnings.length, 0);
+
+const structured = buildSearchStrategy({
+  topic: "burnout",
+  population: "estudantes de medicina",
+  outcome: "qualidade do sono",
+  mesh: "Education, Medical",
+  operator: "AND",
+});
+assert.match(structured.pubmedQuery, /Education, Medical/);
+assert.match(structured.pubmedQuery, /Students, Medical/);
+assert.match(structured.pubmedQuery, /sleep quality/);
+
+const advanced = buildSearchStrategy('(semaglutide[Title/Abstract]) AND depression[MeSH Terms]');
+assert.equal(advanced.mode, "advanced");
+assert.equal(advanced.pubmedQuery, '(semaglutide[Title/Abstract]) AND depression[MeSH Terms]');
+
+console.log("Radar query strategy: Portuguese concepts, MeSH expansion, structured fields and advanced syntax passed");

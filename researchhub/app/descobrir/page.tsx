@@ -15,7 +15,13 @@ import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
   topic: string;
-  filters: { period: string; studyType: string; searchTerm: string; endDate: string };
+  filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string };
+  strategy: {
+    interpreted: string;
+    concepts: string[];
+    mode: "interpreted" | "advanced";
+    warnings: string[];
+  };
   sources: {
     pubmed: { total: number; recent: number; systematicReviews: number; clinicalTrials: number };
     crossref: { total: number | null };
@@ -105,12 +111,12 @@ function DiscoverContent() {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: effectiveQuery, period, studyType }),
+        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, period, studyType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       setResult(data);
-      setArticles(data.articles); setSource("pubmed"); setSort("recent"); setDuplicateCount(0); setSourceWarning(null);
+      setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
       setArticleTotal(data.sources.pubmed.total);
       setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
       setBrowseError(null);
@@ -134,7 +140,7 @@ function DiscoverContent() {
     setBrowsing(true); setBrowseError(null);
     try {
       const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm }) });
+        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
       setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
@@ -176,7 +182,7 @@ function DiscoverContent() {
       </div>
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
+        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: qualidade do sono em residentes de medicina" />
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
@@ -184,8 +190,8 @@ function DiscoverContent() {
         </button>
         <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
-      <p className="text-xs text-ink-soft/70 mt-2">Dica: termos em inglês costumam recuperar melhor a literatura biomédica internacional.</p>
-      {result && (result.topic !== effectiveQuery || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
+      <p className="text-xs text-ink-soft/70 mt-2">Você pode escrever em português e em formato de pergunta. O Radar identificará os conceitos principais e mostrará como interpretou a busca.</p>
+      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
@@ -214,7 +220,7 @@ function DiscoverContent() {
 
       {!result && !loading && (
         <div className="radar-examples mt-10 grid md:grid-cols-3 gap-4">
-          {["cardiac rehabilitation elderly", "artificial intelligence melanoma", "sleep quality medical residents"].map((example) => (
+          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina"].map((example) => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
               <span className="text-xs text-teal uppercase tracking-wide">Exemplo</span>
               <p className="mt-2 text-sm font-medium">{example}</p>
@@ -225,6 +231,13 @@ function DiscoverContent() {
 
       {result && (
         <div className="mt-10 space-y-6">
+          <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label="Interpretação da busca">
+            <p className="text-xs uppercase tracking-widest text-teal">Como o Radar entendeu sua pergunta</p>
+            <p className="font-medium mt-2">{result.strategy.interpreted}</p>
+            {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
+            <p className="text-xs text-ink-soft mt-3">Os artigos iniciais estão ordenados por relevância. Você ainda pode trocar para “mais recentes” abaixo.</p>
+            {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3">{warning}</p>)}
+          </section>
           <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label="Resultados com os filtros" />
             <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Publicados nos últimos 5 anos, dentro do recorte" />
@@ -270,7 +283,7 @@ function DiscoverContent() {
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Artigos recuperados</p>
                 <h2 className="font-display text-3xl mt-2">Explore a literatura</h2>
-                <p className="text-sm text-ink-soft mt-2">Carregue mais artigos, compare fontes e salve os trabalhos relevantes.</p>
+                <p className="text-sm text-ink-soft mt-2">Os primeiros resultados priorizam relevância. Carregue mais artigos, compare fontes e salve os trabalhos úteis.</p>
               </div>
               <Link href="/biblioteca" className="border border-line px-4 py-2.5 rounded-card text-sm font-medium hover:border-teal hover:text-teal">
                 Minha biblioteca ({savedArticles.length})
@@ -360,7 +373,7 @@ function DiscoverContent() {
             </div>
           </section>
 
-          <details className="bg-white border border-line rounded-card p-4 text-xs text-ink-soft"><summary className="cursor-pointer font-medium">Como interpretar esta busca</summary><p className="mt-3">{result.methodology}</p><p className="mt-2 break-words">Consulta PubMed: {result.filters.searchTerm}</p><p className="mt-2">Consultado até {result.filters.endDate}. Os filtros por tipo dependem da indexação dos artigos.</p></details>
+          <details className="bg-white border border-line rounded-card p-4 text-xs text-ink-soft"><summary className="cursor-pointer font-medium">Como interpretar esta busca</summary><p className="mt-3">{result.methodology}</p><p className="mt-2 break-words">Consulta PubMed: {result.filters.searchTerm}</p><p className="mt-2 break-words">Consulta textual Crossref: {result.filters.crossrefQuery}</p><p className="mt-2">Consultado até {result.filters.endDate}. Os filtros por tipo dependem da indexação dos artigos.</p></details>
         </div>
       )}
     </div>

@@ -8,10 +8,11 @@ export async function POST(request: NextRequest) {
     const { source, sort, period } = body;
     const topic = String(body.topic || "").trim();
     const term = String(body.searchTerm || "").trim();
+    const crossrefQuery = String(body.crossrefQuery || topic).trim();
     const offset = Number(body.offset ?? 0);
     if (!["pubmed", "crossref", "both"].includes(source) || !["recent", "relevance"].includes(sort) ||
         !["all", "3", "5", "10"].includes(period) || topic.length < 3 || topic.length > 300 ||
-        term.length > 1000 || !Number.isInteger(offset) || offset < 0 || offset > 9980 || offset % 20 !== 0) {
+        term.length > 1000 || crossrefQuery.length < 2 || crossrefQuery.length > 500 || !Number.isInteger(offset) || offset < 0 || offset > 9980 || offset % 20 !== 0) {
       return NextResponse.json({ error: "Parâmetros de busca inválidos." }, { status: 400 });
     }
     if ((source === "pubmed" || source === "both") && !term) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
       const end = new Date().toISOString().slice(0, 10);
       const filters = ["type:journal-article", `until-pub-date:${end}`];
       if (period !== "all") filters.push(`from-pub-date:${new Date().getFullYear() - Number(period) + 1}-01-01`);
-      const params = new URLSearchParams({ "query.bibliographic": topic, rows: "20", offset: String(offset), filter: filters.join(","), sort: sort === "recent" ? "published" : "score", order: "desc" });
+      const params = new URLSearchParams({ "query.bibliographic": crossrefQuery, rows: "20", offset: String(offset), filter: filters.join(","), sort: sort === "recent" ? "published" : "score", order: "desc" });
       const result = await crossrefFetch(`?${params}`);
       const articles = (result.items || []).filter((item: any) => item.DOI).map(crossrefArticle);
       return { articles, total: Number(result["total-results"] || 0), hasNext: offset + 20 < Math.min(Number(result["total-results"] || 0), 10000) && articles.length > 0 };

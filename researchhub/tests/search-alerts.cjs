@@ -7,9 +7,11 @@ const { buildAlertPubmedTerm, unseenArticles, nextSeenKeys } = require("../lib/l
 const base = { query: "sleep quality residents", period: "5", study_type: "trial" };
 const term = buildAlertPubmedTerm(base, new Date("2026-09-24T12:00:00Z"));
 assert.match(term, /clinical trial\[Publication Type\]/);
+assert.match(term, /sleep quality/);
+assert.match(term, /Title\/Abstract/);
 assert.match(term, /2022\/01\/01/);
 assert.match(term, /2026\/09\/24/);
-assert.equal(buildAlertPubmedTerm({ ...base, period: "all", study_type: "all" }), "(sleep quality residents)");
+assert.match(buildAlertPubmedTerm({ ...base, period: "all", study_type: "all" }), /sleep quality/);
 
 const pubmed = { pmid: "123", doi: "10.1/a", title: "A", authors: [], journal: "J", pubdate: "2026", year: 2026, publicationTypes: [], abstract: null, pubmedUrl: "https://pubmed.ncbi.nlm.nih.gov/123/", doiUrl: "https://doi.org/10.1/a", source: "PubMed" };
 const crossref = { ...pubmed, pmid: null, doi: "10.1/b", title: "B", source: "Crossref" };

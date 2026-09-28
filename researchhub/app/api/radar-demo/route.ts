@@ -4,7 +4,7 @@ import {analyzeLiterature} from "@/lib/literature/analyze";
 import {publicClient,visitorHash,validTopic} from "@/lib/public/client";
 export const runtime="nodejs";
 export const maxDuration=60;
-const cached=unstable_cache(async(topic:string)=>analyzeLiterature(topic,"5","all",10),["scholar-radar-demo-v1"],{revalidate:3600});
+const cached=unstable_cache(async(topic:string)=>analyzeLiterature(topic,"5","all",10),["scholar-radar-demo-v2-relevance"],{revalidate:3600});
 export async function POST(request:NextRequest){
  try{
   const raw=await request.text();if(raw.length>2000)return NextResponse.json({error:"Solicitação muito grande."},{status:413});

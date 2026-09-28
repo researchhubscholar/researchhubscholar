@@ -1,6 +1,9 @@
 import { throttledPubmedSearch, crossrefCount, fetchArticleDetails } from "./pubmed";
+import { buildSearchStrategy, type SearchInput } from "./query-strategy";
 type YearPoint = { year: number; count: number };
-export async function analyzeLiterature(topic: string, period = "5", studyType = "all", maxArticles = 20) {
+export async function analyzeLiterature(input: string | SearchInput, period = "5", studyType = "all", maxArticles = 20) {
+    const strategy = buildSearchStrategy(input);
+    const topic = typeof input === "string" ? input : input.topic;
     const currentYear = new Date().getFullYear();
     const typeFilters: Record<string, string> = {
       all: "", systematic: "systematic review[Publication Type]",
@@ -10,7 +13,7 @@ export async function analyzeLiterature(topic: string, period = "5", studyType =
     if (!["all", "3", "5", "10"].includes(period) || !Object.prototype.hasOwnProperty.call(typeFilters, studyType)) {
       throw new Error("Filtros inválidos");
     }
-    const baseTerm = typeFilters[studyType] ? `(${topic}) AND (${typeFilters[studyType]})` : `(${topic})`;
+    const baseTerm = typeFilters[studyType] ? `(${strategy.pubmedQuery}) AND (${typeFilters[studyType]})` : `(${strategy.pubmedQuery})`;
     const startRecentYear = currentYear - 4;
     const startYear = period === "all" ? null : currentYear - Number(period) + 1;
     const endDate = new Date().toISOString().slice(0, 10).replaceAll("-", "/");
@@ -18,7 +21,7 @@ export async function analyzeLiterature(topic: string, period = "5", studyType =
 
     // Todas as chamadas ao NCBI ficam serializadas. Isso evita ultrapassar o
     // limite público de requisições quando não existe NCBI_API_KEY configurada.
-    const mainSearch = await throttledPubmedSearch(searchTerm, maxArticles, "pub date");
+    const mainSearch = await throttledPubmedSearch(searchTerm, maxArticles, "relevance");
     const systematic = await throttledPubmedSearch(`(${searchTerm}) AND systematic review[Publication Type]`);
     const trials = await throttledPubmedSearch(`(${searchTerm}) AND clinical trial[Publication Type]`);
     const recent = await throttledPubmedSearch(
@@ -26,7 +29,7 @@ export async function analyzeLiterature(topic: string, period = "5", studyType =
     );
 
     // Crossref é complementar: se cair, o Radar do PubMed continua funcionando.
-    const crossref = await crossrefCount(topic);
+    const crossref = await crossrefCount(strategy.crossrefQuery);
 
     // Compara somente anos completos; o ano atual não sugere uma queda artificial.
     const timelineStart = startYear ?? currentYear - 6;
@@ -63,7 +66,14 @@ export async function analyzeLiterature(topic: string, period = "5", studyType =
 
     return {
       topic,
-      filters: { period, studyType, searchTerm, endDate },
+      filters: {
+        period, studyType, searchTerm, crossrefQuery: strategy.crossrefQuery, endDate,
+        mesh: typeof input === "string" ? "" : input.mesh || "",
+        population: typeof input === "string" ? "" : input.population || "",
+        outcome: typeof input === "string" ? "" : input.outcome || "",
+        operator: typeof input === "string" ? "AND" : input.operator || "AND",
+      },
+      strategy,
       sources: {
         pubmed: {
           total,
@@ -78,6 +88,6 @@ export async function analyzeLiterature(topic: string, period = "5", studyType =
       signals: { breadth, trend, recentRatio: total > 0 ? recent.count / total : 0 },
       generatedAt: new Date().toISOString(),
       methodology:
-        "As contagens e artigos são recuperados do PubMed/Crossref a partir dos termos informados. As métricas do PubMed respeitam os filtros; o Crossref usa apenas o tema e não é diretamente comparável. A tendência compara blocos de anos completos e é exploratória. Isso não equivale a uma revisão sistemática e não comprova, isoladamente, originalidade ou lacuna científica.",
+        "O Radar transforma linguagem natural em conceitos combinados e procura esses conceitos no título, resumo e, quando disponível, em descritores MeSH. As métricas do PubMed respeitam os filtros; o Crossref usa a versão textual interpretada e não é diretamente comparável. A tendência compara blocos de anos completos e é exploratória. Isso não equivale a uma revisão sistemática e não comprova, isoladamente, originalidade ou lacuna científica.",
     };
 }
