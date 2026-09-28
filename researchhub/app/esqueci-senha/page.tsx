@@ -50,17 +50,21 @@ export default function EsqueciSenhaPage() {
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
-          <label className="text-sm text-ink-soft">E-mail</label>
+          <label htmlFor="recovery-email" className="text-sm text-ink-soft">E-mail</label>
           <input
+            id="recovery-email"
+            name="email"
+            autoComplete="email"
             required
             type="email"
+            maxLength={320}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full mt-1 border border-line rounded-card px-3 py-2 outline-none focus:border-teal bg-white"
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"

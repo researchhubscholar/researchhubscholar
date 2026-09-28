@@ -38,40 +38,41 @@ export function useLibrary() {
     setArticles(data.articles); setNotes(data.notes); setProjects(data.projects);
   }, [db]);
   useEffect(() => {
+    const versionRef = version;
     let active = true;
     async function load() {
-      const current = ++version.current;
+      const current = ++versionRef.current;
       setLoading(true); setError(null);
       try {
         const { data, error: authError } = await db.auth.getUser();
-        if (!active || current !== version.current) return;
+        if (!active || current !== versionRef.current) return;
         if (authError && authError.name !== "AuthSessionMissingError") throw authError;
         const id = data.user?.id || null;
         owner.current = id; setUserId(id);
         if (!id) { setArticles([]); setNotes({}); setProjects([]); setLegacyCount(0); return; }
         await refresh();
-        if (!active || current !== version.current) return;
+        if (!active || current !== versionRef.current) return;
         try {
           const claimed = localStorage.getItem(IMPORT_OWNER);
           const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || "[]");
           const completed = claimed === id && localStorage.getItem(IMPORT_COMPLETE) === legacyStamp();
           setLegacyCount(!completed && (!claimed || claimed === id) && Array.isArray(legacy) ? legacy.length : 0);
         } catch { setLegacyCount(0); }
-      } catch { if (active && current === version.current) setError("Não foi possível carregar sua biblioteca. Tente novamente."); }
-      finally { if (active && current === version.current) setLoading(false); }
+      } catch { if (active && current === versionRef.current) setError("Não foi possível carregar sua biblioteca. Tente novamente."); }
+      finally { if (active && current === versionRef.current) setLoading(false); }
     }
     void load();
     const { data: subscription } = db.auth.onAuthStateChange((_event, session) => {
       const nextOwner = session?.user.id || null;
       if (nextOwner === owner.current) return;
-      ++version.current; owner.current = nextOwner;
+      ++versionRef.current; owner.current = nextOwner;
       setUserId(nextOwner); setArticles([]); setNotes({}); setProjects([]); setMessage(null); setLegacyCount(0);
       // Run outside the auth callback to avoid awaiting another auth call inside it.
       setTimeout(() => { if (active) void load(); }, 0);
     });
     const onFocus = () => { if (!busy.current) void refresh().catch(() => setError("Não foi possível atualizar a biblioteca.")); };
     window.addEventListener("focus", onFocus);
-    return () => { active = false; ++version.current; subscription.subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
+    return () => { active = false; ++versionRef.current; subscription.subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
   }, [db, refresh]);
 
   async function run(operation: (store: LibraryStore, id: string) => Promise<void>, success: string) {
@@ -96,9 +97,10 @@ export function useLibrary() {
   const saveNote = (id: string, note: EvidenceNote) => run(store => store.saveNote(id, note), "Anotações salvas na sua conta.");
   const assignProject = (id: string, projectId: string | null) => run(store => store.assignProject(id, projectId), "Projeto associado ao artigo.");
   const updateArticle = (id: string, metadata: { readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string }) => run(store => store.updateArticle(id, metadata), "Organização do artigo atualizada.");
+  const setFullTextUrl = (id: string, url: string) => run(store => store.setFullTextUrl(id, url), "Acesso ao texto completo salvo na Biblioteca.");
   const addProjectLink = (id: string, projectId: string) => run(store => store.addProjectLink(id, projectId), "Artigo vinculado ao projeto.");
   const removeProjectLink = (id: string, projectId: string) => run(store => store.removeProjectLink(id, projectId), "Vínculo removido.");
-  const mergeDuplicate = (keepId: string, removeId: string) => run(store => store.mergeDuplicate(keepId, removeId), "Registros duplicados unidos; anotações e vínculos foram preservados.");
+  const mergeDuplicates = (keepId: string, removeIds: string[]) => run(store => store.mergeDuplicates(keepId, removeIds), "Registros duplicados unidos; anotações e vínculos foram preservados.");
   const remove = (id: string) => run(store => store.remove(id), "Artigo removido da sua biblioteca.");
   const importLegacy = () => run(async (store, id) => {
     const claimed = localStorage.getItem(IMPORT_OWNER);
@@ -118,5 +120,5 @@ export function useLibrary() {
     localStorage.setItem(IMPORT_COMPLETE, stamp);
     setLegacyCount(0);
   }, "Artigos e anotações importados. A cópia antiga continua preservada neste navegador.");
-  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, addProjectLink, removeProjectLink, mergeDuplicate, remove, importLegacy, refresh };
+  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, saveNote, assignProject, updateArticle, setFullTextUrl, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
 }

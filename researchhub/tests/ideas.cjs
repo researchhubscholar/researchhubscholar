@@ -5,10 +5,20 @@ require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileMo
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 }).outputText, filename);
 const { generate, initial, ideaBrief, referenceSignature } = require('../lib/ideas/generate.ts');
+const { ideaExamples, ideaExampleFor } = require('../lib/ideas/examples.ts');
 const { readIdeaTransfer, transferKey } = require('../lib/ideas/transfer.ts');
 const a = '11111111-1111-8111-8111-111111111111';
 const b = '22222222-2222-8222-8222-222222222222';
 const token = '33333333-3333-4333-8333-333333333333';
+assert.deepEqual(ideaExamples.map(example => example.workType), ['tcc', 'original', 'review', 'case', 'residency']);
+for (const example of ideaExamples) {
+  assert(example.context.interest.length > 20);
+  assert(example.context.population.length > 10);
+  assert(example.context.measure.length > 15);
+  assert(example.context.setting.length > 10);
+  assert.equal(example.context.workType, example.workType);
+}
+assert.equal(ideaExampleFor('open').workType, 'residency');
 const context = { ...initial, theme: 'Sono e plantões', specialty: 'Educação médica', interest: 'qualidade do sono', population: 'residentes', setting: 'programa de residência', exposure: 'plantões noturnos', measure: 'escore de sono', access: 'both', uncertainty: 'Diferenças entre instrumentos', startingQuestion: 'Como investigar sono na residência?' };
 const article = { id: a, projectId: null, title: 'Selected article', year: 2025, doi: '10.1234/sleep', pmid: null, abstract: null, doiUrl: 'https://doi.org/10.1234/sleep', pubmedUrl: null, authors: [], journal: 'Journal', publicationTypes: [], pubdate: '2025' };
 const evidence = [{ article, note: { finding: 'My reading note', limitation: 'Small sample' } }];
@@ -76,10 +86,16 @@ assert(detailed.find(x => x.id === 'records').methods.includes('40 residentes'))
 assert(protocolChecks({ question: 'Impacto dos plantões sobre sono em residentes', objective: 'Avaliar efeito sobre sono', population: 'residentes', outcome: 'sono', studyType: 'Observacional transversal', variables: 'sono e plantões', methods: '', analysis: '' }).some(x => x.includes('causalidade')));
 assert(protocolChecks({ question: 'Frequência de sono em residentes', objective: 'Descrever sono em residentes', population: 'residentes', outcome: 'sono', studyType: 'Observacional transversal', variables: 'sono', methods: 'coleta', analysis: 'descrição' }).length === 0);
 console.log('PASS: feasibility diagnosis, specific proposal titles, user measurement/resources and protocol consistency flags.');
-const { validSavedIdea, historyError } = require('../lib/ideas/history.ts');
+const { compareSavedIdeas, validSavedIdea, historyError } = require('../lib/ideas/history.ts');
 const saved = { context, proposal: ideas[0], series_id: token, id: token, evidence_signature: referenceSignature(evidence), reason: 'Initial', created_at: '2026-09-18T00:00:00Z' };
 assert(validSavedIdea(JSON.parse(JSON.stringify(saved))));
 assert(!validSavedIdea({ ...saved, proposal: { ...saved.proposal, plan: null } }));
 assert(!validSavedIdea({ ...saved, context: { theme: 'incomplete' } }));
 assert(historyError({ code: 'PGRST205' }).includes('scholar_idea_history.sql'));
+const later = { ...saved, id: b, reason: 'Recorte reduzido', created_at: '2026-09-19T00:00:00Z', context: { ...context, workType: 'review' }, proposal: { ...ideas[0], title: 'Versão delimitada', question: 'Pergunta revisada', evaluation: { relevance: { score: 80, label: 'Alta', reason: 'Recorte definido' }, feasibility: { score: 70, label: 'Moderada', reason: 'Prazo possível' }, execution: { score: 60, label: 'Moderada', reason: 'Confirmar acesso' }, overall: 70 } } };
+const comparison = compareSavedIdeas([saved, later]);
+assert.equal(comparison.find(row => row.key === 'question').values[1], 'Pergunta revisada');
+assert.deepEqual(comparison.find(row => row.key === 'score').values, [`${saved.proposal.evaluation.overall}/100`, '70/100']);
+assert.equal(comparison.find(row => row.key === 'workType').values[1], 'Revisão de literatura');
+assert.equal(comparison.find(row => row.key === 'reason').values[1], 'Recorte reduzido');
 console.log('PASS: immutable history snapshot round-trip, malformed version rejection and migration guidance.');

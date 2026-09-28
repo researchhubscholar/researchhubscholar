@@ -1,0 +1,11 @@
+const fs=require("node:fs");
+const assert=require("node:assert/strict");
+const ts=require("typescript");
+require.extensions[".ts"]=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
+const {localQuote}=require("../lib/access/commerce.ts");
+assert.deepEqual(localQuote("individual","essential"),{unitAmountCents:59900,grossAmountCents:59900,tokenAllowance:3000000,seats:1,quantity:1});
+assert.equal(localQuote("institutional","plus",30).grossAmountCents,2160000);
+assert.equal(localQuote("institutional","plus",30).tokenAllowance,180000000);
+assert.equal(localQuote("recharge","essential",1,2).grossAmountCents,15800);
+assert.equal(localQuote("recharge","essential",1,2).tokenAllowance,2000000);
+console.log("PASS: commercial quotes preserve annual licensing, flexible seats and optional recharge packs.");

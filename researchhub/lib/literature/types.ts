@@ -2,6 +2,7 @@ export type Article = {
   pmid: string | null; doi: string | null; title: string; authors: string[];
   journal: string; pubdate: string; year: number | null; publicationTypes: string[];
   abstract: string | null; pubmedUrl: string | null; doiUrl: string | null;
+  fullTextUrl?: string | null;
   source?: "PubMed" | "Crossref"; duplicateSources?: ("PubMed" | "Crossref")[]; savedAt?: string;
 };
 // Existing PMID keys remain unchanged, preserving older evidence notes.
@@ -33,6 +34,7 @@ export function mergeArticles(articles: Article[]): { articles: Article[]; dupli
       abstract: existing.abstract || article.abstract,
       pubmedUrl: existing.pubmedUrl || article.pubmedUrl,
       doiUrl: existing.doiUrl || article.doiUrl,
+      fullTextUrl: existing.fullTextUrl || article.fullTextUrl,
       duplicateSources: sources,
     };
   }

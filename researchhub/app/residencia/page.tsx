@@ -29,18 +29,18 @@ export default function ResidencyPage(){
  },[refresh]);
  useEffect(()=>setCreatedCode(""),[org,owner]);
  const director=memberships.some(m=>m.organization_id===org&&m.role==="director"&&m.active);
- useEffect(()=>{const ticket=++request.current;setResidents([]);setProjects([]);setInvites([]);setCohorts([]);setLicense(null);setCohort("");
+ useEffect(()=>{const requestRef=request;const ticket=++requestRef.current;setResidents([]);setProjects([]);setInvites([]);setCohorts([]);setLicense(null);setCohort("");
   if(!org||!owner)return;
   void(async()=>{try{
    const client=supabaseBrowser();const results=await Promise.all([client.from("scholar_cohorts").select("id,name").eq("organization_id",org),client.from("scholar_licenses").select("seats,token_allowance,status,ends_at").eq("organization_id",org).maybeSingle()]);
-   if(ticket!==request.current)return;for(const result of results)if(result.error)throw result.error;setCohorts(results[0].data||[]);setLicense(results[1].data);
+   if(ticket!==requestRef.current)return;for(const result of results)if(result.error)throw result.error;setCohorts(results[0].data||[]);setLicense(results[1].data);
    if(!director)return;
    const [roster,invitation,shares]=await Promise.all([client.rpc("scholar_roster",{p_org:org}),client.from("scholar_invites").select("id,email,expires_at,uses,max_uses,revoked").eq("organization_id",org).order("expires_at",{ascending:false}).limit(100),client.from("scholar_project_shares").select("project_id").eq("organization_id",org)]);
-   if(ticket!==request.current)return;if(roster.error||invitation.error||shares.error)throw roster.error||invitation.error||shares.error;
+   if(ticket!==requestRef.current)return;if(roster.error||invitation.error||shares.error)throw roster.error||invitation.error||shares.error;
    setResidents(roster.data||[]);setInvites(invitation.data||[]);
-   if(shares.data?.length){const result=await client.from("research_projects").select("id,owner_id,title,status,progress").in("id",shares.data.map(s=>s.project_id));if(ticket!==request.current)return;if(result.error)throw result.error;setProjects(result.data||[]);}
-  }catch{if(ticket===request.current)setMessage("Não foi possível carregar os dados deste programa.");}})();
-  return()=>{++request.current;};
+   if(shares.data?.length){const result=await client.from("research_projects").select("id,owner_id,title,status,progress").in("id",shares.data.map(s=>s.project_id));if(ticket!==requestRef.current)return;if(result.error)throw result.error;setProjects(result.data||[]);}
+  }catch{if(ticket===requestRef.current)setMessage("Não foi possível carregar os dados deste programa.");}})();
+  return()=>{++requestRef.current;};
  },[org,owner,director,refresh]);
  async function action(name:string,args:Record<string,unknown>,success:string){
   if(busyRef.current||!owner)return;const who=owner;busyRef.current=true;setBusy(true);setMessage("");
@@ -53,7 +53,7 @@ export default function ResidencyPage(){
  }
  const activeResidents=residents.filter(r=>r.active);const allocated=activeResidents.reduce((sum,r)=>sum+(r.allowance||0),0);const consumed=activeResidents.reduce((sum,r)=>sum+(r.used||0),0);const averageProgress=projects.length?Math.round(projects.reduce((sum,p)=>sum+p.progress,0)/projects.length):0;
  function exportRoster(){const quote=(value:unknown)=>`"${String(value??"").replaceAll('"','""')}"`;const header=["Nome","E-mail","Status","Turma","Franquia","Utilizado","Reservado"];const rows=residents.map(r=>[r.name,r.email,r.active?"Ativo":"Desativado",cohorts.find(c=>c.id===r.cohort_id)?.name||"Sem turma",r.allowance||0,r.used||0,r.reserved||0]);download(`\uFEFF${[header,...rows].map(row=>row.map(quote).join(";")).join("\n")}`,"text/csv;charset=utf-8","residentes.csv");}
- return <div className="max-w-5xl mx-auto"><p className="text-xs text-teal uppercase">Programas de residência</p><h1 className="font-display text-4xl mt-3">Residentes e coordenação</h1><p className="text-ink-soft mt-4">Cada residente usa sua própria conta. A coordenação acompanha os projetos compartilhados com o programa; ideias e biblioteca pessoais continuam privadas.</p><Link href="/licenca" className="inline-block text-sm text-teal underline mt-4">Minha licença e franquia</Link>
+ return <div className="scholar-workspace secondary-page residency-page max-w-5xl mx-auto"><p className="text-xs text-teal uppercase">Programas de residência</p><h1 className="font-display text-4xl mt-3">Residentes e coordenação</h1><p className="text-ink-soft mt-4">Cada residente usa sua própria conta. A coordenação acompanha os projetos compartilhados com o programa; ideias e biblioteca pessoais continuam privadas.</p><Link href="/licenca" className="inline-block text-sm text-teal underline mt-4">Minha licença e franquia</Link>
  {loading?<p role="status" className="mt-6">Carregando...</p>:!owner?<Link href="/login" className="block mt-6 text-teal underline">Entre para vincular sua conta</Link>:<>
  <form onSubmit={e=>{e.preventDefault();void action("scholar_redeem_invite",{p_code:code},"Conta vinculada ao programa.");}} className="mt-6 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Recebeu um convite?</h2><label className="block text-sm mt-4">Código de adesão<input required maxLength={64} value={code} onChange={e=>setCode(e.target.value)} className="block mt-2 w-full border rounded-card p-3" /></label><button disabled={busy} className="mt-4 bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">Vincular minha conta</button><p className="text-xs text-ink-soft mt-3">É necessário confirmar o e-mail. Convites expiram e respeitam as vagas contratadas.</p></form>
  {!!orgs.length&&<><label className="block text-sm font-medium mt-6">Programa<select value={org} onChange={e=>setOrg(e.target.value)} className="block w-full mt-2 border rounded-card p-3">{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
