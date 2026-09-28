@@ -162,15 +162,20 @@ function DiscoverContent() {
 
   return (
     <div className="scholar-workspace radar-page max-w-5xl mx-auto">
-      <div className="module-intro max-w-3xl">
+      <div className="module-intro radar-intro max-w-3xl">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
         <h1 className="font-display text-4xl md:text-5xl mt-3">Seu tema tem espaço para investigação?</h1>
         <p className="text-ink-soft mt-4 leading-relaxed">
           Digite um tema, hipótese ou combinação de termos. O ResearchHub consulta bases científicas em tempo real, mostra o comportamento da literatura e traz artigos reais para sua biblioteca.
         </p>
+        <div className="radar-source-strip" aria-label="Cobertura do Radar">
+          <span><i aria-hidden="true" />PubMed</span>
+          <span><i aria-hidden="true" />Crossref</span>
+          <span><i aria-hidden="true" />Resultados verificáveis</span>
+        </div>
       </div>
 
-      <form onSubmit={analyze} className="module-commandbar mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
+      <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
@@ -185,12 +190,12 @@ function DiscoverContent() {
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
 
-      <section className="mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
+      <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
         {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}
         {library.error && <p role="alert" className="text-sm text-red-700 mt-3">{library.error}</p>}
         {library.message && <p role="status" className="text-sm text-teal mt-3">{library.message}</p>}
       </section>
-      <section className="mt-6 bg-white border border-line rounded-2xl p-5">
+      <section className="radar-lookup-card mt-6 bg-white border border-line rounded-2xl p-5">
         <h2 className="font-display text-xl">Já encontrou um artigo em outro lugar?</h2>
         <p className="text-sm text-ink-soft mt-2">Busque pelo DOI, PMID ou link do PubMed/doi.org, independentemente dos resultados do Radar.</p>
         <form onSubmit={lookup} className="flex flex-wrap gap-3 mt-4">
@@ -208,7 +213,7 @@ function DiscoverContent() {
       </section>
 
       {!result && !loading && (
-        <div className="mt-10 grid md:grid-cols-3 gap-4">
+        <div className="radar-examples mt-10 grid md:grid-cols-3 gap-4">
           {["cardiac rehabilitation elderly", "artificial intelligence melanoma", "sleep quality medical residents"].map((example) => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
               <span className="text-xs text-teal uppercase tracking-wide">Exemplo</span>
@@ -220,7 +225,7 @@ function DiscoverContent() {
 
       {result && (
         <div className="mt-10 space-y-6">
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label="Resultados com os filtros" />
             <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Publicados nos últimos 5 anos, dentro do recorte" />
             <Metric value={result.sources.pubmed.systematicReviews.toLocaleString("pt-BR")} label="Revisões sistemáticas" />
@@ -228,7 +233,7 @@ function DiscoverContent() {
           </section>
 
           <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
-            <div className="bg-white border border-line rounded-2xl p-6">
+            <div className="radar-chart-card bg-white border border-line rounded-2xl p-6">
               <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano completo</p><p className="text-xs text-ink-soft mt-2">O ano atual é excluído da tendência para evitar uma comparação incompleta.</p>
               <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
                 {result.timeline.map((item) => (
@@ -242,7 +247,7 @@ function DiscoverContent() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-teal-soft border border-teal/20 rounded-2xl p-5">
+              <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
                 <p className="text-xs uppercase tracking-wider text-teal">Leitura do tema</p>
                 <h2 className="font-display text-2xl mt-2">{breadthLabels[result.signals.breadth]}</h2>
                 <p className="text-sm text-ink-soft mt-2">
@@ -260,7 +265,7 @@ function DiscoverContent() {
             </div>
           </section>
 
-          <section className="bg-white border border-line rounded-2xl overflow-hidden">
+          <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Artigos recuperados</p>
@@ -287,7 +292,7 @@ function DiscoverContent() {
               {articles.map((article) => {
                 const saved = savedArticles.some(a => sameArticle(a, article));
                 return (
-                  <article key={articleKey(article)} className="p-6">
+                  <article key={articleKey(article)} className="radar-article p-6">
                     <div className="flex flex-col md:flex-row md:justify-between gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -337,7 +342,7 @@ function DiscoverContent() {
             </div>
           </section>
 
-          <section className="bg-white border border-line rounded-2xl p-6">
+          <section className="radar-next-step bg-white border border-line rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Próxima decisão</p>
