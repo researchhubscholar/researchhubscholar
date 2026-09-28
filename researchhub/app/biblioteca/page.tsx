@@ -142,16 +142,16 @@ function BibliotecaContent() {
 
   return (
     <div className="scholar-workspace library-page max-w-6xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+      <header className="library-hero flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-teal font-semibold">Biblioteca científica</p>
           <h1 className="font-display text-4xl md:text-5xl mt-3">Da leitura do abstract à matriz de evidências.</h1>
           <p className="text-ink-soft mt-4 leading-relaxed">O Scholar pode pré-analisar o abstract e sugerir objetivo, população, método, principal achado e limitação. Nada entra automaticamente: você confirma cada campo antes de incorporar.</p>
         </div>
         <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/descobrir?projeto=${encodeURIComponent(projectFilter)}` : "/descobrir"} className="bg-teal text-white px-5 py-3 rounded-card text-sm font-medium text-center">+ Buscar artigos</Link>
-      </div>
+      </header>
 
-      <section className="mt-6 bg-white border border-line rounded-2xl p-5">
+      <section className="library-controls mt-6 bg-white border border-line rounded-2xl p-5">
         <p role="status" className="text-sm text-ink-soft">{library.loading ? "Carregando sua biblioteca..." : library.userId ? "Biblioteca privada da sua conta · artigos e anotações salvos na nuvem" : "Entre na sua conta para acessar sua biblioteca."}</p>
         {!library.loading && !library.userId && <Link href="/login" className="inline-block mt-3 text-teal underline">Entrar na minha conta</Link>}
         {library.error && <p role="alert" className="mt-3 text-red-700 text-sm">{library.error}<button disabled={library.working} onClick={() => window.location.reload()} className="ml-3 underline">Tentar novamente</button></p>}
@@ -175,23 +175,23 @@ function BibliotecaContent() {
 
       {library.userId && <DuplicateReview groups={duplicateGroups} notes={library.notes} disabled={library.working || hasUnsaved} onMerge={library.mergeDuplicates} />}
 
-      <section className="grid sm:grid-cols-3 gap-3 mt-8">
+      <section className="library-metrics grid sm:grid-cols-3 gap-3 mt-8">
         <Metric value={String(articles.length)} label="Artigos salvos" />
         <Metric value={String(withAbstract)} label="Com resumo disponível" />
         <Metric value={String(articles.filter((x) => x.doi).length)} label="Com DOI identificado" />
       </section>
 
-      <div className="mt-8 flex gap-2 border-b border-line">
+      <div className="library-tabs mt-8 flex gap-2 border-b border-line">
         <button onClick={() => setView("library")} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === "library" ? "border-teal text-teal" : "border-transparent text-ink-soft"}`}>Artigos</button>
         <button onClick={() => setView("matrix")} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === "matrix" ? "border-teal text-teal" : "border-transparent text-ink-soft"}`}>Matriz de evidências</button>
       </div>
-      {library.userId && articles.length>0 && <section className="mt-5 flex flex-wrap items-center gap-2 bg-teal-soft border border-teal/20 rounded-card p-4"><span className="text-sm font-medium mr-2">Exportar este recorte:</span><button onClick={()=>download(buildCsv(articles,notes),"text/csv;charset=utf-8","matriz-scholar.csv")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">Excel / CSV</button><button onClick={()=>download(buildRis(articles),"application/x-research-info-systems;charset=utf-8","referencias-scholar.ris")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">RIS</button><button onClick={()=>download(buildBibtex(articles),"application/x-bibtex;charset=utf-8","referencias-scholar.bib")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">BibTeX</button><span className="text-xs text-ink-soft">O CSV inclui suas anotações da matriz.</span></section>}
+      {library.userId && articles.length>0 && <section className="library-export mt-5 flex flex-wrap items-center gap-2 bg-teal-soft border border-teal/20 rounded-card p-4"><span className="text-sm font-medium mr-2">Exportar este recorte:</span><button onClick={()=>download(buildCsv(articles,notes),"text/csv;charset=utf-8","matriz-scholar.csv")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">Excel / CSV</button><button onClick={()=>download(buildRis(articles),"application/x-research-info-systems;charset=utf-8","referencias-scholar.ris")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">RIS</button><button onClick={()=>download(buildBibtex(articles),"application/x-bibtex;charset=utf-8","referencias-scholar.bib")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">BibTeX</button><span className="text-xs text-ink-soft">O CSV inclui suas anotações da matriz.</span></section>}
 
-      {view === "matrix" && library.userId && !library.loading && <section className="mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare suas leituras</h2><p className="text-sm text-ink-soft mt-2">Selecione até cinco artigos deste recorte para comparar suas anotações. As interpretações são suas; confira os resultados no artigo.</p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
+      {view === "matrix" && library.userId && !library.loading && <section className="library-compare mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare suas leituras</h2><p className="text-sm text-ink-soft mt-2">Selecione até cinco artigos deste recorte para comparar suas anotações. As interpretações são suas; confira os resultados no artigo.</p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
       {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3">Anotações do usuário; campos em edição estão indicados como não salvos.</caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1">{designLabels[resolvedStudyDesign(article)]}</span>{dirty[article.id] && <span className="block text-xs text-amber">Alterações não salvas</span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || "Ainda não anotado"}</td>)}</tr>)}</tbody></table></div>}</section>}
 
       {library.loading ? <p className="mt-8 text-sm text-ink-soft">Carregando artigos...</p> : !library.userId ? null : articles.length === 0 ? (
-        <div className="mt-8 border border-dashed border-line rounded-2xl p-10 text-center bg-white">
+        <div className="library-empty mt-8 border border-dashed border-line rounded-2xl p-10 text-center bg-white">
           <p className="font-display text-2xl">{library.articles.length ? "Nenhum artigo corresponde a este filtro." : "Sua biblioteca ainda está vazia."}</p>
           <p className="text-sm text-ink-soft mt-2">Faça uma busca no Radar e adicione artigos relevantes ao seu projeto.</p>
           <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/descobrir?projeto=${encodeURIComponent(projectFilter)}` : "/descobrir"} className="inline-block mt-5 text-teal font-medium text-sm">Ir para o Radar Científico →</Link>
@@ -199,7 +199,7 @@ function BibliotecaContent() {
       ) : view === "library" ? (
         <div className="mt-6 space-y-4">
           {articles.map((article) => (
-            <article key={article.id} className="bg-white border border-line rounded-2xl p-6">
+            <article key={article.id} className="library-article-card bg-white border border-line rounded-2xl p-6">
               <div className="flex flex-col lg:flex-row lg:justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -238,7 +238,7 @@ function BibliotecaContent() {
           {articles.map((article, index) => {
             const set = suggestions[article.id];
             return (
-              <section key={article.id} className="bg-white border border-line rounded-2xl overflow-hidden">
+              <section key={article.id} className="library-matrix-card bg-white border border-line rounded-2xl overflow-hidden">
                 <div className="p-5 border-b border-line bg-paper flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex gap-4">
                     <span className="w-8 h-8 rounded-full bg-teal text-white flex items-center justify-center text-sm shrink-0">{index + 1}</span>
