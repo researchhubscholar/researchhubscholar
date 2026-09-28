@@ -143,7 +143,7 @@ export default function IdeasPage() {
     setContext(example); setProjectId(""); setReferenceIds([]); setAllReferences(false);
     explore(example, []);
   }
-  return <div className="max-w-5xl mx-auto">
+  return <div className="scholar-workspace ideas-page max-w-5xl mx-auto">
     <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa</p>
     <h1 className="font-display text-4xl md:text-5xl mt-3">Uma ideia que cabe na sua realidade.</h1>
     <p className="text-ink-soft mt-4 max-w-3xl leading-relaxed">Combine seu interesse com o prazo e os recursos disponíveis. Receba propostas estruturadas para discutir com seu orientador e explorar na literatura.</p>

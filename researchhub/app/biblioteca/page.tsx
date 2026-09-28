@@ -141,7 +141,7 @@ function BibliotecaContent() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="scholar-workspace library-page max-w-6xl mx-auto">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-teal font-semibold">Biblioteca científica</p>

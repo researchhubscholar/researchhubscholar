@@ -161,8 +161,8 @@ function DiscoverContent() {
     : [];
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="max-w-3xl">
+    <div className="scholar-workspace radar-page max-w-5xl mx-auto">
+      <div className="module-intro max-w-3xl">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
         <h1 className="font-display text-4xl md:text-5xl mt-3">Seu tema tem espaço para investigação?</h1>
         <p className="text-ink-soft mt-4 leading-relaxed">
@@ -170,7 +170,7 @@ function DiscoverContent() {
         </p>
       </div>
 
-      <form onSubmit={analyze} className="mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
+      <form onSubmit={analyze} className="module-commandbar mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: semaglutide depression" />
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
