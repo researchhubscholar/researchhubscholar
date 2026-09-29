@@ -13,6 +13,7 @@ const { buildSearchStrategy } = require("../lib/literature/query-strategy.ts");
 
 const sleep = buildSearchStrategy("Qual a relação entre qualidade do sono e burnout em residentes de medicina?");
 assert.equal(sleep.mode, "interpreted");
+assert.equal(sleep.language, "pt");
 assert.deepEqual(sleep.concepts, ["medical residents", "sleep quality", "burnout"]);
 assert.match(sleep.pubmedQuery, /"sleep quality"\[Title\/Abstract\]/);
 assert.match(sleep.pubmedQuery, /"Internship and Residency"\[MeSH Terms\]/);
@@ -40,6 +41,16 @@ assert.match(structured.pubmedQuery, /sleep quality/);
 
 const advanced = buildSearchStrategy('(semaglutide[Title/Abstract]) AND depression[MeSH Terms]');
 assert.equal(advanced.mode, "advanced");
+assert.equal(advanced.language, "advanced");
 assert.equal(advanced.pubmedQuery, '(semaglutide[Title/Abstract]) AND depression[MeSH Terms]');
+
+const english = buildSearchStrategy({
+  topic: "What is the relationship between sleep quality and burnout among medical residents?",
+  language: "en",
+});
+assert.equal(english.language, "en");
+assert.deepEqual(english.concepts, ["medical residents", "sleep quality", "burnout"]);
+assert.doesNotMatch(english.pubmedQuery, /relationship|between|among/);
+assert.equal(english.warnings.length, 0);
 
 console.log("Radar query strategy: Portuguese concepts, MeSH expansion, structured fields and advanced syntax passed");

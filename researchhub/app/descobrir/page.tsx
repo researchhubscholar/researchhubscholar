@@ -15,11 +15,12 @@ import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
   topic: string;
-  filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string };
+  filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string; language: string };
   strategy: {
     interpreted: string;
     concepts: string[];
     mode: "interpreted" | "advanced";
+    language: "pt" | "en" | "advanced";
     warnings: string[];
   };
   sources: {
@@ -65,6 +66,7 @@ function DiscoverContent() {
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
   const [period, setPeriod] = useState("5");
   const [studyType, setStudyType] = useState("all");
+  const [language, setLanguage] = useState("auto");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +113,7 @@ function DiscoverContent() {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, period, studyType }),
+        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period, studyType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
@@ -127,8 +129,8 @@ function DiscoverContent() {
       setLoading(false);
     }
   }
-  function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   async function saveArticle(article: Article) {
     const access = openAccess.results[articleKey(article)];
@@ -183,6 +185,7 @@ function DiscoverContent() {
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => setTopic(e.target.value)} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: qualidade do sono em residentes de medicina" />
+        <label className="text-xs text-ink-soft">Idioma<select aria-label="Idioma da busca" disabled={loading || browsing} value={language} onChange={e => setLanguage(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt">Português</option><option value="en">Inglês</option></select></label>
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
@@ -190,8 +193,9 @@ function DiscoverContent() {
         </button>
         <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
-      <p className="text-xs text-ink-soft/70 mt-2">Você pode escrever em português e em formato de pergunta. O Radar identificará os conceitos principais e mostrará como interpretou a busca.</p>
-      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
+      <p className="text-xs text-ink-soft/70 mt-2">Pesquise em português ou inglês. Em “Automático”, o Radar identifica o idioma, separa os conceitos e mostra a estratégia utilizada.</p>
+      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Pesquisa termos livres em título/resumo.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
+      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
@@ -234,6 +238,7 @@ function DiscoverContent() {
           <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label="Interpretação da busca">
             <p className="text-xs uppercase tracking-widest text-teal">Como o Radar entendeu sua pergunta</p>
             <p className="font-medium mt-2">{result.strategy.interpreted}</p>
+            <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? "Português → termos biomédicos em inglês" : result.strategy.language === "en" ? "Inglês" : "Sintaxe avançada do PubMed"}</p>
             {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
             <p className="text-xs text-ink-soft mt-3">Os artigos iniciais estão ordenados por relevância. Você ainda pode trocar para “mais recentes” abaixo.</p>
             {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3">{warning}</p>)}

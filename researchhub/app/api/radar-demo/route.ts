@@ -4,7 +4,7 @@ import {analyzeLiterature} from "@/lib/literature/analyze";
 import {publicClient,visitorHash,validTopic} from "@/lib/public/client";
 export const runtime="nodejs";
 export const maxDuration=60;
-const cached=unstable_cache(async(topic:string)=>analyzeLiterature(topic,"5","all",10),["scholar-radar-demo-v2-relevance"],{revalidate:3600});
+const cached=unstable_cache(async(topic:string,language:"auto"|"pt"|"en")=>analyzeLiterature({topic,language},"5","all",10),["scholar-radar-demo-v3-language"],{revalidate:3600});
 export async function POST(request:NextRequest){
  try{
   const raw=await request.text();if(raw.length>2000)return NextResponse.json({error:"Solicitação muito grande."},{status:413});
@@ -13,7 +13,8 @@ export async function POST(request:NextRequest){
   const client=publicClient();const {data,error}=await client.rpc("scholar_public_quota",{p_key:visitorHash(request.headers),p_kind:"radar"});
   if(error)return NextResponse.json({error:"O Radar demonstrativo está sendo preparado. Tente novamente em breve."},{status:503});
   if(data<0)return NextResponse.json({error:"Você atingiu o limite de três buscas públicas de hoje. Crie uma conta para continuar no seu espaço.",limit:true},{status:429});
-  const result=await cached(body.topic.trim().replace(/\s+/g," ").toLowerCase());
+  const language: "auto" | "pt" | "en" = ["pt", "en"].includes(body.language) ? body.language : "auto";
+  const result=await cached(body.topic.trim().replace(/\s+/g," ").toLowerCase(),language);
   return NextResponse.json({...result,remaining:data,demo:true});
  }catch{
   return NextResponse.json({error:"Não foi possível consultar a base agora. Tente novamente mais tarde."},{status:502});

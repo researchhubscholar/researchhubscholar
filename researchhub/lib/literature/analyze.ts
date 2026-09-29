@@ -72,6 +72,7 @@ export async function analyzeLiterature(input: string | SearchInput, period = "5
         population: typeof input === "string" ? "" : input.population || "",
         outcome: typeof input === "string" ? "" : input.outcome || "",
         operator: typeof input === "string" ? "AND" : input.operator || "AND",
+        language: typeof input === "string" ? "auto" : input.language || "auto",
       },
       strategy,
       sources: {

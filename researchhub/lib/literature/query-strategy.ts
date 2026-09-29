@@ -4,6 +4,7 @@ export type SearchInput = {
   population?: string;
   outcome?: string;
   operator?: "AND" | "OR";
+  language?: "auto" | "pt" | "en";
 };
 
 export type SearchStrategy = {
@@ -13,6 +14,7 @@ export type SearchStrategy = {
   crossrefQuery: string;
   concepts: string[];
   mode: "interpreted" | "advanced";
+  language: "pt" | "en" | "advanced";
   warnings: string[];
 };
 
@@ -86,6 +88,12 @@ const stopwords = new Set([
   "associacao", "influencia", "influenciar", "comparacao", "comparar",
 ]);
 
+const englishStopwords = new Set([
+  "a", "an", "the", "of", "in", "on", "at", "to", "for", "from", "by", "with", "without", "and", "or", "among", "between", "during",
+  "what", "which", "who", "how", "does", "do", "is", "are", "can", "could", "should", "study", "studies", "research", "evaluate", "evaluation",
+  "analyze", "analysis", "impact", "effect", "effects", "association", "relationship", "influence", "comparison", "compare",
+]);
+
 function fold(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -119,7 +127,12 @@ function plainAdvanced(value: string) {
     .replace(/[()\"]/g, " "));
 }
 
-function conceptsFromNaturalLanguage(value: string) {
+function detectLanguage(value: string): "pt" | "en" {
+  if (/[áàâãéêíóôõúç]/i.test(value)) return "pt";
+  return /\b(?:qual|quais|como|entre|sobre|com|sem|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
+}
+
+function conceptsFromNaturalLanguage(value: string, language: "pt" | "en") {
   let working = ` ${fold(value).replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ")} `;
   const concepts: Concept[] = [];
 
@@ -136,7 +149,8 @@ function conceptsFromNaturalLanguage(value: string) {
 
   const unknown: string[] = [];
   for (const token of working.trim().split(/\s+/).filter(Boolean)) {
-    if (stopwords.has(token) || token.length < 3) continue;
+    const ignored = language === "pt" ? stopwords : englishStopwords;
+    if (ignored.has(token) || token.length < 3) continue;
     const translated = wordConcepts[token];
     if (translated) concepts.push(translated);
     else {
@@ -149,8 +163,8 @@ function conceptsFromNaturalLanguage(value: string) {
   return { concepts: unique.slice(0, 6), unknown, truncated: unique.length > 6 };
 }
 
-function naturalPart(value: string) {
-  const parsed = conceptsFromNaturalLanguage(value);
+function naturalPart(value: string, language: "pt" | "en") {
+  const parsed = conceptsFromNaturalLanguage(value, language);
   if (!parsed.concepts.length) {
     const fallback = clean(value.replace(/[?!.;,]/g, " "));
     const concept = { label: fallback, terms: [fallback] };
@@ -179,11 +193,13 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
       crossrefQuery: plainAdvanced(topic),
       concepts: [],
       mode: "advanced",
+      language: "advanced",
       warnings,
     };
   }
 
-  const topicPart = naturalPart(topic);
+  const language = input.language && input.language !== "auto" ? input.language : detectLanguage(topic);
+  const topicPart = naturalPart(topic, language);
   const parts = [topicPart.pubmed];
   const plainParts = [topicPart.plain];
   const concepts = [...topicPart.concepts];
@@ -197,14 +213,14 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
   }
   for (const extra of [input.population, input.outcome]) {
     if (!extra?.trim()) continue;
-    const parsed = naturalPart(extra);
+    const parsed = naturalPart(extra, language);
     parts.push(parsed.pubmed);
     plainParts.push(parsed.plain);
     concepts.push(...parsed.concepts);
     unknown.push(...parsed.unknown);
   }
 
-  if (unknown.length) warnings.push("Alguns termos não tinham tradução cadastrada e foram mantidos como escritos.");
+  if (language === "pt" && unknown.length) warnings.push("Alguns termos em português não tinham tradução cadastrada e foram mantidos como escritos.");
   if (topicPart.truncated) warnings.push("A pergunta tinha muitos conceitos; o Radar priorizou os seis primeiros para evitar uma busca excessivamente restrita.");
 
   return {
@@ -214,6 +230,7 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
     crossrefQuery: plainParts.join(" "),
     concepts: Array.from(new Set(concepts)),
     mode: "interpreted",
+    language,
     warnings,
   };
 }
