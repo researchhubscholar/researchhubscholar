@@ -1,0 +1,13 @@
+const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
+const {validateIdeasRequest,ideasPrompt,mergeAIProposals}=require('../lib/ai/ideas.ts');
+const context={theme:'sono',specialty:'Medicina',interest:'qualidade do sono',population:'residentes',stage:'resident',months:'6',access:'patients',exposure:'plantões noturnos',measure:'escore de qualidade do sono',setting:'programa de residência'};
+const base={id:'base',title:'Título',question:'Pergunta?',objective:'Objetivo',studyType:'Transversal',population:'residentes',outcome:'Sono',resources:'Recursos',difficulty:'Dificuldade',feasibility:'Possível',steps:'Passo',radar:'sleep residents',methods:'Método',analysis:'Análise',variables:'Variáveis',justification:'Justificativa',unresolved:['Confirmar'],plan:['Planejar'],refinements:['Recortar'],references:[],contextSummary:'Contexto',startingQuestion:''};
+const parsed=validateIdeasRequest({context,ideas:[base,{...base,id:'second'}],projectId:null});
+assert.equal(parsed.ideas.length,2);assert.equal(parsed.projectId,null);
+assert.throws(()=>validateIdeasRequest({context:{...context,measure:''},ideas:[base,base]}),/Complete/);
+assert.throws(()=>validateIdeasRequest({context,ideas:[base]}),/dois caminhos/);
+const prompt=ideasPrompt(context,[base,base]);assert(prompt.includes('não invente resultados'));assert(prompt.includes('plantões noturnos'));
+const proposal={title:'Novo título',question:'Nova pergunta específica?',objective:'Novo objetivo',studyType:'Transversal',population:'residentes',outcome:'PSQI',resources:'Equipe',difficulty:'Viés',feasibility:'Moderada',steps:'Confirmar',radar:'sleep quality AND residents',methods:'Método detalhado',analysis:'Análise detalhada',variables:'Exposição e desfecho',justification:'Importância',unresolved:['Ética','Amostra'],plan:['Protocolo','Coleta'],refinements:['Restringir','Medir']};
+const merged=mergeAIProposals([base,base],{proposals:[proposal,proposal],caution:'Validar'});assert.equal(merged[0].title,'Novo título');assert.equal(merged[0].id,'ai-1');assert.deepEqual(merged[0].references,[]);
+console.log('PASS: AI idea request limits, responsible prompt and proposal merge.');

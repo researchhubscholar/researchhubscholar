@@ -43,6 +43,10 @@ export default function IdeasPage() {
   const series = useRef<Record<string, string>>({});
   const [diagnosisVisible, setDiagnosisVisible] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiOperation, setAiOperation] = useState("");
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setContext(c => ({ ...c, theme: params.get("tema") || "" }));
@@ -71,6 +75,13 @@ export default function IdeasPage() {
     void load().catch(() => { if (active) setProfileLoading(false); });
     return () => { active = false; };
   }, [library.userId, library.loading]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/ai/status", { cache: "no-store" }).then(response => response.ok ? response.json() : null).then(data => {
+      if (active) setAiEnabled(Boolean(data?.enabled));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   function update(key: keyof Context, value: string) { touched.current.add(key); setContext(c => ({ ...c, [key]: value })); }
   const stale = snapshot !== null && (JSON.stringify(context) !== JSON.stringify(snapshot) || evidenceSnapshot !== signature);
   async function applyProject() {
@@ -133,6 +144,20 @@ export default function IdeasPage() {
     if (selected.includes(id)) setSelected(ids => ids.filter(x => x !== id));
     else if (selected.length < 3) { setSelected(ids => [...ids, id]); setMessage(""); }
     else setMessage("Selecione até três ideias para comparar.");
+  }
+  async function enhanceWithAI() {
+    if (!aiEnabled || aiLoading || stale || ideas.length < 2) return;
+    setAiLoading(true); setAiMessage(""); setAiOperation("");
+    try {
+      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context, ideas, projectId: projectId || null }) });
+      const data = await response.json() as { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: string };
+      if (!response.ok || !data.ideas) throw new Error(data.error || "Não foi possível aprimorar as propostas.");
+      setIdeas(data.ideas); setSnapshot({ ...context }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
+      setAiOperation(data.operationId || "");
+      setAiMessage(data.caution || (data.mode === "simulation" ? "Simulação concluída sem custo de modelo." : "Propostas aprimoradas com assistência de IA."));
+    } catch (error) {
+      setAiMessage(error instanceof Error ? error.message : "Não foi possível aprimorar as propostas.");
+    } finally { setAiLoading(false); }
   }
   const activeExample = ideaExampleFor(context.workType);
   function applyExample() {
@@ -206,6 +231,11 @@ export default function IdeasPage() {
       {context.startingQuestion && <p className="mt-4 bg-paper rounded-card p-3 text-sm"><strong>Pergunta do projeto de referência:</strong> {context.startingQuestion}</p>}
       <button disabled={profileLoading || library.loading || projectLoading} className="bg-teal text-white rounded-card px-5 py-3 mt-5 font-medium disabled:opacity-50">{ideas.length ? "Atualizar ideias" : "Explorar caminhos de pesquisa"}</button>
     </form>
+    {ideas.length > 0 && <section className="mt-5 border border-teal/30 bg-teal-soft rounded-2xl p-5 md:flex md:items-center md:justify-between md:gap-6" aria-labelledby="ai-ideas-title">
+      <div><p className="text-xs uppercase tracking-wider text-teal font-semibold">Assistência experimental</p><h2 id="ai-ideas-title" className="font-display text-2xl mt-1">Aprofundar o recorte com IA</h2><p className="text-sm text-ink-soft mt-2 max-w-2xl">A assistência trabalha sobre os caminhos já criados, tornando pergunta, desfecho, método e pendências mais específicos. Ela não confirma originalidade, viabilidade, ética ou validade científica.</p></div>
+      <button type="button" disabled={!aiEnabled || aiLoading || stale || !library.userId} onClick={enhanceWithAI} className="mt-4 md:mt-0 shrink-0 bg-teal text-white rounded-card px-5 py-3 font-medium disabled:opacity-50">{aiLoading ? "Aprimorando…" : aiEnabled ? "Aprimorar com IA" : "IA ainda não ativada"}</button>
+    </section>}
+    {aiMessage && <div role="status" className="mt-4 border border-line bg-white rounded-card p-4 text-sm"><p>{aiMessage}</p>{aiOperation && <p className="text-xs text-ink-soft mt-2">Operação registrada: <Link href={`/geracoes/${aiOperation}`} className="text-teal underline">ver detalhes e consumo</Link></p>}</div>}
     {stale && <p role="status" className="mt-4 bg-amber-soft p-4 rounded-card text-sm">Você alterou o contexto ou as referências. Clique em Atualizar ideias antes de levar uma proposta para o projeto.</p>}
     {ideas.length > 0 && <label className="block mt-6 text-sm font-medium">Motivo desta versão ou ajuste<input maxLength={1000} value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="Ex.: reduzir o escopo para caber em três meses" className="block mt-2 w-full border border-line rounded-card p-3" /></label>}
     {ideas.length > 0 && <section className="ideas-results mt-8" aria-label="Ideias sugeridas">
