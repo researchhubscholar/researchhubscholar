@@ -37,6 +37,7 @@ const phraseConcepts: Array<{ aliases: string[]; concept: Concept }> = [
   { aliases: ["qualidade do sono", "sleep quality"], concept: { label: "sleep quality", terms: ["sleep quality"], mesh: ["Sleep"] } },
   { aliases: ["privacao do sono", "falta de sono", "sleep deprivation"], concept: { label: "sleep deprivation", terms: ["sleep deprivation"], mesh: ["Sleep Deprivation"] } },
   { aliases: ["residentes de medicina", "residentes medicos", "medicos residentes", "medical residents", "medical resident"], concept: { label: "medical residents", terms: ["medical resident", "medical residents"], mesh: ["Internship and Residency"] } },
+  { aliases: ["abuso de drogas", "abuso drogas", "uso de drogas", "uso problematico de drogas", "dependencia de drogas", "uso de substancias", "abuso de substancias", "substancias psicoativas", "substance use", "substance abuse", "drug abuse"], concept: { label: "substance use", terms: ["substance use", "substance abuse", "drug abuse", "psychoactive substance use"], mesh: ["Substance-Related Disorders"] } },
   { aliases: ["estudantes de medicina", "estudantes medicos", "medical students", "medical student"], concept: { label: "medical students", terms: ["medical student", "medical students"], mesh: ["Students, Medical"] } },
   { aliases: ["profissionais de saude", "trabalhadores da saude"], concept: { label: "healthcare workers", terms: ["healthcare worker", "healthcare workers", "health personnel"], mesh: ["Health Personnel"] } },
   { aliases: ["saude mental"], concept: { label: "mental health", terms: ["mental health"], mesh: ["Mental Health"] } },
@@ -54,6 +55,7 @@ const phraseConcepts: Array<{ aliases: string[]; concept: Concept }> = [
 ];
 
 const wordConcepts: Record<string, Concept> = {
+  abuso: { label: "substance abuse", terms: ["substance abuse", "drug abuse"], mesh: ["Substance-Related Disorders"] },
   ansiedade: { label: "anxiety", terms: ["anxiety"], mesh: ["Anxiety"] },
   adolescentes: { label: "adolescents", terms: ["adolescent", "adolescents"], mesh: ["Adolescent"] },
   adultos: { label: "adults", terms: ["adult", "adults"], mesh: ["Adult"] },
@@ -63,6 +65,7 @@ const wordConcepts: Record<string, Concept> = {
   depressao: { label: "depression", terms: ["depression", "depressive symptoms"], mesh: ["Depression"] },
   diabetes: { label: "diabetes", terms: ["diabetes"], mesh: ["Diabetes Mellitus"] },
   dor: { label: "pain", terms: ["pain"], mesh: ["Pain"] },
+  drogas: { label: "drugs", terms: ["drug", "drugs", "substance use"], mesh: ["Substance-Related Disorders"] },
   enfermagem: { label: "nursing", terms: ["nursing", "nurse", "nurses"], mesh: ["Nursing"] },
   gestantes: { label: "pregnant women", terms: ["pregnant woman", "pregnant women"], mesh: ["Pregnant Women"] },
   homens: { label: "men", terms: ["man", "men"], mesh: ["Men"] },
@@ -74,6 +77,7 @@ const wordConcepts: Record<string, Concept> = {
   obesidade: { label: "obesity", terms: ["obesity"], mesh: ["Obesity"] },
   pacientes: { label: "patients", terms: ["patient", "patients"] },
   prevalencia: { label: "prevalence", terms: ["prevalence"] },
+  residentes: { label: "medical residents", terms: ["medical resident", "medical residents"], mesh: ["Internship and Residency"] },
   semaglutida: { label: "semaglutide", terms: ["semaglutide"] },
   sono: { label: "sleep", terms: ["sleep"], mesh: ["Sleep"] },
   suicidio: { label: "suicide", terms: ["suicide", "suicidal ideation"], mesh: ["Suicide"] },
@@ -220,7 +224,10 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
     unknown.push(...parsed.unknown);
   }
 
-  if (language === "pt" && unknown.length) warnings.push("Alguns termos em português não tinham tradução cadastrada e foram mantidos como escritos.");
+  if (language === "pt" && unknown.length) {
+    const terms = Array.from(new Set(unknown)).map(term => `“${term}”`).join(", ");
+    warnings.push(`Termos mantidos como escritos por não terem equivalência cadastrada: ${terms}.`);
+  }
   if (topicPart.truncated) warnings.push("A pergunta tinha muitos conceitos; o Radar priorizou os seis primeiros para evitar uma busca excessivamente restrita.");
 
   return {

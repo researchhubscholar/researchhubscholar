@@ -53,4 +53,12 @@ assert.deepEqual(english.concepts, ["medical residents", "sleep quality", "burno
 assert.doesNotMatch(english.pubmedQuery, /relationship|between|among/);
 assert.equal(english.warnings.length, 0);
 
+const substanceUseResidents = buildSearchStrategy("abuso drogas residentes");
+assert.equal(substanceUseResidents.language, "pt");
+assert(substanceUseResidents.concepts.includes("substance use"));
+assert(substanceUseResidents.concepts.includes("medical residents"));
+assert.match(substanceUseResidents.pubmedQuery, /"Substance-Related Disorders"\[MeSH Terms\]/);
+assert.match(substanceUseResidents.pubmedQuery, /"Internship and Residency"\[MeSH Terms\]/);
+assert.equal(substanceUseResidents.warnings.length, 0);
+
 console.log("Radar query strategy: Portuguese concepts, MeSH expansion, structured fields and advanced syntax passed");
