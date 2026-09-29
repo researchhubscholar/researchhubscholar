@@ -5,6 +5,7 @@ export type SearchInput = {
   outcome?: string;
   operator?: "AND" | "OR";
   language?: "auto" | "pt" | "en";
+  translations?: Record<string, string>;
 };
 
 export type SearchStrategy = {
@@ -16,6 +17,9 @@ export type SearchStrategy = {
   mode: "interpreted" | "advanced";
   language: "pt" | "en" | "advanced";
   warnings: string[];
+  unresolvedTerms: string[];
+  manualTranslations: Array<{ source: string; target: string }>;
+  requiresReview: boolean;
 };
 
 type Concept = { label: string; terms: string[]; mesh?: string[] };
@@ -106,6 +110,14 @@ function clean(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
+export function sanitizeTranslations(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .slice(0, 8)
+    .map(([source, target]) => [fold(source).slice(0, 60), clean(String(target ?? "")).slice(0, 80)])
+    .filter(([source, target]) => source.length >= 2 && /^[a-zA-Z0-9\s-]{2,80}$/.test(target)));
+}
+
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -136,7 +148,7 @@ function detectLanguage(value: string): "pt" | "en" {
   return /\b(?:qual|quais|como|entre|sobre|com|sem|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
 }
 
-function conceptsFromNaturalLanguage(value: string, language: "pt" | "en") {
+function conceptsFromNaturalLanguage(value: string, language: "pt" | "en", translations: Record<string, string>) {
   let working = ` ${fold(value).replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ")} `;
   const concepts: Concept[] = [];
 
@@ -157,19 +169,23 @@ function conceptsFromNaturalLanguage(value: string, language: "pt" | "en") {
     if (ignored.has(token) || token.length < 3) continue;
     const translated = wordConcepts[token];
     if (translated) concepts.push(translated);
-    else {
-      unknown.push(token);
-      concepts.push({ label: token, terms: [token] });
-    }
+    else if (language === "pt") {
+      const confirmed = clean(translations[token] || "").replace(/[?!.;,()[\]{}]/g, " ").replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+      if (confirmed.length >= 2) concepts.push({ label: confirmed, terms: [confirmed] });
+      else unknown.push(token);
+    } else concepts.push({ label: token, terms: [token] });
   }
 
   const unique = concepts.filter((concept, index, all) => all.findIndex(item => item.label === concept.label) === index);
   return { concepts: unique.slice(0, 6), unknown, truncated: unique.length > 6 };
 }
 
-function naturalPart(value: string, language: "pt" | "en") {
-  const parsed = conceptsFromNaturalLanguage(value, language);
+function naturalPart(value: string, language: "pt" | "en", translations: Record<string, string>) {
+  const parsed = conceptsFromNaturalLanguage(value, language, translations);
   if (!parsed.concepts.length) {
+    if (language === "pt" && parsed.unknown.length) {
+      return { pubmed: "", plain: "", concepts: [], unknown: parsed.unknown, truncated: false };
+    }
     const fallback = clean(value.replace(/[?!.;,]/g, " "));
     const concept = { label: fallback, terms: [fallback] };
     return { pubmed: conceptQuery(concept), plain: fallback, concepts: [fallback], unknown: [fallback], truncated: false };
@@ -199,11 +215,15 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
       mode: "advanced",
       language: "advanced",
       warnings,
+      unresolvedTerms: [],
+      manualTranslations: [],
+      requiresReview: false,
     };
   }
 
   const language = input.language && input.language !== "auto" ? input.language : detectLanguage(topic);
-  const topicPart = naturalPart(topic, language);
+  const translations = Object.fromEntries(Object.entries(input.translations || {}).map(([source, target]) => [fold(source), clean(target)]));
+  const topicPart = naturalPart(topic, language, translations);
   const parts = [topicPart.pubmed];
   const plainParts = [topicPart.plain];
   const concepts = [...topicPart.concepts];
@@ -217,27 +237,35 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
   }
   for (const extra of [input.population, input.outcome]) {
     if (!extra?.trim()) continue;
-    const parsed = naturalPart(extra, language);
+    const parsed = naturalPart(extra, language, translations);
     parts.push(parsed.pubmed);
     plainParts.push(parsed.plain);
     concepts.push(...parsed.concepts);
     unknown.push(...parsed.unknown);
   }
 
-  if (language === "pt" && unknown.length) {
-    const terms = Array.from(new Set(unknown)).map(term => `“${term}”`).join(", ");
-    warnings.push(`Termos mantidos como escritos por não terem equivalência cadastrada: ${terms}.`);
+  const unresolvedTerms = Array.from(new Set(unknown));
+  const manualTranslations = Object.entries(translations)
+    .filter(([, target]) => target.length >= 2)
+    .map(([source, target]) => ({ source, target }));
+  if (language === "pt" && unresolvedTerms.length) {
+    const terms = unresolvedTerms.map(term => `“${term}”`).join(", ");
+    warnings.push(`Revise os conceitos ainda não reconhecidos: ${terms}. Nenhuma busca será enviada até a confirmação.`);
   }
+  if (manualTranslations.length) warnings.push(`Equivalências confirmadas nesta busca: ${manualTranslations.map(item => `“${item.source}” → “${item.target}”`).join(", ")}.`);
   if (topicPart.truncated) warnings.push("A pergunta tinha muitos conceitos; o Radar priorizou os seis primeiros para evitar uma busca excessivamente restrita.");
 
   return {
     original: topic,
-    interpreted: plainParts.join(` ${operator} `),
-    pubmedQuery: parts.map(part => `(${part})`).join(` ${operator} `),
-    crossrefQuery: plainParts.join(" "),
+    interpreted: plainParts.filter(Boolean).join(` ${operator} `),
+    pubmedQuery: parts.filter(Boolean).map(part => `(${part})`).join(` ${operator} `),
+    crossrefQuery: plainParts.filter(Boolean).join(" "),
     concepts: Array.from(new Set(concepts)),
     mode: "interpreted",
     language,
     warnings,
+    unresolvedTerms,
+    manualTranslations,
+    requiresReview: language === "pt" && unresolvedTerms.length > 0,
   };
 }

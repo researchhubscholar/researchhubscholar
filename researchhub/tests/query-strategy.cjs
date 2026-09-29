@@ -61,4 +61,21 @@ assert.match(substanceUseResidents.pubmedQuery, /"Substance-Related Disorders"\[
 assert.match(substanceUseResidents.pubmedQuery, /"Internship and Residency"\[MeSH Terms\]/);
 assert.equal(substanceUseResidents.warnings.length, 0);
 
+const needsReview = buildSearchStrategy("microplásticos em gestantes");
+assert.equal(needsReview.requiresReview, true);
+assert.deepEqual(needsReview.unresolvedTerms, ["microplasticos"]);
+assert.deepEqual(needsReview.concepts, ["pregnant women"]);
+assert.doesNotMatch(needsReview.pubmedQuery, /microplasticos/);
+
+const confirmed = buildSearchStrategy({
+  topic: "microplásticos em gestantes",
+  language: "pt",
+  translations: { microplasticos: "microplastics" },
+});
+assert.equal(confirmed.requiresReview, false);
+assert.deepEqual(confirmed.unresolvedTerms, []);
+assert(confirmed.concepts.includes("microplastics"));
+assert.match(confirmed.pubmedQuery, /"microplastics"\[Title\/Abstract\]/);
+assert.deepEqual(confirmed.manualTranslations, [{ source: "microplasticos", target: "microplastics" }]);
+
 console.log("Radar query strategy: Portuguese concepts, MeSH expansion, structured fields and advanced syntax passed");

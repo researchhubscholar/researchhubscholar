@@ -19,6 +19,7 @@ const publicationTypeFilters: Record<string, string> = {
 export function buildAlertPubmedTerm(search: Pick<SavedSearchAlertDefinition, "query" | "period" | "study_type">, now = new Date()) {
   const typeFilter = publicationTypeFilters[search.study_type] || "";
   const interpreted = buildSearchStrategy(search.query);
+  if (interpreted.requiresReview) throw new Error("A estratégia salva contém conceitos em português que precisam de confirmação.");
   const base = typeFilter ? `(${interpreted.pubmedQuery}) AND (${typeFilter})` : `(${interpreted.pubmedQuery})`;
   if (search.period === "all") return base;
   const startYear = now.getUTCFullYear() - Number(search.period) + 1;

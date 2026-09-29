@@ -3,6 +3,7 @@ import { buildSearchStrategy, type SearchInput } from "./query-strategy";
 type YearPoint = { year: number; count: number };
 export async function analyzeLiterature(input: string | SearchInput, period = "5", studyType = "all", maxArticles = 20) {
     const strategy = buildSearchStrategy(input);
+    if (strategy.requiresReview) throw new Error("A estratégia contém conceitos que precisam de confirmação antes da busca.");
     const topic = typeof input === "string" ? input : input.topic;
     const currentYear = new Date().getFullYear();
     const typeFilters: Record<string, string> = {

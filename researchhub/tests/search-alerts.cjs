@@ -12,6 +12,7 @@ assert.match(term, /Title\/Abstract/);
 assert.match(term, /2022\/01\/01/);
 assert.match(term, /2026\/09\/24/);
 assert.match(buildAlertPubmedTerm({ ...base, period: "all", study_type: "all" }), /sleep quality/);
+assert.throws(() => buildAlertPubmedTerm({ ...base, query: "microplásticos em gestantes" }), /precisam de confirmação/);
 
 const pubmed = { pmid: "123", doi: "10.1/a", title: "A", authors: [], journal: "J", pubdate: "2026", year: 2026, publicationTypes: [], abstract: null, pubmedUrl: "https://pubmed.ncbi.nlm.nih.gov/123/", doiUrl: "https://doi.org/10.1/a", source: "PubMed" };
 const crossref = { ...pubmed, pmid: null, doi: "10.1/b", title: "B", source: "Crossref" };
