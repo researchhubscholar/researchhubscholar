@@ -3,6 +3,7 @@ import type { JSONSchema7 } from "ai";
 
 export type AIProposal = Pick<Idea,
   "title" | "question" | "objective" | "studyType" | "population" | "outcome" |
+  "hypothesis" | "eligibility" | "ethics" | "limitations" | "noveltyCheck" |
   "justification" | "feasibility" | "resources" | "difficulty" | "steps" | "radar" |
   "methods" | "analysis" | "variables" | "refinements" | "unresolved" | "plan"
 >;
@@ -19,14 +20,15 @@ export const aiIdeasJsonSchema: JSONSchema7 = {
   properties: {
     proposals: {
       type: "array",
-      minItems: 2,
+      minItems: 3,
       maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "question", "objective", "studyType", "population", "outcome", "justification", "feasibility", "resources", "difficulty", "steps", "radar", "methods", "analysis", "variables", "refinements", "unresolved", "plan"],
+        required: ["title", "question", "objective", "studyType", "population", "outcome", "hypothesis", "eligibility", "ethics", "limitations", "noveltyCheck", "justification", "feasibility", "resources", "difficulty", "steps", "radar", "methods", "analysis", "variables", "refinements", "unresolved", "plan"],
         properties: {
           title: text, question: text, objective: text, studyType: text, population: text,
+          hypothesis: text, eligibility: text, ethics: text, limitations: text, noveltyCheck: text,
           outcome: text, justification: text, feasibility: text, resources: text,
           difficulty: text, steps: text, radar: text, methods: text, analysis: text,
           variables: text, refinements: list, unresolved: list, plan: list,
@@ -42,12 +44,12 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
   const body = value as Record<string, unknown>;
   if (!body.context || typeof body.context !== "object") throw new Error("Preencha o diagnóstico antes de usar a assistência.");
   const context = body.context as Record<string, unknown>;
-  const required = ["specialty", "interest", "population", "months", "access", "measure", "setting"];
-  for (const key of required) if (typeof context[key] !== "string" || !context[key].trim()) throw new Error("Complete especialidade, problema, população, prazo, acesso, desfecho e contexto.");
+  const required = ["interest", "population", "months", "access"];
+  for (const key of required) if (typeof context[key] !== "string" || !context[key].trim()) throw new Error("Informe o que deseja investigar, a população, o prazo e o acesso disponível.");
   const serialized = JSON.stringify(body);
   if (serialized.length > 55_000) throw new Error("O contexto excede o limite desta operação.");
   const ideas = Array.isArray(body.ideas) ? body.ideas.slice(0, 3) : [];
-  if (ideas.length < 2) throw new Error("Gere pelo menos dois caminhos antes de solicitar o aprimoramento.");
+  if (ideas.length < 1) throw new Error("Não foi possível preparar o ponto de partida da geração.");
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
   return { context: context as Context, ideas: ideas as Idea[], projectId };
 }
@@ -58,8 +60,12 @@ export function ideasPrompt(context: Context, ideas: Idea[]) {
 REGRAS OBRIGATÓRIAS
 - Responda em português do Brasil.
 - Preserve o problema e as condições reais informadas pelo usuário.
-- Gere 2 ou 3 alternativas distintas; evite apenas trocar sinônimos.
+- Gere exatamente 3 alternativas substancialmente distintas; evite apenas trocar sinônimos.
+- Organize os caminhos como: um desenho mais simples e seguro, um caminho equilibrado e um caminho mais ambicioso ainda compatível com as condições informadas.
 - Cada pergunta deve delimitar população, contexto, exposição/intervenção quando aplicável e um desfecho mensurável.
+- Formule hipótese apenas quando ela fizer sentido para o desenho; em estudos descritivos ou revisões, explique o pressuposto em vez de forçar uma hipótese causal.
+- Inclua critérios de elegibilidade, riscos éticos, limitações previsíveis e como verificar originalidade ou lacuna na literatura.
+- Quando o usuário não informar instrumento, desfecho ou tamanho de amostra, proponha alternativas plausíveis, mas marque explicitamente que precisam ser confirmadas; nunca apresente validação como fato.
 - Não afirme causalidade em desenho transversal, não prometa originalidade e não invente resultados.
 - Diferencie revisão, estudo observacional e relato de caso. Não recomende ensaio clínico sem condições explícitas.
 - Aponte incertezas, risco de viés, exigências éticas e decisões que dependem do orientador.
