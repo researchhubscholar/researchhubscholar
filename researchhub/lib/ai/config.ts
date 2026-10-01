@@ -4,12 +4,12 @@ const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOL
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,
-  model: process.env.SCHOLAR_AI_MODEL || "openai/gpt-5.6-sol",
+  model: process.env.SCHOLAR_AI_MODEL || "openai/gpt-6.1-sol",
   promptVersion: "ideas.v1",
   reservedTokens: 10_000,
   maxOutputTokens: 4_000,
-  inputUsdPerToken: Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0.000004"),
-  outputUsdPerToken: Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0.00002"),
+  inputUsdPerToken: Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0.000002"),
+  outputUsdPerToken: Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0.00001"),
 } as const;
 
 export function estimatedCost(inputTokens: number, outputTokens: number) {

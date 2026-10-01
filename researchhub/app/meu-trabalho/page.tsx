@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 
 import ProjectSharing from "@/components/access/project-sharing";
 import ProjectJourney from "@/components/projects/journey";
+import AssistantPanel from "@/components/ai/assistant-panel";
 import { buildProtocolDoc, download } from "@/lib/exports/scientific";
 import { protocolChecks } from "@/lib/research/checks";
 
@@ -185,6 +186,7 @@ export default function MeuTrabalhoPage() {
       {referenceIds.length > 0 && <p className="mt-4 bg-teal-soft rounded-card p-4 text-sm">{referenceIds.length} referências aguardam associação ao salvar. A justificativa, as decisões pendentes e as referências estão nas notas do manuscrito.</p>}
       {message && <p role={saveState === "error" ? "alert" : "status"} className="mt-5 bg-white border border-line rounded-card p-4 text-sm">{message}</p>}
       <ProjectJourney projectId={projectId} ownerId={loadedOwner} studyType={draft.studyType} />
+      <AssistantPanel feature="protocol" title="Revisar coerência científica do projeto" description="Analisa a relação entre pergunta, objetivo, desenho, população, desfecho, método, análise e ética. Você escolhe cada alteração que deseja aplicar." context={draft} projectId={projectId} onApply={item=>{if(item.targetField in draft)change(item.targetField as keyof Draft,item.content);}} />
       <fieldset disabled={saveState === "loading"} className="project-sections space-y-5 mt-8 disabled:opacity-60"><legend className="sr-only">Campos do protocolo</legend>
         {groups.map((g, index) => <section key={g.id} id={g.id} className="project-block project-stage-card scroll-mt-40 bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal">Bloco {index + 1}</p><h3 className="font-display text-2xl mt-2">{g.title}</h3><div className="space-y-5 mt-5">{g.keys.map(key => key === "studyType" ? <label key={key} className="block text-sm font-medium">{labels[key]}<select value={draft[key]} onChange={e => change(key, e.target.value)} className="block w-full mt-2 border border-line rounded-card px-3 py-3 bg-paper">{["Observacional transversal", "Coorte", "Caso-controle", "Ensaio clínico", "Revisão integrativa", "Revisão sistemática", "Relato de caso"].map(v => <option key={v}>{v}</option>)}</select></label> : <Field key={key} label={labels[key]} value={draft[key]} change={v => change(key, v)} short={key === "theme" || key === "population"} placeholder={key === "question" ? "Defina população, condição ou exposição e o que deseja investigar." : key === "methods" ? "Descreva onde, como, por quem e em qual período os dados serão coletados." : key === "analysis" ? "Relacione cada objetivo às variáveis e à análise prevista. Registre dúvidas para o orientador." : key === "manuscript" ? "Planeje seções, responsáveis, prazos e pontos que precisam de revisão." : undefined} />)}
           {g.id === "objetivos" && <Field label={labels.hypothesis} value={draft.hypothesis} change={v => change("hypothesis", v)} placeholder="Registre uma hipótese apenas quando fizer sentido para o desenho." />}</div>
