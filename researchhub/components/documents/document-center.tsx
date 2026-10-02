@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AssistantPanel from "@/components/ai/assistant-panel";
 import {
   buildAdvisorReport,
   buildProjectMatrixCsv,
@@ -52,6 +53,7 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
       </article>)}
     </section>
     {last&&<p role="status" className="mt-4 text-sm bg-teal-soft border border-teal/20 rounded-card p-4"><strong>{last}</strong> foi preparado e baixado neste dispositivo.</p>}
+    <AssistantPanel feature="writing" title="Preparar texto para revisão" description="Estrutura um resumo ou trecho de discussão usando somente os dados já registrados. Lacunas, referências e resultados não informados permanecem sinalizados." projectId={p.id} context={{project:p,milestones:data.milestones,articles:data.articles.map(a=>({id:a.id,title:a.title,doi:a.doi,pmid:a.pmid})),notes:data.notes}} />
     <section className="documents-checklist mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5"><h2 className="font-display text-xl">Antes de compartilhar</h2><ul className="text-sm text-ink-soft leading-relaxed mt-3 space-y-1"><li>• confira todos os campos marcados como “A definir”;</li><li>• confirme a forma de apresentação e as normas exigidas pela instituição;</li><li>• revise referências, método, análise e aspectos éticos com o orientador;</li><li>• não inclua dados identificáveis de pacientes nos documentos.</li></ul></section>
   </>;
 }
