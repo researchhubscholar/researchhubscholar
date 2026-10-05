@@ -13,6 +13,20 @@ export type AssistantRecommendation = {
 };
 export type AssistantOutput = { title: string; summary: string; recommendations: AssistantRecommendation[]; warnings: string[]; caution: string };
 
+export function isAssistantOutput(value: unknown): value is AssistantOutput {
+  if (!value || typeof value !== "object") return false;
+  const output = value as Record<string, unknown>;
+  if (!["title", "summary", "caution"].every(field => typeof output[field] === "string" && (output[field] as string).trim().length > 0)) return false;
+  if (!Array.isArray(output.warnings) || !output.warnings.every(item => typeof item === "string")) return false;
+  if (!Array.isArray(output.recommendations) || output.recommendations.length < 1 || output.recommendations.length > 10) return false;
+  return output.recommendations.every(item => {
+    if (!item || typeof item !== "object") return false;
+    const recommendation = item as Record<string, unknown>;
+    return ["label", "content", "rationale", "targetField", "source"].every(field => typeof recommendation[field] === "string")
+      && ["alta", "media", "baixa"].includes(String(recommendation.confidence));
+  });
+}
+
 const text = { type: "string", minLength: 1, maxLength: 6000 } as const;
 export const assistantJsonSchema: JSONSchema7 = {
   type: "object", additionalProperties: false,

@@ -1,7 +1,8 @@
 const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
-const {validateIdeasRequest,ideasPrompt,mergeAIProposals}=require('../lib/ai/ideas.ts');
-const {validateAssistRequest,assistantPrompt,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
+const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,mergeAIProposals}=require('../lib/ai/ideas.ts');
+const {validateAssistRequest,assistantPrompt,isAssistantOutput,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
+const {outputBudget,parseValidatedJson,promptForJson}=require('../lib/ai/structured-output.ts');
 const context={theme:'sono',specialty:'Medicina',interest:'qualidade do sono',population:'residentes',stage:'resident',months:'6',access:'patients',exposure:'plantões noturnos',measure:'escore de qualidade do sono',setting:'programa de residência'};
 const base={id:'base',title:'Título',question:'Pergunta?',objective:'Objetivo',studyType:'Transversal',population:'residentes',outcome:'Sono',resources:'Recursos',difficulty:'Dificuldade',feasibility:'Possível',steps:'Passo',radar:'sleep residents',methods:'Método',analysis:'Análise',variables:'Variáveis',justification:'Justificativa',unresolved:['Confirmar'],plan:['Planejar'],refinements:['Recortar'],references:[],contextSummary:'Contexto',startingQuestion:''};
 const parsed=validateIdeasRequest({context,ideas:[base,{...base,id:'second'}],projectId:null});
@@ -12,6 +13,16 @@ assert.throws(()=>validateIdeasRequest({context,ideas:[]}),/ponto de partida/);
 const prompt=ideasPrompt(context,[base]);assert(prompt.includes('não invente resultados'));assert(prompt.includes('exatamente 3 alternativas'));assert(prompt.includes('plantões noturnos'));
 const proposal={title:'Novo título',question:'Nova pergunta específica?',objective:'Novo objetivo',studyType:'Transversal',population:'residentes',outcome:'PSQI',hypothesis:'Maior exposição pode estar associada ao desfecho.',eligibility:'Residentes ativos; critérios a confirmar.',ethics:'Avaliação ética e proteção dos dados.',limitations:'Viés de seleção e temporalidade.',noveltyCheck:'Testar busca estruturada e comparar revisões recentes.',resources:'Equipe',difficulty:'Viés',feasibility:'Moderada',steps:'Confirmar',radar:'sleep quality AND residents',methods:'Método detalhado',analysis:'Análise detalhada',variables:'Exposição e desfecho',justification:'Importância',unresolved:['Ética','Amostra'],plan:['Protocolo','Coleta'],refinements:['Restringir','Medir']};
 const merged=mergeAIProposals([base],{proposals:[proposal,proposal,proposal],caution:'Validar'});assert.equal(merged.length,3);assert.equal(merged[0].title,'Novo título');assert.equal(merged[0].id,'ai-1');assert.equal(merged[2].id,'ai-3');assert.equal(merged[0].ethics,proposal.ethics);assert.deepEqual(merged[0].references,[]);
+const validProposal={...proposal,outcome:'Escore PSQI',resources:'Equipe local',difficulty:'Risco de viés'};
+const complete={proposals:[validProposal,validProposal,validProposal],caution:'Validar com o orientador e o comitê de ética.'};
+assert.equal(isAIIdeasOutput(complete),true);assert.equal(isAIIdeasOutput({...complete,proposals:[proposal]}),false);
+assert.deepEqual(parseValidatedJson(JSON.stringify(complete),isAIIdeasOutput),complete);
+assert.deepEqual(parseValidatedJson(`Resposta:\n\`\`\`json\n${JSON.stringify(complete)}\n\`\`\``,isAIIdeasOutput),complete);
+assert.throws(()=>parseValidatedJson('{"proposals":[]}',isAIIdeasOutput),/formato científico/);
+assert(promptForJson('PROMPT',{type:'object'}).includes('somente um objeto JSON válido'));
+assert.equal(outputBudget('x'.repeat(3000),{type:'object'},4000,10000,1000),4000);
+assert.throws(()=>outputBudget('x'.repeat(28000),{type:'object'},4000,10000,1000),/grande demais/);
 for(const feature of ['radar','protocol','reading','matrix','orientation','writing']){const request=validateAssistRequest({feature,context:{theme:'sono em residentes'},projectId:null});assert.equal(request.feature,feature);const featurePrompt=assistantPrompt(feature,request.context);assert(featurePrompt.includes('não invente evidências'));assert(simulatedOutput(feature).caution.includes('Simulação'));}
+assert.equal(isAssistantOutput(simulatedOutput('radar')),true);assert.equal(isAssistantOutput({title:'x'}),false);
 assert.equal(ledgerFeature.radar,'refinement');assert.equal(ledgerFeature.protocol,'protocol');assert.equal(ledgerFeature.reading,'reading');assert.equal(ledgerFeature.matrix,'matrix');assert.equal(ledgerFeature.orientation,'writing');assert.throws(()=>validateAssistRequest({feature:'unknown',context:{theme:'sono'}}),/inválida/);
 console.log('PASS: simplified AI idea request, responsible prompt and three-proposal merge.');

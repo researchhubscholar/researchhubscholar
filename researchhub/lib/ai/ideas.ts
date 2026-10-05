@@ -10,6 +10,31 @@ export type AIProposal = Pick<Idea,
 
 export type AIIdeasOutput = { proposals: AIProposal[]; caution: string };
 
+const proposalFields: (keyof AIProposal)[] = [
+  "title", "question", "objective", "studyType", "population", "outcome",
+  "hypothesis", "eligibility", "ethics", "limitations", "noveltyCheck",
+  "justification", "feasibility", "resources", "difficulty", "steps", "radar",
+  "methods", "analysis", "variables", "refinements", "unresolved", "plan",
+];
+
+export function isAIIdeasOutput(value: unknown): value is AIIdeasOutput {
+  if (!value || typeof value !== "object") return false;
+  const output = value as Record<string, unknown>;
+  if (typeof output.caution !== "string" || output.caution.length < 10) return false;
+  if (!Array.isArray(output.proposals) || output.proposals.length !== 3) return false;
+  return output.proposals.every(item => {
+    if (!item || typeof item !== "object") return false;
+    const proposal = item as Record<string, unknown>;
+    return proposalFields.every(field => {
+      const content = proposal[field];
+      if (["refinements", "unresolved", "plan"].includes(field)) {
+        return Array.isArray(content) && content.length >= 2 && content.every(entry => typeof entry === "string" && entry.trim().length >= 5);
+      }
+      return typeof content === "string" && content.trim().length >= 8;
+    });
+  });
+}
+
 const text = { type: "string", minLength: 8, maxLength: 3000 } as const;
 const list = { type: "array", minItems: 2, maxItems: 8, items: { type: "string", minLength: 5, maxLength: 1000 } } as const;
 

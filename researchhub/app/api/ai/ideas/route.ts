@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, estimatedCost } from "@/lib/ai/config";
-import { aiIdeasJsonSchema, ideasPrompt, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { scholarAI, scholarAIReady, estimatedCost } from "@/lib/ai/config";
+import { aiIdeasJsonSchema, ideasPrompt, isAIIdeasOutput, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -34,7 +35,7 @@ async function activeWallet(userId: string) {
 }
 
 export async function POST(request: Request) {
-  if (!scholarAI.enabled) return NextResponse.json({ error: "A assistência por IA ainda não está ativada neste ambiente." }, { status: 503 });
+  if (!scholarAIReady) return NextResponse.json({ error: "A assistência por IA ainda não está configurada neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
   const { data: { user }, error: authError } = await client.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Entre na sua conta para usar a assistência." }, { status: 401 });
@@ -64,27 +65,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const result = await generateText({
+    const prompt = ideasPrompt(input.context, input.ideas);
+    const common = {
       model: scholarAI.model,
-      output: Output.object({ schema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema) }),
       instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
-      prompt: ideasPrompt(input.context, input.ideas),
-      maxOutputTokens: scholarAI.maxOutputTokens,
+      maxOutputTokens: outputBudget(prompt, aiIdeasJsonSchema, scholarAI.maxIdeasOutputTokens, scholarAI.reservedTokens, 3_500),
       providerOptions: { gateway: { user: user.id, tags: ["scholar", "ideas", scholarAI.promptVersion] } },
-    });
+    } as const;
+    const result = scholarAI.structuredOutput === "native"
+      ? await generateText({ ...common, output: Output.object({ schema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema) }), prompt })
+      : await generateText({ ...common, prompt: promptForJson(prompt, aiIdeasJsonSchema) });
+    const output = scholarAI.structuredOutput === "native"
+      ? result.output as AIIdeasOutput
+      : parseValidatedJson(result.text, isAIIdeasOutput);
+    if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
     const inputTokens = result.usage.inputTokens || 0;
     const outputTokens = result.usage.outputTokens || 0;
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
-    const ideas = mergeAIProposals(input.ideas, result.output);
-    const outputSnapshot = { ...result.output, ideas };
+    const ideas = mergeAIProposals(input.ideas, output);
+    const outputSnapshot = { ...output, ideas };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: result.response.id });
     if (settleError) throw settleError;
     reserved = false;
-    return NextResponse.json({ operationId, mode: "live", ideas, caution: result.output.caution, usage: { inputTokens, outputTokens, costUsd } });
+    return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
+    console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, error: error instanceof Error ? error.message : "unknown" });
     if (operationId && reserved) {
       const admin = supabaseAdmin();
       await admin.from("scholar_generation_artifacts").update({ error_code: "GENERATION_FAILED" }).eq("usage_id", operationId);
