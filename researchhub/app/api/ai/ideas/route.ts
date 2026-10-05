@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output } from "ai";
+import { generateText, jsonSchema, Output, tool } from "ai";
 import { scholarAI, scholarAIReady, estimatedCost } from "@/lib/ai/config";
 import { aiIdeasJsonSchema, ideasPrompt, isAIIdeasOutput, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
@@ -94,22 +94,49 @@ export async function POST(request: Request) {
       abortSignal: AbortSignal.timeout(generationTimeoutMs),
       providerOptions: { gateway: { user: user.id, tags: ["scholar", "ideas", scholarAI.promptVersion] } },
     } as const;
-    const result = scholarAI.structuredOutput === "native"
-      ? await generateText({ ...common, output: Output.object({ schema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema) }), prompt })
-      : await generateText({ ...common, prompt: promptForJson(prompt, aiIdeasJsonSchema) });
-    const output = scholarAI.structuredOutput === "native"
-      ? result.output as AIIdeasOutput
-      : parseValidatedJson(result.text, isAIIdeasOutput);
+    let output: AIIdeasOutput;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let providerResponseId: string | null = null;
+    if (scholarAI.structuredOutput === "native") {
+      const result = await generateText({ ...common, output: Output.object({ schema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema) }), prompt });
+      output = result.output as AIIdeasOutput;
+      inputTokens = result.usage.inputTokens || 0;
+      outputTokens = result.usage.outputTokens || 0;
+      providerResponseId = result.response.id;
+    } else if (scholarAI.structuredOutput === "tool-call") {
+      const result = await generateText({
+        ...common,
+        tools: {
+          submit_ideas: tool({
+            description: "Entregue exatamente três propostas científicas completas no formato solicitado.",
+            inputSchema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema),
+          }),
+        },
+        toolChoice: { type: "tool", toolName: "submit_ideas" },
+        prompt,
+      });
+      const call = result.toolCalls.find(item => item.toolName === "submit_ideas");
+      if (!call) throw new Error("O modelo não concluiu a estrutura das propostas. Tente novamente.");
+      output = call.input as AIIdeasOutput;
+      inputTokens = result.usage.inputTokens || 0;
+      outputTokens = result.usage.outputTokens || 0;
+      providerResponseId = result.response.id;
+    } else {
+      const result = await generateText({ ...common, prompt: promptForJson(prompt, aiIdeasJsonSchema) });
+      output = parseValidatedJson(result.text, isAIIdeasOutput);
+      inputTokens = result.usage.inputTokens || 0;
+      outputTokens = result.usage.outputTokens || 0;
+      providerResponseId = result.response.id;
+    }
     if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
-    const inputTokens = result.usage.inputTokens || 0;
-    const outputTokens = result.usage.outputTokens || 0;
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
     const ideas = mergeAIProposals(input.ideas, output);
     const outputSnapshot = { ...output, ideas };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
-    const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: result.response.id });
+    const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });
     if (settleError) throw settleError;
     reserved = false;
     return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, usage: { inputTokens, outputTokens, costUsd } });
