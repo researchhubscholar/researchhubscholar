@@ -80,7 +80,7 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
 function sharedRules() {
   return `Você é um assistente de planejamento de pesquisa em saúde.
 Responda em português do Brasil e produza uma proposta específica, mensurável e executável.
-Preserve o problema e as condições reais informadas. Não invente evidências, resultados, instrumentos validados, autorizações ou referências.
+Preserve o problema e as condições reais informadas; não invente resultados, evidências, instrumentos validados, autorizações ou referências.
 Delimite população, contexto, exposição ou intervenção quando aplicável e um desfecho mensurável.
 Não afirme causalidade em desenho transversal. Não force hipótese causal em estudo descritivo ou revisão.
 Inclua elegibilidade, riscos éticos, limitações, viabilidade, variáveis, análise e forma de verificar originalidade na literatura.
@@ -114,7 +114,7 @@ Entregue somente esta proposta completa para discussão com o orientador.`;
 
 export function ideasPrompt(context: Context, ideas: Idea[]) {
   return `${sharedRules()}
-Gere exatamente três alternativas substancialmente distintas: uma simples e segura, uma equilibrada e uma mais ambiciosa ainda viável.
+Gere exatamente 3 alternativas substancialmente distintas: uma simples e segura, uma equilibrada e uma mais ambiciosa ainda viável.
 
 CONTEXTO DO USUÁRIO
 ${JSON.stringify(context)}
