@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, scholarAIReady, estimatedCost } from "@/lib/ai/config";
-import { aiIdeasJsonSchema, aiProposalJsonSchema, ideaVariantPrompt, ideasPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
-import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
+import { scholarAI, scholarAIModel, scholarAIReady, estimatedCost } from "@/lib/ai/config";
+import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, type AIProposal, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -56,7 +55,7 @@ async function activeWallet(userId: string) {
 }
 
 export async function POST(request: Request) {
-  if (!scholarAIReady) return NextResponse.json({ error: "A assistência por IA ainda não está configurada neste ambiente." }, { status: 503 });
+  if (!scholarAIReady) return NextResponse.json({ error: "A IA de teste ainda não está conectada ao Google Gemini neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
   const { data: { user }, error: authError } = await client.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Entre na sua conta para usar a assistência." }, { status: 401 });
@@ -86,46 +85,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const prompt = ideasPrompt(input.context, input.ideas);
-    const common = {
-      model: scholarAI.model,
-      instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
-      maxOutputTokens: outputBudget(prompt, aiIdeasJsonSchema, scholarAI.maxIdeasOutputTokens, scholarAI.reservedTokens, 3_500),
-      abortSignal: AbortSignal.timeout(generationTimeoutMs),
-      providerOptions: { gateway: { user: user.id, tags: ["scholar", "ideas", scholarAI.promptVersion] } },
-    } as const;
-    let output: AIIdeasOutput;
+    const variants = ["simple", "balanced", "ambitious"] as const;
+    const proposals: AIProposal[] = [];
     let inputTokens = 0;
     let outputTokens = 0;
-    let providerResponseId: string | null = null;
-    if (scholarAI.structuredOutput === "native") {
-      const result = await generateText({ ...common, output: Output.object({ schema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema) }), prompt });
-      output = result.output as AIIdeasOutput;
-      inputTokens = result.usage.inputTokens || 0;
-      outputTokens = result.usage.outputTokens || 0;
-      providerResponseId = result.response.id;
-    } else {
-      const variants = ["simple", "balanced", "ambitious"] as const;
-      const proposals = [];
-      const responseIds: string[] = [];
-      for (const variant of variants) {
-        const variantPrompt = ideaVariantPrompt(input.context, input.ideas, variant);
-        const result = await generateText({
-          ...common,
-          maxOutputTokens: 1_800,
-          prompt: promptForJson(variantPrompt, aiProposalJsonSchema),
-        });
-        proposals.push(parseValidatedJson(result.text, isAIProposal));
-        inputTokens += result.usage.inputTokens || 0;
-        outputTokens += result.usage.outputTokens || 0;
-        if (result.response.id) responseIds.push(result.response.id);
-      }
-      output = {
-        proposals,
-        caution: "As propostas são pontos de partida e precisam de validação metodológica, ética, bibliográfica e do orientador antes da execução.",
-      };
-      providerResponseId = responseIds.join(",") || null;
+    const responseIds: string[] = [];
+    for (const variant of variants) {
+      const result = await generateText({
+        model: scholarAIModel,
+        instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
+        maxOutputTokens: 1_800,
+        abortSignal: AbortSignal.timeout(generationTimeoutMs),
+        output: Output.object({ schema: jsonSchema<AIProposal>(aiProposalJsonSchema) }),
+        prompt: ideaVariantPrompt(input.context, input.ideas, variant),
+      });
+      const proposal = result.output as AIProposal;
+      if (!isAIProposal(proposal)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
+      proposals.push(proposal);
+      inputTokens += result.usage.inputTokens || 0;
+      outputTokens += result.usage.outputTokens || 0;
+      if (result.response.id) responseIds.push(result.response.id);
     }
+    const output: AIIdeasOutput = {
+      proposals,
+      caution: "As propostas são pontos de partida e precisam de validação metodológica, ética, bibliográfica e do orientador antes da execução.",
+    };
+    const providerResponseId = responseIds.join(",") || null;
     if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
