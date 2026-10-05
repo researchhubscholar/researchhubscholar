@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output, tool } from "ai";
+import { generateText, jsonSchema, Output } from "ai";
 import { scholarAI, scholarAIReady, estimatedCost } from "@/lib/ai/config";
-import { aiIdeasJsonSchema, ideasPrompt, isAIIdeasOutput, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiIdeasJsonSchema, aiProposalJsonSchema, ideaVariantPrompt, ideasPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -104,30 +104,27 @@ export async function POST(request: Request) {
       inputTokens = result.usage.inputTokens || 0;
       outputTokens = result.usage.outputTokens || 0;
       providerResponseId = result.response.id;
-    } else if (scholarAI.structuredOutput === "tool-call") {
-      const result = await generateText({
-        ...common,
-        tools: {
-          submit_ideas: tool({
-            description: "Entregue exatamente três propostas científicas completas no formato solicitado.",
-            inputSchema: jsonSchema<AIIdeasOutput>(aiIdeasJsonSchema),
-          }),
-        },
-        toolChoice: { type: "tool", toolName: "submit_ideas" },
-        prompt,
-      });
-      const call = result.toolCalls.find(item => item.toolName === "submit_ideas");
-      if (!call) throw new Error("O modelo não concluiu a estrutura das propostas. Tente novamente.");
-      output = call.input as AIIdeasOutput;
-      inputTokens = result.usage.inputTokens || 0;
-      outputTokens = result.usage.outputTokens || 0;
-      providerResponseId = result.response.id;
     } else {
-      const result = await generateText({ ...common, prompt: promptForJson(prompt, aiIdeasJsonSchema) });
-      output = parseValidatedJson(result.text, isAIIdeasOutput);
-      inputTokens = result.usage.inputTokens || 0;
-      outputTokens = result.usage.outputTokens || 0;
-      providerResponseId = result.response.id;
+      const variants = ["simple", "balanced", "ambitious"] as const;
+      const proposals = [];
+      const responseIds: string[] = [];
+      for (const variant of variants) {
+        const variantPrompt = ideaVariantPrompt(input.context, input.ideas, variant);
+        const result = await generateText({
+          ...common,
+          maxOutputTokens: 1_800,
+          prompt: promptForJson(variantPrompt, aiProposalJsonSchema),
+        });
+        proposals.push(parseValidatedJson(result.text, isAIProposal));
+        inputTokens += result.usage.inputTokens || 0;
+        outputTokens += result.usage.outputTokens || 0;
+        if (result.response.id) responseIds.push(result.response.id);
+      }
+      output = {
+        proposals,
+        caution: "As propostas são pontos de partida e precisam de validação metodológica, ética, bibliográfica e do orientador antes da execução.",
+      };
+      providerResponseId = responseIds.join(",") || null;
     }
     if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");

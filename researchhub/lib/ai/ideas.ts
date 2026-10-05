@@ -17,49 +17,47 @@ const proposalFields: (keyof AIProposal)[] = [
   "methods", "analysis", "variables", "refinements", "unresolved", "plan",
 ];
 
+export function isAIProposal(value: unknown): value is AIProposal {
+  if (!value || typeof value !== "object") return false;
+  const proposal = value as Record<string, unknown>;
+  return proposalFields.every(field => {
+    const content = proposal[field];
+    if (["refinements", "unresolved", "plan"].includes(field)) {
+      return Array.isArray(content) && content.length >= 2 && content.every(entry => typeof entry === "string" && entry.trim().length >= 5);
+    }
+    return typeof content === "string" && content.trim().length >= 8;
+  });
+}
+
 export function isAIIdeasOutput(value: unknown): value is AIIdeasOutput {
   if (!value || typeof value !== "object") return false;
   const output = value as Record<string, unknown>;
   if (typeof output.caution !== "string" || output.caution.length < 10) return false;
-  if (!Array.isArray(output.proposals) || output.proposals.length !== 3) return false;
-  return output.proposals.every(item => {
-    if (!item || typeof item !== "object") return false;
-    const proposal = item as Record<string, unknown>;
-    return proposalFields.every(field => {
-      const content = proposal[field];
-      if (["refinements", "unresolved", "plan"].includes(field)) {
-        return Array.isArray(content) && content.length >= 2 && content.every(entry => typeof entry === "string" && entry.trim().length >= 5);
-      }
-      return typeof content === "string" && content.trim().length >= 8;
-    });
-  });
+  return Array.isArray(output.proposals) && output.proposals.length === 3 && output.proposals.every(isAIProposal);
 }
 
-const text = { type: "string", minLength: 8, maxLength: 3000 } as const;
-const list = { type: "array", minItems: 2, maxItems: 8, items: { type: "string", minLength: 5, maxLength: 1000 } } as const;
+const text = { type: "string", minLength: 8, maxLength: 700 } as const;
+const list = { type: "array", minItems: 2, maxItems: 4, items: { type: "string", minLength: 5, maxLength: 320 } } as const;
+
+export const aiProposalJsonSchema: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "question", "objective", "studyType", "population", "outcome", "hypothesis", "eligibility", "ethics", "limitations", "noveltyCheck", "justification", "feasibility", "resources", "difficulty", "steps", "radar", "methods", "analysis", "variables", "refinements", "unresolved", "plan"],
+  properties: {
+    title: text, question: text, objective: text, studyType: text, population: text,
+    hypothesis: text, eligibility: text, ethics: text, limitations: text, noveltyCheck: text,
+    outcome: text, justification: text, feasibility: text, resources: text,
+    difficulty: text, steps: text, radar: text, methods: text, analysis: text,
+    variables: text, refinements: list, unresolved: list, plan: list,
+  },
+};
 
 export const aiIdeasJsonSchema: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   required: ["proposals", "caution"],
   properties: {
-    proposals: {
-      type: "array",
-      minItems: 3,
-      maxItems: 3,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["title", "question", "objective", "studyType", "population", "outcome", "hypothesis", "eligibility", "ethics", "limitations", "noveltyCheck", "justification", "feasibility", "resources", "difficulty", "steps", "radar", "methods", "analysis", "variables", "refinements", "unresolved", "plan"],
-        properties: {
-          title: text, question: text, objective: text, studyType: text, population: text,
-          hypothesis: text, eligibility: text, ethics: text, limitations: text, noveltyCheck: text,
-          outcome: text, justification: text, feasibility: text, resources: text,
-          difficulty: text, steps: text, radar: text, methods: text, analysis: text,
-          variables: text, refinements: list, unresolved: list, plan: list,
-        },
-      },
-    },
+    proposals: { type: "array", minItems: 3, maxItems: 3, items: aiProposalJsonSchema },
     caution: { type: "string", minLength: 10, maxLength: 1000 },
   },
 };
@@ -79,31 +77,52 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
   return { context: context as Context, ideas: ideas as Idea[], projectId };
 }
 
-export function ideasPrompt(context: Context, ideas: Idea[]) {
-  return `Você é um assistente de planejamento de pesquisa em saúde. Aprimore os caminhos fornecidos para que pareçam propostas científicas específicas, mensuráveis e executáveis, sem inventar evidências, dados, instrumentos validados ou autorizações.
+function sharedRules() {
+  return `Você é um assistente de planejamento de pesquisa em saúde.
+Responda em português do Brasil e produza uma proposta específica, mensurável e executável.
+Preserve o problema e as condições reais informadas. Não invente evidências, resultados, instrumentos validados, autorizações ou referências.
+Delimite população, contexto, exposição ou intervenção quando aplicável e um desfecho mensurável.
+Não afirme causalidade em desenho transversal. Não force hipótese causal em estudo descritivo ou revisão.
+Inclua elegibilidade, riscos éticos, limitações, viabilidade, variáveis, análise e forma de verificar originalidade na literatura.
+Quando faltarem instrumento, desfecho ou amostra, apresente uma alternativa e marque explicitamente que precisa ser confirmada.
+O campo radar deve ser uma estratégia curta em inglês para busca inicial no PubMed.
+Use textos objetivos: no máximo duas frases por campo e de dois a quatro itens nas listas.
+Não dê aconselhamento médico nem solicite dados identificáveis.`;
+}
 
-REGRAS OBRIGATÓRIAS
-- Responda em português do Brasil.
-- Preserve o problema e as condições reais informadas pelo usuário.
-- Gere exatamente 3 alternativas substancialmente distintas; evite apenas trocar sinônimos.
-- Organize os caminhos como: um desenho mais simples e seguro, um caminho equilibrado e um caminho mais ambicioso ainda compatível com as condições informadas.
-- Cada pergunta deve delimitar população, contexto, exposição/intervenção quando aplicável e um desfecho mensurável.
-- Formule hipótese apenas quando ela fizer sentido para o desenho; em estudos descritivos ou revisões, explique o pressuposto em vez de forçar uma hipótese causal.
-- Inclua critérios de elegibilidade, riscos éticos, limitações previsíveis e como verificar originalidade ou lacuna na literatura.
-- Quando o usuário não informar instrumento, desfecho ou tamanho de amostra, proponha alternativas plausíveis, mas marque explicitamente que precisam ser confirmadas; nunca apresente validação como fato.
-- Não afirme causalidade em desenho transversal, não prometa originalidade e não invente resultados.
-- Diferencie revisão, estudo observacional e relato de caso. Não recomende ensaio clínico sem condições explícitas.
-- Aponte incertezas, risco de viés, exigências éticas e decisões que dependem do orientador.
-- O campo radar deve ser uma estratégia curta em inglês, adequada para busca inicial no PubMed, sem alegar que foi validada.
-- Não dê aconselhamento médico nem peça dados identificáveis de pacientes.
+export function ideaVariantPrompt(context: Context, ideas: Idea[], variant: "simple" | "balanced" | "ambitious") {
+  const index = variant === "simple" ? 0 : variant === "balanced" ? 1 : 2;
+  const focus = variant === "simple"
+    ? "Priorize o desenho mais simples, seguro e realizável no prazo."
+    : variant === "balanced"
+      ? "Priorize equilíbrio entre relevância científica, rigor e execução."
+      : "Priorize o caminho mais ambicioso ainda compatível com os recursos e o prazo informados.";
+  const seed = ideas[index] || ideas[0];
+  return `${sharedRules()}
+
+FOCO DESTA PROPOSTA
+${focus}
+
+CONTEXTO
+${JSON.stringify(context)}
+
+PONTO DE PARTIDA
+${JSON.stringify({ title: seed.title, question: seed.question, objective: seed.objective, studyType: seed.studyType, population: seed.population, outcome: seed.outcome, methods: seed.methods, feasibility: seed.feasibility, unresolved: seed.unresolved })}
+
+Entregue somente esta proposta completa para discussão com o orientador.`;
+}
+
+export function ideasPrompt(context: Context, ideas: Idea[]) {
+  return `${sharedRules()}
+Gere exatamente três alternativas substancialmente distintas: uma simples e segura, uma equilibrada e uma mais ambiciosa ainda viável.
 
 CONTEXTO DO USUÁRIO
 ${JSON.stringify(context)}
 
-CAMINHOS INICIAIS A APRIMORAR
+CAMINHOS INICIAIS
 ${JSON.stringify(ideas.map(idea => ({ title: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, methods: idea.methods, feasibility: idea.feasibility, unresolved: idea.unresolved })))}
 
-Produza propostas completas para discussão com orientador. A cautela final deve lembrar que a saída não substitui validação metodológica, ética ou revisão da literatura.`;
+A cautela final deve lembrar que a saída exige validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
 export function mergeAIProposals(current: Idea[], output: AIIdeasOutput): Idea[] {
