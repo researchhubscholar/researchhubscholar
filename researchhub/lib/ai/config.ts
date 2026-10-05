@@ -15,7 +15,7 @@ export const scholarAI = {
   structuredOutput: zeroCostModel ? "prompt-json" : "native",
   promptVersion: "ideas.v1",
   reservedTokens: 10_000,
-  maxIdeasOutputTokens: 6_000,
+  maxIdeasOutputTokens: 4_000,
   maxAssistOutputTokens: 4_000,
   inputUsdPerToken: Number(
     process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || (zeroCostModel ? "0" : "0.000002"),

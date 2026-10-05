@@ -10,7 +10,7 @@ import { transferKey } from "@/lib/ideas/transfer";
 import { useLibrary } from "@/lib/literature/use-library";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type AIMode = "" | "simulation" | "live" | "saved";
+type AIMode = "" | "simulation" | "live" | "saved" | "error";
 
 const blankContext: Context = {
   ...initial,
@@ -123,13 +123,20 @@ export default function IdeasPage() {
     try {
       const startingIdeas = generate(context, evidence);
       const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context, ideas: startingIdeas, projectId: projectId || null }) });
-      const data = await response.json() as { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live" };
+      const raw = await response.text();
+      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live" };
+      try {
+        data = JSON.parse(raw) as typeof data;
+      } catch {
+        throw new Error(response.status === 504 ? "A geração demorou mais que o esperado. Sua franquia não será consumida; tente novamente." : "A geração foi interrompida antes de concluir. Tente novamente em instantes.");
+      }
       if (!response.ok || !data.ideas) throw new Error(data.error || "Não foi possível criar as propostas.");
       setIdeas(data.ideas); setSnapshot({ ...context }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
+      setAiMode("error");
       setAiMessage(error instanceof Error ? error.message : "Não foi possível criar as propostas.");
     } finally { setAiLoading(false); }
   }
@@ -224,7 +231,7 @@ export default function IdeasPage() {
       </div>
     </form>
 
-    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
+    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
     {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm">Você alterou as informações depois da geração. Gere novamente antes de salvar ou levar uma proposta para o projeto.</p>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
 

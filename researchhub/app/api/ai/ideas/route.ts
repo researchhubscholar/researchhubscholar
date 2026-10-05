@@ -7,19 +7,40 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+const generationTimeoutMs = 240_000;
+const staleReservationMs = 10 * 60_000;
+
+function generationTimedOut(error: unknown) {
+  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  return /abort|timeout|timed out/i.test(raw);
+}
 
 type License = { id: string; status: string; mode: "simulation" | "live"; starts_at: string; ends_at: string };
 type Wallet = { id: string; license_id: string; allowance: number; used: number; reserved: number };
 
 function message(error: unknown) {
   const raw = error instanceof Error ? error.message : "Não foi possível concluir o aprimoramento.";
+  if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. Sua franquia será devolvida; tente novamente.";
   if (raw.includes("Franquia")) return raw;
   if (raw.includes("limite") || raw.includes("Limite") || raw.includes("andamento")) return raw;
   return raw.length < 240 ? raw : "Não foi possível concluir o aprimoramento agora.";
 }
 
+async function releaseStaleReservations(userId: string) {
+  const admin = supabaseAdmin();
+  const cutoff = new Date(Date.now() - staleReservationMs).toISOString();
+  const { data, error } = await admin.from("scholar_usage").select("id").eq("user_id", userId).eq("status", "reserved").lt("created_at", cutoff);
+  if (error) throw error;
+  for (const row of data || []) {
+    const { error: settleError } = await admin.rpc("scholar_settle", { p_request: row.id, p_input: 0, p_output: 0, p_cost: 0, p_failed: true, p_provider_id: null });
+    if (settleError) throw settleError;
+  }
+}
+
 async function activeWallet(userId: string) {
+  await releaseStaleReservations(userId);
   const admin = supabaseAdmin();
   const { data: wallets, error } = await admin.from("scholar_wallets").select("id,license_id,allowance,used,reserved").eq("user_id", userId);
   if (error) throw error;
@@ -70,6 +91,7 @@ export async function POST(request: Request) {
       model: scholarAI.model,
       instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
       maxOutputTokens: outputBudget(prompt, aiIdeasJsonSchema, scholarAI.maxIdeasOutputTokens, scholarAI.reservedTokens, 3_500),
+      abortSignal: AbortSignal.timeout(generationTimeoutMs),
       providerOptions: { gateway: { user: user.id, tags: ["scholar", "ideas", scholarAI.promptVersion] } },
     } as const;
     const result = scholarAI.structuredOutput === "native"
@@ -92,12 +114,17 @@ export async function POST(request: Request) {
     reserved = false;
     return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
-    console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, error: error instanceof Error ? error.message : "unknown" });
+    const timedOut = generationTimedOut(error);
+    console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: error instanceof Error ? error.message : "unknown" });
     if (operationId && reserved) {
-      const admin = supabaseAdmin();
-      await admin.from("scholar_generation_artifacts").update({ error_code: "GENERATION_FAILED" }).eq("usage_id", operationId);
-      await admin.rpc("scholar_settle", { p_request: operationId, p_input: 0, p_output: 0, p_cost: 0, p_failed: true, p_provider_id: null });
+      try {
+        const admin = supabaseAdmin();
+        await admin.from("scholar_generation_artifacts").update({ error_code: timedOut ? "GENERATION_TIMEOUT" : "GENERATION_FAILED" }).eq("usage_id", operationId);
+        await admin.rpc("scholar_settle", { p_request: operationId, p_input: 0, p_output: 0, p_cost: 0, p_failed: true, p_provider_id: null });
+      } catch (cleanupError) {
+        console.error("[scholar-ai:ideas] cleanup failed", { operationId, error: cleanupError instanceof Error ? cleanupError.message : "unknown" });
+      }
     }
-    return NextResponse.json({ error: message(error), operationId }, { status: 400 });
+    return NextResponse.json({ error: message(error), operationId }, { status: timedOut ? 504 : 400 });
   }
 }
