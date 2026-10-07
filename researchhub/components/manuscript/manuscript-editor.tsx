@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Project = { id: string; title?: string | null; theme?: string | null; research_question?: string | null; objective?: string | null; study_type?: string | null };
-type Manuscript = { id: string; title: string; subtitle: string; article_type: string; target_journal: string; language: string; status: string } | null;
+type Manuscript = { id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
 type Section = { section_key: string; heading: string; content: string; position: number; updated_at?: string };
 type Version = { id: string; label: string; snapshot: unknown; created_at: string };
 type Article = { id: string; title: string; authors: unknown; publication_year: number | null; pmid: string | null; doi: string | null };
@@ -43,14 +43,37 @@ function firstAuthor(article: Article) {
   return "Autor";
 }
 function displayDate(value: string) { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value)); }
+function stringList(value: unknown) { return Array.isArray(value) ? value.filter(item => typeof item === "string") as string[] : []; }
+function escapeHtml(value: string) { return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char] || char); }
+function paragraphs(value: string) { return value.split(/\n+/).filter(Boolean).map(line => `<p>${escapeHtml(line)}</p>`).join(""); }
+function authorNames(article: Article) {
+  if (!Array.isArray(article.authors)) return ["Autor não informado"];
+  return article.authors.map(author => {
+    if (typeof author === "string") return author;
+    if (author && typeof author === "object") { const data = author as Record<string, unknown>; return String(data.name || [data.family, data.given].filter(Boolean).join(" ") || "Autor não informado"); }
+    return "Autor não informado";
+  }).filter(Boolean);
+}
+function formattedReference(article: Article, index: number, style: string) {
+  const authors = authorNames(article);
+  const year = article.publication_year || "s.d.";
+  const locator = article.doi ? `https://doi.org/${article.doi}` : article.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${article.pmid}/` : "";
+  if (style === "abnt") return `${authors.map(name => name.toUpperCase()).join("; ")}. ${article.title}. ${year}.${locator ? ` Disponível em: ${locator}.` : ""}`;
+  return `${index + 1}. ${authors.slice(0, 6).join(", ")}${authors.length > 6 ? ", et al." : "."} ${article.title}. ${year}.${locator ? ` ${locator}` : ""}`;
+}
 
 export default function ManuscriptEditor({ ownerId, project, initialManuscript, initialSections, initialVersions, articles }: { ownerId: string; project: Project; initialManuscript: Manuscript; initialSections: Section[]; initialVersions: Version[]; articles: Article[] }) {
   const hydrated = sectionTemplates.map(template => ({ ...template, content: initialSections.find(section => section.section_key === template.section_key)?.content || "" }));
   const [manuscriptId, setManuscriptId] = useState(initialManuscript?.id || "");
   const [title, setTitle] = useState(initialManuscript?.title || project.title || project.theme || "");
   const [subtitle, setSubtitle] = useState(initialManuscript?.subtitle || "");
+  const [authors, setAuthors] = useState(stringList(initialManuscript?.authors).join("\n"));
+  const [affiliations, setAffiliations] = useState(stringList(initialManuscript?.affiliations).join("\n"));
+  const [keywords, setKeywords] = useState((initialManuscript?.keywords || []).join(", "));
   const [articleType, setArticleType] = useState(initialManuscript?.article_type || "original");
   const [targetJournal, setTargetJournal] = useState(initialManuscript?.target_journal || "");
+  const [citationStyle, setCitationStyle] = useState(initialManuscript?.citation_style || "vancouver");
+  const [citationIds, setCitationIds] = useState<string[]>(initialManuscript?.citation_ids || []);
   const [status, setStatus] = useState(initialManuscript?.status || "draft");
   const [sections, setSections] = useState<Section[]>(hydrated);
   const [versions, setVersions] = useState<Version[]>(initialVersions);
@@ -59,8 +82,8 @@ export default function ManuscriptEditor({ ownerId, project, initialManuscript, 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(initialManuscript ? "Manuscrito carregado." : "Comece a escrever. O primeiro salvamento criará o manuscrito deste projeto.");
   const [showSources, setShowSources] = useState(false);
-  const stateRef = useRef({ title, subtitle, articleType, targetJournal, status, sections, manuscriptId });
-  stateRef.current = { title, subtitle, articleType, targetJournal, status, sections, manuscriptId };
+  const stateRef = useRef({ title, subtitle, authors, affiliations, keywords, articleType, targetJournal, citationStyle, citationIds, status, sections, manuscriptId });
+  stateRef.current = { title, subtitle, authors, affiliations, keywords, articleType, targetJournal, citationStyle, citationIds, status, sections, manuscriptId };
 
   const totalWords = useMemo(() => sections.reduce((sum, section) => sum + wordCount(section.content), 0), [sections]);
   const completed = sections.filter(section => wordCount(section.content) >= (section.section_key === "abstract" ? 80 : 40)).length;
@@ -75,7 +98,7 @@ export default function ManuscriptEditor({ ownerId, project, initialManuscript, 
     return () => { window.clearTimeout(backup); window.clearTimeout(autosave); };
   // save deliberately reads the latest state through stateRef.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, title, subtitle, articleType, targetJournal, status, sections]);
+  }, [dirty, title, subtitle, authors, affiliations, keywords, articleType, targetJournal, citationStyle, citationIds, status, sections]);
 
   useEffect(() => {
     const prevent = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
@@ -93,7 +116,7 @@ export default function ManuscriptEditor({ ownerId, project, initialManuscript, 
     try {
       const db = supabaseBrowser();
       let id = current.manuscriptId;
-      const metadata = { owner_id: ownerId, project_id: project.id, title: current.title.trim(), subtitle: current.subtitle.trim(), article_type: current.articleType, target_journal: current.targetJournal.trim(), language: "pt-BR", status: current.status };
+      const metadata = { owner_id: ownerId, project_id: project.id, title: current.title.trim(), subtitle: current.subtitle.trim(), authors: current.authors.split("\n").map(value => value.trim()).filter(Boolean), affiliations: current.affiliations.split("\n").map(value => value.trim()).filter(Boolean), keywords: current.keywords.split(",").map(value => value.trim()).filter(Boolean), article_type: current.articleType, target_journal: current.targetJournal.trim(), citation_style: current.citationStyle, citation_ids: current.citationIds, language: "pt-BR", status: current.status };
       if (!id) {
         const { data, error } = await db.from("scholar_manuscripts").insert(metadata).select("id").single();
         if (error || !data) throw error || new Error("Manuscrito não criado");
@@ -116,7 +139,7 @@ export default function ManuscriptEditor({ ownerId, project, initialManuscript, 
     const id = stateRef.current.manuscriptId;
     if (!id) { setMessage("Salve o manuscrito antes de criar uma versão."); return; }
     const label = `Versão de ${new Date().toLocaleDateString("pt-BR")} — ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-    const snapshot = { title: stateRef.current.title, subtitle: stateRef.current.subtitle, articleType: stateRef.current.articleType, targetJournal: stateRef.current.targetJournal, status: stateRef.current.status, sections: stateRef.current.sections };
+    const snapshot = { title: stateRef.current.title, subtitle: stateRef.current.subtitle, authors: stateRef.current.authors, affiliations: stateRef.current.affiliations, keywords: stateRef.current.keywords, articleType: stateRef.current.articleType, targetJournal: stateRef.current.targetJournal, citationStyle: stateRef.current.citationStyle, citationIds: stateRef.current.citationIds, status: stateRef.current.status, sections: stateRef.current.sections };
     const db = supabaseBrowser();
     const { data, error } = await db.from("scholar_manuscript_versions").insert({ manuscript_id: id, owner_id: ownerId, label, snapshot }).select("id,label,snapshot,created_at").single();
     if (error || !data) { setMessage("Não foi possível criar a versão."); return; }
@@ -128,31 +151,74 @@ export default function ManuscriptEditor({ ownerId, project, initialManuscript, 
     if (!snapshot || !Array.isArray(snapshot.sections)) return;
     setTitle(typeof snapshot.title === "string" ? snapshot.title : title);
     setSubtitle(typeof snapshot.subtitle === "string" ? snapshot.subtitle : subtitle);
+    setAuthors(typeof snapshot.authors === "string" ? snapshot.authors : authors);
+    setAffiliations(typeof snapshot.affiliations === "string" ? snapshot.affiliations : affiliations);
+    setKeywords(typeof snapshot.keywords === "string" ? snapshot.keywords : keywords);
     setArticleType(typeof snapshot.articleType === "string" ? snapshot.articleType : articleType);
     setTargetJournal(typeof snapshot.targetJournal === "string" ? snapshot.targetJournal : targetJournal);
+    setCitationStyle(typeof snapshot.citationStyle === "string" ? snapshot.citationStyle : citationStyle);
+    setCitationIds(Array.isArray(snapshot.citationIds) ? snapshot.citationIds.filter(item => typeof item === "string") as string[] : citationIds);
     setStatus(typeof snapshot.status === "string" ? snapshot.status : status);
     setSections(snapshot.sections as Section[]); setDirty(true); setMessage(`A versão “${version.label}” foi carregada. Salve para confirmar a restauração.`);
   }
 
   function cite(article: Article) {
+    const nextIds = citationIds.includes(article.id) ? citationIds : [...citationIds, article.id];
+    const number = nextIds.indexOf(article.id) + 1;
     const year = article.publication_year || "s.d.";
-    const citation = `(${firstAuthor(article)} et al., ${year})`;
+    const citation = citationStyle === "vancouver" ? `[${number}]` : `(${firstAuthor(article)} et al., ${year})`;
     const current = sections.find(section => section.section_key === activeKey);
     if (!current) return;
+    setCitationIds(nextIds);
     updateSection(activeKey, `${current.content}${current.content.trim() ? " " : ""}${citation}`);
     setMessage(`Citação adicionada em ${current.heading}. Confira o estilo exigido pelo periódico.`);
   }
 
+  function applyAbstractTemplate() {
+    const current = sections.find(section => section.section_key === "abstract");
+    if (!current || (current.content.trim() && !window.confirm("Substituir o conteúdo atual do resumo pela estrutura sugerida?"))) return;
+    const template = articleType === "case-report" ? "Contexto:\nDescrição do caso:\nDiscussão:\nConclusão:" : articleType === "review" ? "Contexto:\nObjetivo:\nMétodos:\nResultados:\nConclusão:" : "Introdução:\nObjetivo:\nMétodos:\nResultados:\nConclusão:";
+    updateSection("abstract", template); setActiveKey("abstract");
+  }
+
+  function syncReferences() {
+    const cited = citationIds.map(id => articles.find(article => article.id === id)).filter(Boolean) as Article[];
+    if (!cited.length) { setMessage("Insira ao menos uma citação antes de gerar as referências."); return; }
+    updateSection("references", cited.map((article, index) => formattedReference(article, index, citationStyle)).join("\n\n"));
+    setMessage(`${cited.length} referências foram formatadas em ${citationStyle === "vancouver" ? "Vancouver" : "ABNT"}.`);
+  }
+
+  function exportWord() {
+    const cited = citationIds.map(id => articles.find(article => article.id === id)).filter(Boolean) as Article[];
+    const body = sections.map(section => `<h2>${escapeHtml(section.heading)}</h2>${paragraphs(section.section_key === "references" && cited.length ? cited.map((article, index) => formattedReference(article, index, citationStyle)).join("\n\n") : section.content)}`).join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;margin:3cm;color:#111}h1{text-align:center;font-size:18pt}h2{font-size:14pt;margin-top:24pt}p{text-align:justify;margin:0 0 10pt}.meta{text-align:center;color:#444}</style></head><body><h1>${escapeHtml(title || "Manuscrito")}</h1>${subtitle ? `<p class="meta">${escapeHtml(subtitle)}</p>` : ""}<p class="meta">${escapeHtml(authors.split("\n").filter(Boolean).join("; "))}</p><p class="meta">${escapeHtml(affiliations.split("\n").filter(Boolean).join("; "))}</p>${body}<h2>Palavras-chave</h2><p>${escapeHtml(keywords)}</p></body></html>`;
+    const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${(title || "manuscrito").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.doc`; anchor.click(); URL.revokeObjectURL(url);
+    setMessage("Arquivo Word gerado. Revise a formatação conforme as normas do periódico.");
+  }
+
+  const editorialChecks = [
+    [Boolean(title.trim()), "Título definido"],
+    [Boolean(authors.trim()), "Autores informados"],
+    [Boolean(affiliations.trim()), "Afiliações informadas"],
+    [keywords.split(",").filter(value => value.trim()).length >= 3, "Ao menos três palavras-chave"],
+    [wordCount(sections.find(section => section.section_key === "abstract")?.content || "") >= 80, "Resumo iniciado"],
+    [sections.filter(section => !["abstract", "references"].includes(section.section_key)).every(section => section.content.trim()), "Seções principais preenchidas"],
+    [citationIds.length > 0, "Referências citadas no texto"],
+  ] as const;
+
   return <div className="manuscript-workspace grid xl:grid-cols-[220px_minmax(0,1fr)_280px] gap-6 items-start">
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal">Estrutura</p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} seções iniciadas</p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString("pt-BR")} palavras</p><p className="mt-1">{message}</p></div></aside>
 
-    <div className="min-w-0 space-y-5"><section className="bg-white border border-line rounded-2xl p-5 md:p-7"><div className="grid md:grid-cols-2 gap-4"><label className="md:col-span-2 text-sm font-medium">Título científico<input value={title} onChange={event => markMetadata(setTitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper text-lg" /></label><label className="md:col-span-2 text-sm font-medium">Subtítulo — opcional<input value={subtitle} onChange={event => markMetadata(setSubtitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label><label className="text-sm font-medium">Tipo de manuscrito<select value={articleType} onChange={event => markMetadata(setArticleType, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper"><option value="original">Artigo original</option><option value="review">Revisão</option><option value="case-report">Relato de caso</option><option value="brief-report">Comunicação breve</option></select></label><label className="text-sm font-medium">Periódico pretendido<input value={targetJournal} onChange={event => markMetadata(setTargetJournal, event.target.value)} placeholder="Opcional nesta fase" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label></div></section>
-      {sections.map(section => <section key={section.section_key} id={`section-${section.section_key}`} className="scroll-mt-28 bg-white border border-line rounded-2xl p-5 md:p-7" onFocus={() => setActiveKey(section.section_key)}><div className="flex justify-between gap-4 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Seção científica</p><h2 className="font-display text-2xl mt-2">{section.heading}</h2></div><span className="text-xs text-ink-soft whitespace-nowrap">{wordCount(section.content)} palavras</span></div><p className="text-sm text-ink-soft mt-3 leading-relaxed">{guidance[section.section_key]}</p><textarea value={section.content} onChange={event => updateSection(section.section_key, event.target.value)} rows={section.section_key === "references" ? 7 : 12} placeholder={`Escreva ${section.heading.toLowerCase()} aqui…`} className="manuscript-textarea block w-full mt-5 border border-line rounded-card p-4 bg-paper leading-7 outline-none focus:border-teal resize-y" /></section>)}
+    <div className="min-w-0 space-y-5"><section className="bg-white border border-line rounded-2xl p-5 md:p-7"><div className="grid md:grid-cols-2 gap-4"><label className="md:col-span-2 text-sm font-medium">Título científico<input value={title} onChange={event => markMetadata(setTitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper text-lg" /></label><label className="md:col-span-2 text-sm font-medium">Subtítulo — opcional<input value={subtitle} onChange={event => markMetadata(setSubtitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label><label className="text-sm font-medium">Autores — um por linha<textarea rows={3} value={authors} onChange={event => markMetadata(setAuthors, event.target.value)} placeholder="Nome completo de cada autor" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label><label className="text-sm font-medium">Afiliações — uma por linha<textarea rows={3} value={affiliations} onChange={event => markMetadata(setAffiliations, event.target.value)} placeholder="Instituição, cidade, país" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label><label className="md:col-span-2 text-sm font-medium">Palavras-chave — separadas por vírgula<input value={keywords} onChange={event => markMetadata(setKeywords, event.target.value)} placeholder="Ex.: residência médica, educação médica, qualidade de vida" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label><label className="text-sm font-medium">Tipo de manuscrito<select value={articleType} onChange={event => markMetadata(setArticleType, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper"><option value="original">Artigo original</option><option value="review">Revisão</option><option value="case-report">Relato de caso</option><option value="brief-report">Comunicação breve</option></select></label><label className="text-sm font-medium">Periódico pretendido<input value={targetJournal} onChange={event => markMetadata(setTargetJournal, event.target.value)} placeholder="Opcional nesta fase" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper" /></label></div></section>
+      {sections.map(section => <section key={section.section_key} id={`section-${section.section_key}`} className="scroll-mt-28 bg-white border border-line rounded-2xl p-5 md:p-7" onFocus={() => setActiveKey(section.section_key)}><div className="flex justify-between gap-4 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Seção científica</p><h2 className="font-display text-2xl mt-2">{section.heading}</h2></div><div className="text-right"><span className="text-xs text-ink-soft whitespace-nowrap">{wordCount(section.content)} palavras</span>{section.section_key === "abstract" && <button onClick={applyAbstractTemplate} className="block text-xs text-teal mt-2">Aplicar estrutura →</button>}{section.section_key === "references" && <button onClick={syncReferences} className="block text-xs text-teal mt-2">Formatar citações →</button>}</div></div><p className="text-sm text-ink-soft mt-3 leading-relaxed">{guidance[section.section_key]}</p><textarea value={section.content} onChange={event => updateSection(section.section_key, event.target.value)} rows={section.section_key === "references" ? 7 : 12} placeholder={`Escreva ${section.heading.toLowerCase()} aqui…`} className="manuscript-textarea block w-full mt-5 border border-line rounded-card p-4 bg-paper leading-7 outline-none focus:border-teal resize-y" /></section>)}
       <div className="bg-ink text-white rounded-2xl p-5 flex flex-wrap gap-4 justify-between items-center"><div><p className="text-xs uppercase text-teal-soft">Salvamento seguro</p><p className="text-sm text-white/70 mt-2">O autosave preserva o texto; versões registram marcos importantes.</p></div><div className="flex flex-wrap gap-3"><button onClick={() => void createVersion()} disabled={saving} className="border border-white/30 rounded-card px-4 py-3 disabled:opacity-50">Criar versão</button><button onClick={() => void save(true)} disabled={saving} className="bg-white text-ink rounded-card px-4 py-3 font-medium disabled:opacity-50">{saving ? "Salvando…" : "Salvar agora"}</button></div></div>
     </div>
 
     <aside className="space-y-5 xl:sticky xl:top-24"><section className="bg-white border border-line rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-teal">Base do projeto</p><h3 className="font-display text-xl mt-2">Coerência científica</h3><dl className="mt-4 space-y-3 text-sm"><div><dt className="text-xs text-ink-soft">Pergunta</dt><dd className="mt-1">{project.research_question || "Ainda não definida"}</dd></div><div><dt className="text-xs text-ink-soft">Objetivo</dt><dd className="mt-1">{project.objective || "Ainda não definido"}</dd></div><div><dt className="text-xs text-ink-soft">Desenho</dt><dd className="mt-1">{project.study_type || "Ainda não definido"}</dd></div></dl><Link href={`/meu-trabalho?id=${project.id}`} className="inline-block text-sm text-teal mt-4">Revisar protocolo →</Link></section>
-      <section className="bg-white border border-line rounded-2xl p-5"><button onClick={() => setShowSources(value => !value)} className="w-full flex justify-between items-center text-left"><span><span className="block text-xs uppercase tracking-widest text-teal">Fontes do projeto</span><span className="block font-display text-xl mt-2">Inserir citação</span></span><span>{showSources ? "−" : "+"}</span></button>{showSources && <div className="mt-4 space-y-3 max-h-[420px] overflow-auto">{articles.length ? articles.map(article => <article key={article.id} className="border-t border-line pt-3"><p className="text-sm line-clamp-3">{article.title}</p><p className="text-xs text-ink-soft mt-1">{firstAuthor(article)} · {article.publication_year || "sem ano"}</p><button onClick={() => cite(article)} className="text-xs text-teal mt-2">Inserir na seção ativa →</button></article>) : <p className="text-sm text-ink-soft">Vincule artigos pela Biblioteca para citá-los durante a escrita.</p>}<Link href={`/biblioteca?projeto=${project.id}`} className="inline-block text-sm text-teal mt-2">Abrir Biblioteca →</Link></div>}</section>
+      <section className="bg-white border border-line rounded-2xl p-5"><div className="flex justify-between gap-3 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Normalização</p><h3 className="font-display text-xl mt-2">Citações</h3></div><select value={citationStyle} onChange={event => markMetadata(setCitationStyle, event.target.value)} className="text-xs border border-line rounded-card p-2 bg-paper"><option value="vancouver">Vancouver</option><option value="abnt">ABNT</option></select></div><p className="text-xs text-ink-soft mt-3">{citationIds.length} fontes citadas. Ao mudar o estilo, atualize as referências e revise as marcações já inseridas.</p></section>
+      <section className="bg-white border border-line rounded-2xl p-5"><button onClick={() => setShowSources(value => !value)} className="w-full flex justify-between items-center text-left"><span><span className="block text-xs uppercase tracking-widest text-teal">Fontes do projeto</span><span className="block font-display text-xl mt-2">Inserir citação</span></span><span>{showSources ? "−" : "+"}</span></button>{showSources && <div className="mt-4 space-y-3 max-h-[420px] overflow-auto">{articles.length ? articles.map(article => <article key={article.id} className="border-t border-line pt-3"><p className="text-sm line-clamp-3">{article.title}</p><p className="text-xs text-ink-soft mt-1">{firstAuthor(article)} · {article.publication_year || "sem ano"}</p><button onClick={() => cite(article)} className="text-xs text-teal mt-2">{citationIds.includes(article.id) ? "Citar novamente" : "Inserir na seção ativa"} →</button></article>) : <p className="text-sm text-ink-soft">Vincule artigos pela Biblioteca para citá-los durante a escrita.</p>}<Link href={`/biblioteca?projeto=${project.id}`} className="inline-block text-sm text-teal mt-2">Abrir Biblioteca →</Link></div>}</section>
+      <section className="bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-teal">Checklist editorial</p><h3 className="font-display text-xl mt-2">Antes de exportar</h3><div className="mt-4 space-y-2">{editorialChecks.map(([ok, label]) => <p key={label} className="text-sm"><span className={ok ? "text-teal" : "text-ink-soft"}>{ok ? "✓" : "○"}</span> {label}</p>)}</div><button onClick={exportWord} className="w-full bg-ink text-white rounded-card px-4 py-3 mt-5">Exportar para Word</button><p className="text-[11px] text-ink-soft mt-3">O arquivo é editável. Confira as instruções específicas do periódico antes da submissão.</p></section>
       <section className="bg-white border border-line rounded-2xl p-5"><div className="flex justify-between gap-3 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Histórico</p><h3 className="font-display text-xl mt-2">Versões</h3></div><select value={status} onChange={event => markMetadata(setStatus, event.target.value)} className="text-xs border border-line rounded-card p-2 bg-paper"><option value="draft">Rascunho</option><option value="review">Em revisão</option><option value="ready">Pronto</option><option value="submitted">Submetido</option></select></div><div className="mt-4 space-y-3">{versions.length ? versions.map(version => <div key={version.id} className="border-t border-line pt-3"><p className="text-xs">{version.label}</p><p className="text-[11px] text-ink-soft mt-1">{displayDate(version.created_at)}</p><button onClick={() => restoreVersion(version)} className="text-xs text-teal mt-2">Carregar esta versão</button></div>) : <p className="text-sm text-ink-soft">Crie uma versão antes de uma revisão importante.</p>}</div></section>
     </aside>
   </div>;

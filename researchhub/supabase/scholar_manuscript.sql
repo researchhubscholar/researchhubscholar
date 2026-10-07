@@ -7,13 +7,30 @@ create table if not exists public.scholar_manuscripts (
   owner_id uuid not null references auth.users(id) on delete cascade,
   title text not null default '',
   subtitle text not null default '',
+  authors jsonb not null default '[]'::jsonb,
+  affiliations jsonb not null default '[]'::jsonb,
+  keywords text[] not null default '{}'::text[],
   article_type text not null default 'original',
   target_journal text not null default '',
+  citation_style text not null default 'vancouver' check (citation_style in ('vancouver','abnt')),
+  citation_ids uuid[] not null default '{}'::uuid[],
   language text not null default 'pt-BR',
   status text not null default 'draft' check (status in ('draft','review','ready','submitted')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Atualização segura para bancos que já executaram a primeira versão deste arquivo.
+alter table public.scholar_manuscripts add column if not exists authors jsonb not null default '[]'::jsonb;
+alter table public.scholar_manuscripts add column if not exists affiliations jsonb not null default '[]'::jsonb;
+alter table public.scholar_manuscripts add column if not exists keywords text[] not null default '{}'::text[];
+alter table public.scholar_manuscripts add column if not exists citation_style text not null default 'vancouver';
+alter table public.scholar_manuscripts add column if not exists citation_ids uuid[] not null default '{}'::uuid[];
+
+do $$ begin
+  alter table public.scholar_manuscripts add constraint scholar_manuscripts_citation_style_check check (citation_style in ('vancouver','abnt'));
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.scholar_manuscript_sections (
   id uuid primary key default gen_random_uuid(),
