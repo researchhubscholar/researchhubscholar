@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, scientificIdeasJsonSchema, scientificIdeasPrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
+import { isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, scientificIdeasJsonSchema, scientificIdeasPrompt, type AIProposal, type AIIdeasOutput, type ResearchDirection, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -112,8 +112,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured<{ frame: ResearchFrame; proposals: AIProposal[]; caution: string }>(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 5_500);
-    const draft = generation.result.output as { frame: ResearchFrame; proposals: AIProposal[]; caution: string };
+    const generation = await generateStructured<{ frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string }>(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 6_500);
+    const draft = generation.result.output as { frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string };
     const frame = draft.frame;
     if (!isResearchFrame(frame)) throw new Error("A IA não conseguiu delimitar um problema científico com os dados informados.");
     if (!Array.isArray(draft.proposals) || draft.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
     const ideas = mergeAIProposals(input.ideas, output);
-    const outputSnapshot = { ...output, frame, ideas, qualityIssues };
+    const outputSnapshot = { ...output, frame, opportunityMap: draft.opportunityMap, ideas, qualityIssues };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });

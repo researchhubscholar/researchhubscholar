@@ -26,6 +26,15 @@ export type ResearchFrame = {
   constraints: string[];
   avoidAssumptions: string[];
 };
+export type ResearchDirection = {
+  angle: string;
+  questionArchetype: string;
+  scientificRationale: string;
+  candidateExposureOrConcept: string;
+  candidateOutcome: string;
+  feasibleDesign: string;
+  differentiator: string;
+};
 
 const proposalFields: (keyof AIProposal)[] = [
   "title", "question", "objective", "studyType", "population", "outcome",
@@ -122,9 +131,28 @@ export const researchFrameJsonSchema: JSONSchema7 = {
 export const scientificIdeasJsonSchema: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
-  required: ["frame", "proposals", "caution"],
+  required: ["frame", "opportunityMap", "proposals", "caution"],
   properties: {
     frame: researchFrameJsonSchema,
+    opportunityMap: {
+      type: "array",
+      minItems: 5,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["angle", "questionArchetype", "scientificRationale", "candidateExposureOrConcept", "candidateOutcome", "feasibleDesign", "differentiator"],
+        properties: {
+          angle: text,
+          questionArchetype: text,
+          scientificRationale: text,
+          candidateExposureOrConcept: text,
+          candidateOutcome: text,
+          feasibleDesign: text,
+          differentiator: text,
+        },
+      },
+    },
     proposals: { type: "array", minItems: 3, maxItems: 3, items: aiProposalJsonSchema },
     caution: { type: "string", minLength: 10, maxLength: 1000 },
   },
@@ -190,9 +218,10 @@ export function scientificIdeasPrompt(context: Context) {
 
 ${sharedRules()}
 
-Faça o trabalho em duas etapas dentro da mesma resposta estruturada:
-1. Crie o enquadramento metodológico em frame. Classifique a pergunta como prevalência, associação, prognóstico, diagnóstico, intervenção, experiência qualitativa ou síntese de evidências. Escolha e declare o framework apropriado: PICO, PECO, PCC ou SPIDER. Os dados do formulário são restrições e pistas, não um título para parafrasear.
-2. A partir desse frame, crie exatamente três propostas substancialmente distintas nesta ordem:
+Faça o trabalho em três etapas dentro da mesma resposta estruturada:
+1. Crie em frame apenas o território científico geral: problema, população, contexto, restrições e possibilidades metodológicas. Classifique a pergunta e escolha a estrutura apropriada entre PICO, PECO, PCC ou SPIDER. Não transforme imediatamente a frase do usuário em título.
+2. Em opportunityMap, expanda o território em 5 a 8 direções de pesquisa plausíveis. Explore ângulos diferentes — frequência, fatores associados, prognóstico, diagnóstico, experiência, organização do cuidado, intervenção ou síntese de evidências — escolhendo somente os compatíveis com o tipo de trabalho, acesso e prazo. Para cada direção, indique qual conceito/exposição e qual desfecho ou fenômeno poderiam tornar a pergunta investigável.
+3. Selecione as três melhores direções e converta-as em propostas completas e substancialmente distintas nesta ordem:
    - MAIS VIÁVEL: execução simples, poucas variáveis e conclusão dentro do prazo.
    - MAIS RELEVANTE: melhor equilíbrio entre importância científica, rigor e execução.
    - MAIS INOVADORA: recorte mais original ou analítico, sem inventar acesso, instrumentos ou recursos.
@@ -201,11 +230,16 @@ CONDIÇÕES REAIS DO USUÁRIO
 ${JSON.stringify(context)}
 
 REGRAS DE QUALIDADE
+- Use os dados do usuário como fronteiras do problema, não como peças que precisam aparecer literalmente em todos os títulos.
+- Você pode introduzir conceitos, exposições, comparadores e desfechos cientificamente plausíveis para ampliar as possibilidades. Apresente-os como escolhas propostas que precisam ser confirmadas, nunca como fatos ou lacunas já comprovadas.
+- Antes de escolher as três propostas, descarte direções triviais, duplicadas, amplas demais, inviáveis no prazo ou incompatíveis com o acesso informado.
+- As três propostas devem nascer de direções diferentes do opportunityMap. Trocar apenas palavras, desfecho secundário ou extensão do título não cria uma nova proposta.
 - Construa primeiro a cadeia lógica: lacuna → pergunta estruturada → objetivo → desenho → variáveis → desfecho → análise. Nenhum elemento pode contradizer outro.
 - Cada título deve ter padrão de artigo científico em saúde e explicitar fenômeno ou relação, população e, quando relevante, contexto ou desenho.
 - Não use títulos vagos como "estudo sobre", "análise de aspectos", "abordagem de", "impacto de" sem desenho causal, nem apenas concatene os campos.
 - Para estudos observacionais transversais use termos como prevalência, frequência ou associação; não prometa efeito, eficácia, impacto ou causalidade.
 - Para revisão, formule uma pergunta de síntese e indique o tipo correto de revisão; não proponha coleta com participantes.
+- Em revisão de literatura, explore perguntas de síntese realmente diferentes, por exemplo magnitude/frequência, fatores associados, experiências, estratégias diagnósticas ou intervenções, conforme o tema permitir. Não gere três revisões com a mesma pergunta.
 - Para relato ou série de casos, não formule estimativa populacional nem teste causal.
 - Cada pergunta deve terminar com ponto de interrogação e ser respondível pelo desenho proposto.
 - Cada objetivo deve ter um único verbo principal mensurável: estimar, comparar, descrever, investigar, explorar, determinar ou sintetizar. Evite "compreender" quando houver medida quantitativa.
