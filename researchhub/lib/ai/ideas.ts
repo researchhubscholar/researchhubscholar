@@ -10,11 +10,18 @@ export type AIProposal = Pick<Idea,
 
 export type AIIdeasOutput = { proposals: AIProposal[]; caution: string };
 export type ResearchFrame = {
+  questionArchetype: string;
+  structuringFramework: string;
   problem: string;
   population: string;
   setting: string;
   exposureOrIntervention: string;
+  comparator: string;
   measurableOutcome: string;
+  timeHorizon: string;
+  preferredDesign: string;
+  designRationale: string;
+  mainBiasThreats: string[];
   feasibleDesigns: string[];
   constraints: string[];
   avoidAssumptions: string[];
@@ -92,13 +99,20 @@ export const aiIdeasJsonSchema: JSONSchema7 = {
 export const researchFrameJsonSchema: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
-  required: ["problem", "population", "setting", "exposureOrIntervention", "measurableOutcome", "feasibleDesigns", "constraints", "avoidAssumptions"],
+  required: ["questionArchetype", "structuringFramework", "problem", "population", "setting", "exposureOrIntervention", "comparator", "measurableOutcome", "timeHorizon", "preferredDesign", "designRationale", "mainBiasThreats", "feasibleDesigns", "constraints", "avoidAssumptions"],
   properties: {
+    questionArchetype: text,
+    structuringFramework: text,
     problem: text,
     population: text,
     setting: text,
     exposureOrIntervention: text,
+    comparator: text,
     measurableOutcome: text,
+    timeHorizon: text,
+    preferredDesign: text,
+    designRationale: text,
+    mainBiasThreats: list,
     feasibleDesigns: list,
     constraints: list,
     avoidAssumptions: list,
@@ -119,8 +133,8 @@ export const scientificIdeasJsonSchema: JSONSchema7 = {
 export function isResearchFrame(value: unknown): value is ResearchFrame {
   if (!value || typeof value !== "object") return false;
   const frame = value as Record<string, unknown>;
-  return ["problem", "population", "setting", "exposureOrIntervention", "measurableOutcome"].every(key => typeof frame[key] === "string" && frame[key].trim().length >= 8)
-    && ["feasibleDesigns", "constraints", "avoidAssumptions"].every(key => Array.isArray(frame[key]) && (frame[key] as unknown[]).length >= 2);
+  return ["questionArchetype", "structuringFramework", "problem", "population", "setting", "exposureOrIntervention", "comparator", "measurableOutcome", "timeHorizon", "preferredDesign", "designRationale"].every(key => typeof frame[key] === "string" && frame[key].trim().length >= 8)
+    && ["mainBiasThreats", "feasibleDesigns", "constraints", "avoidAssumptions"].every(key => Array.isArray(frame[key]) && (frame[key] as unknown[]).length >= 2);
 }
 
 export function validateIdeasRequest(value: unknown): { context: Context; ideas: Idea[]; projectId: string | null } {
@@ -169,10 +183,12 @@ Entregue apenas o enquadramento metodológico, sem escrever ainda as três propo
 }
 
 export function scientificIdeasPrompt(context: Context) {
-  return `${sharedRules()}
+  return `Você é um pesquisador sênior em epidemiologia clínica, metodologia científica e bioestatística aplicada à saúde. Sua tarefa não é sugerir assuntos genéricos: é converter uma intenção inicial em três sinopses de pesquisa defensáveis perante um orientador ou banca.
+
+${sharedRules()}
 
 Faça o trabalho em duas etapas dentro da mesma resposta estruturada:
-1. Crie o enquadramento metodológico em frame. Os dados do formulário são restrições e pistas, não um título para parafrasear.
+1. Crie o enquadramento metodológico em frame. Classifique a pergunta como prevalência, associação, prognóstico, diagnóstico, intervenção, experiência qualitativa ou síntese de evidências. Escolha e declare o framework apropriado: PICO, PECO, PCC ou SPIDER. Os dados do formulário são restrições e pistas, não um título para parafrasear.
 2. A partir desse frame, crie exatamente três propostas substancialmente distintas nesta ordem:
    - MAIS VIÁVEL: execução simples, poucas variáveis e conclusão dentro do prazo.
    - MAIS RELEVANTE: melhor equilíbrio entre importância científica, rigor e execução.
@@ -182,11 +198,23 @@ CONDIÇÕES REAIS DO USUÁRIO
 ${JSON.stringify(context)}
 
 REGRAS DE QUALIDADE
-- Cada título deve explicitar fenômeno ou relação, população e, quando relevante, contexto ou desenho.
-- Não use títulos vagos como "estudo sobre" ou "análise de aspectos" e não apenas concatene os campos.
+- Construa primeiro a cadeia lógica: lacuna → pergunta estruturada → objetivo → desenho → variáveis → desfecho → análise. Nenhum elemento pode contradizer outro.
+- Cada título deve ter padrão de artigo científico em saúde e explicitar fenômeno ou relação, população e, quando relevante, contexto ou desenho.
+- Não use títulos vagos como "estudo sobre", "análise de aspectos", "abordagem de", "impacto de" sem desenho causal, nem apenas concatene os campos.
+- Para estudos observacionais transversais use termos como prevalência, frequência ou associação; não prometa efeito, eficácia, impacto ou causalidade.
+- Para revisão, formule uma pergunta de síntese e indique o tipo correto de revisão; não proponha coleta com participantes.
+- Para relato ou série de casos, não formule estimativa populacional nem teste causal.
 - Cada pergunta deve terminar com ponto de interrogação e ser respondível pelo desenho proposto.
-- Cada objetivo deve começar com verbo de pesquisa: avaliar, estimar, comparar, descrever, investigar, explorar ou sintetizar.
+- Cada objetivo deve ter um único verbo principal mensurável: estimar, comparar, descrever, investigar, explorar, determinar ou sintetizar. Evite "compreender" quando houver medida quantitativa.
+- Em outcome, defina um desfecho primário operacionalizável: variável, modo de medida e momento, marcando "instrumento a confirmar" quando necessário.
+- Em variables, separe exposição/intervenção, desfecho, potenciais confundidores e covariáveis essenciais.
+- Em methods, informe desenho, cenário, unidade de análise, recrutamento/amostragem e procedimento principal.
+- Em analysis, alinhe a análise ao tipo das variáveis e ao desenho, sem inventar tamanho de efeito ou resultado esperado.
+- Em eligibility, diferencie claramente critérios de inclusão e exclusão.
+- Em hypothesis, use hipótese compatível com o desenho; escreva "não se aplica" em propostas puramente descritivas ou qualitativas.
+- Em noveltyCheck, forneça uma estratégia concreta para verificar lacuna, sem afirmar que ela existe antes da busca.
 - As três alternativas não podem ser paráfrases: varie pergunta, recorte ou desenho de maneira metodologicamente coerente.
+- A alternativa inovadora continua precisando caber no prazo e no acesso declarados; inovação não significa complexidade artificial.
 - Se uma informação não foi fornecida, escreva "a confirmar" no campo apropriado; nunca deixe campo vazio.
 - refinements, unresolved e plan devem conter de 2 a 4 itens completos.
 - A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;

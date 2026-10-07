@@ -20,7 +20,7 @@ export const scholarAI = {
   provider: "google" as const,
   model: selectedModel,
   structuredOutput: "native" as const,
-  promptVersion: "ideas.v5-single-pass",
+  promptVersion: "ideas.v6-protocol-grade",
   reservedTokens: 10_000,
   maxIdeasOutputTokens: 6_000,
   maxAssistOutputTokens: 4_000,
