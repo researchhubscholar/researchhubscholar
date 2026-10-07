@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import IdeaHistory from "@/components/ideas/history";
+import type { IdeaRefinement } from "@/lib/ai/refine-idea";
 import { historyError, type SavedIdea } from "@/lib/ideas/history";
 import { type Context, type Idea, generate, ideaBrief, initial, referenceSignature } from "@/lib/ideas/generate";
 import { transferKey } from "@/lib/ideas/transfer";
@@ -11,6 +12,7 @@ import { useLibrary } from "@/lib/literature/use-library";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type AIMode = "" | "simulation" | "live" | "saved" | "error";
+type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number };
 
 const blankContext: Context = {
   ...initial,
@@ -51,6 +53,9 @@ export default function IdeasPage() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [refiningId, setRefiningId] = useState("");
+  const [refinements, setRefinements] = useState<Record<string, RefinementResult>>({});
+  const [refinementErrors, setRefinementErrors] = useState<Record<string, string>>({});
 
   const evidence = useMemo(() => library.articles.filter(article => referenceIds.includes(article.id)).map(article => ({ article, note: library.notes[article.id] || {} })), [library.articles, library.notes, referenceIds]);
   const signature = referenceSignature(evidence);
@@ -66,7 +71,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
       setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
-      setAiMessage(""); setAiOperation(""); setAiMode(""); setMessage(""); setProjectError("");
+      setAiMessage(""); setAiOperation(""); setAiMode(""); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
     previousOwner.current = library.userId;
@@ -132,6 +137,7 @@ export default function IdeasPage() {
       }
       if (!response.ok || !data.ideas) throw new Error(data.error || "Não foi possível criar as propostas.");
       setIdeas(data.ideas); setSnapshot({ ...context }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
+      setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -156,6 +162,31 @@ export default function IdeasPage() {
       setMessage("Proposta salva no histórico da sua conta.");
     } catch (error) { setMessage(historyError(error as { code?: string })); }
     finally { savingRef.current = false; setSaving(false); }
+  }
+
+  async function refineWithLiterature(idea: Idea) {
+    if (refiningId) return;
+    setRefiningId(idea.id);
+    setRefinementErrors(current => ({ ...current, [idea.id]: "" }));
+    try {
+      const response = await fetch("/api/ai/refine-idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, projectId: projectId || null }) });
+      const raw = await response.text();
+      let data: { error?: string; output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number };
+      try { data = JSON.parse(raw) as typeof data; }
+      catch { throw new Error(response.status === 504 ? "O refinamento demorou mais que o esperado. Tente novamente." : "O refinamento foi interrompido antes de concluir."); }
+      if (!response.ok || !data.output) throw new Error(data.error || "Não foi possível refinar esta proposta.");
+      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0 } }));
+    } catch (error) {
+      setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? error.message : "Não foi possível refinar esta proposta." }));
+    } finally { setRefiningId(""); }
+  }
+
+  function applyRefinement(id: string) {
+    const refinement = refinements[id];
+    if (!refinement) return;
+    setIdeas(current => current.map(idea => idea.id === id ? { ...idea, ...refinement.output.refinedProposal, id: idea.id, references: idea.references } : idea));
+    setRefinements(current => { const next = { ...current }; delete next[id]; return next; });
+    setMessage("Refinamento baseado na literatura aplicado à proposta. Revise antes de salvar ou transformar em projeto.");
   }
 
   function restoreVersion(row: SavedIdea) {
@@ -237,7 +268,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label="Propostas geradas">
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2">Três caminhos para comparar</h2><p className="text-sm text-ink-soft mt-2">Escolha pelo equilíbrio entre relevância e execução — não apenas pelo tema mais interessante.</p></div><span className="text-sm text-teal">{selected.length}/3 na comparação</span></div>
-      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?tema=${encodeURIComponent(idea.radar)}`)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?tema=${encodeURIComponent(idea.radar)}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -246,7 +277,7 @@ export default function IdeasPage() {
   </div>;
 }
 
-function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, onCompare, onEdit, onChange, onRadar, onTransfer, onSave, onDownload }: { idea: Idea; index: number; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
   const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
   return <article className={`bg-white border rounded-2xl p-5 md:p-7 ${selected ? "border-teal shadow-sm" : "border-line"}`}>
     <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">{pathLabels[index] || `CAMINHO ${index + 1}`}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
@@ -270,8 +301,23 @@ function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, onC
 
     <button type="button" onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? "Concluir ajustes" : "Editar esta proposta"}</button>
     {editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium">{label}<textarea maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
-    <div className="mt-6 flex gap-3 flex-wrap"><button type="button" onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2">Validar no Radar</button><button type="button" disabled={stale} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Transformar em projeto →</button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : "Salvar proposta"}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50">Baixar</button></div>
+    {refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
+    {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm">{refinementError}</p>}
+    <div className="mt-6 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? "Consultando PubMed e refinando…" : "Refinar com literatura e IA"}</button><button type="button" onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2">Validar no Radar</button><button type="button" disabled={stale} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Transformar em projeto →</button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : "Salvar proposta"}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50">Baixar</button></div>
   </article>;
+}
+
+function RefinementPanel({ result, apply }: { result: RefinementResult; apply: () => void }) {
+  const output = result.output;
+  return <section className="mt-6 rounded-2xl border border-teal/30 bg-teal-soft/40 p-5" aria-label="Refinamento com literatura">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest font-semibold text-teal">Refinamento baseado no PubMed</p><h4 className="font-display text-2xl mt-2">{output.refinedProposal.title}</h4></div><span className="rounded-full bg-white px-3 py-1 text-xs text-teal">{result.pubmedTotal.toLocaleString("pt-BR")} resultados relacionados</span></div>
+    <p className="text-sm text-ink-soft mt-3 leading-relaxed">{output.refinementRationale}</p>
+    <div className="grid md:grid-cols-2 gap-4 mt-5 text-sm"><Info label={`Estrutura ${output.framework}`} value={output.frameworkElements.map(item => `${item.label}: ${item.value}`).join(" · ")} /><Info label="Sinal da literatura" value={`${output.literatureSignal}. ${output.gapAssessment}`} /><Info label="Risco de semelhança" value={output.similarityRisk} /><Info label="Termos MeSH/candidatos" value={output.meshTerms.join(" · ")} /></div>
+    <div className="mt-5"><p className="text-sm font-medium">Outras formulações de título</p><ul className="mt-2 space-y-2 text-sm text-ink-soft list-disc pl-5">{output.alternativeTitles.map(title => <li key={title}>{title}</li>)}</ul></div>
+    <details className="mt-5"><summary className="cursor-pointer text-sm font-medium text-teal">Ver artigos que orientaram o refinamento</summary><ul className="mt-3 space-y-3">{output.sources.map(source => <li key={source.pmid} className="text-sm"><a href={`https://pubmed.ncbi.nlm.nih.gov/${source.pmid}/`} target="_blank" rel="noreferrer" className="font-medium text-teal underline">{source.title}</a><span className="block text-xs text-ink-soft mt-1">PMID {source.pmid} · {source.contribution}</span></li>)}</ul></details>
+    <p className="mt-4 text-xs text-ink-soft">{output.caution}</p>
+    <div className="flex flex-wrap gap-3 mt-5"><button type="button" onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm">Aplicar refinamento à proposta</button>{result.operationId && <Link href={`/geracoes/${result.operationId}`} className="text-sm text-teal underline self-center">Ver consumo e registro</Link>}</div>
+  </section>;
 }
 
 function Comparison({ ideas }: { ideas: Idea[] }) {
