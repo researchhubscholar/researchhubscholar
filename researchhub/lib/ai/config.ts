@@ -7,6 +7,8 @@ const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOL
 // model override through Vercel.
 const selectedModel = process.env.SCHOLAR_AI_MODEL || "gemini-3.5-flash";
 const googleConfigured = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+const fallbackModelIds = ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"];
+const modelIds = [selectedModel, ...fallbackModelIds.filter(model => model !== selectedModel)];
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,
@@ -27,7 +29,13 @@ export const scholarAI = {
 } as const;
 
 export const scholarAIModel = google(selectedModel);
+export const scholarAIModels = modelIds.map(id => ({ id, model: google(id) }));
 export const scholarAIReady = scholarAI.enabled && scholarAI.backendConfigured;
+
+export function retryWithFallback(error: unknown) {
+  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  return /high demand|temporar|unavailable|overloaded|resource.?exhausted|quota|rate.?limit|429|503/i.test(raw);
+}
 
 export function estimatedCost(inputTokens: number, outputTokens: number) {
   return Number((inputTokens * scholarAI.inputUsdPerToken + outputTokens * scholarAI.outputUsdPerToken).toFixed(8));

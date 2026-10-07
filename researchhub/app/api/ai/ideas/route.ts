@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, scholarAIModel, scholarAIReady, estimatedCost } from "@/lib/ai/config";
+import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, type AIProposal, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -25,6 +25,7 @@ function message(error: unknown) {
   if (raw.includes("Franquia")) return raw;
   if (raw.includes("limite") || raw.includes("Limite") || raw.includes("andamento")) return raw;
   if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do Gemini foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
+  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos do Gemini estão temporariamente sobrecarregados. Sua franquia foi devolvida; tente novamente em alguns minutos.";
   if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do Gemini não foi aceita ou ainda não possui acesso ao modelo configurado.";
   if (/model.*not found|not found.*model|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do Gemini.";
   if (/schema|structured output|response.?format/i.test(raw)) return "O Gemini não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
@@ -95,14 +96,26 @@ export async function POST(request: Request) {
     let outputTokens = 0;
     const responseIds: string[] = [];
     for (const variant of variants) {
-      const result = await generateText({
-        model: scholarAIModel,
-        instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
-        maxOutputTokens: 1_800,
-        abortSignal: AbortSignal.timeout(generationTimeoutMs),
-        output: Output.object({ schema: jsonSchema<AIProposal>(aiProposalJsonSchema) }),
-        prompt: ideaVariantPrompt(input.context, input.ideas, variant),
-      });
+      let result: Awaited<ReturnType<typeof generateText>> | null = null;
+      let lastError: unknown;
+      for (const candidate of scholarAIModels) {
+        try {
+          result = await generateText({
+            model: candidate.model,
+            instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
+            maxOutputTokens: 1_800,
+            maxRetries: 0,
+            abortSignal: AbortSignal.timeout(generationTimeoutMs),
+            output: Output.object({ schema: jsonSchema<AIProposal>(aiProposalJsonSchema) }),
+            prompt: ideaVariantPrompt(input.context, input.ideas, variant),
+          });
+          break;
+        } catch (error) {
+          lastError = error;
+          if (!retryWithFallback(error)) throw error;
+        }
+      }
+      if (!result) throw lastError || new Error("Nenhum modelo do Gemini está disponível agora.");
       const proposal = result.output as AIProposal;
       if (!isAIProposal(proposal)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
       proposals.push(proposal);
