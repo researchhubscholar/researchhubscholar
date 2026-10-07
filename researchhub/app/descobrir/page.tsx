@@ -74,7 +74,8 @@ function DiscoverContent() {
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
   const [period, setPeriod] = useState("5");
-  const [studyType, setStudyType] = useState("all");
+  const incomingStudy = params.get("desenho") || "";
+  const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
   const [language, setLanguage] = useState("auto");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,8 +93,8 @@ function DiscoverContent() {
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [mesh, setMesh] = useState("");
-  const [populationTerm, setPopulationTerm] = useState("");
-  const [outcomeTerm, setOutcomeTerm] = useState("");
+  const [populationTerm, setPopulationTerm] = useState(params.get("populacao") || "");
+  const [outcomeTerm, setOutcomeTerm] = useState(params.get("desfecho") || "");
   const [operator, setOperator] = useState("AND");
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [sourceWarning, setSourceWarning] = useState<string | null>(null);
@@ -198,6 +199,8 @@ function DiscoverContent() {
           <span><i aria-hidden="true" />Resultados verificáveis</span>
         </div>
       </div>
+
+      {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Estratégia recebida do projeto</p><h2 className="font-display text-xl mt-2">Revise os conceitos antes de pesquisar.</h2><p className="text-sm text-ink-soft mt-2">A pergunta, a população, o desfecho e o desenho foram trazidos do construtor. O Radar ainda não consultou o PubMed.</p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal">Voltar ao projeto →</Link>}</section>}
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: qualidade do sono em residentes de medicina" />
