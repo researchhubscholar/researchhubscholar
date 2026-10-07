@@ -247,8 +247,9 @@ export default function IdeasPage() {
 }
 
 function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, onCompare, onEdit, onChange, onRadar, onTransfer, onSave, onDownload }: { idea: Idea; index: number; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+  const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
   return <article className={`bg-white border rounded-2xl p-5 md:p-7 ${selected ? "border-teal shadow-sm" : "border-line"}`}>
-    <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">CAMINHO {index + 1}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
+    <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">{pathLabels[index] || `CAMINHO ${index + 1}`}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
     <h3 className="font-display text-2xl md:text-3xl mt-4 leading-snug">{idea.title}</h3>
     <div className="grid md:grid-cols-2 gap-5 mt-6"><Info label="Pergunta de pesquisa" value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
     <div className="grid md:grid-cols-3 gap-3 mt-5"><Badge label="Relevância" value={idea.evaluation?.relevance.label || "A confirmar"} /><Badge label="Viabilidade" value={idea.evaluation?.feasibility.label || "A confirmar"} /><Badge label="Execução" value={idea.evaluation?.execution.label || "A confirmar"} /></div>

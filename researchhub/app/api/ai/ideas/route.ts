@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output } from "ai";
+import { generateText, jsonSchema, Output, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, type AIProposal, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, researchFrameJsonSchema, researchFramePrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -59,6 +59,28 @@ async function activeWallet(userId: string) {
   return available[0] as { wallet: Wallet; license: License };
 }
 
+async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number) {
+  let lastError: unknown;
+  for (const candidate of scholarAIModels) {
+    try {
+      const result = await generateText({
+        model: candidate.model,
+        instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
+        maxOutputTokens,
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(generationTimeoutMs),
+        output: Output.object({ schema: jsonSchema<T>(schema) }),
+        prompt,
+      });
+      return { result, modelId: candidate.id };
+    } catch (error) {
+      lastError = error;
+      if (!retryWithFallback(error)) throw error;
+    }
+  }
+  throw lastError || new Error("Nenhum modelo do Gemini está disponível agora.");
+}
+
 export async function POST(request: Request) {
   if (!scholarAIReady) return NextResponse.json({ error: "A IA de teste ainda não está conectada ao Google Gemini neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
@@ -90,38 +112,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
+    const frameGeneration = await generateStructured<ResearchFrame>(researchFrameJsonSchema, researchFramePrompt(input.context), 800);
+    const frame = frameGeneration.result.output as ResearchFrame;
+    if (!isResearchFrame(frame)) throw new Error("A IA não conseguiu delimitar um problema científico com os dados informados.");
+
     const variants = ["simple", "balanced", "ambitious"] as const;
     const proposals: AIProposal[] = [];
-    let inputTokens = 0;
-    let outputTokens = 0;
-    const responseIds: string[] = [];
+    let inputTokens = frameGeneration.result.usage.inputTokens || 0;
+    let outputTokens = frameGeneration.result.usage.outputTokens || 0;
+    const responseIds: string[] = frameGeneration.result.response.id ? [frameGeneration.result.response.id] : [];
     for (const variant of variants) {
-      let result: Awaited<ReturnType<typeof generateText>> | null = null;
-      let lastError: unknown;
-      for (const candidate of scholarAIModels) {
-        try {
-          result = await generateText({
-            model: candidate.model,
-            instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados ou validações.",
-            maxOutputTokens: 1_800,
-            maxRetries: 0,
-            abortSignal: AbortSignal.timeout(generationTimeoutMs),
-            output: Output.object({ schema: jsonSchema<AIProposal>(aiProposalJsonSchema) }),
-            prompt: ideaVariantPrompt(input.context, input.ideas, variant),
-          });
-          break;
-        } catch (error) {
-          lastError = error;
-          if (!retryWithFallback(error)) throw error;
-        }
-      }
-      if (!result) throw lastError || new Error("Nenhum modelo do Gemini está disponível agora.");
-      const proposal = result.output as AIProposal;
+      let generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title)), 1_500);
+      let proposal = generation.result.output as AIProposal;
+      inputTokens += generation.result.usage.inputTokens || 0;
+      outputTokens += generation.result.usage.outputTokens || 0;
+      if (generation.result.response.id) responseIds.push(generation.result.response.id);
       if (!isAIProposal(proposal)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
+      let issues = proposalQualityIssues(proposal, input.context, proposals);
+      if (issues.length) {
+        generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title), issues), 1_500);
+        proposal = generation.result.output as AIProposal;
+        inputTokens += generation.result.usage.inputTokens || 0;
+        outputTokens += generation.result.usage.outputTokens || 0;
+        if (generation.result.response.id) responseIds.push(generation.result.response.id);
+        if (!isAIProposal(proposal)) throw new Error("A resposta revisada não corresponde ao formato científico esperado.");
+        issues = proposalQualityIssues(proposal, input.context, proposals);
+        if (issues.length) throw new Error(`A IA não conseguiu produzir um recorte científico suficientemente específico: ${issues[0]}`);
+      }
       proposals.push(proposal);
-      inputTokens += result.usage.inputTokens || 0;
-      outputTokens += result.usage.outputTokens || 0;
-      if (result.response.id) responseIds.push(result.response.id);
     }
     const output: AIIdeasOutput = {
       proposals,
@@ -132,7 +150,7 @@ export async function POST(request: Request) {
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
     const ideas = mergeAIProposals(input.ideas, output);
-    const outputSnapshot = { ...output, ideas };
+    const outputSnapshot = { ...output, frame, ideas };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });

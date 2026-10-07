@@ -1,6 +1,6 @@
 const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
-const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,mergeAIProposals}=require('../lib/ai/ideas.ts');
+const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,isResearchFrame,researchFramePrompt,ideaVariantPrompt,proposalQualityIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
 const {validateAssistRequest,assistantPrompt,isAssistantOutput,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
 const {outputBudget,parseValidatedJson,promptForJson}=require('../lib/ai/structured-output.ts');
 const context={theme:'sono',specialty:'Medicina',interest:'qualidade do sono',population:'residentes',stage:'resident',months:'6',access:'patients',exposure:'plantões noturnos',measure:'escore de qualidade do sono',setting:'programa de residência'};
@@ -11,9 +11,16 @@ assert.doesNotThrow(()=>validateIdeasRequest({context:{...context,measure:'',set
 assert.throws(()=>validateIdeasRequest({context:{...context,interest:''},ideas:[base]}),/Informe/);
 assert.throws(()=>validateIdeasRequest({context,ideas:[]}),/ponto de partida/);
 const prompt=ideasPrompt(context,[base]);assert(prompt.includes('não invente resultados'));assert(prompt.includes('exatamente 3 alternativas'));assert(prompt.includes('plantões noturnos'));
+const frame={problem:'Relação entre carga de plantões e qualidade do sono.',population:'Médicos residentes do programa informado.',setting:'Programa de residência médica.',exposureOrIntervention:'Quantidade de plantões noturnos no período definido.',measurableOutcome:'Escore de qualidade do sono obtido com instrumento a confirmar.',feasibleDesigns:['Estudo transversal analítico','Coorte prospectiva curta'],constraints:['Prazo de seis meses','Acesso a participantes'],avoidAssumptions:['Não presumir causalidade','Não presumir instrumento validado disponível']};
+assert.equal(isResearchFrame(frame),true);assert(researchFramePrompt(context).includes('enquadramento científico'));
+const variantPrompt=ideaVariantPrompt(context,frame,'simple',[]);assert(variantPrompt.includes('MAIS VIÁVEL'));assert(variantPrompt.includes('não trechos para concatenar'));assert(!variantPrompt.includes('PONTO DE PARTIDA'));
 const proposal={title:'Novo título',question:'Nova pergunta específica?',objective:'Novo objetivo',studyType:'Transversal',population:'residentes',outcome:'PSQI',hypothesis:'Maior exposição pode estar associada ao desfecho.',eligibility:'Residentes ativos; critérios a confirmar.',ethics:'Avaliação ética e proteção dos dados.',limitations:'Viés de seleção e temporalidade.',noveltyCheck:'Testar busca estruturada e comparar revisões recentes.',resources:'Equipe',difficulty:'Viés',feasibility:'Moderada',steps:'Confirmar',radar:'sleep quality AND residents',methods:'Método detalhado',analysis:'Análise detalhada',variables:'Exposição e desfecho',justification:'Importância',unresolved:['Ética','Amostra'],plan:['Protocolo','Coleta'],refinements:['Restringir','Medir']};
 const merged=mergeAIProposals([base],{proposals:[proposal,proposal,proposal],caution:'Validar'});assert.equal(merged.length,3);assert.equal(merged[0].title,'Novo título');assert.equal(merged[0].id,'ai-1');assert.equal(merged[2].id,'ai-3');assert.equal(merged[0].ethics,proposal.ethics);assert.deepEqual(merged[0].references,[]);
 const validProposal={...proposal,outcome:'Escore PSQI',resources:'Equipe local',difficulty:'Risco de viés'};
+const scientificProposal={...validProposal,title:'Associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes',objective:'Avaliar a associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes'};
+assert.deepEqual(proposalQualityIssues(scientificProposal,context,[]),[]);
+assert(proposalQualityIssues({...scientificProposal,title:'Qualidade do sono residentes programa residência'},context,[]).length>0);
+assert(proposalQualityIssues({...scientificProposal,title:'Associação entre plantões noturnos e sono em residentes médicos'},context,[scientificProposal]).some(issue=>issue.includes('parecida')));
 const complete={proposals:[validProposal,validProposal,validProposal],caution:'Validar com o orientador e o comitê de ética.'};
 assert.equal(isAIIdeasOutput(complete),true);assert.equal(isAIIdeasOutput({...complete,proposals:[proposal]}),false);
 assert.deepEqual(parseValidatedJson(JSON.stringify(complete),isAIIdeasOutput),complete);
