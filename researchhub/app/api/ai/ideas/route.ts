@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, researchFrameJsonSchema, researchFramePrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
+import { isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, scientificIdeasJsonSchema, scientificIdeasPrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -112,47 +112,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const frameGeneration = await generateStructured<ResearchFrame>(researchFrameJsonSchema, researchFramePrompt(input.context), 800);
-    const frame = frameGeneration.result.output as ResearchFrame;
+    const generation = await generateStructured<{ frame: ResearchFrame; proposals: AIProposal[]; caution: string }>(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 5_500);
+    const draft = generation.result.output as { frame: ResearchFrame; proposals: AIProposal[]; caution: string };
+    const frame = draft.frame;
     if (!isResearchFrame(frame)) throw new Error("A IA não conseguiu delimitar um problema científico com os dados informados.");
-
-    const variants = ["simple", "balanced", "ambitious"] as const;
-    const proposals: AIProposal[] = [];
-    let inputTokens = frameGeneration.result.usage.inputTokens || 0;
-    let outputTokens = frameGeneration.result.usage.outputTokens || 0;
-    const responseIds: string[] = frameGeneration.result.response.id ? [frameGeneration.result.response.id] : [];
-    for (const variant of variants) {
-      let generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title)), 1_500);
-      let proposal = generation.result.output as AIProposal;
-      inputTokens += generation.result.usage.inputTokens || 0;
-      outputTokens += generation.result.usage.outputTokens || 0;
-      if (generation.result.response.id) responseIds.push(generation.result.response.id);
-      let structureIssues = proposalStructureIssues(proposal);
-      let issues = isAIProposal(proposal) ? proposalQualityIssues(proposal, input.context, proposals) : [];
-      if (structureIssues.length || issues.length) {
-        const corrections = [...structureIssues, ...issues];
-        generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title), corrections), 1_500);
-        proposal = generation.result.output as AIProposal;
-        inputTokens += generation.result.usage.inputTokens || 0;
-        outputTokens += generation.result.usage.outputTokens || 0;
-        if (generation.result.response.id) responseIds.push(generation.result.response.id);
-        structureIssues = proposalStructureIssues(proposal);
-        if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou campos científicos incompletos após a revisão: ${structureIssues[0] || "formato inválido"}`);
-        issues = proposalQualityIssues(proposal, input.context, proposals);
-        if (issues.length) throw new Error(`A IA não conseguiu produzir um recorte científico suficientemente específico: ${issues[0]}`);
-      }
-      proposals.push(proposal);
+    if (!Array.isArray(draft.proposals) || draft.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
+    for (const proposal of draft.proposals) {
+      const structureIssues = proposalStructureIssues(proposal);
+      if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou um campo científico incompleto: ${structureIssues[0] || "formato inválido"}`);
     }
-    const output: AIIdeasOutput = {
-      proposals,
-      caution: "As propostas são pontos de partida e precisam de validação metodológica, ética, bibliográfica e do orientador antes da execução.",
-    };
-    const providerResponseId = responseIds.join(",") || null;
+    const qualityIssues = draft.proposals.flatMap((proposal, index) => proposalQualityIssues(proposal, input.context, draft.proposals.slice(0, index)));
+    const output: AIIdeasOutput = { proposals: draft.proposals, caution: draft.caution || "As propostas exigem validação metodológica, ética, bibliográfica e do orientador." };
+    const inputTokens = generation.result.usage.inputTokens || 0;
+    const outputTokens = generation.result.usage.outputTokens || 0;
+    const providerResponseId = generation.result.response.id || null;
     if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
     const ideas = mergeAIProposals(input.ideas, output);
-    const outputSnapshot = { ...output, frame, ideas };
+    const outputSnapshot = { ...output, frame, ideas, qualityIssues };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });

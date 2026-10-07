@@ -105,6 +105,17 @@ export const researchFrameJsonSchema: JSONSchema7 = {
   },
 };
 
+export const scientificIdeasJsonSchema: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["frame", "proposals", "caution"],
+  properties: {
+    frame: researchFrameJsonSchema,
+    proposals: { type: "array", minItems: 3, maxItems: 3, items: aiProposalJsonSchema },
+    caution: { type: "string", minLength: 10, maxLength: 1000 },
+  },
+};
+
 export function isResearchFrame(value: unknown): value is ResearchFrame {
   if (!value || typeof value !== "object") return false;
   const frame = value as Record<string, unknown>;
@@ -155,6 +166,30 @@ CONDIÇÕES REAIS DO USUÁRIO
 ${JSON.stringify(context)}
 
 Entregue apenas o enquadramento metodológico, sem escrever ainda as três propostas.`;
+}
+
+export function scientificIdeasPrompt(context: Context) {
+  return `${sharedRules()}
+
+Faça o trabalho em duas etapas dentro da mesma resposta estruturada:
+1. Crie o enquadramento metodológico em frame. Os dados do formulário são restrições e pistas, não um título para parafrasear.
+2. A partir desse frame, crie exatamente três propostas substancialmente distintas nesta ordem:
+   - MAIS VIÁVEL: execução simples, poucas variáveis e conclusão dentro do prazo.
+   - MAIS RELEVANTE: melhor equilíbrio entre importância científica, rigor e execução.
+   - MAIS INOVADORA: recorte mais original ou analítico, sem inventar acesso, instrumentos ou recursos.
+
+CONDIÇÕES REAIS DO USUÁRIO
+${JSON.stringify(context)}
+
+REGRAS DE QUALIDADE
+- Cada título deve explicitar fenômeno ou relação, população e, quando relevante, contexto ou desenho.
+- Não use títulos vagos como "estudo sobre" ou "análise de aspectos" e não apenas concatene os campos.
+- Cada pergunta deve terminar com ponto de interrogação e ser respondível pelo desenho proposto.
+- Cada objetivo deve começar com verbo de pesquisa: avaliar, estimar, comparar, descrever, investigar, explorar ou sintetizar.
+- As três alternativas não podem ser paráfrases: varie pergunta, recorte ou desenho de maneira metodologicamente coerente.
+- Se uma informação não foi fornecida, escreva "a confirmar" no campo apropriado; nunca deixe campo vazio.
+- refinements, unresolved e plan devem conter de 2 a 4 itens completos.
+- A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
 export function ideaVariantPrompt(context: Context, frame: ResearchFrame, variant: "simple" | "balanced" | "ambitious", previousTitles: string[] = [], correction: string[] = []) {
