@@ -2,12 +2,11 @@ import "server-only";
 import { google } from "@ai-sdk/google";
 
 const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOLAR_AI_ENABLED !== "false";
-// New Gemini projects may not receive access to legacy 2.5 models. Keep the
-// default on the current Flash generation while still allowing an explicit
-// model override through Vercel.
+// New Gemini projects may not receive access to every model generation. Keep
+// explicit Vercel overrides, but always try stable Flash alternatives.
 const selectedModel = process.env.SCHOLAR_AI_MODEL || "gemini-3.5-flash";
 const googleConfigured = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const fallbackModelIds = ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"];
+const fallbackModelIds = ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const modelIds = [selectedModel, ...fallbackModelIds.filter(model => model !== selectedModel)];
 
 export const scholarAI = {
@@ -32,9 +31,15 @@ export const scholarAIModel = google(selectedModel);
 export const scholarAIModels = modelIds.map(id => ({ id, model: google(id) }));
 export const scholarAIReady = scholarAI.enabled && scholarAI.backendConfigured;
 
+export function providerErrorText(error: unknown) {
+  if (error instanceof Error) return `${error.name} ${error.message} ${error.cause ? providerErrorText(error.cause) : ""}`;
+  if (typeof error === "string") return error;
+  try { return JSON.stringify(error); } catch { return String(error); }
+}
+
 export function retryWithFallback(error: unknown) {
-  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error);
-  return /high demand|temporar|unavailable|overloaded|resource.?exhausted|quota|rate.?limit|429|503/i.test(raw);
+  const raw = providerErrorText(error);
+  return /high demand|temporar|unavailable|overloaded|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
 }
 
 export function estimatedCost(inputTokens: number, outputTokens: number) {
