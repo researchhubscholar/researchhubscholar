@@ -24,6 +24,10 @@ function message(error: unknown) {
   if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. Sua franquia será devolvida; tente novamente.";
   if (raw.includes("Franquia")) return raw;
   if (raw.includes("limite") || raw.includes("Limite") || raw.includes("andamento")) return raw;
+  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do Gemini foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
+  if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do Gemini não foi aceita ou ainda não possui acesso ao modelo configurado.";
+  if (/model.*not found|not found.*model|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do Gemini.";
+  if (/schema|structured output|response.?format/i.test(raw)) return "O Gemini não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
   return raw.length < 240 ? raw : "Não foi possível concluir o aprimoramento agora.";
 }
 
