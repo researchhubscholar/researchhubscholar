@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, researchFrameJsonSchema, researchFramePrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiProposalJsonSchema, ideaVariantPrompt, isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, researchFrameJsonSchema, researchFramePrompt, type AIProposal, type AIIdeasOutput, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -127,15 +127,17 @@ export async function POST(request: Request) {
       inputTokens += generation.result.usage.inputTokens || 0;
       outputTokens += generation.result.usage.outputTokens || 0;
       if (generation.result.response.id) responseIds.push(generation.result.response.id);
-      if (!isAIProposal(proposal)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
-      let issues = proposalQualityIssues(proposal, input.context, proposals);
-      if (issues.length) {
-        generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title), issues), 1_500);
+      let structureIssues = proposalStructureIssues(proposal);
+      let issues = isAIProposal(proposal) ? proposalQualityIssues(proposal, input.context, proposals) : [];
+      if (structureIssues.length || issues.length) {
+        const corrections = [...structureIssues, ...issues];
+        generation = await generateStructured<AIProposal>(aiProposalJsonSchema, ideaVariantPrompt(input.context, frame, variant, proposals.map(item => item.title), corrections), 1_500);
         proposal = generation.result.output as AIProposal;
         inputTokens += generation.result.usage.inputTokens || 0;
         outputTokens += generation.result.usage.outputTokens || 0;
         if (generation.result.response.id) responseIds.push(generation.result.response.id);
-        if (!isAIProposal(proposal)) throw new Error("A resposta revisada não corresponde ao formato científico esperado.");
+        structureIssues = proposalStructureIssues(proposal);
+        if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou campos científicos incompletos após a revisão: ${structureIssues[0] || "formato inválido"}`);
         issues = proposalQualityIssues(proposal, input.context, proposals);
         if (issues.length) throw new Error(`A IA não conseguiu produzir um recorte científico suficientemente específico: ${issues[0]}`);
       }

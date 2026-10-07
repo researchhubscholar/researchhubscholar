@@ -1,6 +1,6 @@
 const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
-const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,isResearchFrame,researchFramePrompt,ideaVariantPrompt,proposalQualityIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
+const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,isResearchFrame,researchFramePrompt,ideaVariantPrompt,proposalQualityIssues,proposalStructureIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
 const {validateAssistRequest,assistantPrompt,isAssistantOutput,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
 const {outputBudget,parseValidatedJson,promptForJson}=require('../lib/ai/structured-output.ts');
 const context={theme:'sono',specialty:'Medicina',interest:'qualidade do sono',population:'residentes',stage:'resident',months:'6',access:'patients',exposure:'plantões noturnos',measure:'escore de qualidade do sono',setting:'programa de residência'};
@@ -17,6 +17,7 @@ const variantPrompt=ideaVariantPrompt(context,frame,'simple',[]);assert(variantP
 const proposal={title:'Novo título',question:'Nova pergunta específica?',objective:'Novo objetivo',studyType:'Transversal',population:'residentes',outcome:'PSQI',hypothesis:'Maior exposição pode estar associada ao desfecho.',eligibility:'Residentes ativos; critérios a confirmar.',ethics:'Avaliação ética e proteção dos dados.',limitations:'Viés de seleção e temporalidade.',noveltyCheck:'Testar busca estruturada e comparar revisões recentes.',resources:'Equipe',difficulty:'Viés',feasibility:'Moderada',steps:'Confirmar',radar:'sleep quality AND residents',methods:'Método detalhado',analysis:'Análise detalhada',variables:'Exposição e desfecho',justification:'Importância',unresolved:['Ética','Amostra'],plan:['Protocolo','Coleta'],refinements:['Restringir','Medir']};
 const merged=mergeAIProposals([base],{proposals:[proposal,proposal,proposal],caution:'Validar'});assert.equal(merged.length,3);assert.equal(merged[0].title,'Novo título');assert.equal(merged[0].id,'ai-1');assert.equal(merged[2].id,'ai-3');assert.equal(merged[0].ethics,proposal.ethics);assert.deepEqual(merged[0].references,[]);
 const validProposal={...proposal,outcome:'Escore PSQI',resources:'Equipe local',difficulty:'Risco de viés'};
+assert.deepEqual(proposalStructureIssues(validProposal),[]);assert(proposalStructureIssues({...validProposal,plan:['Só um item']}).some(issue=>issue.includes('plan')));
 const scientificProposal={...validProposal,title:'Associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes',objective:'Avaliar a associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes'};
 assert.deepEqual(proposalQualityIssues(scientificProposal,context,[]),[]);
 assert(proposalQualityIssues({...scientificProposal,title:'Qualidade do sono residentes programa residência'},context,[]).length>0);

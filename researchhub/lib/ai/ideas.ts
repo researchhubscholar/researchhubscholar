@@ -39,6 +39,23 @@ export function isAIProposal(value: unknown): value is AIProposal {
   });
 }
 
+export function proposalStructureIssues(value: unknown) {
+  if (!value || typeof value !== "object") return ["A resposta precisa ser um objeto com todos os campos solicitados."];
+  const proposal = value as Record<string, unknown>;
+  const issues: string[] = [];
+  for (const field of proposalFields) {
+    const content = proposal[field];
+    if (["refinements", "unresolved", "plan"].includes(field)) {
+      if (!Array.isArray(content) || content.length < 2 || content.some(entry => typeof entry !== "string" || entry.trim().length < 5)) {
+        issues.push(`O campo ${field} deve conter de 2 a 4 itens completos.`);
+      }
+    } else if (typeof content !== "string" || content.trim().length < 8) {
+      issues.push(`O campo ${field} está ausente ou curto demais; escreva uma informação útil ou indique explicitamente o que precisa ser confirmado.`);
+    }
+  }
+  return issues;
+}
+
 export function isAIIdeasOutput(value: unknown): value is AIIdeasOutput {
   if (!value || typeof value !== "object") return false;
   const output = value as Record<string, unknown>;
