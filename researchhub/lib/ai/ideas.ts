@@ -133,8 +133,11 @@ export const scientificIdeasJsonSchema: JSONSchema7 = {
 export function isResearchFrame(value: unknown): value is ResearchFrame {
   if (!value || typeof value !== "object") return false;
   const frame = value as Record<string, unknown>;
-  return ["questionArchetype", "structuringFramework", "problem", "population", "setting", "exposureOrIntervention", "comparator", "measurableOutcome", "timeHorizon", "preferredDesign", "designRationale"].every(key => typeof frame[key] === "string" && frame[key].trim().length >= 8)
-    && ["mainBiasThreats", "feasibleDesigns", "constraints", "avoidAssumptions"].every(key => Array.isArray(frame[key]) && (frame[key] as unknown[]).length >= 2);
+  const conciseFields = ["questionArchetype", "structuringFramework", "comparator", "timeHorizon", "preferredDesign"];
+  const descriptiveFields = ["problem", "population", "setting", "exposureOrIntervention", "measurableOutcome", "designRationale"];
+  return conciseFields.every(key => typeof frame[key] === "string" && frame[key].trim().length >= 2)
+    && descriptiveFields.every(key => typeof frame[key] === "string" && frame[key].trim().length >= 5)
+    && ["mainBiasThreats", "feasibleDesigns", "constraints", "avoidAssumptions"].every(key => Array.isArray(frame[key]) && (frame[key] as unknown[]).length >= 1 && (frame[key] as unknown[]).every(entry => typeof entry === "string" && entry.trim().length >= 3));
 }
 
 export function validateIdeasRequest(value: unknown): { context: Context; ideas: Idea[]; projectId: string | null } {
