@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output, type JSONSchema7 } from "ai";
+import { generateText, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, scientificIdeasJsonSchema, scientificIdeasPrompt, type AIProposal, type AIIdeasOutput, type ResearchDirection, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
+import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -59,22 +60,38 @@ async function activeWallet(userId: string) {
   return available[0] as { wallet: Wallet; license: License };
 }
 
-async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number) {
+function isScientificIdeasDraft(value: unknown): value is { frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string } {
+  if (!value || typeof value !== "object") return false;
+  const draft = value as Record<string, unknown>;
+  return isResearchFrame(draft.frame)
+    && Array.isArray(draft.opportunityMap)
+    && draft.opportunityMap.length >= 3
+    && Array.isArray(draft.proposals)
+    && draft.proposals.length === 3
+    && typeof draft.caution === "string";
+}
+
+async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number, validate: (value: unknown) => value is T) {
   let lastError: unknown;
+  let parseFailures = 0;
+  const budget = outputBudget(prompt, schema, maxOutputTokens, scholarAI.reservedTokens, 2_500);
   for (const candidate of scholarAIModels) {
     try {
       const result = await generateText({
         model: candidate.model,
         instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
-        maxOutputTokens,
+        maxOutputTokens: budget,
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(generationTimeoutMs),
-        output: Output.object({ schema: jsonSchema<T>(schema) }),
-        prompt,
+        prompt: promptForJson(prompt, schema),
       });
-      return { result, modelId: candidate.id };
+      return { result, output: parseValidatedJson(result.text, validate), modelId: candidate.id };
     } catch (error) {
       lastError = error;
+      if (/JSON|objeto.*completo|formato científico/i.test(error instanceof Error ? error.message : String(error))) {
+        parseFailures += 1;
+        if (parseFailures < 2) continue;
+      }
       if (!retryWithFallback(error)) throw error;
     }
   }
@@ -112,8 +129,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured<{ frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string }>(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 6_500);
-    const draft = generation.result.output as { frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string };
+    const generation = await generateStructured(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 6_500, isScientificIdeasDraft);
+    const draft = generation.output;
     const frame = draft.frame;
     if (!isResearchFrame(frame)) throw new Error("A IA não conseguiu delimitar um problema científico com os dados informados.");
     if (!Array.isArray(draft.proposals) || draft.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
