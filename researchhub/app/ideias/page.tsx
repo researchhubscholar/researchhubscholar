@@ -12,6 +12,7 @@ import { useLibrary } from "@/lib/literature/use-library";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type AIMode = "" | "simulation" | "live" | "saved" | "error";
+type CreationMode = "automatic" | "theme" | "guided";
 type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number };
 
 const blankContext: Context = {
@@ -34,6 +35,7 @@ export default function IdeasPage() {
   const series = useRef<Record<string, string>>({});
   const touched = useRef(new Set<string>());
   const [context, setContext] = useState<Context>(() => ({ ...blankContext }));
+  const [creationMode, setCreationMode] = useState<CreationMode>("automatic");
   const [snapshot, setSnapshot] = useState<Context | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -120,14 +122,31 @@ export default function IdeasPage() {
     } finally { if (request === projectRequest.current) setProjectLoading(false); }
   }
 
+  function generationContext() {
+    if (creationMode !== "automatic") return { ...context };
+    const area = context.specialty.trim();
+    const reality = context.setting.trim();
+    return {
+      ...context,
+      theme: "",
+      interest: `Mapeie oportunidades de pesquisa específicas, mensuráveis e clinicamente relevantes em ${area}, considerando a realidade de ${reality}. Explore problemas distintos antes de selecionar as propostas; não apenas combine estas palavras em títulos.`,
+      population: context.population.trim() || `populações, pacientes, profissionais ou registros realmente acessíveis em ${reality}`,
+      workType: "open",
+      requirements: [context.requirements, "Geração automática: comparar direções científicas distintas e priorizar as que cabem no prazo e no acesso informados."].filter(Boolean).join(" "),
+    };
+  }
+
   async function createIdeasWithAI() {
     if (aiLoading) return;
     if (!library.userId) { setAiMessage("Entre na sua conta para gerar propostas com IA e registrar o consumo."); return; }
     if (!aiEnabled) { setAiMessage("A assistência de IA ainda não está ativada neste ambiente."); return; }
+    if (creationMode === "automatic" && (!context.specialty.trim() || !context.setting.trim())) { setAiMessage("Informe sua área e a realidade de acesso para a geração automática."); return; }
+    if (creationMode === "theme" && context.interest.trim().length < 10) { setAiMessage("Descreva um tema, problema ou pergunta com um pouco mais de detalhe."); return; }
+    const requestContext = generationContext();
     setAiLoading(true); setAiMessage(""); setAiOperation(""); setMessage("");
     try {
-      const startingIdeas = generate(context, evidence);
-      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context, ideas: startingIdeas, projectId: projectId || null }) });
+      const startingIdeas = generate(requestContext, evidence);
+      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null }) });
       const raw = await response.text();
       let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live" };
       try {
@@ -136,7 +155,7 @@ export default function IdeasPage() {
         throw new Error(response.status === 504 ? "A geração demorou mais que o esperado. Sua franquia não será consumida; tente novamente." : "A geração foi interrompida antes de concluir. Tente novamente em instantes.");
       }
       if (!response.ok || !data.ideas) throw new Error(data.error || "Não foi possível criar as propostas.");
-      setIdeas(data.ideas); setSnapshot({ ...context }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
+      setContext(requestContext); setIdeas(data.ideas); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
@@ -220,11 +239,38 @@ export default function IdeasPage() {
   return <div className="scholar-workspace ideas-page max-w-5xl mx-auto">
     <header className="max-w-3xl">
       <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa com IA</p>
-      <h1 className="font-display text-4xl md:text-5xl mt-3">Conte o que você quer investigar.</h1>
-      <p className="text-ink-soft mt-4 leading-relaxed">O Scholar transforma seu interesse e suas condições reais em três propostas científicas completas para comparar, validar no Radar e discutir com seu orientador.</p>
+      <h1 className="font-display text-4xl md:text-5xl mt-3">Encontre um caminho científico que cabe na sua realidade.</h1>
+      <p className="text-ink-soft mt-4 leading-relaxed">Comece com poucas informações ou controle todos os critérios. A IA explora diferentes oportunidades e entrega três propostas completas para comparar, validar no Radar e discutir com seu orientador.</p>
     </header>
 
-    <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-8 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
+    <section className="mt-8 grid md:grid-cols-3 gap-3" aria-label="Modo de criação da ideia">
+      {([
+        ["automatic", "Gerar para mim", "Use minha área, meu acesso e meu prazo para descobrir oportunidades."],
+        ["theme", "Partir de um tema", "Expandir um interesse ou problema inicial em caminhos científicos."],
+        ["guided", "Controlar critérios", "Definir população, medidas, recursos e exigências em detalhes."],
+      ] as const).map(([mode, label, description]) => <button key={mode} type="button" onClick={() => { setCreationMode(mode); setAiMessage(""); }} className={`text-left rounded-2xl border p-5 transition-colors ${creationMode === mode ? "border-teal bg-teal-soft" : "border-line bg-white hover:border-teal/40"}`}><span className="text-xs uppercase tracking-widest text-teal">{mode === "automatic" ? "Recomendado" : "Opção"}</span><strong className="block font-display text-xl mt-2">{label}</strong><span className="block text-sm text-ink-soft mt-2 leading-relaxed">{description}</span></button>)}
+    </section>
+
+    {creationMode === "automatic" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-5 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
+      <div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Geração automática</p><h2 className="font-display text-2xl mt-2">Três informações para começar.</h2><p className="text-sm text-ink-soft mt-2 max-w-2xl">A IA primeiro explora oportunidades diferentes; depois seleciona as três com melhor equilíbrio entre relevância, viabilidade e execução.</p></div><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-2">1 operação · até 10.000 tokens</span></div>
+      <div className="grid md:grid-cols-2 gap-4 mt-6">
+        <Text required label="Sua especialidade ou área" value={context.specialty} change={value => update("specialty", value)} placeholder="Ex.: Clínica médica, pediatria, saúde mental" />
+        <Text required label="Sua realidade de acesso" value={context.setting} change={value => update("setting", value)} placeholder="Ex.: ambulatório com prontuários de adultos hipertensos" />
+        <Select label="Prazo disponível" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} />
+        <Select label="A que você tem acesso?" value={context.access} change={value => update("access", value)} options={[["literature", "Somente literatura"], ["records", "Prontuários ou registros"], ["patients", "Participantes ou pacientes"], ["both", "Registros e participantes"]]} />
+      </div>
+      <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal">Adicionar população ou exigência específica · opcional</summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label="População disponível" value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes do primeiro ano" /><Text label="Exigência do trabalho" value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: precisa ser revisão ou artigo original" /></div></details>
+      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || profileLoading || library.loading || !aiEnabled || !context.specialty.trim() || !context.setting.trim()} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Explorando oportunidades científicas…" : aiEnabled ? "Gerar ideias automaticamente" : "IA ainda não ativada"}</button>{!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}</div>
+    </form>}
+
+    {creationMode === "theme" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-5 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
+      <p className="text-xs uppercase tracking-widest text-teal">A partir de um tema</p><h2 className="font-display text-2xl mt-2">Dê um ponto de partida, não um título pronto.</h2>
+      <label className="block text-base font-medium mt-5">Tema, problema ou pergunta inicial<textarea required minLength={10} maxLength={1500} rows={5} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Tenho observado dificuldade de sono entre residentes após plantões noturnos e quero explorar possibilidades de pesquisa." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" /></label>
+      <div className="grid md:grid-cols-3 gap-4 mt-5"><Text label="População — opcional" value={context.population} change={value => update("population", value)} /><Select label="Tipo de trabalho" value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Comparar possibilidades"], ["original", "Artigo original"], ["review", "Revisão"], ["case", "Relato de caso"], ["tcc", "TCC"]]} /><Select label="Prazo" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} /></div>
+      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || library.loading || !aiEnabled || context.interest.trim().length < 10} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Expandindo possibilidades…" : "Transformar tema em propostas"}</button><span className="text-xs text-ink-soft">A IA deve expandir o problema em direções diferentes, não apenas reescrever seu texto.</span></div>
+    </form>}
+
+    {creationMode === "guided" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-8 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
       <label className="block text-base font-medium">O que você gostaria de investigar?
         <textarea required maxLength={1500} rows={4} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Quero entender se a quantidade de plantões noturnos está relacionada à qualidade do sono dos residentes." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" />
       </label>
@@ -260,7 +306,7 @@ export default function IdeasPage() {
         {!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}
         <span className="text-xs text-ink-soft">Uma geração usa até 10.000 tokens da sua franquia.</span>
       </div>
-    </form>
+    </form>}
 
     {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
     {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm">Você alterou as informações depois da geração. Gere novamente antes de salvar ou levar uma proposta para o projeto.</p>}
@@ -268,7 +314,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label="Propostas geradas">
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2">Três caminhos para comparar</h2><p className="text-sm text-ink-soft mt-2">Escolha pelo equilíbrio entre relevância e execução — não apenas pelo tema mais interessante.</p></div><span className="text-sm text-teal">{selected.length}/3 na comparação</span></div>
-      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?tema=${encodeURIComponent(idea.radar)}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?${new URLSearchParams({ tema: idea.radar, ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
