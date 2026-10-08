@@ -122,7 +122,7 @@ export default function IdeasPage() {
     } finally { if (request === projectRequest.current) setProjectLoading(false); }
   }
 
-  function generationContext() {
+  function generationContext(): Context {
     if (creationMode !== "automatic") return { ...context };
     const area = context.specialty.trim();
     const reality = context.setting.trim();
