@@ -257,6 +257,33 @@ REGRAS DE QUALIDADE
 - A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
+export function automaticIdeasPrompt(context: Context) {
+  return `Você é um pesquisador sênior em epidemiologia clínica, metodologia científica e bioestatística aplicada à saúde. Converta as condições informadas em três propostas de pesquisa completas, específicas e defensáveis perante um orientador ou banca.
+
+${sharedRules()}
+
+CONDIÇÕES REAIS DO USUÁRIO
+${JSON.stringify(context)}
+
+PROCESSO OBRIGATÓRIO
+- Antes de escrever, avalie internamente pelo menos cinco direções plausíveis: frequência, fatores associados, experiência, diagnóstico, prognóstico, organização do cuidado, intervenção ou síntese de evidências. Não apresente esse rascunho na resposta.
+- Descarte caminhos triviais, duplicados, amplos demais, incompatíveis com o acesso ou inviáveis no prazo.
+- Entregue exatamente três propostas substancialmente distintas: MAIS VIÁVEL, MAIS RELEVANTE e MAIS INOVADORA, nesta ordem.
+- Os campos do usuário são fronteiras e pistas, não frases para concatenar. Introduza exposições, comparadores e desfechos cientificamente plausíveis como escolhas a confirmar.
+- Construa para cada proposta a cadeia lógica: pergunta → objetivo → desenho → população → variáveis → desfecho → análise.
+- Cada título deve parecer título de artigo científico em saúde e explicitar fenômeno ou relação, população e, quando relevante, contexto ou desenho.
+- Não use "estudo sobre", "análise de aspectos" ou "impacto de" sem desenho causal. Em estudos transversais, use prevalência, frequência ou associação e não prometa causalidade.
+- A pergunta deve terminar com ponto de interrogação. O objetivo deve começar com um verbo mensurável, como estimar, comparar, descrever, investigar, explorar, determinar ou sintetizar.
+- Em outcome, informe variável, modo de medida e momento; use "instrumento a confirmar" quando necessário.
+- Em methods, informe desenho, cenário, unidade de análise, amostragem ou recrutamento e procedimento principal.
+- Em variables, separe exposição ou intervenção, desfecho, confundidores e covariáveis essenciais.
+- Em analysis, alinhe a análise ao desenho sem inventar resultados, efeitos ou tamanho amostral.
+- Em eligibility, diferencie inclusão e exclusão. Em noveltyCheck, indique como verificar a lacuna sem afirmar que ela já existe.
+- As três propostas não podem ser paráfrases nem mudar apenas o desfecho secundário.
+- refinements, unresolved e plan devem conter de 2 a 4 itens completos.
+- Retorne somente as três propostas completas e a cautela final. Não inclua mapa de oportunidades, enquadramento separado, explicações fora do JSON ou referências inventadas.`;
+}
+
 export function ideaVariantPrompt(context: Context, frame: ResearchFrame, variant: "simple" | "balanced" | "ambitious", previousTitles: string[] = [], correction: string[] = []) {
   const focus = variant === "simple"
     ? "MAIS VIÁVEL: priorize execução simples, amostra acessível, poucas variáveis e conclusão dentro do prazo."

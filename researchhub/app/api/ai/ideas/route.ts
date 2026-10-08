@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { isAIProposal, isAIIdeasOutput, isResearchFrame, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, scientificIdeasJsonSchema, scientificIdeasPrompt, type AIProposal, type AIIdeasOutput, type ResearchDirection, type ResearchFrame, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiIdeasJsonSchema, automaticIdeasPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -58,17 +58,6 @@ async function activeWallet(userId: string) {
   const available = rows.map(wallet => ({ wallet, license: licenseMap.get(wallet.license_id) })).filter(item => item.license && ["active", "trial"].includes(item.license.status) && Date.parse(item.license.starts_at) <= now && Date.parse(item.license.ends_at) >= now && item.wallet.allowance - item.wallet.used - item.wallet.reserved >= scholarAI.reservedTokens).sort((a, b) => (b.wallet.allowance - b.wallet.used - b.wallet.reserved) - (a.wallet.allowance - a.wallet.used - a.wallet.reserved));
   if (!available.length) throw new Error("Franquia indisponível ou insuficiente para esta operação.");
   return available[0] as { wallet: Wallet; license: License };
-}
-
-function isScientificIdeasDraft(value: unknown): value is { frame: ResearchFrame; opportunityMap: ResearchDirection[]; proposals: AIProposal[]; caution: string } {
-  if (!value || typeof value !== "object") return false;
-  const draft = value as Record<string, unknown>;
-  return isResearchFrame(draft.frame)
-    && Array.isArray(draft.opportunityMap)
-    && draft.opportunityMap.length >= 3
-    && Array.isArray(draft.proposals)
-    && draft.proposals.length === 3
-    && typeof draft.caution === "string";
 }
 
 async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number, validate: (value: unknown) => value is T) {
@@ -129,10 +118,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured(scientificIdeasJsonSchema, scientificIdeasPrompt(input.context), 6_500, isScientificIdeasDraft);
+    const generation = await generateStructured(aiIdeasJsonSchema, automaticIdeasPrompt(input.context), 5_400, isAIIdeasOutput);
     const draft = generation.output;
-    const frame = draft.frame;
-    if (!isResearchFrame(frame)) throw new Error("A IA não conseguiu delimitar um problema científico com os dados informados.");
     if (!Array.isArray(draft.proposals) || draft.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
     for (const proposal of draft.proposals) {
       const structureIssues = proposalStructureIssues(proposal);
@@ -147,7 +134,7 @@ export async function POST(request: Request) {
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
     const costUsd = estimatedCost(inputTokens, outputTokens);
     const ideas = mergeAIProposals(input.ideas, output);
-    const outputSnapshot = { ...output, frame, opportunityMap: draft.opportunityMap, ideas, qualityIssues };
+    const outputSnapshot = { ...output, ideas, qualityIssues };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
     if (updateError) throw updateError;
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });
