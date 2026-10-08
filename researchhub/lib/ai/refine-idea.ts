@@ -54,7 +54,7 @@ export function isIdeaRefinement(value: unknown): value is IdeaRefinement {
 type ArticleContext = { pmid: string; title: string; year: number | null; publicationTypes: string[]; abstract: string | null };
 
 export function ideaRefinementPrompt(idea: AIProposal, total: number, articles: ArticleContext[]) {
-  const evidence = articles.map(article => ({ ...article, abstract: article.abstract?.slice(0, 1400) || "Resumo não disponível" }));
+  const evidence = articles.slice(0, 6).map(article => ({ ...article, abstract: article.abstract?.slice(0, 700) || "Resumo não disponível" }));
   return `Você é um pesquisador sênior em epidemiologia clínica, revisão de literatura e redação científica biomédica.
 
 Sua tarefa é refinar uma proposta usando a linguagem e os padrões dos artigos reais recuperados no PubMed. Não copie títulos. Não afirme que existe lacuna apenas porque poucos artigos foram recuperados. Não invente referências, resultados, MeSH ou instrumentos.

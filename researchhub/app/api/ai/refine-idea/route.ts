@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output } from "ai";
+import { generateText } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
 import { ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinement, type IdeaRefinement } from "@/lib/ai/refine-idea";
+import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { fetchArticleDetails, pubmedSearch } from "@/lib/literature/pubmed";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -89,26 +90,32 @@ export async function POST(request: Request) {
     const { error: reserveError } = await admin.rpc("scholar_reserve", { p_request: operationId, p_wallet: wallet.id, p_user: user.id, p_feature: "refinement", p_model: model, p_tokens: scholarAI.reservedTokens, p_project: input.projectId });
     if (reserveError) throw reserveError;
     reserved = true;
-    const articleContext = articles.map(article => ({ pmid: article.pmid || "", title: article.title, year: article.year, publicationTypes: article.publicationTypes, abstract: article.abstract }));
-    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v1-pubmed-grounded", input_snapshot: { idea: input.idea, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
+    const articleContext = articles.slice(0, 6).map(article => ({ pmid: article.pmid || "", title: article.title, year: article.year, publicationTypes: article.publicationTypes, abstract: article.abstract }));
+    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v2-compact-pubmed", input_snapshot: { idea: input.idea, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
     if (artifactError) throw artifactError;
     if (license.mode === "simulation") throw new Error("O refinamento com literatura exige uma licença de IA ao vivo.");
 
     const prompt = ideaRefinementPrompt(input.idea, search.count, articleContext);
     let result: Awaited<ReturnType<typeof generateText>> | null = null;
+    let output: IdeaRefinement | null = null;
     let lastError: unknown;
+    let parseFailures = 0;
+    const maxOutputTokens = outputBudget(prompt, ideaRefinementJsonSchema, 4_300, scholarAI.reservedTokens, 2_800);
     for (const candidate of scholarAIModels) {
       try {
-        result = await generateText({ model: candidate.model, instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos.", maxOutputTokens: 4_500, maxRetries: 0, abortSignal: AbortSignal.timeout(timeoutMs), output: Output.object({ schema: jsonSchema<IdeaRefinement>(ideaRefinementJsonSchema) }), prompt });
+        result = await generateText({ model: candidate.model, instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos.", maxOutputTokens, maxRetries: 0, abortSignal: AbortSignal.timeout(timeoutMs), prompt: promptForJson(prompt, ideaRefinementJsonSchema) });
+        output = parseValidatedJson(result.text, isIdeaRefinement);
         break;
       } catch (error) {
         lastError = error;
+        if (/JSON|objeto.*completo|formato científico/i.test(error instanceof Error ? error.message : String(error))) {
+          parseFailures += 1;
+          if (parseFailures < 2) continue;
+        }
         if (!retryWithFallback(error)) throw error;
       }
     }
-    if (!result) throw lastError || new Error("Nenhum modelo está disponível agora.");
-    const output = result.output as IdeaRefinement;
-    if (!isIdeaRefinement(output)) throw new Error("A resposta não corresponde ao refinamento científico esperado.");
+    if (!result || !output) throw lastError || new Error("Nenhum modelo está disponível agora.");
     const inputTokens = result.usage.inputTokens || 0;
     const outputTokens = result.usage.outputTokens || 0;
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("O refinamento excedeu o limite de consumo da operação.");

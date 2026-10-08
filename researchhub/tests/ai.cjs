@@ -2,7 +2,7 @@ const fs=require('node:fs');const assert=require('node:assert/strict');const ts=
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
 const {validateIdeasRequest,ideasPrompt,isAIIdeasOutput,isResearchFrame,researchFramePrompt,scientificIdeasPrompt,automaticIdeasPrompt,ideaVariantPrompt,proposalQualityIssues,proposalStructureIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
 const {validateAssistRequest,assistantPrompt,isAssistantOutput,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
-const {ideaRefinementPrompt,isIdeaRefinement}=require('../lib/ai/refine-idea.ts');
+const {ideaRefinementJsonSchema,ideaRefinementPrompt,isIdeaRefinement}=require('../lib/ai/refine-idea.ts');
 const {outputBudget,parseValidatedJson,promptForJson}=require('../lib/ai/structured-output.ts');
 const context={theme:'sono',specialty:'Medicina',interest:'qualidade do sono',population:'residentes',stage:'resident',months:'6',access:'patients',exposure:'plantões noturnos',measure:'escore de qualidade do sono',setting:'programa de residência'};
 const base={id:'base',title:'Título',question:'Pergunta?',objective:'Objetivo',studyType:'Transversal',population:'residentes',outcome:'Sono',resources:'Recursos',difficulty:'Dificuldade',feasibility:'Possível',steps:'Passo',radar:'sleep residents',methods:'Método',analysis:'Análise',variables:'Variáveis',justification:'Justificativa',unresolved:['Confirmar'],plan:['Planejar'],refinements:['Recortar'],references:[],contextSummary:'Contexto',startingQuestion:''};
@@ -30,6 +30,10 @@ const complete={proposals:[validProposal,validProposal,validProposal],caution:'V
 assert.equal(isAIIdeasOutput(complete),true);assert.equal(isAIIdeasOutput({...complete,proposals:[proposal]}),false);
 const refinement={refinedProposal:validProposal,alternativeTitles:['Título científico alternativo número um','Título científico alternativo número dois','Título científico alternativo número três'],framework:'PECO',frameworkElements:[{label:'P',value:'Residentes'},{label:'E',value:'Plantões'},{label:'O',value:'Sono'}],meshTerms:['Sleep Quality','Internship and Residency'],literatureSignal:'equilibrado',gapAssessment:'A lacuna precisa ser confirmada.',similarityRisk:'Há proximidade temática, mas o recorte pode ser diferenciado.',refinementRationale:'A formulação foi alinhada ao vocabulário recuperado.',sources:[{pmid:'12345678',title:'Artigo relacionado',contribution:'Orientou a definição da população.'}],caution:'Validar com orientador e busca sistemática.'};
 assert.equal(isIdeaRefinement(refinement),true);assert(ideaRefinementPrompt(validProposal,42,[{pmid:'12345678',title:'Artigo relacionado',year:2025,publicationTypes:['Journal Article'],abstract:'Resumo científico.'}]).includes('Não copie títulos'));
+const manyArticles=Array.from({length:12},(_,index)=>({pmid:String(10000000+index),title:`Artigo ${index}`,year:2025,publicationTypes:['Journal Article'],abstract:`Resumo ${index} ${'texto '.repeat(500)}`}));
+const compactRefinementPrompt=ideaRefinementPrompt(validProposal,120,manyArticles);assert(compactRefinementPrompt.includes('10000005'));assert(!compactRefinementPrompt.includes('10000006'));assert(compactRefinementPrompt.length<14000);
+assert(outputBudget(compactRefinementPrompt,ideaRefinementJsonSchema,4300,10000,2800)>=2800);
+assert.deepEqual(parseValidatedJson(`Resposta:\n\`\`\`json\n${JSON.stringify(refinement)}\n\`\`\``,isIdeaRefinement),refinement);
 assert.deepEqual(parseValidatedJson(JSON.stringify(complete),isAIIdeasOutput),complete);
 assert.deepEqual(parseValidatedJson(`Resposta:\n\`\`\`json\n${JSON.stringify(complete)}\n\`\`\``,isAIIdeasOutput),complete);
 assert.throws(()=>parseValidatedJson('{"proposals":[]}',isAIIdeasOutput),/formato científico/);
