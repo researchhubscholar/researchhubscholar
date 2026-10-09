@@ -19,7 +19,8 @@ for (const route of [generation, refinement]) {
   assert.match(route, /parseValidatedJson/);
   assert.doesNotMatch(route, /Output\.object/);
 }
-assert.match(refinement, /articles\.slice\(0, 6\)/);
+assert.match(refinement, /articles\.slice\(0, 5\)/);
 assert.match(refinement, /outputBudget/);
+assert.match(refinement, /completeIdeaRefinement/);
 
 console.log('PASS: ideas generation, refinement, history save, project transfer and Radar handoff remain connected.');
