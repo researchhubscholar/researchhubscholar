@@ -154,7 +154,10 @@ export default function IdeasPage() {
       } catch {
         throw new Error(response.status === 504 ? "A geração demorou mais que o esperado. Sua franquia não será consumida; tente novamente." : "A geração foi interrompida antes de concluir. Tente novamente em instantes.");
       }
-      if (!response.ok || !data.ideas) throw new Error(data.error || "Não foi possível criar as propostas.");
+      if (!response.ok || !data.ideas) {
+        const tracking = data.operationId ? ` Código da operação: ${data.operationId}.` : "";
+        throw new Error(`${data.error || "Não foi possível criar as propostas."}${tracking}`);
+      }
       setContext(requestContext); setIdeas(data.ideas); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");

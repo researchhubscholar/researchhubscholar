@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateText, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
-import { aiIdeasJsonSchema, automaticIdeasPrompt, isAIProposal, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -118,15 +118,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured(aiIdeasJsonSchema, automaticIdeasPrompt(input.context), 5_400, isAIIdeasOutput);
-    const draft = generation.output;
-    if (!Array.isArray(draft.proposals) || draft.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
-    for (const proposal of draft.proposals) {
+    const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context), 4_300, isAIIdeasDraft);
+    const output: AIIdeasOutput = completeAIIdeasDraft(generation.output, input.ideas);
+    if (!Array.isArray(output.proposals) || output.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
+    for (const proposal of output.proposals) {
       const structureIssues = proposalStructureIssues(proposal);
       if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou um campo científico incompleto: ${structureIssues[0] || "formato inválido"}`);
     }
-    const qualityIssues = draft.proposals.flatMap((proposal, index) => proposalQualityIssues(proposal, input.context, draft.proposals.slice(0, index)));
-    const output: AIIdeasOutput = { proposals: draft.proposals, caution: draft.caution || "As propostas exigem validação metodológica, ética, bibliográfica e do orientador." };
+    const qualityIssues = output.proposals.flatMap((proposal, index) => proposalQualityIssues(proposal, input.context, output.proposals.slice(0, index)));
     const inputTokens = generation.result.usage.inputTokens || 0;
     const outputTokens = generation.result.usage.outputTokens || 0;
     const providerResponseId = generation.result.response.id || null;

@@ -9,6 +9,11 @@ export type AIProposal = Pick<Idea,
 >;
 
 export type AIIdeasOutput = { proposals: AIProposal[]; caution: string };
+export type AIIdeaDraftProposal = Pick<AIProposal,
+  "title" | "question" | "objective" | "studyType" | "population" | "outcome" |
+  "hypothesis" | "eligibility" | "methods" | "analysis" | "variables" | "radar"
+>;
+export type AIIdeasDraft = { proposals: AIIdeaDraftProposal[]; caution: string };
 export type ResearchFrame = {
   questionArchetype: string;
   structuringFramework: string;
@@ -104,6 +109,61 @@ export const aiIdeasJsonSchema: JSONSchema7 = {
     caution: { type: "string", minLength: 10, maxLength: 1000 },
   },
 };
+
+const draftFields: (keyof AIIdeaDraftProposal)[] = [
+  "title", "question", "objective", "studyType", "population", "outcome",
+  "hypothesis", "eligibility", "methods", "analysis", "variables", "radar",
+];
+
+const aiIdeaDraftProposalJsonSchema: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: draftFields,
+  properties: Object.fromEntries(draftFields.map(field => [field, text])),
+};
+
+export const aiIdeasDraftJsonSchema: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["proposals", "caution"],
+  properties: {
+    proposals: { type: "array", minItems: 3, maxItems: 3, items: aiIdeaDraftProposalJsonSchema },
+    caution: { type: "string", minLength: 10, maxLength: 700 },
+  },
+};
+
+export function isAIIdeasDraft(value: unknown): value is AIIdeasDraft {
+  if (!value || typeof value !== "object") return false;
+  const output = value as Record<string, unknown>;
+  return typeof output.caution === "string" && output.caution.trim().length >= 10
+    && Array.isArray(output.proposals) && output.proposals.length === 3
+    && output.proposals.every(proposal => Boolean(proposal) && typeof proposal === "object"
+      && draftFields.every(field => typeof (proposal as Record<string, unknown>)[field] === "string" && String((proposal as Record<string, unknown>)[field]).trim().length >= 8));
+}
+
+export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[]): AIIdeasOutput {
+  if (!current.length) throw new Error("Não há propostas-base para completar a geração.");
+  const proposals = draft.proposals.map((proposal, index): AIProposal => {
+    const base = current[index] || current[0];
+    return {
+      ...proposal,
+      ethics: base.ethics || "Submeter o protocolo à avaliação ética aplicável e proteger confidencialidade e dados pessoais.",
+      limitations: base.limitations || base.difficulty,
+      noveltyCheck: base.noveltyCheck || "Confirmar a lacuna com busca estruturada em mais de uma base e comparar revisões e estudos recentes.",
+      justification: base.justification,
+      feasibility: base.feasibility,
+      resources: base.resources,
+      difficulty: base.difficulty,
+      steps: base.steps,
+      refinements: base.refinements,
+      unresolved: base.unresolved,
+      plan: base.plan,
+    };
+  });
+  const output = { proposals, caution: draft.caution };
+  if (!isAIIdeasOutput(output)) throw new Error("A geração não pôde ser reconstruída como propostas científicas completas.");
+  return output;
+}
 
 export const researchFrameJsonSchema: JSONSchema7 = {
   type: "object",
@@ -281,7 +341,8 @@ PROCESSO OBRIGATÓRIO
 - Em eligibility, diferencie inclusão e exclusão. Em noveltyCheck, indique como verificar a lacuna sem afirmar que ela já existe.
 - As três propostas não podem ser paráfrases nem mudar apenas o desfecho secundário.
 - refinements, unresolved e plan devem conter de 2 a 4 itens completos.
-- Retorne somente as três propostas completas e a cautela final. Não inclua mapa de oportunidades, enquadramento separado, explicações fora do JSON ou referências inventadas.`;
+- Em cada proposta, devolva SOMENTE os campos solicitados no schema: title, question, objective, studyType, population, outcome, hypothesis, eligibility, methods, analysis, variables e radar. O sistema preservará e combinará os demais campos de viabilidade e execução.
+- Retorne somente as três propostas e a cautela final. Não inclua mapa de oportunidades, enquadramento separado, explicações fora do JSON ou referências inventadas.`;
 }
 
 export function ideaVariantPrompt(context: Context, frame: ResearchFrame, variant: "simple" | "balanced" | "ambitious", previousTitles: string[] = [], correction: string[] = []) {
