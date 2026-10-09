@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import IdeaHistory from "@/components/ideas/history";
 import type { IdeaRefinement } from "@/lib/ai/refine-idea";
+import type { OutputLanguage } from "@/lib/ai/language";
 import { historyError, type SavedIdea } from "@/lib/ideas/history";
 import { type Context, type Idea, generate, ideaBrief, initial, referenceSignature } from "@/lib/ideas/generate";
 import { transferKey } from "@/lib/ideas/transfer";
@@ -13,7 +14,8 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type AIMode = "" | "simulation" | "live" | "saved" | "error";
 type CreationMode = "automatic" | "theme" | "guided";
-type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number };
+type AIUsage = { inputTokens: number; outputTokens: number; costUsd: number };
+type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number; usage?: AIUsage };
 
 const blankContext: Context = {
   ...initial,
@@ -31,6 +33,8 @@ export default function IdeasPage() {
   const router = useRouter();
   const previousOwner = useRef<string | null>(null);
   const savingRef = useRef(false);
+  const generationInFlight = useRef(false);
+  const refinementInFlight = useRef(false);
   const projectRequest = useRef(0);
   const series = useRef<Record<string, string>>({});
   const touched = useRef(new Set<string>());
@@ -52,6 +56,8 @@ export default function IdeasPage() {
   const [aiMessage, setAiMessage] = useState("");
   const [aiOperation, setAiOperation] = useState("");
   const [aiMode, setAiMode] = useState<AIMode>("");
+  const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("pt-BR");
+  const [lastUsage, setLastUsage] = useState<AIUsage | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
@@ -73,7 +79,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
       setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
-      setAiMessage(""); setAiOperation(""); setAiMode(""); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
+      setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
     previousOwner.current = library.userId;
@@ -137,18 +143,19 @@ export default function IdeasPage() {
   }
 
   async function createIdeasWithAI() {
-    if (aiLoading) return;
+    if (aiLoading || generationInFlight.current || refinementInFlight.current) return;
     if (!library.userId) { setAiMessage("Entre na sua conta para gerar propostas com IA e registrar o consumo."); return; }
     if (!aiEnabled) { setAiMessage("A assistência de IA ainda não está ativada neste ambiente."); return; }
     if (creationMode === "automatic" && (!context.specialty.trim() || !context.setting.trim())) { setAiMessage("Informe sua área e a realidade de acesso para a geração automática."); return; }
     if (creationMode === "theme" && context.interest.trim().length < 10) { setAiMessage("Descreva um tema, problema ou pergunta com um pouco mais de detalhe."); return; }
     const requestContext = generationContext();
-    setAiLoading(true); setAiMessage(""); setAiOperation(""); setMessage("");
+    generationInFlight.current = true;
+    setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setMessage("");
     try {
       const startingIdeas = generate(requestContext, evidence);
-      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null }) });
+      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }) });
       const raw = await response.text();
-      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live" };
+      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage };
       try {
         data = JSON.parse(raw) as typeof data;
       } catch {
@@ -161,12 +168,13 @@ export default function IdeasPage() {
       setContext(requestContext); setIdeas(data.ideas); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
+      setLastUsage(data.usage || null);
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
       setAiMode("error");
       setAiMessage(error instanceof Error ? error.message : "Não foi possível criar as propostas.");
-    } finally { setAiLoading(false); }
+    } finally { generationInFlight.current = false; setAiLoading(false); }
   }
 
   async function saveVersion(idea: Idea) {
@@ -187,23 +195,24 @@ export default function IdeasPage() {
   }
 
   async function refineWithLiterature(idea: Idea) {
-    if (refiningId) return;
+    if (refiningId || refinementInFlight.current || generationInFlight.current) return;
+    refinementInFlight.current = true;
     setRefiningId(idea.id);
     setRefinementErrors(current => ({ ...current, [idea.id]: "" }));
     try {
-      const response = await fetch("/api/ai/refine-idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, projectId: projectId || null }) });
+      const response = await fetch("/api/ai/refine-idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, projectId: projectId || null, language: outputLanguage }) });
       const raw = await response.text();
-      let data: { error?: string; output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number };
+      let data: { error?: string; output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage };
       try { data = JSON.parse(raw) as typeof data; }
       catch { throw new Error(response.status === 504 ? "O refinamento demorou mais que o esperado. Tente novamente." : "O refinamento foi interrompido antes de concluir."); }
       if (!response.ok || !data.output) {
         const tracking = data.operationId ? ` Código da operação: ${data.operationId}.` : "";
         throw new Error(`${data.error || "Não foi possível refinar esta proposta."}${tracking}`);
       }
-      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0 } }));
+      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage } }));
     } catch (error) {
       setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? error.message : "Não foi possível refinar esta proposta." }));
-    } finally { setRefiningId(""); }
+    } finally { refinementInFlight.current = false; setRefiningId(""); }
   }
 
   function applyRefinement(id: string) {
@@ -256,6 +265,14 @@ export default function IdeasPage() {
         ["guided", "Controlar critérios", "Definir população, medidas, recursos e exigências em detalhes."],
       ] as const).map(([mode, label, description]) => <button key={mode} type="button" onClick={() => { setCreationMode(mode); setAiMessage(""); }} className={`text-left rounded-2xl border p-5 transition-colors ${creationMode === mode ? "border-teal bg-teal-soft" : "border-line bg-white hover:border-teal/40"}`}><span className="text-xs uppercase tracking-widest text-teal">{mode === "automatic" ? "Recomendado" : "Opção"}</span><strong className="block font-display text-xl mt-2">{label}</strong><span className="block text-sm text-ink-soft mt-2 leading-relaxed">{description}</span></button>)}
     </section>
+
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4">
+      <div><p className="text-sm font-medium">Idioma das propostas</p><p className="text-xs text-ink-soft mt-1">A escolha também será mantida ao refinar com literatura.</p></div>
+      <select aria-label="Idioma das propostas" value={outputLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
+        <option value="pt-BR">Português (Brasil)</option>
+        <option value="en">English</option>
+      </select>
+    </div>
 
     {creationMode === "automatic" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-5 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
       <div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Geração automática</p><h2 className="font-display text-2xl mt-2">Três informações para começar.</h2><p className="text-sm text-ink-soft mt-2 max-w-2xl">A IA primeiro explora oportunidades diferentes; depois seleciona as três com melhor equilíbrio entre relevância, viabilidade e execução.</p></div><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-2">1 operação · até 10.000 tokens</span></div>
@@ -314,7 +331,7 @@ export default function IdeasPage() {
       </div>
     </form>}
 
-    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
+    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{lastUsage && <UsageSummary usage={lastUsage} />}{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
     {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm">Você alterou as informações depois da geração. Gere novamente antes de salvar ou levar uma proposta para o projeto.</p>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
 
@@ -368,8 +385,14 @@ function RefinementPanel({ result, apply }: { result: RefinementResult; apply: (
     <div className="mt-5"><p className="text-sm font-medium">Outras formulações de título</p><ul className="mt-2 space-y-2 text-sm text-ink-soft list-disc pl-5">{output.alternativeTitles.map(title => <li key={title}>{title}</li>)}</ul></div>
     <details className="mt-5"><summary className="cursor-pointer text-sm font-medium text-teal">Ver artigos que orientaram o refinamento</summary><ul className="mt-3 space-y-3">{output.sources.map(source => <li key={source.pmid} className="text-sm"><a href={`https://pubmed.ncbi.nlm.nih.gov/${source.pmid}/`} target="_blank" rel="noreferrer" className="font-medium text-teal underline">{source.title}</a><span className="block text-xs text-ink-soft mt-1">PMID {source.pmid} · {source.contribution}</span></li>)}</ul></details>
     <p className="mt-4 text-xs text-ink-soft">{output.caution}</p>
+    {result.usage && <UsageSummary usage={result.usage} />}
     <div className="flex flex-wrap gap-3 mt-5"><button type="button" onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm">Aplicar refinamento à proposta</button>{result.operationId && <Link href={`/geracoes/${result.operationId}`} className="text-sm text-teal underline self-center">Ver consumo e registro</Link>}</div>
   </section>;
+}
+
+function UsageSummary({ usage }: { usage: AIUsage }) {
+  const total = usage.inputTokens + usage.outputTokens;
+  return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString("pt-BR")} tokens</strong> ({usage.inputTokens.toLocaleString("pt-BR")} de entrada + {usage.outputTokens.toLocaleString("pt-BR")} de saída). A reserva máxima foi ajustada automaticamente ao uso real.</p>;
 }
 
 function Comparison({ ideas }: { ideas: Idea[] }) {

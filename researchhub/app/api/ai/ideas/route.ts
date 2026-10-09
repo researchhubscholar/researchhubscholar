@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     const { error: reserveError } = await admin.rpc("scholar_reserve", { p_request: operationId, p_wallet: wallet.id, p_user: user.id, p_feature: "ideas", p_model: model, p_tokens: scholarAI.reservedTokens, p_project: input.projectId });
     if (reserveError) throw reserveError;
     reserved = true;
-    const snapshot = { context: input.context, ideas: input.ideas, projectId: input.projectId };
+    const snapshot = { context: input.context, ideas: input.ideas, projectId: input.projectId, language: input.language };
     const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: scholarAI.promptVersion, input_snapshot: snapshot });
     if (artifactError) throw artifactError;
 
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context), 4_300, isAIIdeasDraft);
+    const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context, input.language), 4_300, isAIIdeasDraft);
     const output: AIIdeasOutput = completeAIIdeasDraft(generation.output, input.ideas);
     if (!Array.isArray(output.proposals) || output.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
     for (const proposal of output.proposals) {

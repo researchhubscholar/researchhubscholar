@@ -1,5 +1,6 @@
 import type { JSONSchema7 } from "ai";
 import { isAIProposal, type AIProposal } from "./ideas";
+import { languageInstruction, type OutputLanguage } from "./language";
 
 export type RefinementSource = { pmid: string; title: string; contribution: string };
 export type IdeaRefinement = {
@@ -105,9 +106,11 @@ export function isIdeaRefinement(value: unknown): value is IdeaRefinement {
 
 type ArticleContext = { pmid: string; title: string; year: number | null; publicationTypes: string[]; abstract: string | null };
 
-export function ideaRefinementPrompt(idea: AIProposal, total: number, articles: ArticleContext[]) {
+export function ideaRefinementPrompt(idea: AIProposal, total: number, articles: ArticleContext[], language: OutputLanguage = "pt-BR") {
   const evidence = articles.slice(0, 6).map(article => ({ ...article, abstract: article.abstract?.slice(0, 700) || "Resumo não disponível" }));
   return `Você é um pesquisador sênior em epidemiologia clínica, revisão de literatura e redação científica biomédica.
+
+${languageInstruction(language)}
 
 Sua tarefa é refinar uma proposta usando a linguagem e os padrões dos artigos reais recuperados no PubMed. Não copie títulos. Não afirme que existe lacuna apenas porque poucos artigos foram recuperados. Não invente referências, resultados, MeSH ou instrumentos.
 

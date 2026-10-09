@@ -1,5 +1,6 @@
 import type { Context, Idea } from "@/lib/ideas/generate";
 import type { JSONSchema7 } from "ai";
+import { languageInstruction, outputLanguage, type OutputLanguage } from "./language";
 
 export type AIProposal = Pick<Idea,
   "title" | "question" | "objective" | "studyType" | "population" | "outcome" |
@@ -228,7 +229,7 @@ export function isResearchFrame(value: unknown): value is ResearchFrame {
     && ["mainBiasThreats", "feasibleDesigns", "constraints", "avoidAssumptions"].every(key => Array.isArray(frame[key]) && (frame[key] as unknown[]).length >= 1 && (frame[key] as unknown[]).every(entry => typeof entry === "string" && entry.trim().length >= 3));
 }
 
-export function validateIdeasRequest(value: unknown): { context: Context; ideas: Idea[]; projectId: string | null } {
+export function validateIdeasRequest(value: unknown): { context: Context; ideas: Idea[]; projectId: string | null; language: OutputLanguage } {
   if (!value || typeof value !== "object") throw new Error("Dados da ideia não foram enviados.");
   const body = value as Record<string, unknown>;
   if (!body.context || typeof body.context !== "object") throw new Error("Preencha o diagnóstico antes de usar a assistência.");
@@ -240,12 +241,13 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
   const ideas = Array.isArray(body.ideas) ? body.ideas.slice(0, 3) : [];
   if (ideas.length < 1) throw new Error("Não foi possível preparar o ponto de partida da geração.");
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
-  return { context: context as Context, ideas: ideas as Idea[], projectId };
+  return { context: context as Context, ideas: ideas as Idea[], projectId, language: outputLanguage(body.language) };
 }
 
-function sharedRules() {
+function sharedRules(language: OutputLanguage = "pt-BR") {
   return `Você é um assistente de planejamento de pesquisa em saúde.
-Responda em português do Brasil e produza uma proposta com linguagem de protocolo científico, específica, mensurável e executável.
+${languageInstruction(language)}
+Produza uma proposta com linguagem de protocolo científico, específica, mensurável e executável.
 Os campos do formulário são restrições e pistas, não trechos para concatenar. Faça enquadramento metodológico antes de redigir.
 Preserve o problema e as condições reais informadas, mas transforme-os em uma relação investigável; não invente resultados, evidências, instrumentos validados, autorizações ou referências.
 Delimite população, contexto, exposição ou intervenção quando aplicável e um desfecho mensurável.
@@ -317,10 +319,10 @@ REGRAS DE QUALIDADE
 - A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
-export function automaticIdeasPrompt(context: Context) {
+export function automaticIdeasPrompt(context: Context, language: OutputLanguage = "pt-BR") {
   return `Você é um pesquisador sênior em epidemiologia clínica, metodologia científica e bioestatística aplicada à saúde. Converta as condições informadas em três propostas de pesquisa completas, específicas e defensáveis perante um orientador ou banca.
 
-${sharedRules()}
+${sharedRules(language)}
 
 CONDIÇÕES REAIS DO USUÁRIO
 ${JSON.stringify(context)}

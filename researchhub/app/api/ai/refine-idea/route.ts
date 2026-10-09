@@ -3,6 +3,7 @@ import { generateText, jsonSchema, Output } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
 import { completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
+import { outputLanguage } from "@/lib/ai/language";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { fetchArticleDetails, pubmedSearch } from "@/lib/literature/pubmed";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -62,7 +63,7 @@ function validate(value: unknown) {
   const body = value as Record<string, unknown>;
   if (!isAIProposal(body.idea)) throw new Error("A proposta está incompleta e não pode ser refinada.");
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
-  return { idea: body.idea as AIProposal, projectId };
+  return { idea: body.idea as AIProposal, projectId, language: outputLanguage(body.language) };
 }
 
 export async function POST(request: Request) {
@@ -91,11 +92,11 @@ export async function POST(request: Request) {
     if (reserveError) throw reserveError;
     reserved = true;
     const articleContext = articles.slice(0, 5).map(article => ({ pmid: article.pmid || "", title: article.title, year: article.year, publicationTypes: article.publicationTypes, abstract: article.abstract }));
-    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v3-partial-merge", input_snapshot: { idea: input.idea, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
+    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v4-language-lock", input_snapshot: { idea: input.idea, language: input.language, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
     if (artifactError) throw artifactError;
     if (license.mode === "simulation") throw new Error("O refinamento com literatura exige uma licença de IA ao vivo.");
 
-    const prompt = ideaRefinementPrompt(input.idea, search.count, articleContext);
+    const prompt = ideaRefinementPrompt(input.idea, search.count, articleContext, input.language);
     let result: Awaited<ReturnType<typeof generateText>> | null = null;
     let output: IdeaRefinement | null = null;
     let lastError: unknown;
