@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateText } from "ai";
+import { generateText, jsonSchema, Output } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
-import { completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement } from "@/lib/ai/refine-idea";
-import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
+import { completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
+import { outputBudget } from "@/lib/ai/structured-output";
 import { fetchArticleDetails, pubmedSearch } from "@/lib/literature/pubmed";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -99,20 +99,27 @@ export async function POST(request: Request) {
     let result: Awaited<ReturnType<typeof generateText>> | null = null;
     let output: IdeaRefinement | null = null;
     let lastError: unknown;
-    let parseFailures = 0;
     const maxOutputTokens = outputBudget(prompt, ideaRefinementJsonSchema, 3_600, scholarAI.reservedTokens, 2_200);
     for (const candidate of scholarAIModels) {
       try {
-        result = await generateText({ model: candidate.model, instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos.", maxOutputTokens, maxRetries: 0, abortSignal: AbortSignal.timeout(timeoutMs), prompt: promptForJson(prompt, ideaRefinementJsonSchema) });
-        const draft = parseValidatedJson(result.text, isIdeaRefinementDraft);
+        const candidateResult = await generateText({
+          model: candidate.model,
+          instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos. Responda exclusivamente no formato estruturado solicitado.",
+          maxOutputTokens,
+          maxRetries: 0,
+          abortSignal: AbortSignal.timeout(timeoutMs),
+          output: Output.object({ schema: jsonSchema<IdeaRefinementDraft>(ideaRefinementJsonSchema) }),
+          prompt,
+        });
+        const draft = candidateResult.output;
+        if (!isIdeaRefinementDraft(draft)) throw new Error("A resposta estruturada não corresponde ao refinamento científico esperado.");
+        result = candidateResult;
         output = completeIdeaRefinement(input.idea, draft);
         break;
       } catch (error) {
         lastError = error;
-        if (/JSON|objeto.*completo|formato científico/i.test(error instanceof Error ? error.message : String(error))) {
-          parseFailures += 1;
-          if (parseFailures < 2) continue;
-        }
+        const raw = error instanceof Error ? error.message : String(error);
+        if (/No object generated|could not parse|JSON|objeto.*completo|formato científico|resposta estruturada/i.test(raw)) continue;
         if (!retryWithFallback(error)) throw error;
       }
     }

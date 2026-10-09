@@ -15,11 +15,10 @@ assert.match(page, /router\.push\(`\/meu-trabalho\?origem=ideias&proposta=/);
 assert.match(page, /router\.push\(`\/descobrir\?\$\{new URLSearchParams/);
 assert.match(project, /readIdeaTransfer/);
 
-for (const route of [generation, refinement]) {
-  assert.match(route, /promptForJson/);
-  assert.match(route, /parseValidatedJson/);
-  assert.doesNotMatch(route, /Output\.object/);
-}
+assert.match(generation, /promptForJson/);
+assert.match(generation, /parseValidatedJson/);
+assert.match(refinement, /Output\.object/);
+assert.match(refinement, /jsonSchema<IdeaRefinementDraft>/);
 assert.match(refinement, /articles\.slice\(0, 5\)/);
 assert.match(refinement, /outputBudget/);
 assert.match(refinement, /completeIdeaRefinement/);
