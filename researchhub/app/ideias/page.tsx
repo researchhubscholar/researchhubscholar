@@ -221,8 +221,8 @@ export default function IdeasPage() {
     series.current = { [row.proposal.id]: row.series_id }; setAiMode("saved"); setMessage("Versão retomada do histórico.");
   }
 
-  function transfer(idea: Idea) {
-    if (stale || library.loading) return;
+  function transfer(idea: Idea, savedVersion = false) {
+    if ((!savedVersion && stale) || library.loading) return;
     try {
       const token = crypto.randomUUID();
       sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id) }));
@@ -325,7 +325,7 @@ export default function IdeasPage() {
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
 
-    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium">Abrir histórico de propostas salvas</summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} /></details>
+    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium">Abrir histórico de propostas salvas</summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} createProject={row => transfer(row.proposal, true)} /></details>
   </div>;
 }
 
