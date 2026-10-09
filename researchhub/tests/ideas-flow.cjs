@@ -15,6 +15,9 @@ assert.match(page, /language: outputLanguage/);
 assert.match(page, /Consumo real:/);
 assert.match(page, /generationInFlight\.current/);
 assert.match(page, /refinementInFlight\.current/);
+assert.match(page, /Verificação estrutural concluída/);
+assert.match(page, /scholar_generation_reviews/);
+assert.match(page, /Esta resposta ajudou\?/);
 assert.match(page, /from\("idea_versions"\)\.insert/);
 assert.match(page, /sessionStorage\.setItem\(transferKey/);
 assert.match(page, /router\.push\(`\/meu-trabalho\?origem=ideias&proposta=/);
@@ -34,6 +37,7 @@ assert.match(refinement, /completeIdeaRefinement/);
 assert.match(generation, /completeAIIdeasDraft/);
 assert.match(generation, /aiIdeasDraftJsonSchema/);
 assert.match(generation, /automaticIdeasPrompt\(input\.context, input\.language\)/);
+assert.match(generation, /qualityChecks/);
 assert.match(refinement, /ideaRefinementPrompt\(input\.idea, search\.count, articleContext, input\.language\)/);
 
 console.log('PASS: ideas generation, refinement, history save, project transfer and Radar handoff remain connected.');

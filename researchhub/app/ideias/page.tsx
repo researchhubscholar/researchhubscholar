@@ -15,6 +15,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 type AIMode = "" | "simulation" | "live" | "saved" | "error";
 type CreationMode = "automatic" | "theme" | "guided";
 type AIUsage = { inputTokens: number; outputTokens: number; costUsd: number };
+type QualityCheck = { proposalIndex: number; issues: string[] };
 type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number; usage?: AIUsage };
 
 const blankContext: Context = {
@@ -58,6 +59,7 @@ export default function IdeasPage() {
   const [aiMode, setAiMode] = useState<AIMode>("");
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("pt-BR");
   const [lastUsage, setLastUsage] = useState<AIUsage | null>(null);
+  const [qualityChecks, setQualityChecks] = useState<QualityCheck[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
@@ -79,7 +81,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
       setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
-      setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
+      setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setQualityChecks([]); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
     previousOwner.current = library.userId;
@@ -150,12 +152,12 @@ export default function IdeasPage() {
     if (creationMode === "theme" && context.interest.trim().length < 10) { setAiMessage("Descreva um tema, problema ou pergunta com um pouco mais de detalhe."); return; }
     const requestContext = generationContext();
     generationInFlight.current = true;
-    setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setMessage("");
+    setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setQualityChecks([]); setMessage("");
     try {
       const startingIdeas = generate(requestContext, evidence);
       const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }) });
       const raw = await response.text();
-      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage };
+      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] };
       try {
         data = JSON.parse(raw) as typeof data;
       } catch {
@@ -169,6 +171,7 @@ export default function IdeasPage() {
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setLastUsage(data.usage || null);
+      setQualityChecks(data.qualityChecks || []);
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
@@ -331,13 +334,13 @@ export default function IdeasPage() {
       </div>
     </form>}
 
-    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{lastUsage && <UsageSummary usage={lastUsage} />}{aiOperation && <p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p>}</div>}
+    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{lastUsage && <UsageSummary usage={lastUsage} />}{aiOperation && <><p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p><GenerationFeedback operationId={aiOperation} userId={library.userId} /></>}</div>}
     {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm">Você alterou as informações depois da geração. Gere novamente antes de salvar ou levar uma proposta para o projeto.</p>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label="Propostas geradas">
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2">Três caminhos para comparar</h2><p className="text-sm text-ink-soft mt-2">Escolha pelo equilíbrio entre relevância e execução — não apenas pelo tema mais interessante.</p></div><span className="text-sm text-teal">{selected.length}/3 na comparação</span></div>
-      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?${new URLSearchParams({ tema: idea.radar, ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?${new URLSearchParams({ tema: idea.radar, ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -346,7 +349,7 @@ export default function IdeasPage() {
   </div>;
 }
 
-function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
   const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
   return <article className={`bg-white border rounded-2xl p-5 md:p-7 ${selected ? "border-teal shadow-sm" : "border-line"}`}>
     <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">{pathLabels[index] || `CAMINHO ${index + 1}`}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
@@ -354,6 +357,7 @@ function IdeaCard({ idea, index, selected, editing, stale, saving, loggedIn, ref
     <div className="grid md:grid-cols-2 gap-5 mt-6"><Info label="Pergunta de pesquisa" value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
     <div className="grid md:grid-cols-3 gap-3 mt-5"><Badge label="Relevância" value={idea.evaluation?.relevance.label || "A confirmar"} /><Badge label="Viabilidade" value={idea.evaluation?.feasibility.label || "A confirmar"} /><Badge label="Execução" value={idea.evaluation?.execution.label || "A confirmar"} /></div>
     <p className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><strong className="text-teal">Por que este caminho pode funcionar</strong><span className="block text-ink-soft mt-1 leading-relaxed">{idea.feasibility}</span></p>
+    <details className={`mt-4 rounded-card border p-4 ${qualityIssues.length ? "border-amber-300 bg-amber-soft" : "border-teal/20 bg-teal-soft/40"}`}><summary className="cursor-pointer text-sm font-medium">{qualityIssues.length ? `${qualityIssues.length} ponto${qualityIssues.length === 1 ? "" : "s"} para revisar` : "Verificação estrutural concluída"}</summary><p className="text-xs text-ink-soft mt-2">Esta checagem verifica coerência formal e não substitui validação bibliográfica, metodológica, ética ou do orientador.</p>{qualityIssues.length > 0 && <ul className="list-disc pl-5 mt-3 space-y-2 text-sm text-ink-soft">{qualityIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</details>
 
     <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-teal font-medium">Ver proposta científica completa</summary><dl className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5 text-sm">
       <Info label="Hipótese ou pressuposto" value={idea.hypothesis || "Definir com o orientador conforme o desenho escolhido."} />
@@ -387,12 +391,34 @@ function RefinementPanel({ result, apply }: { result: RefinementResult; apply: (
     <p className="mt-4 text-xs text-ink-soft">{output.caution}</p>
     {result.usage && <UsageSummary usage={result.usage} />}
     <div className="flex flex-wrap gap-3 mt-5"><button type="button" onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm">Aplicar refinamento à proposta</button>{result.operationId && <Link href={`/geracoes/${result.operationId}`} className="text-sm text-teal underline self-center">Ver consumo e registro</Link>}</div>
+    {result.operationId && <GenerationFeedback operationId={result.operationId} userId={null} compact />}
   </section>;
 }
 
 function UsageSummary({ usage }: { usage: AIUsage }) {
   const total = usage.inputTokens + usage.outputTokens;
   return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString("pt-BR")} tokens</strong> ({usage.inputTokens.toLocaleString("pt-BR")} de entrada + {usage.outputTokens.toLocaleString("pt-BR")} de saída). A reserva máxima foi ajustada automaticamente ao uso real.</p>;
+}
+
+function GenerationFeedback({ operationId, userId, compact = false }: { operationId: string; userId: string | null; compact?: boolean }) {
+  const [rating, setRating] = useState<"useful" | "partial" | "not_useful" | "">("");
+  const [feedback, setFeedback] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  async function save(nextRating = rating) {
+    if (!nextRating) return;
+    setSaving(true); setMessage("");
+    try {
+      const client = supabaseBrowser();
+      const owner = userId || (await client.auth.getUser()).data.user?.id || null;
+      if (!owner) throw new Error("Entre na conta para avaliar.");
+      const { error } = await client.from("scholar_generation_reviews").upsert({ usage_id: operationId, user_id: owner, rating: nextRating, feedback: feedback.trim() || null }, { onConflict: "usage_id" });
+      if (error) throw error;
+      setRating(nextRating); setMessage("Avaliação registrada.");
+    } catch { setMessage("Não foi possível registrar a avaliação agora."); }
+    finally { setSaving(false); }
+  }
+  return <div className={`${compact ? "mt-4 border-t border-teal/20 pt-4" : "mt-3"}`}><p className="text-xs font-medium">Esta resposta ajudou?</p><div className="flex flex-wrap gap-2 mt-2">{([ ["useful", "Útil"], ["partial", "Parcial"], ["not_useful", "Não útil"] ] as const).map(([value, label]) => <button key={value} type="button" disabled={saving} onClick={() => void save(value)} className={`rounded-full border px-3 py-1.5 text-xs disabled:opacity-50 ${rating === value ? "border-teal bg-teal text-white" : "border-teal/30 bg-white text-teal"}`}>{label}</button>)}</div>{(rating === "partial" || rating === "not_useful") && <div className="mt-3"><textarea value={feedback} onChange={event => setFeedback(event.target.value)} maxLength={2000} rows={2} placeholder="O que faltou ou deveria mudar?" className="w-full rounded-card border border-line bg-white p-3 text-xs"/><button type="button" disabled={saving} onClick={() => void save()} className="mt-2 text-xs text-teal underline disabled:opacity-50">Salvar comentário</button></div>}{message && <p role="status" className="text-xs text-ink-soft mt-2">{message}</p>}</div>;
 }
 
 function Comparison({ ideas }: { ideas: Idea[] }) {

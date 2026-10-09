@@ -125,7 +125,8 @@ export async function POST(request: Request) {
       const structureIssues = proposalStructureIssues(proposal);
       if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou um campo científico incompleto: ${structureIssues[0] || "formato inválido"}`);
     }
-    const qualityIssues = output.proposals.flatMap((proposal, index) => proposalQualityIssues(proposal, input.context, output.proposals.slice(0, index)));
+    const qualityChecks = output.proposals.map((proposal, index) => ({ proposalIndex: index, issues: proposalQualityIssues(proposal, input.context, output.proposals.slice(0, index)) }));
+    const qualityIssues = qualityChecks.flatMap(check => check.issues);
     const inputTokens = generation.result.usage.inputTokens || 0;
     const outputTokens = generation.result.usage.outputTokens || 0;
     const providerResponseId = generation.result.response.id || null;
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });
     if (settleError) throw settleError;
     reserved = false;
-    return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, usage: { inputTokens, outputTokens, costUsd } });
+    return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, qualityChecks, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
     const timedOut = generationTimedOut(error);
     console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: error instanceof Error ? error.message : "unknown" });
