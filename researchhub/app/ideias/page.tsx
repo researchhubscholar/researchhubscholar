@@ -193,7 +193,10 @@ export default function IdeasPage() {
       let data: { error?: string; output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number };
       try { data = JSON.parse(raw) as typeof data; }
       catch { throw new Error(response.status === 504 ? "O refinamento demorou mais que o esperado. Tente novamente." : "O refinamento foi interrompido antes de concluir."); }
-      if (!response.ok || !data.output) throw new Error(data.error || "Não foi possível refinar esta proposta.");
+      if (!response.ok || !data.output) {
+        const tracking = data.operationId ? ` Código da operação: ${data.operationId}.` : "";
+        throw new Error(`${data.error || "Não foi possível refinar esta proposta."}${tracking}`);
+      }
       setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0 } }));
     } catch (error) {
       setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? error.message : "Não foi possível refinar esta proposta." }));

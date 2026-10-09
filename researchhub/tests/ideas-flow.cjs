@@ -8,6 +8,7 @@ const project = fs.readFileSync('app/meu-trabalho/page.tsx', 'utf8');
 
 assert.match(page, /fetch\("\/api\/ai\/ideas"/);
 assert.match(page, /fetch\("\/api\/ai\/refine-idea"/);
+assert.match(page, /Código da operação/);
 assert.match(page, /from\("idea_versions"\)\.insert/);
 assert.match(page, /sessionStorage\.setItem\(transferKey/);
 assert.match(page, /router\.push\(`\/meu-trabalho\?origem=ideias&proposta=/);
