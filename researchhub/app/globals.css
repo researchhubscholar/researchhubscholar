@@ -2671,3 +2671,23 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Account uses a real full-width hero, not the legacy floating decoration. */
+.scholar-workspace.account-page { padding-top: 0; }
+.scholar-workspace.account-page::before { content: none; }
+.account-hero {
+  width: 100%;
+  padding: clamp(1.25rem, 2.5vw, 2rem);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--scholar-line);
+  border-radius: var(--workspace-card-radius);
+  background: linear-gradient(120deg, #f0f7f5, #fff);
+}
+.account-hero h1 {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.account-hero > p:last-child { max-width: 48rem; line-height: 1.65; }
+.scholar-workspace.account-page > section { border-radius: var(--workspace-card-radius); }

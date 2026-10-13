@@ -102,9 +102,11 @@ export default function AccountPage() {
   if(loading)return <p role="status">Carregando sua conta...</p>;
 
   return <div className="scholar-workspace secondary-page account-page max-w-4xl mx-auto">
+    <header className="account-hero">
     <p className="text-xs uppercase tracking-widest text-teal">Conta e privacidade</p>
     <h1 className="font-display text-4xl mt-3">Seus dados e seu atendimento.</h1>
     <p className="text-ink-soft mt-4 max-w-2xl">Atualize informações do perfil, exporte seus dados e acompanhe solicitações sem misturar esse histórico com seus projetos científicos.</p>
+    </header>
     {!moduleReady&&<p role="alert" className="mt-6 bg-amber-soft border border-line rounded-card p-4 text-sm">Execute <code>scholar_account_support.sql</code> no Supabase para ativar suporte, exportação e exclusão agendada.</p>}
     {message&&<p role="status" className="mt-5 bg-teal-soft rounded-card p-4 text-sm">{message}</p>}
 
