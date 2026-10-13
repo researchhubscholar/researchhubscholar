@@ -10,7 +10,7 @@ export default async function GenerationPage({ params }: { params: Promise<{ id:
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const client = await supabaseServer();
   const { data: { user } } = await client.auth.getUser();
-  if (!user) redirect(`/entrar?next=${encodeURIComponent(`/geracoes/${id}`)}`);
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/geracoes/${id}`)}`);
   const [{ data: usage }, { data: artifact }] = await Promise.all([
     client.from("scholar_usage").select("id,feature,model,mode,status,reserved_tokens,input_tokens,output_tokens,cost_usd,created_at,finished_at").eq("id", id).eq("user_id", user.id).maybeSingle(),
     client.from("scholar_generation_artifacts").select("usage_id,prompt_version,output_snapshot,error_code,created_at,updated_at").eq("usage_id", id).eq("user_id", user.id).maybeSingle(),

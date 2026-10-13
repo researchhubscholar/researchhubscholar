@@ -86,6 +86,8 @@ try {
     "/biblioteca",
     "/meu-trabalho",
     "/documentos",
+    "/manuscrito",
+    "/geracoes/11111111-1111-4111-8111-111111111111",
     "/licenca",
     "/orientacao",
     "/residencia",

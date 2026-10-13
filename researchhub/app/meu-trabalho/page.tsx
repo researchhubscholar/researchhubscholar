@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { readIdeaTransfer, type TransferOrigin } from "@/lib/ideas/transfer";
 import { LibraryStore } from "@/lib/literature/library-store";
@@ -34,6 +34,7 @@ function fromRecord(record: Record<string, unknown>): Draft {
 }
 
 export default function MeuTrabalhoPage() {
+  const savingLock = useRef(false);
   const [draft, setDraft] = useState<Draft>({ ...empty });
   const [incomingReferences, setIncomingReferences] = useState<string[]>([]);
   const [referenceIds, setReferenceIds] = useState<string[]>([]);
@@ -135,8 +136,9 @@ export default function MeuTrabalhoPage() {
     window.history.replaceState(null, "", window.location.pathname);
   }
   async function saveDraft() {
-    if (saveState === "loading") return;
+    if (saveState === "loading" || savingLock.current) return;
     if (!draft.theme.trim()) { setMessage("Informe um tema para identificar seu projeto."); setReview(true); return; }
+    savingLock.current = true;
     setSaveState("loading"); setMessage("");
     let localSaved = false;
     try { window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: projectId })); localSaved = true; } catch { /* O salvamento na conta continua disponível. */ }
@@ -196,7 +198,7 @@ export default function MeuTrabalhoPage() {
     } catch {
       setSaveState(localSaved ? "local" : "error"); setDirty(!localSaved);
       setMessage(localSaved ? "A cópia local foi preservada, mas não foi possível sincronizar. Tente salvar novamente." : "Não foi possível salvar. Mantenha a página aberta e tente novamente.");
-    }
+    } finally { savingLock.current = false; }
   }
   function exportProtocol() {
     const sections = groups.map(g => ({ title: g.title, fields: [...g.keys.map(k => ({ label: labels[k], value: draft[k] })), ...(g.id === "objetivos" ? [{ label: labels.hypothesis, value: draft.hypothesis }] : [])] }));

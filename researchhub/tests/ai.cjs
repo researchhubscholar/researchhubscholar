@@ -59,3 +59,10 @@ assert.throws(()=>validateAssistRequest({feature:'writing',context:{...writingCo
 assert.throws(()=>validateAssistRequest({feature:'writing',context:{...writingContext,sources:Array(6).fill({})}}),/cinco/);
 assert(assistantPrompt('writing',writingContext).includes('Responda em inglês.'));
 assert(assistantPrompt('writing',writingContext).includes('procedimento já realizado'));
+
+const {readManuscriptRecovery}=require('../lib/projects/manuscript-recovery.ts');
+const localCopy=JSON.stringify({title:'Texto recuperado',sections:[{section_key:'methods',content:'Métodos reais'}]});
+assert.equal(readManuscriptRecovery(localCopy,['methods']).sections[0].content,'Métodos reais');
+assert.equal(readManuscriptRecovery('{bad json',['methods']),null);
+assert.equal(readManuscriptRecovery(JSON.stringify({sections:[{section_key:'unknown',content:'x'}]}),['methods']),null);
+assert.equal(readManuscriptRecovery(JSON.stringify({sections:[{section_key:'methods',content:123}]}),['methods']),null);

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { readManuscriptRecovery, type ManuscriptRecovery } from "@/lib/projects/manuscript-recovery";
 import SectionAssistant, { type WritingSource } from "./section-assistant";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
 
@@ -95,6 +96,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const [reviewBusy, setReviewBusy] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [recovery, setRecovery] = useState<ManuscriptRecovery | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
   const [planSelection, setPlanSelection] = useState<string[]>(["introduction", "methods"]);
   const plan = manuscriptPlan(project);
@@ -104,6 +107,30 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const totalWords = useMemo(() => sections.reduce((sum, section) => sum + wordCount(section.content), 0), [sections]);
   const completed = sections.filter(section => wordCount(section.content) >= (section.section_key === "abstract" ? 80 : 40)).length;
   const progress = Math.round(completed / sections.length * 100);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    try {
+      const backup = readManuscriptRecovery(window.localStorage.getItem(`scholar-manuscript:${ownerId}:${project.id}`), sectionTemplates.map(section => section.section_key));
+      if (backup && backup.sections.some(section => section.content !== (initialSections.find(saved => saved.section_key === section.section_key)?.content || ""))) setRecovery(backup);
+    } catch { /* Browser backup is optional. */ }
+  }, [canEdit, ownerId, project.id, initialSections]);
+
+  async function recoverLocalText() {
+    if (!recovery || recovering || saveLock.current || !canEdit) return;
+    setRecovering(true);
+    try {
+      if (!await save(false)) throw new Error("Não foi possível preservar o texto atual na conta.");
+      const current = stateRef.current;
+      const { data, error } = await supabaseBrowser().from("scholar_manuscript_versions").insert({ manuscript_id: current.manuscriptId, owner_id: ownerId, label: "Antes de recuperar a cópia local", snapshot: { ...current } }).select("id,label,snapshot,created_at").single();
+      if (error || !data) throw new Error("Não foi possível registrar a versão anterior. A recuperação não foi aplicada.");
+      setVersions(currentVersions => [data, ...currentVersions].slice(0, 12));
+      setSections(currentSections => currentSections.map(section => ({ ...section, content: recovery.sections.find(saved => saved.section_key === section.section_key)?.content || "" })));
+      if (recovery.title) setTitle(recovery.title);
+      setDirty(true); setRecovery(null); setMessage("Texto local recuperado. A versão anterior está no histórico; salvamento automático ativo.");
+    } catch (caught) { setMessage(caught instanceof Error ? caught.message : "Não foi possível recuperar o texto."); }
+    finally { setRecovering(false); }
+  }
 
   useEffect(() => {
     if (!dirty || !canEdit) return;
@@ -295,6 +322,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   ] as const;
 
   return <div className="manuscript-workspace grid xl:grid-cols-[220px_minmax(0,1fr)_280px] gap-6 items-start">
+    {recovery && canEdit && <section className="xl:col-span-3 border border-amber-200 bg-amber-soft rounded-2xl p-5"><h2 className="font-display text-xl">Há texto deste dispositivo diferente da versão na conta.</h2><p className="text-sm mt-2">Revise a cópia local antes de recuperá-la. A versão atual será preservada no histórico.</p><details className="mt-3"><summary className="text-sm cursor-pointer text-teal">Ver texto da cópia local</summary>{recovery.sections.filter(section => section.content.trim()).map(section => <div key={section.section_key} className="mt-3"><strong className="text-sm">{sectionTemplates.find(template => template.section_key === section.section_key)?.heading}</strong><p className="text-sm whitespace-pre-wrap max-h-60 overflow-y-auto bg-white p-3 rounded-card mt-2">{section.content}</p></div>)}</details><div className="flex flex-wrap gap-3 mt-4"><button type="button" disabled={recovering || saving} onClick={() => void recoverLocalText()} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">{recovering ? "Recuperando…" : "Preservar versão e recuperar texto"}</button><button type="button" disabled={recovering} onClick={() => { try { window.localStorage.removeItem(`scholar-manuscript:${ownerId}:${project.id}`); } catch {} setRecovery(null); }} className="text-sm text-teal underline">Manter texto da conta</button></div></section>}
+
     {canEdit && <section className="xl:col-span-3 bg-white border border-line rounded-2xl p-5"><div className="flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Do protocolo à escrita</p><h2 className="font-display text-2xl mt-2">Comece pelas decisões do seu projeto.</h2><p className="text-sm text-ink-soft mt-2">Revise uma estrutura inicial de introdução e métodos, com espaço para desenvolver a discussão.</p></div><button type="button" onClick={() => setShowPlan(value => !value)} className="border border-teal/30 text-teal rounded-card px-4 py-2">{showPlan ? "Recolher prévia" : "Preparar estrutura do artigo"}</button></div>{showPlan && <div className="mt-5 space-y-4">{Object.entries(plan).map(([key, content]) => { const occupied = Boolean(sections.find(section => section.section_key === key)?.content.trim()); return <details key={key} className="border border-line rounded-card p-4"><summary className="cursor-pointer flex gap-3 items-center"><input aria-label={`Incluir ${sectionTemplates.find(section => section.section_key === key)?.heading}`} type="checkbox" disabled={occupied} checked={!occupied && planSelection.includes(key)} onClick={event => event.stopPropagation()} onChange={() => setPlanSelection(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])}/><span>{sectionTemplates.find(section => section.section_key === key)?.heading}{occupied ? " · texto existente preservado" : " · disponível para iniciar"}</span></summary><p className="mt-3 whitespace-pre-wrap text-sm text-ink-soft">{content}</p></details>; })}<p className="text-xs text-ink-soft">Os procedimentos importados são planejamento. Resultados, conclusão e referências devem ser preenchidos a partir do trabalho efetivamente realizado.</p><button type="button" disabled={saving || !planSelection.some(key => !sections.find(section => section.section_key === key)?.content.trim())} onClick={() => { setSections(current => applyManuscriptPlan(current, plan, planSelection)); setDirty(true); setShowPlan(false); setMessage("Estrutura aplicada às seções vazias. Revise e desenvolva o texto; o salvamento automático está ativo."); }} className="bg-teal text-white rounded-card px-4 py-3 disabled:opacity-50">Aplicar às seções vazias</button></div>}</section>}
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : "Modo orientador"}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? "Você edita o texto e pode responder às observações da revisão." : "O texto está protegido. Selecione um trecho para comentá-lo e acompanhe as respostas do autor."}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? "pendência aberta" : "pendências abertas"}</p></section>
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal">Estrutura</p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} seções iniciadas</p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString("pt-BR")} palavras</p><p className="mt-1">{message}</p></div></aside>
