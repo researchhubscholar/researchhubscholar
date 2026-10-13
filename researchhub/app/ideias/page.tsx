@@ -164,7 +164,7 @@ export default function IdeasPage() {
     setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setQualityChecks([]); setMessage("");
     try {
       const startingIdeas = generate(requestContext, evidence);
-      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }) });
+      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(150_000), body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }) });
       const raw = await response.text();
       let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] };
       try {
@@ -186,7 +186,7 @@ export default function IdeasPage() {
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
       setAiMode("error");
-      setAiMessage(error instanceof Error ? error.message : "Não foi possível criar as propostas.");
+      setAiMessage(error instanceof Error && /TimeoutError|AbortError/.test(error.name) ? "A resposta não chegou dentro do prazo. Confira Minha licença antes de tentar novamente: a operação pode continuar no servidor." : error instanceof Error ? error.message : "Não foi possível criar as propostas.");
     } finally { generationInFlight.current = false; setAiLoading(false); }
   }
 
@@ -300,6 +300,8 @@ export default function IdeasPage() {
         <Select label="A que você tem acesso?" value={context.access} change={value => update("access", value)} options={[["literature", "Somente literatura"], ["records", "Prontuários ou registros"], ["patients", "Participantes ou pacientes"], ["both", "Registros e participantes"]]} />
       </div>
       <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal">Adicionar população ou exigência específica · opcional</summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label="População disponível" value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes do primeiro ano" /><Text label="Exigência do trabalho" value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: precisa ser revisão ou artigo original" /></div></details>
+      {!context.setting.trim() && <p className="mt-3 text-sm text-ink-soft">Preencha sua realidade de acesso para liberar a geração. Para revisão, informe “Somente literatura publicada”.</p>}
+      {aiLoading && <p role="status" className="mt-3 text-sm text-teal">A IA está preparando três propostas completas. A geração tem limite de aproximadamente dois minutos; aguarde sem recarregar.</p>}
       <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || profileLoading || library.loading || !aiEnabled || !context.specialty.trim() || !context.setting.trim()} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Explorando oportunidades científicas…" : aiEnabled ? "Gerar ideias automaticamente" : "IA ainda não ativada"}</button>{!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}</div>
     </form>}
 

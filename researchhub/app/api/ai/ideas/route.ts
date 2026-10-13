@@ -11,7 +11,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const generationTimeoutMs = 240_000;
+const generationTimeoutMs = 120_000;
+const modelAttemptTimeoutMs = 75_000;
 const staleReservationMs = 10 * 60_000;
 
 function generationTimedOut(error: unknown) {
@@ -65,14 +66,17 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
   let lastError: unknown;
   let parseFailures = 0;
   const budget = outputBudget(prompt, schema, maxOutputTokens, scholarAI.reservedTokens, 2_500);
+  const deadline = Date.now() + generationTimeoutMs;
   for (const candidate of scholarAIModels) {
+    const remaining = deadline - Date.now();
+    if (remaining < 10_000) throw new Error("A geração atingiu o prazo máximo de espera. Tente novamente em instantes.");
     try {
       const result = await generateText({
         model: candidate.model,
         instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
         maxOutputTokens: budget,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(generationTimeoutMs),
+        abortSignal: AbortSignal.timeout(Math.min(modelAttemptTimeoutMs, remaining)),
         prompt: promptForJson(prompt, schema),
       });
       return { result, output: parseValidatedJson(result.text, validate), modelId: candidate.id };
@@ -82,7 +86,7 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
         parseFailures += 1;
         if (parseFailures < 2) continue;
       }
-      if (!retryWithFallback(error)) throw error;
+      if (!generationTimedOut(error) && !retryWithFallback(error)) throw error;
     }
   }
   throw lastError || new Error("Nenhum modelo do Gemini está disponível agora.");
