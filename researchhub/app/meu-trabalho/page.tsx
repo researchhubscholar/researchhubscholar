@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { readIdeaTransfer } from "@/lib/ideas/transfer";
+import { readIdeaTransfer, type TransferOrigin } from "@/lib/ideas/transfer";
 import { LibraryStore } from "@/lib/literature/library-store";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -11,6 +11,7 @@ import ProjectJourney from "@/components/projects/journey";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import { buildProtocolDoc, download } from "@/lib/exports/scientific";
 import { protocolChecks } from "@/lib/research/checks";
+import { diagnoseProjectDraft, initialProjectMilestones, projectOriginRow } from "@/lib/projects/creation";
 
 type Draft = { theme: string; question: string; objective: string; studyType: string; population: string; outcome: string; hypothesis: string; inclusion: string; exclusion: string; variables: string; methods: string; analysis: string; ethics: string; manuscript: string };
 type SaveState = "loading" | "idle" | "saved" | "local" | "error";
@@ -38,6 +39,7 @@ export default function MeuTrabalhoPage() {
   const [referenceIds, setReferenceIds] = useState<string[]>([]);
   const [loadedOwner, setLoadedOwner] = useState<string | null>(null);
   const [incoming, setIncoming] = useState<Draft | null>(null);
+  const [incomingOrigin, setIncomingOrigin] = useState<TransferOrigin | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectStatus, setProjectStatus] = useState("draft");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -63,7 +65,7 @@ export default function MeuTrabalhoPage() {
         if (isIdea && params.get("proposta")) {
           try {
             const transfer = readIdeaTransfer(window.sessionStorage, auth.user?.id || null, params.get("proposta")!);
-            setIncoming({ ...empty, ...transfer.draft }); setIncomingReferences(transfer.referenceIds);
+            setIncoming({ ...empty, ...transfer.draft }); setIncomingReferences(transfer.referenceIds); setIncomingOrigin(transfer.origin);
           } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível recuperar a proposta."); }
         }
         const key = auth.user ? `researchhub-scholar-draft:${auth.user.id}` : "researchhub-scholar-draft";
@@ -118,8 +120,16 @@ export default function MeuTrabalhoPage() {
   const filled = groups.flatMap(g => g.keys).filter(k => draft[k].trim()).length;
   const total = groups.reduce((sum, g) => sum + g.keys.length, 0);
   const progress = Math.round(filled / total * 100);
-  function applyIncoming() {
+  async function applyIncoming() {
     if (!incoming) return;
+    if (incomingOrigin && loadedOwner) {
+      const { data, error } = await supabaseBrowser().from("scholar_project_origins").select("project_id").eq("owner_id", loadedOwner).eq("source_key", incomingOrigin.sourceKey).maybeSingle();
+      if (!error && data?.project_id) {
+        setMessage("Esta proposta já foi transformada em projeto. Abrindo o projeto existente para evitar uma duplicação.");
+        window.location.assign(`/meu-trabalho?id=${encodeURIComponent(data.project_id)}`);
+        return;
+      }
+    }
     setDraft(incoming); setReferenceIds(incomingReferences); setIncomingReferences([]); setProjectId(null); setProjectStatus("draft"); setIncoming(null); setDirty(true); setSaveState("idle");
     setMessage("Proposta aplicada a um novo rascunho. Revise os campos antes de salvar.");
     window.history.replaceState(null, "", window.location.pathname);
@@ -139,12 +149,35 @@ export default function MeuTrabalhoPage() {
         setMessage(localSaved ? "Rascunho salvo neste dispositivo. Entre para salvar na sua conta." : "Não foi possível salvar neste dispositivo. Entre para salvar na conta."); return;
       }
       if (loadedOwner && auth.user.id !== loadedOwner) throw new Error("A conta mudou. Atualize a página antes de salvar.");
+      const creatingProject = !projectId;
       const payload: Record<string, unknown> = { owner_id: auth.user.id, title: draft.theme.trim(), progress, status: projectStatus };
       (Object.keys(columns) as (keyof Draft)[]).forEach(key => { payload[columns[key]] = draft[key].trim() || null; });
       const query = projectId ? db.from("research_projects").update(payload).eq("id", projectId).eq("owner_id", auth.user.id) : db.from("research_projects").insert(payload);
       const { data, error } = await query.select("id").single();
       if (error || !data) throw error || new Error("Projeto não salvo");
       setProjectId(data.id); setLoggedIn(true);
+      let setupMessage = "";
+      const diagnosis = diagnoseProjectDraft(draft);
+      if (creatingProject && incomingOrigin) {
+        const { error: originError } = await db.from("scholar_project_origins").insert(projectOriginRow(auth.user.id, data.id, incomingOrigin, draft, diagnosis, referenceIds));
+        if (originError?.code === "23505") {
+          const { data: existing } = await db.from("scholar_project_origins").select("project_id").eq("owner_id", auth.user.id).eq("source_key", incomingOrigin.sourceKey).maybeSingle();
+          if (existing?.project_id && existing.project_id !== data.id) {
+            await db.from("research_projects").delete().eq("id", data.id).eq("owner_id", auth.user.id);
+            window.location.assign(`/meu-trabalho?id=${encodeURIComponent(existing.project_id)}`);
+            return;
+          }
+        } else if (originError) {
+          setupMessage += " A origem ainda não foi registrada; execute scholar_project_origins.sql.";
+        } else {
+          setupMessage += " A origem da ideia foi preservada.";
+        }
+      }
+      if (creatingProject) {
+        const { error: milestoneError } = await db.from("scholar_project_milestones").upsert(initialProjectMilestones(auth.user.id, data.id, draft, diagnosis), { onConflict: "owner_id,project_id,milestone_key" });
+        if (milestoneError) setupMessage += " A jornada adaptada aparece na tela, mas ainda não pôde ser inicializada na conta.";
+        else setupMessage += " A jornada foi iniciada conforme o desenho do estudo.";
+      }
       let referenceMessage = "";
       let referenceFailure = false;
       if (referenceIds.length) {
@@ -157,7 +190,7 @@ export default function MeuTrabalhoPage() {
         } catch { referenceFailure = true; referenceMessage = " As referências continuam nas notas, mas não foi possível concluir a associação na biblioteca. Clique em Salvar alterações para tentar novamente."; }
       }
       setSaveState("saved"); setDirty(false);
-      setMessage("Projeto salvo na sua conta. Você pode abri-lo em Meu espaço." + referenceMessage);
+      setMessage("Projeto salvo na sua conta. Você pode abri-lo em Meu espaço." + setupMessage + referenceMessage);
       window.history.replaceState(null, "", `/meu-trabalho?id=${encodeURIComponent(data.id)}`);
       try { if (referenceFailure) window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: data.id })); else window.localStorage.removeItem(storageKey); } catch { /* A cópia na conta foi confirmada. */ }
     } catch {
@@ -175,6 +208,7 @@ export default function MeuTrabalhoPage() {
     ...(draft.studyType.includes("Revisão") ? ["Na revisão, defina bases, estratégia de busca, critérios de seleção e avaliação crítica."] : ["No estudo com dados ou participantes, registre autorizações, proteção dos dados e avaliação ética aplicável."]),
     "Confira com o orientador se pergunta, objetivo, desfecho e método respondem à mesma questão.",
   ];
+  const creationDiagnosis = diagnoseProjectDraft(draft);
   const radarHref = projectId ? `/descobrir?${new URLSearchParams({
     tema: draft.question.trim() || draft.theme.trim(),
     populacao: draft.population.trim(),
@@ -190,9 +224,10 @@ export default function MeuTrabalhoPage() {
       <nav aria-label="Blocos do protocolo" className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-1">{groups.map((g, i) => <a key={g.id} href={`#${g.id}`} className="text-sm rounded-card p-2 hover:bg-teal-soft"><span className="text-teal mr-2">{g.keys.every(k => draft[k].trim()) ? "✓" : String(i + 1).padStart(2, "0")}</span>{g.title}</a>)}</nav>{projectId && <Link href={radarHref} className="block text-sm text-teal mt-4">Pesquisar literatura →</Link>}<Link href="/biblioteca" className="block text-sm text-teal mt-3">Referências e matriz →</Link>
     </aside>
     <div className="project-content"><header className="project-intro"><p className="text-xs uppercase tracking-widest text-teal">Da pergunta ao protocolo</p><h2 className="font-display text-4xl md:text-5xl mt-3">Dê estrutura à sua pesquisa.</h2><p className="text-ink-soft mt-4 leading-relaxed">Registre as decisões de cada etapa e exporte um rascunho para discutir com seu orientador.</p><div className="project-intro-steps" aria-label="Fluxo do projeto"><span>Definir</span><i aria-hidden="true" /><span>Estruturar</span><i aria-hidden="true" /><span>Revisar</span><i aria-hidden="true" /><span>Compartilhar</span></div></header>
-      {incoming && <section className="project-incoming mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs text-teal uppercase">Proposta recebida</p><h3 className="font-display text-2xl mt-2">{incoming.theme}</h3><p className="text-sm text-ink-soft mt-3">Abra um novo rascunho com esta proposta. Os projetos já salvos permanecem na sua conta.</p>{incomingReferences.length > 0 && <p className="text-sm text-ink-soft mt-3">{incomingReferences.length} referências e suas observações acompanham a proposta nas notas. Ao salvar, os artigos sem projeto serão associados; os já vinculados a outro projeto permanecerão lá.</p>}<div className="flex flex-wrap gap-3 mt-4"><button disabled={saveState === "loading"} onClick={applyIncoming} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">Criar rascunho com esta ideia</button><button onClick={() => { setIncoming(null); setIncomingReferences([]); }} className="border border-line rounded-card px-4 py-2">Continuar projeto atual</button></div></section>}
+      {incoming && <section className="project-incoming mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs text-teal uppercase">Proposta recebida · origem rastreável</p><h3 className="font-display text-2xl mt-2">{incoming.theme}</h3><p className="text-sm text-ink-soft mt-3">Abra um novo rascunho com esta proposta. Antes de criar, o Scholar confere se ela já originou outro projeto.</p>{incomingReferences.length > 0 && <p className="text-sm text-ink-soft mt-3">{incomingReferences.length} referências e suas observações acompanham a proposta nas notas. Ao salvar, os artigos sem projeto serão associados; os já vinculados a outro projeto permanecerão lá.</p>}<div className="flex flex-wrap gap-3 mt-4"><button disabled={saveState === "loading"} onClick={() => void applyIncoming()} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50">Criar rascunho com esta ideia</button><button onClick={() => { setIncoming(null); setIncomingReferences([]); setIncomingOrigin(null); }} className="border border-line rounded-card px-4 py-2">Continuar projeto atual</button></div></section>}
       {referenceIds.length > 0 && <p className="mt-4 bg-teal-soft rounded-card p-4 text-sm">{referenceIds.length} referências aguardam associação ao salvar. A justificativa, as decisões pendentes e as referências estão nas notas do manuscrito.</p>}
       {message && <p role={saveState === "error" ? "alert" : "status"} className="mt-5 bg-white border border-line rounded-card p-4 text-sm">{message}</p>}
+      {(projectId || dirty) && <section className="mt-6 bg-white border border-line rounded-2xl p-5" aria-label="Diagnóstico inicial do projeto"><div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Diagnóstico inicial</p><h3 className="font-display text-2xl mt-2">{creationDiagnosis.pending.length ? "Confirmações antes da execução" : "Estrutura inicial pronta para validação"}</h3></div><span className={`rounded-full px-3 py-1.5 text-xs ${creationDiagnosis.pending.length ? "bg-amber-soft text-amber-900" : "bg-teal-soft text-teal"}`}>{creationDiagnosis.pending.length} pendência{creationDiagnosis.pending.length === 1 ? "" : "s"}</span></div><p className="text-sm mt-4"><strong>Próxima ação:</strong> {creationDiagnosis.nextAction}</p>{creationDiagnosis.pending.length > 0 && <ul className="list-disc pl-5 mt-4 space-y-2 text-sm text-ink-soft">{creationDiagnosis.pending.map(item => <li key={item}>{item}</li>)}</ul>}<p className="text-xs text-ink-soft mt-4">Diagnóstico por regras de preenchimento; não representa aprovação científica, ética ou metodológica.</p></section>}
       <ProjectJourney projectId={projectId} ownerId={loadedOwner} studyType={draft.studyType} />
       <AssistantPanel feature="protocol" title="Revisar coerência científica do projeto" description="Analisa a relação entre pergunta, objetivo, desenho, população, desfecho, método, análise e ética. Você escolhe cada alteração que deseja aplicar." context={draft} projectId={projectId} onApply={item=>{if(item.targetField in draft)change(item.targetField as keyof Draft,item.content);}} />
       <fieldset disabled={saveState === "loading"} className="project-sections space-y-5 mt-8 disabled:opacity-60"><legend className="sr-only">Campos do protocolo</legend>

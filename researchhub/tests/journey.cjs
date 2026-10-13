@@ -16,4 +16,6 @@ const journeySource = fs.readFileSync("lib/research/journey-templates.ts", "utf8
 if (!journeySource.includes('label: "Busca e seleção"') || !journeySource.includes('label: "Documentação do caso"')) throw new Error("Templates específicos ausentes");
 const diagnosisSource = fs.readFileSync("lib/research/profile-diagnosis.ts", "utf8");
 if (!diagnosisSource.includes("buildProfileDiagnosis") || !diagnosisSource.includes("project_deadline")) throw new Error("Diagnóstico de perfil ausente");
+const creationSource = fs.readFileSync("lib/projects/creation.ts", "utf8");
+if (!creationSource.includes("diagnoseProjectDraft") || !creationSource.includes("initialProjectMilestones") || !creationSource.includes("projectOriginRow")) throw new Error("Criação rastreável do projeto ausente");
 console.log("journey/profile contracts ok");

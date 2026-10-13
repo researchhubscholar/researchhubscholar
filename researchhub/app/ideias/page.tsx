@@ -17,6 +17,14 @@ type CreationMode = "automatic" | "theme" | "guided";
 type AIUsage = { inputTokens: number; outputTokens: number; costUsd: number };
 type QualityCheck = { proposalIndex: number; issues: string[] };
 type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number; usage?: AIUsage };
+type IdeaOrigin = { generationId?: string; sourceKey: string };
+
+function proposalFingerprint(idea: Idea) {
+  const input = `${idea.title}|${idea.question}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) hash = Math.imul(hash ^ input.charCodeAt(index), 16777619);
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
 
 const blankContext: Context = {
   ...initial,
@@ -60,6 +68,7 @@ export default function IdeasPage() {
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("pt-BR");
   const [lastUsage, setLastUsage] = useState<AIUsage | null>(null);
   const [qualityChecks, setQualityChecks] = useState<QualityCheck[]>([]);
+  const [ideaOrigins, setIdeaOrigins] = useState<Record<string, IdeaOrigin>>({});
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
@@ -81,7 +90,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
       setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
-      setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setQualityChecks([]); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
+      setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setQualityChecks([]); setIdeaOrigins({}); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
     previousOwner.current = library.userId;
@@ -172,6 +181,7 @@ export default function IdeasPage() {
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setLastUsage(data.usage || null);
       setQualityChecks(data.qualityChecks || []);
+      setIdeaOrigins(Object.fromEntries(data.ideas.map(idea => [idea.id, { generationId: data.operationId, sourceKey: data.operationId ? `generation:${data.operationId}:${idea.id}` : `idea:${proposalFingerprint(idea)}` }] )));
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
@@ -222,6 +232,7 @@ export default function IdeasPage() {
     const refinement = refinements[id];
     if (!refinement) return;
     setIdeas(current => current.map(idea => idea.id === id ? { ...idea, ...refinement.output.refinedProposal, id: idea.id, references: idea.references } : idea));
+    if (refinement.operationId) setIdeaOrigins(current => ({ ...current, [id]: { generationId: refinement.operationId, sourceKey: `refinement:${refinement.operationId}:${id}` } }));
     setRefinements(current => { const next = { ...current }; delete next[id]; return next; });
     setMessage("Refinamento baseado na literatura aplicado à proposta. Revise antes de salvar ou transformar em projeto.");
   }
@@ -231,13 +242,16 @@ export default function IdeasPage() {
     setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setSelected([]); setEditing(null);
     setReferenceIds(row.proposal.references.map(reference => reference.id)); setEvidenceSnapshot(row.evidence_signature);
     series.current = { [row.proposal.id]: row.series_id }; setAiMode("saved"); setMessage("Versão retomada do histórico.");
+    setIdeaOrigins({ [row.proposal.id]: { sourceKey: `idea-version:${row.id}` } });
   }
 
-  function transfer(idea: Idea, savedVersion = false) {
+  function transfer(idea: Idea, savedVersion?: SavedIdea) {
     if ((!savedVersion && stale) || library.loading) return;
     try {
       const token = crypto.randomUUID();
-      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id) }));
+      const tracked = ideaOrigins[idea.id];
+      const sourceKey = savedVersion ? `idea-version:${savedVersion.id}` : tracked?.sourceKey || `idea:${proposalFingerprint(idea)}`;
+      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: outputLanguage, radarQuery: idea.radar } }));
       router.push(`/meu-trabalho?origem=ideias&proposta=${encodeURIComponent(token)}`);
     } catch { setMessage("Não foi possível preparar a proposta. Tente novamente."); }
   }
@@ -345,7 +359,7 @@ export default function IdeasPage() {
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
 
-    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium">Abrir histórico de propostas salvas</summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} createProject={row => transfer(row.proposal, true)} /></details>
+    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium">Abrir histórico de propostas salvas</summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} createProject={row => transfer(row.proposal, row)} /></details>
   </div>;
 }
 

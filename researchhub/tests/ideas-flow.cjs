@@ -25,7 +25,12 @@ assert.match(page, /router\.push\(`\/descobrir\?\$\{new URLSearchParams/);
 assert.match(project, /readIdeaTransfer/);
 assert.match(history, /Expandir proposta completa/);
 assert.match(history, /Transformar em projeto/);
-assert.match(page, /createProject=\{row => transfer\(row\.proposal, true\)\}/);
+assert.match(page, /createProject=\{row => transfer\(row\.proposal, row\)\}/);
+assert.match(page, /idea-version:\$\{savedVersion\.id\}/);
+assert.match(project, /scholar_project_origins/);
+assert.match(project, /initialProjectMilestones/);
+assert.match(project, /Diagnóstico inicial/);
+assert.match(project, /evitar uma duplicação/);
 
 assert.match(generation, /promptForJson/);
 assert.match(generation, /parseValidatedJson/);

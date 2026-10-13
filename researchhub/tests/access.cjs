@@ -17,6 +17,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_install.sql','utf8').replace('create extension if not exists "pgcrypto";',''));
  await db.exec(fs.readFileSync('supabase/scholar_access.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_project_origins.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_duplicates.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_search_alerts.sql','utf8'));
@@ -51,7 +52,9 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  const project=await scalar(`insert into research_projects(owner_id,title) values($1,'Projeto privado') returning id`,[resident]);
  // Match Supabase's existing grants; the original installer relies on platform defaults.
  await db.exec('grant select,insert,update,delete on research_projects to authenticated;');
+ await as(resident);await db.query(`insert into scholar_project_origins(project_id,owner_id,source_type,source_key,snapshot) values($1,$2,'idea','idea:test-origin','{}')`,[project,resident]);
  await as(director);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,0);
+ assert.equal((await db.query('select project_id from scholar_project_origins where project_id=$1',[project])).rows.length,0);
  await as(resident);await db.query('select scholar_share_project($1,$2,true)',[project,org]);
  await as(director);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,1);
  assert.equal((await db.query(`update research_projects set title='Changed' where id=$1 returning id`,[project])).rows.length,0);
