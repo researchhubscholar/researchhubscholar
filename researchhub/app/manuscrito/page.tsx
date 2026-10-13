@@ -10,7 +10,7 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
   const params = await searchParams;
-  const { data: projects } = await db.from("research_projects").select("id,owner_id,title,theme,research_question,objective,study_type").order("updated_at", { ascending: false });
+  const { data: projects } = await db.from("research_projects").select("id,owner_id,title,theme,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes").order("updated_at", { ascending: false });
   const project = (projects || []).find(item => item.id === params.projeto) || (projects || [])[0];
   if (!project) return <main className="scholar-workspace max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><section className="bg-white border border-line rounded-2xl p-7 mt-6"><h1 className="font-display text-3xl">Crie um projeto antes de escrever o artigo.</h1><p className="text-ink-soft mt-3">O manuscrito fica ligado ao protocolo, às referências e à matriz de evidências.</p><Link href="/meu-trabalho?novo=1" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></section></main>;
 
