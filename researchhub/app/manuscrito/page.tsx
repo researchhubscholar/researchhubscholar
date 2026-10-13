@@ -22,13 +22,16 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
   const [{ data: sections }, { data: versions }, { data: directArticles }, { data: links }, commentsResult] = await Promise.all([
     manuscript ? db.from("scholar_manuscript_sections").select("section_key,heading,content,position,updated_at").eq("manuscript_id", manuscript.id).order("position") : Promise.resolve({ data: [] }),
     manuscript ? db.from("scholar_manuscript_versions").select("id,label,snapshot,created_at").eq("manuscript_id", manuscript.id).order("created_at", { ascending: false }).limit(12) : Promise.resolve({ data: [] }),
-    isOwner ? db.from("library_articles").select("id,title,authors,publication_year,pmid,doi").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
+    isOwner ? db.from("library_articles").select("id,title,authors,publication_year,pmid,doi,abstract").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     isOwner ? db.from("library_article_projects").select("article_id").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     manuscript ? db.from("scholar_manuscript_comments").select("id,manuscript_id,project_id,author_id,section_key,body,quoted_text,status,resolved_at,resolved_by,created_at").eq("manuscript_id", manuscript.id).order("created_at") : Promise.resolve({ data: [], error: null }),
   ]);
   const linkedIds = (links || []).map(row => row.article_id);
-  const { data: linkedArticles } = linkedIds.length ? await db.from("library_articles").select("id,title,authors,publication_year,pmid,doi").eq("owner_id", user.id).in("id", linkedIds) : { data: [] };
+  const { data: linkedArticles } = linkedIds.length ? await db.from("library_articles").select("id,title,authors,publication_year,pmid,doi,abstract").eq("owner_id", user.id).in("id", linkedIds) : { data: [] };
   const articleMap = new Map([...(directArticles || []), ...(linkedArticles || [])].map(article => [article.id, article]));
+  const articleIds = [...articleMap.keys()];
+  const { data: evidence } = isOwner && articleIds.length ? await db.from("evidence_matrix").select("article_id,objective,population,method,main_finding,limitation,notes,sample_size,intervention,comparator,outcomes,evidence_level,risk_of_bias").eq("owner_id", user.id).in("article_id", articleIds) : { data: [] };
+  const writingArticles = [...articleMap.values()].map(article => ({ ...article, evidence: (evidence || []).find(row => row.article_id === article.id) || null }));
   const reviewAvailable = !commentsResult.error || !["42P01", "PGRST205"].includes(commentsResult.error.code || "");
   const comments = commentsResult.data || [];
   const commentIds = comments.map(comment => comment.id);
@@ -38,6 +41,6 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
 
   return <main className="scholar-workspace manuscript-page max-w-7xl mx-auto">
     <header className="flex flex-wrap justify-between items-start gap-5 mb-7"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção do artigo</p><h1 className="font-display text-4xl md:text-5xl mt-3">Editor de manuscrito</h1><p className="text-ink-soft mt-3 max-w-2xl">Escreva por seções, preserve versões e cite as referências vinculadas ao projeto.</p></div><form method="get" className="bg-white border border-line rounded-card p-4 min-w-[260px]"><label className="text-xs text-ink-soft">Projeto<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects || []).map(item => <option key={item.id} value={item.id}>{item.title || item.theme || "Projeto sem título"}</option>)}</select></label><button className="text-sm text-teal mt-3">Abrir manuscrito →</button></form></header>
-    <ManuscriptEditor currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={[...articleMap.values()]} />
+    <ManuscriptEditor currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
   </main>;
 }

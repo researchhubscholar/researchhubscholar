@@ -52,3 +52,10 @@ for(const feature of ['radar','protocol','reading','matrix','orientation','writi
 assert.equal(isAssistantOutput(simulatedOutput('radar')),true);assert.equal(isAssistantOutput({title:'x'}),false);
 assert.equal(ledgerFeature.radar,'refinement');assert.equal(ledgerFeature.protocol,'protocol');assert.equal(ledgerFeature.reading,'reading');assert.equal(ledgerFeature.matrix,'matrix');assert.equal(ledgerFeature.orientation,'writing');assert.throws(()=>validateAssistRequest({feature:'unknown',context:{theme:'sono'}}),/inválida/);
 console.log('PASS: simplified AI idea request, responsible prompt and three-proposal merge.');
+
+const writingContext={sectionKey:'methods',task:'revise',language:'en',original:'Método real informado',sources:[]};
+assert.equal(validateAssistRequest({feature:'writing',context:writingContext}).context.sectionKey,'methods');
+assert.throws(()=>validateAssistRequest({feature:'writing',context:{...writingContext,sectionKey:'unknown'}}),/Seção/);
+assert.throws(()=>validateAssistRequest({feature:'writing',context:{...writingContext,sources:Array(6).fill({})}}),/cinco/);
+assert(assistantPrompt('writing',writingContext).includes('Responda em inglês.'));
+assert(assistantPrompt('writing',writingContext).includes('procedimento já realizado'));

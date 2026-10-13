@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import SectionAssistant, { type WritingSource } from "./section-assistant";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
 
 type Project = ManuscriptProject & { id: string; title?: string | null; theme?: string | null };
 type Manuscript = { id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
 type Section = { section_key: string; heading: string; content: string; position: number; updated_at?: string };
 type Version = { id: string; label: string; snapshot: unknown; created_at: string };
-type Article = { id: string; title: string; authors: unknown; publication_year: number | null; pmid: string | null; doi: string | null };
+type Article = { id: string; title: string; authors: unknown; publication_year: number | null; pmid: string | null; doi: string | null; abstract?: string | null; evidence?: Record<string, unknown> | null };
 type ManuscriptComment = { id: string; manuscript_id: string; project_id: string; author_id: string; section_key: string; body: string; quoted_text: string | null; status: "open" | "resolved"; resolved_at?: string | null; resolved_by?: string | null; created_at: string };
 type CommentReply = { id: string; comment_id: string; author_id: string; body: string; created_at: string };
 
@@ -83,6 +84,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const [activeKey, setActiveKey] = useState("introduction");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [message, setMessage] = useState(initialManuscript ? "Manuscrito carregado." : "Comece a escrever. O primeiro salvamento criará o manuscrito deste projeto.");
   const [showSources, setShowSources] = useState(false);
   const [comments, setComments] = useState<ManuscriptComment[]>(initialComments);
@@ -124,9 +126,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   function updateSection(key: string, content: string) { setSections(current => current.map(section => section.section_key === key ? { ...section, content } : section)); setDirty(true); setMessage("Alterações ainda não salvas."); }
 
   async function save(showConfirmation = true) {
-    if (!canEdit) return;
-    if (saving) return;
-    setSaving(true);
+    if (!canEdit || saveLock.current) return false;
+    saveLock.current = true; setSaving(true);
     const current = stateRef.current;
     try {
       const db = supabaseBrowser();
@@ -143,10 +144,13 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
       const rows = current.sections.map(section => ({ manuscript_id: id, owner_id: ownerId, section_key: section.section_key, heading: section.heading, content: section.content, position: section.position }));
       const { error: sectionError } = await db.from("scholar_manuscript_sections").upsert(rows, { onConflict: "manuscript_id,section_key" });
       if (sectionError) throw sectionError;
-      setDirty(false); setMessage(showConfirmation ? "Manuscrito salvo na sua conta." : `Salvo automaticamente às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
-      try { window.localStorage.removeItem(`scholar-manuscript:${ownerId}:${project.id}`); } catch { /* Database copy is confirmed. */ }
-    } catch { setMessage("Não foi possível sincronizar agora. A cópia deste dispositivo foi preservada."); }
-    finally { setSaving(false); }
+      const unchanged = current.sections === stateRef.current.sections && ["title", "subtitle", "authors", "affiliations", "keywords", "articleType", "targetJournal", "citationStyle", "status"].every(key => current[key as keyof typeof current] === stateRef.current[key as keyof typeof current]) && current.citationIds === stateRef.current.citationIds;
+      if (unchanged) setDirty(false);
+      setMessage(showConfirmation ? "Manuscrito salvo na sua conta." : `Salvo automaticamente às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
+      try { if (unchanged) window.localStorage.removeItem(`scholar-manuscript:${ownerId}:${project.id}`); } catch { /* Database copy is confirmed. */ }
+      return true;
+    } catch { setMessage("Não foi possível sincronizar agora. A cópia deste dispositivo foi preservada."); return false; }
+    finally { saveLock.current = false; setSaving(false); }
   }
 
   async function createVersion() {
@@ -160,6 +164,20 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
     const { data, error } = await db.from("scholar_manuscript_versions").insert({ manuscript_id: id, owner_id: ownerId, label, snapshot }).select("id,label,snapshot,created_at").single();
     if (error || !data) { setMessage("Não foi possível criar a versão."); return; }
     setVersions(current => [data, ...current].slice(0, 12)); setMessage("Versão preservada no histórico.");
+  }
+
+  async function applySectionSuggestion(key: string, original: string, proposed: string) {
+    if (!canEdit || saving || stateRef.current.sections.find(section => section.section_key === key)?.content !== original) return false;
+    if (!await save(false)) return false;
+    const current = stateRef.current;
+    if (current.sections.find(section => section.section_key === key)?.content !== original) return false;
+    const snapshot = { ...current };
+    const { data, error } = await supabaseBrowser().from("scholar_manuscript_versions").insert({ manuscript_id: current.manuscriptId, owner_id: ownerId, label: `Antes da IA — ${sectionTemplates.find(section => section.section_key === key)?.heading || key}`, snapshot }).select("id,label,snapshot,created_at").single();
+    if (error || !data || stateRef.current.sections.find(section => section.section_key === key)?.content !== original) return false;
+    setVersions(currentVersions => [data, ...currentVersions].slice(0, 12));
+    updateSection(key, proposed);
+    setMessage("Versão anterior preservada. Sugestão aplicada; salvamento automático ativo.");
+    return true;
   }
 
   function restoreVersion(version: Version) {
@@ -286,6 +304,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
         const sectionComments = comments.filter(comment => comment.section_key === section.section_key);
         const sectionOpen = sectionComments.filter(comment => comment.status === "open").length;
         return <section key={section.section_key} id={`section-${section.section_key}`} className="scroll-mt-28 bg-white border border-line rounded-2xl p-5 md:p-7" onFocus={() => setActiveKey(section.section_key)}><div className="flex justify-between gap-4 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Seção científica</p><h2 className="font-display text-2xl mt-2">{section.heading}</h2></div><div className="text-right"><span className="text-xs text-ink-soft whitespace-nowrap">{wordCount(section.content)} palavras</span>{canEdit && section.section_key === "abstract" && <button onClick={applyAbstractTemplate} className="block text-xs text-teal mt-2">Aplicar estrutura →</button>}{canEdit && section.section_key === "references" && <button onClick={syncReferences} className="block text-xs text-teal mt-2">Formatar citações →</button>}</div></div><p className="text-sm text-ink-soft mt-3 leading-relaxed">{guidance[section.section_key]}</p><textarea readOnly={!canEdit} value={section.content} onChange={event => updateSection(section.section_key, event.target.value)} onSelect={event => { const field = event.currentTarget; const selected = field.value.slice(field.selectionStart, field.selectionEnd).trim().slice(0, 2000); if (selected) setQuotes(current => ({ ...current, [section.section_key]: selected })); }} rows={section.section_key === "references" ? 7 : 12} placeholder={`Escreva ${section.heading.toLowerCase()} aqui…`} className="manuscript-textarea block w-full mt-5 border border-line rounded-card p-4 bg-paper leading-7 outline-none focus:border-teal resize-y read-only:text-ink-soft" />
+          {canEdit && section.section_key !== "references" && <SectionAssistant sectionKey={section.section_key} heading={section.heading} content={section.content} projectId={project.id} project={project} sources={articles as WritingSource[]} apply={(original, proposed) => applySectionSuggestion(section.section_key, original, proposed)} />}
           <div className="border-t border-line mt-5 pt-4"><button type="button" onClick={() => setActiveReview(current => current === section.section_key ? null : section.section_key)} className="w-full flex items-center justify-between text-left"><span><span className="text-sm font-medium">Revisão desta seção</span><span className="text-xs text-ink-soft ml-2">{sectionComments.length} comentários · {sectionOpen} abertos</span></span><span className="text-teal">{activeReview === section.section_key ? "−" : "+"}</span></button>
             {activeReview === section.section_key && <div className="mt-4 space-y-4">
               {!reviewAvailable && <p className="rounded-card bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">Execute <strong>scholar_manuscript_review.sql</strong> para ativar comentários e respostas.</p>}
