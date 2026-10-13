@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import AILoadingDialog from "@/components/ai/loading-dialog";
 import Link from "next/link";
 
 import { articleKey } from "@/lib/literature/types";
@@ -69,6 +70,7 @@ function BibliotecaContent() {
   const [comparison, setComparison] = useState<string[]>([]);
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
+  const analysisLock = useRef(false);
   const [loadingPmid, setLoadingPmid] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const openAccess = useOpenAccess();
@@ -103,7 +105,8 @@ function BibliotecaContent() {
   }
 
   async function analyzeArticle(article: LibraryArticle) {
-    if (!article.abstract) return;
+    if (!article.abstract || analysisLock.current) return;
+    analysisLock.current = true;
     setLoadingPmid(article.id);
     setErrors((prev) => ({ ...prev, [article.id]: "" }));
     try {
@@ -120,6 +123,7 @@ function BibliotecaContent() {
     } catch (error) {
       setErrors((prev) => ({ ...prev, [article.id]: error instanceof Error ? error.message : "Não foi possível analisar o artigo." }));
     } finally {
+      analysisLock.current = false;
       setLoadingPmid(null);
     }
   }
@@ -145,6 +149,7 @@ function BibliotecaContent() {
 
   return (
     <div className="scholar-workspace library-page max-w-6xl mx-auto">
+      <AILoadingDialog open={Boolean(loadingPmid)} title="Analisando o artigo com IA" description="A IA está lendo o resumo disponível e preparando sugestões de campos com trechos de suporte. Você revisará as sugestões antes de salvar." />
       <header className="library-hero flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-teal font-semibold">Biblioteca científica</p>
@@ -230,7 +235,7 @@ function BibliotecaContent() {
                 </div>
                 <div className="flex lg:flex-col gap-2 self-start">
                   <label className="text-xs text-ink-soft">Projeto associado<select aria-label={`Projeto do artigo ${article.title}`} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="block border border-line rounded-card px-2 py-2 mt-1 max-w-56"><option value="">Sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
-                  <button disabled={library.working || !article.abstract || loadingPmid === article.id} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : "Pré-analisar abstract"}</button>
+                  <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : "Pré-analisar abstract"}</button>
                   <button onClick={() => { setView("matrix"); if (!suggestions[article.id] && article.abstract) analyzeArticle(article); }} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card">Ir para matriz</button>
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
                 </div>
@@ -258,7 +263,7 @@ function BibliotecaContent() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button disabled={library.working || !article.abstract || loadingPmid === article.id} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
+                    <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
                     {set && <button disabled={library.working} onClick={() => acceptAll(article.id)} className="text-xs border border-teal text-teal px-3 py-2 rounded-card">Confirmar todos</button>}
                   </div>
                 </div>

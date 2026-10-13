@@ -33,6 +33,7 @@ export const scholarAIReady = scholarAI.enabled && scholarAI.backendConfigured;
 export function providerErrorText(error: unknown): string {
   if (error instanceof Error) { const cause = (error as Error & { cause?: unknown }).cause; return `${error.name} ${error.message} ${cause ? providerErrorText(cause) : ""}`; }
   if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
   try { return JSON.stringify(error); } catch { return String(error); }
 }
 
