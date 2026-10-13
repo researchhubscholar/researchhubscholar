@@ -2,12 +2,11 @@ import "server-only";
 import { google } from "@ai-sdk/google";
 
 const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOLAR_AI_ENABLED !== "false";
-// New Gemini projects may not receive access to every model generation. Keep
-// explicit Vercel overrides, but always try stable Flash alternatives.
-const selectedModel = process.env.SCHOLAR_AI_MODEL || "gemini-3.5-flash";
+// Product decision: all Scholar AI operations use this model, including when
+// older Vercel deployments still contain a SCHOLAR_AI_MODEL override.
+const selectedModel = "gemini-3.8-flash";
 const googleConfigured = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const fallbackModelIds = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
-const modelIds = [selectedModel, ...fallbackModelIds.filter(model => model !== selectedModel)];
+const modelIds = [selectedModel];
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,

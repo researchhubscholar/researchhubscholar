@@ -1,6 +1,9 @@
 # IA atual — ResearchHub Scholar
 
-A IA está conectada ao Google Gemini diretamente pelo AI SDK. Não é uma conexão
+Todas as operações de IA usam exclusivamente gemini-3.8-flash pelo Google AI SDK.
+O código ignora overrides antigos SCHOLAR_AI_MODEL e não troca para outro modelo.
+Geração, refinamento e assistentes exibem o mesmo dialog acessível com tempo de
+espera, texto contextual e fechamento automático no sucesso ou na falha. Não é uma conexão
 com a assinatura ChatGPT do usuário nem, atualmente, com o AI Gateway.
 
 ## Fluxos existentes
