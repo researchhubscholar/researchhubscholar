@@ -66,3 +66,14 @@ assert.equal(readManuscriptRecovery(localCopy,['methods']).sections[0].content,'
 assert.equal(readManuscriptRecovery('{bad json',['methods']),null);
 assert.equal(readManuscriptRecovery(JSON.stringify({sections:[{section_key:'unknown',content:'x'}]}),['methods']),null);
 assert.equal(readManuscriptRecovery(JSON.stringify({sections:[{section_key:'methods',content:123}]}),['methods']),null);
+
+const {chooseWallet,requestedWallet}=require('../lib/ai/wallet-selection.ts');
+const walletA={wallet:{id:'11111111-1111-4111-8111-111111111111'}};
+const walletB={wallet:{id:'22222222-2222-4222-8222-222222222222'}};
+assert.equal(chooseWallet([walletA,walletB],walletB.wallet.id),walletB);
+assert.throws(()=>chooseWallet([walletA,walletB],null),/Escolha/);
+assert.throws(()=>chooseWallet([walletA],walletB.wallet.id),/nenhum outro saldo/);
+assert.equal(chooseWallet([walletA],null),walletA);
+assert.equal(requestedWallet(new Request('https://test.local',{headers:{cookie:`scholar-wallet-owner=${walletB.wallet.id}`}}),'owner'),walletB.wallet.id);
+assert.equal(requestedWallet(new Request('https://test.local',{headers:{cookie:`scholar-wallet-other=${walletB.wallet.id}`}}),'owner'),null);
+console.log('PASS: explicit wallet selection, account isolation and no silent fallback.');

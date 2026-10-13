@@ -1,3 +1,5 @@
+import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
+import { chooseWallet, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
@@ -44,7 +46,7 @@ async function releaseStaleReservations(userId: string) {
   }
 }
 
-async function activeWallet(userId: string) {
+async function activeWallet(userId: string, selected: string | null) {
   await releaseStaleReservations(userId);
   const admin = supabaseAdmin();
   const { data: wallets, error } = await admin.from("scholar_wallets").select("id,license_id,allowance,used,reserved").eq("user_id", userId);
@@ -56,8 +58,7 @@ async function activeWallet(userId: string) {
   const now = Date.now();
   const licenseMap = new Map(((licenses || []) as License[]).map(license => [license.id, license]));
   const available = rows.map(wallet => ({ wallet, license: licenseMap.get(wallet.license_id) })).filter(item => item.license && ["active", "trial"].includes(item.license.status) && Date.parse(item.license.starts_at) <= now && Date.parse(item.license.ends_at) >= now && item.wallet.allowance - item.wallet.used - item.wallet.reserved >= scholarAI.reservedTokens).sort((a, b) => (b.wallet.allowance - b.wallet.used - b.wallet.reserved) - (a.wallet.allowance - a.wallet.used - a.wallet.reserved));
-  if (!available.length) throw new Error("Franquia indisponível ou insuficiente para esta operação.");
-  return available[0] as { wallet: Wallet; license: License };
+  return chooseWallet(available, selected) as { wallet: Wallet; license: License };
 }
 
 async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number, validate: (value: unknown) => value is T) {
@@ -97,7 +98,8 @@ export async function POST(request: Request) {
   let reserved = false;
   try {
     const input = validateIdeasRequest(await request.json());
-    const { wallet, license } = await activeWallet(user.id);
+    const { wallet, license } = await activeWallet(user.id, requestedWallet(request, user.id));
+    await verifyFinancialEnvelope(license.mode);
     const admin = supabaseAdmin();
     operationId = crypto.randomUUID();
     const model = license.mode === "simulation" ? "simulation" : scholarAI.model;

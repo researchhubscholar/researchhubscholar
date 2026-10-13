@@ -78,3 +78,16 @@ programas de residência.
 Scopus/Web of Science, aplicativo nativo, análise estatística avançada,
 redação integral, submissão direta, integrações hospitalares e colaboração
 simultânea complexa.
+
+## Estado em 13/10/2026 — revisão de pendências
+
+IA Gemini conectada em Preview: Ideias/refinamento, Radar, protocolo, leitura,
+matriz, orientação e manuscrito por seção. Seleção explícita de carteira aplicada
+no backend; orçamento financeiro incremental implementado e aguardando tarifas
+e ativação. Documentação atual de configuração: docs/ai-readiness.md.
+
+Pendentes: Stripe brasileira/checkout/webhook/renovação/inadimplência; alertas
+por e-mail; papéis institucionais separados de coordenação/direção e auditoria
+administrativa; exportações nativas DOCX/XLSX e relatório completo do Radar;
+busca completa em bases adicionais; avaliações científicas sistemáticas e
+validação autenticada/mobile. Identidade legal definitiva depende do titular.

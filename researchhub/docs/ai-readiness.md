@@ -1,50 +1,56 @@
-# Direção do Scholar e preparação para IA
+# IA atual — ResearchHub Scholar
 
-Objetivo: transformar interesse em pergunta delimitada, viável e fundamentada.
+A IA está conectada ao Google Gemini diretamente pelo AI SDK. Não é uma conexão
+com a assinatura ChatGPT do usuário nem, atualmente, com o AI Gateway.
 
-## Contratos atuais
+## Fluxos existentes
 
-- Context em lib/ideas/generate.ts contém problema, população, acesso, prazo,
-  exposição, desfecho, contexto, medida, volume acessível, orientação,
-  autorização e requisitos do curso. Campo desconhecido fica pendente;
-  não preencher com fatos inventados.
-- Evidence conserva artigo e anotações do usuário com proveniência explícita.
-- Idea contém proposta, plano, pendências e referências selecionadas reais.
-- generate é o provedor guiado atual. Uma futura rota autenticada no servidor
-  poderá devolver o mesmo contrato; a chave nunca será enviada ao navegador.
-- idea_versions armazena snapshots imutáveis por usuário e série. A geração
-  não salva automaticamente: o usuário decide quais versões preservar.
-- Histórico depende de supabase/scholar_idea_history.sql. O instalador inicial
-  também inclui essa tabela para novas instalações. Não repetir o instalador
-  inicial em uma base já criada.
+- Ideias: três propostas científicas, geração automática e refinamento com PubMed.
+- Radar: estratégia de busca revisável.
+- Protocolo: sugestões por campo, aplicadas pelo usuário.
+- Biblioteca: apoio de leitura e comparação na matriz a partir do material disponível.
+- Orientação: preparação de reunião com o contexto fornecido.
+- Manuscrito: assistência por seção, comparação e snapshot antes da aplicação.
 
-## IA futura por fase
+Acesso depende de sessão autenticada, licença válida e carteira do próprio usuário.
+A escolha em Minha licença é respeitada. Não há troca silenciosa de carteira
+quando a selecionada perde saldo. Com várias carteiras, a escolha é obrigatória.
+Sem escolha e com apenas uma carteira elegível, essa carteira pode ser usada.
 
-Radar: ajudar termos e recortes, mantendo contagens e resultados das bases.
-Biblioteca: resumir somente o conteúdo disponível, mostrar trechos de suporte
- e distinguir resumo de texto completo.
-Matriz: comparar evidências e sinalizar divergências, sem declarar lacunas
- comprovadas a partir de uma pequena seleção.
-Ideias: perguntar sobre informações decisivas que faltam, gerar alternativas
- delimitadas e explicar adaptações ao prazo, acesso e recursos.
-Projeto: revisar coerência entre pergunta, objetivo, medida, coleta e análise.
-Escrita: organizar e revisar conteúdo do usuário, sem inventar dados/resultados.
+## Consumo e orçamento
 
-Antes de ativar: validação do contrato no servidor, autenticação, controle de
- acesso inicial a contas de teste, limite de entrada+saída (até 10.000 tokens
- por geração), contagem real de uso, teto de gasto aplicado no aplicativo,
- rastreabilidade de modelo/custo/proposta e consentimento sobre dados enviados.
-Nenhum desses controles pagos está ativado nesta versão.
+Reserva de até 10.000 tokens por operação, orçamento de saída, registro de uso
+informado pelo provedor, devolução de franquia em falhas e versões de prompts.
+O registro atual de tokens/custos de geração concluída cobre a resposta final;
+tentativas anteriores que falham podem ser cobradas pelo provedor sem aparecer
+integralmente no ledger. A fatura do provedor continua sendo a fonte financeira.
 
-## Verificação na conta do usuário
+Migration incremental: supabase/scholar_ai_budgets.sql. É repetível e não apaga
+material. Cria envelopes diários em USD globais e por licença, com lock global
+na admissão de operações. Falhas continuam consumindo envelope diário; retries
+com o mesmo ID não duplicam a admissão. Simulações não usam orçamento financeiro.
 
-1. Executar a migration de histórico e entrar no Scholar.
-2. Preencher diagnóstico e gerar propostas com desfecho e contexto específicos.
-3. Salvar versão, mudar prazo/acesso, atualizar e salvar outra com motivo.
-4. Sair/entrar; retomar versões e conferir conteúdo, referências e anotações.
-5. Levar a proposta a Meu Projeto, salvar e recuperar em outra sessão.
-6. Comparar dois artigos na matriz e salvar suas anotações individualmente.
-7. Em outra conta, confirmar biblioteca, projetos e histórico vazios/isolados.
+Os limites começam DESATIVADOS para preservar os testes existentes no Preview.
+Valores iniciais de configuração, não estimativas de preço do modelo:
+US$2/dia global, US$1/dia por licença e US$0,25 de envelope por operação.
 
-Testes automatizados verificam regras e armazenamento simulado. Este roteiro
- exige sessão autenticada real e não é substituído por uma compilação.
+Antes de ativar, configurar SCHOLAR_AI_INPUT_USD_PER_TOKEN e
+SCHOLAR_AI_OUTPUT_USD_PER_TOKEN na Vercel. Usar tarifas conservadoras cobrindo o
+modelo mais caro entre principal e alternativas, inclusive tokens de raciocínio.
+O guard exige valores positivos e envelope suficiente para quatro tentativas de
+até 10.000 tokens. Depois, pelo SQL Editor:
+
+```sql
+update public.scholar_ai_budget_settings set enabled=true where id=true;
+```
+
+Produção exige migration, orçamento ativo e tarifas configuradas. Preview permite
+continuar o piloto com controle financeiro desligado. Esses envelopes são controle
+de admissão estimado, não garantia de teto exato da fatura do provedor.
+
+## Validação pendente
+
+- Confirmar tarifas reais e consumo de alternativas/falhas antes da venda.
+- Validar navegador autenticado e celular com contas individuais e institucionais.
+- Comparar qualidade em casos científicos reais; feedback existe em Ideias e Minha licença.
+- Validar checkout, renovação e e-mails após configuração da Stripe brasileira.

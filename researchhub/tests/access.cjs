@@ -148,6 +148,23 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  assert.deepEqual((await db.query('select tags from library_articles where id=$1',[articleKeep])).rows[0].tags.sort(),['duplicado','principal']);
  assert((await db.query('select notes from evidence_matrix where article_id=$1',[articleKeep])).rows[0].notes.includes('Nota complementar'));
  await as(outsider);await assert.rejects(db.query('select scholar_merge_library_duplicates($1,$2::uuid[])',[articleKeep,[articleRemove]]),/principal não encontrado/);
+ await db.exec('reset role');
+ await db.exec(fs.readFileSync('supabase/scholar_ai_budgets.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_ai_budgets.sql','utf8')); // repeat-safe migration
+ await db.query("update scholar_licenses set mode='live',status='active',starts_at=now()-interval '1 day',ends_at=now()+interval '30 days' where id=$1",[personal]);
+ await db.query('update scholar_wallets set reserved=0,used=0 where id=$1',[personalWallet]);
+ await db.exec("update scholar_usage set status='failed' where status='reserved'; update scholar_ai_budget_settings set enabled=true,global_daily_usd=0.5,license_daily_usd=0.25,operation_envelope_usd=0.25;");
+ await db.exec("update scholar_usage set created_at=now()-interval '2 days'");
+ const budgetRequest='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+ const budgetUser=await scalar('select user_id from scholar_wallets where id=$1',[personalWallet]);
+ await scalar("select scholar_reserve($1,$2,$3,'ideas','test',10000)",[budgetRequest,personalWallet,budgetUser]);
+ await scalar("select scholar_reserve($1,$2,$3,'ideas','test',10000)",[budgetRequest,personalWallet,budgetUser]);
+ assert.equal(await scalar('select count(*)::int from scholar_ai_budget_admissions'),1);
+ await db.query('select scholar_settle($1,0,0,0,true)',[budgetRequest]);
+ await assert.rejects(db.query("select scholar_reserve('cccccccc-cccc-4ccc-8ccc-cccccccccccc',$1,$2,'ideas','test',10000)",[personalWallet,budgetUser]),/financeiro diário desta licença/);
+ assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[personalWallet]),0);
+ await as(outsider);await assert.rejects(db.query('select * from scholar_ai_budget_settings'),/permission denied/);
+ console.log('PASS: financial envelopes, idempotency, failed-operation admission retention and private settings.');
  console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support, reversible deletion requests and restricted operations monitoring.');
  await db.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});
