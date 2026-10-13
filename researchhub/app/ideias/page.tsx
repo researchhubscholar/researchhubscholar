@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import GenerationDialog from "@/components/ideas/generation-dialog";
 import IdeaHistory from "@/components/ideas/history";
 import type { IdeaRefinement } from "@/lib/ai/refine-idea";
 import type { OutputLanguage } from "@/lib/ai/language";
@@ -269,6 +270,7 @@ export default function IdeasPage() {
   const selectedIdeas = ideas.filter(idea => selected.includes(idea.id));
 
   return <div className="scholar-workspace ideas-page max-w-5xl mx-auto">
+    <GenerationDialog open={aiLoading} />
     <header className="max-w-3xl">
       <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa com IA</p>
       <h1 className="font-display text-4xl md:text-5xl mt-3">Encontre um caminho científico que cabe na sua realidade.</h1>

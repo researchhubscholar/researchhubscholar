@@ -31,7 +31,7 @@ function message(error: unknown) {
   if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do Gemini foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
   if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos do Gemini estão temporariamente sobrecarregados. Sua franquia foi devolvida; tente novamente em alguns minutos.";
   if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do Gemini não foi aceita ou ainda não possui acesso ao modelo configurado.";
-  if (/model.*not found|not found.*model|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do Gemini.";
+  if (/model.*not found|not found.*model|no longer available|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do Gemini.";
   if (/schema|structured output|response.?format/i.test(raw)) return "O Gemini não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
   return raw.length < 240 ? raw : "Não foi possível concluir o aprimoramento agora.";
 }
@@ -67,7 +67,8 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
   let parseFailures = 0;
   const budget = outputBudget(prompt, schema, maxOutputTokens, scholarAI.reservedTokens, 2_500);
   const deadline = Date.now() + generationTimeoutMs;
-  for (const candidate of scholarAIModels) {
+  const candidates = [...scholarAIModels].sort((a, b) => Number(b.id === "gemini-3.8-flash") - Number(a.id === "gemini-3.8-flash"));
+  for (const candidate of candidates) {
     const remaining = deadline - Date.now();
     if (remaining < 10_000) throw new Error("A geração atingiu o prazo máximo de espera. Tente novamente em instantes.");
     try {
