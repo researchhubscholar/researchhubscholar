@@ -35,7 +35,11 @@ function fromRecord(record: Record<string, unknown>): Draft {
 
 export default function MeuTrabalhoPage() {
   const savingLock = useRef(false);
+  const draftRevision = useRef(0);
+  const [originRadarQuery, setOriginRadarQuery] = useState("");
   const [draft, setDraft] = useState<Draft>({ ...empty });
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
   const [incomingReferences, setIncomingReferences] = useState<string[]>([]);
   const [referenceIds, setReferenceIds] = useState<string[]>([]);
   const [loadedOwner, setLoadedOwner] = useState<string | null>(null);
@@ -79,6 +83,9 @@ export default function MeuTrabalhoPage() {
           if (error) throw new Error("Não foi possível carregar o projeto. Atualize a página para tentar novamente.");
           if (data) {
             setDraft(fromRecord(data));
+            const { data: origin } = await db.from("scholar_project_origins").select("snapshot").eq("owner_id", auth.user.id).eq("project_id", data.id).maybeSingle();
+            if (!active) return;
+            setOriginRadarQuery(typeof origin?.snapshot?.radarQuery === "string" ? origin.snapshot.radarQuery.slice(0, 2000) : "");
             try {
               const pending = JSON.parse(window.localStorage.getItem(key) || "{}");
               if (pending._projectId === data.id && Array.isArray(pending._referenceIds)) setReferenceIds(pending._referenceIds.filter((id: unknown) => typeof id === "string").slice(0, 10));
@@ -117,7 +124,7 @@ export default function MeuTrabalhoPage() {
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
   }, [dirty]);
-  function change(key: keyof Draft, value: string) { setDraft(d => ({ ...d, [key]: value })); setDirty(true); setSaveState("idle"); setMessage(""); }
+  function change(key: keyof Draft, value: string) { draftRevision.current += 1; setDraft(d => ({ ...d, [key]: value })); setDirty(true); setSaveState("idle"); setMessage(""); }
   const filled = groups.flatMap(g => g.keys).filter(k => draft[k].trim()).length;
   const total = groups.reduce((sum, g) => sum + g.keys.length, 0);
   const progress = Math.round(filled / total * 100);
@@ -131,6 +138,7 @@ export default function MeuTrabalhoPage() {
         return;
       }
     }
+    draftRevision.current += 1; setOriginRadarQuery(incomingOrigin?.radarQuery || "");
     setDraft(incoming); setReferenceIds(incomingReferences); setIncomingReferences([]); setProjectId(null); setProjectStatus("draft"); setIncoming(null); setDirty(true); setSaveState("idle");
     setMessage("Proposta aplicada a um novo rascunho. Revise os campos antes de salvar.");
     window.history.replaceState(null, "", window.location.pathname);
@@ -138,6 +146,7 @@ export default function MeuTrabalhoPage() {
   async function saveDraft() {
     if (saveState === "loading" || savingLock.current) return;
     if (!draft.theme.trim()) { setMessage("Informe um tema para identificar seu projeto."); setReview(true); return; }
+    const savingRevision = draftRevision.current;
     savingLock.current = true;
     setSaveState("loading"); setMessage("");
     let localSaved = false;
@@ -191,10 +200,11 @@ export default function MeuTrabalhoPage() {
           setReferenceIds([]);
         } catch { referenceFailure = true; referenceMessage = " As referências continuam nas notas, mas não foi possível concluir a associação na biblioteca. Clique em Salvar alterações para tentar novamente."; }
       }
-      setSaveState("saved"); setDirty(false);
-      setMessage("Projeto salvo na sua conta. Você pode abri-lo em Meu espaço." + setupMessage + referenceMessage);
+      const changedDuringSave = draftRevision.current !== savingRevision;
+      setSaveState("saved"); setDirty(changedDuringSave);
+      setMessage((changedDuringSave ? "A versão enviada foi salva. Há alterações mais recentes ainda pendentes; clique em Salvar alterações novamente." : "Projeto salvo na sua conta. Você pode abri-lo em Meu espaço.") + setupMessage + referenceMessage);
       window.history.replaceState(null, "", `/meu-trabalho?id=${encodeURIComponent(data.id)}`);
-      try { if (referenceFailure) window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: data.id })); else window.localStorage.removeItem(storageKey); } catch { /* A cópia na conta foi confirmada. */ }
+      try { if (changedDuringSave) { window.localStorage.setItem(storageKey, JSON.stringify({ ...latestDraft.current, _referenceIds: referenceFailure ? referenceIds : [], _projectId: data.id })); } else if (referenceFailure) window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: data.id })); else window.localStorage.removeItem(storageKey); } catch { /* A cópia na conta foi confirmada. */ }
     } catch {
       setSaveState(localSaved ? "local" : "error"); setDirty(!localSaved);
       setMessage(localSaved ? "A cópia local foi preservada, mas não foi possível sincronizar. Tente salvar novamente." : "Não foi possível salvar. Mantenha a página aberta e tente novamente.");
@@ -212,7 +222,7 @@ export default function MeuTrabalhoPage() {
   ];
   const creationDiagnosis = diagnoseProjectDraft(draft);
   const radarHref = projectId ? `/descobrir?${new URLSearchParams({
-    tema: draft.question.trim() || draft.theme.trim(),
+    tema: originRadarQuery || draft.question.trim() || draft.theme.trim(),
     populacao: draft.population.trim(),
     desfecho: draft.outcome.trim(),
     desenho: draft.studyType.trim(),
