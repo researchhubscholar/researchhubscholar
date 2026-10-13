@@ -43,7 +43,7 @@ export const assistantJsonSchema: JSONSchema7 = {
 
 const instructions: Record<AssistantFeature, string> = {
   radar: "Interprete a pergunta, separe conceitos, traduza termos biomédicos ao inglês e entregue uma estratégia PubMed em targetField=pubmedQuery. Use MeSH apenas quando tiver segurança; sinalize termos incertos.",
-  protocol: "Revise coerência entre pergunta, objetivo, desenho, população, desfecho, método, análise e ética. Sugira correções específicas usando targetField compatível com os campos recebidos. Não invente dados.",
+  protocol: "Revise coerência entre pergunta, objetivo, desenho, população, desfecho, método, análise e ética. Use targetField exatamente entre theme, question, objective, studyType, population, outcome, hypothesis, inclusion, exclusion, variables, methods, analysis, ethics e manuscript. Não use nomes de colunas do banco. Cada content deve conter o texto completo revisado do campo de destino, preservando as decisões corretas existentes. Não invente dados.",
   reading: "Extraia somente do texto do artigo. Para cada achado informe no campo source um trecho literal curto que o sustente e confiança. Use targetField objective, population, method, finding ou limitation. Se não constar, diga que não foi identificado.",
   matrix: "Compare somente os artigos fornecidos. Identifique convergências, divergências, limitações e lacunas. Cite em source os títulos/identificadores fornecidos, sem criar referências.",
   orientation: "Prepare uma reunião objetiva: decisões necessárias, perguntas ao orientador, riscos não resolvidos e próximos passos. Baseie-se apenas no projeto e registros fornecidos.",
