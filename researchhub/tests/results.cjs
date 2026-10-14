@@ -1,0 +1,17 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
+const {parseCsv,describe,chartData,validWorkspace,emptyResults}=require('../lib/results/data.ts');
+const {wordDocument,workbook}=require('../lib/exports/ooxml.ts');
+const {evaluationScore,performanceSummary}=require('../lib/ai/evaluation/rubric.ts');
+const data=parseCsv('Idade;Grupo;Nota\r\n20;A;"1,5"\r\n30;B;"2,5"\r\n;A;"3,5"');
+const stats=describe(data);assert.equal(stats[0].missing,1);assert.equal(stats[0].mean,25);assert.equal(stats[0].median,25);assert(Math.abs(stats[0].sd-Math.sqrt(50))<1e-10);assert.equal(stats[2].mean,2.5);
+assert.deepEqual(chartData(data,'Grupo','bar'),[{label:'A',count:2},{label:'B',count:1}]);assert.equal(chartData(data,'Idade','histogram').reduce((s,b)=>s+b.count,0),2);
+assert.equal(parseCsv('a,b\n"one, two","line\nnext"').rows[0][1],'line\nnext');assert.throws(()=>parseCsv('a,a\n1,2'),/únicos/);assert.throws(()=>parseCsv('a,b\n1'),/mesmo número/);assert.throws(()=>parseCsv('a\n"x'),/não fechadas/);
+assert(validWorkspace({...emptyResults,dataset:data}));assert(!validWorkspace({...emptyResults,dataset:{columns:['A'],rows:[[Infinity]]}}));
+assert.equal(describe({columns:['A'],rows:[['1']]} )[0].sd,null);
+const many={columns:['A'],rows:Array.from({length:20},(_,i)=>[String(i)])};assert.equal(chartData(many,'A','bar').reduce((s,b)=>s+b.count,0),20);
+assert.equal(evaluationScore({specificity:5,methods:4,feasibility:3,sources:5,usefulness:3}),4);assert.throws(()=>evaluationScore({}),/todos/);
+const perf=performanceSummary([{status:'completed',input_tokens:100,output_tokens:50,cost_usd:'0.01',created_at:'2026-01-01T00:00:00Z',finished_at:'2026-01-01T00:00:10Z'}]);assert.equal(perf.p95,10);assert.equal(perf.tokens,150);
+fs.writeFileSync('/tmp/scholar-test.docx',wordDocument([{text:'Projeto <seguro>',heading:true},{table:[['Grupo','N'],['A',2]]}]));
+fs.writeFileSync('/tmp/scholar-test.xlsx',workbook([{name:'Dados',rows:[data.columns,...data.rows]},{name:'Análise',rows:[['Média',25],['Texto','=HYPERLINK("unsafe")']]}]));
+console.log('PASS: CSV validation, missing values, sample SD, frequency totals, evaluation rubric and OOXML fixtures.');

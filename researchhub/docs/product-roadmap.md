@@ -91,3 +91,17 @@ por e-mail; papéis institucionais separados de coordenação/direção e audito
 administrativa; exportações nativas DOCX/XLSX e relatório completo do Radar;
 busca completa em bases adicionais; avaliações científicas sistemáticas e
 validação autenticada/mobile. Identidade legal definitiva depende do titular.
+
+## Prioridade em 14/10/2026 — antes de compra/acesso
+
+- [x] Primeira versão de resultados descritivos, figuras e fluxo genérico por projeto.
+- [x] DOCX/XLSX nativos na central; artigo consolidado com resultados e referências.
+- [x] Rubrica de avaliação das próprias gerações e cenários de teste científico.
+- [x] Diagnóstico operacional de orçamento, tarifas, tempo, tokens e custos estimados.
+- [x] Coordenação separada da direção e auditoria institucional imutável pelos clientes.
+- [ ] Executar migrations novas e validar fluxo autenticado no Preview.
+- [ ] Confirmar tarifas reais e ativação do orçamento financeiro no banco.
+- [ ] Executar/avaliar gerações reais; qualidade não declarada apenas com testes de código.
+- [ ] Provisionar serviço de e-mail, implementar envio e comprovar entrega dos alertas.
+
+Detalhes, limites e sequência: `docs/scientific-readiness.md`.

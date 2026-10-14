@@ -164,6 +164,29 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await assert.rejects(db.query("select scholar_reserve('cccccccc-cccc-4ccc-8ccc-cccccccccccc',$1,$2,'ideas','test',10000)",[personalWallet,budgetUser]),/financeiro diário desta licença/);
  assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[personalWallet]),0);
  await as(outsider);await assert.rejects(db.query('select * from scholar_ai_budget_settings'),/permission denied/);
+ await db.exec('reset role');
+ for(const migration of ['scholar_results.sql','scholar_institutional_roles.sql','scholar_ai_evaluation.sql']) {await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));}
+ const resultWorkspace=JSON.stringify({dataset:{columns:['Grupo'],rows:[['A']]},figure:{column:'Grupo',kind:'bar',title:'Grupo',caption:''},flow:[],notes:''});
+ await as(resident);await db.query('insert into scholar_project_results(project_id,owner_id,workspace) values($1,$2,$3)',[project,resident,resultWorkspace]);
+ await as(director);assert.equal((await db.query('select * from scholar_project_results')).rows.length,0);
+ await as(outsider);assert.equal((await db.query('select * from scholar_project_results')).rows.length,0);
+ await assert.rejects(db.query('insert into scholar_project_results(project_id,owner_id,workspace) values($1,$2,$3)',[project,outsider,resultWorkspace]),/row-level security/);
+ await db.exec('reset role');await db.query("insert into scholar_memberships(organization_id,user_id,role) values($1,$2,'advisor')",[org,outsider]);
+ await as(director);await scalar('select scholar_set_staff_role($1,$2,$3)',[org,outsider,'coordinator']);
+ await as(outsider);assert.equal(await scalar('select scholar_can_coordinate($1)',[org]),true);assert.equal(await scalar('select scholar_is_director($1)',[org]),false);
+ await scalar('select scholar_create_cohort($1,$2)',[org,'Turma coordenação']);
+ assert.equal((await db.query('select * from scholar_roster($1)',[org])).rows.length,1);
+ await assert.rejects(db.query('select scholar_allocate($1,10000)',[wallet]),/restrito/);
+ await assert.rejects(db.query('select scholar_set_staff_role($1,$2,$3)',[org,resident,'coordinator']),/diretor/);
+ assert((await db.query('select * from scholar_institutional_audit where organization_id=$1',[org])).rows.length>=2);
+ await assert.rejects(db.query("insert into scholar_institutional_audit(organization_id,action,entity,entity_id) values($1,'FAKE','fake','fake')",[org]),/permission denied/);
+ await as(resident);assert.equal((await db.query('select * from scholar_institutional_audit')).rows.length,0);
+ await db.exec('reset role');await db.query("update scholar_usage set status='completed' where id=$1",[budgetRequest]);
+ await as(resident);await db.query('insert into scholar_ai_evaluations(usage_id,evaluator_id,specificity,methods,feasibility,sources,usefulness) values($1,$2,5,4,4,5,4)',[budgetRequest,resident]);
+ await as(outsider);assert.equal((await db.query('select * from scholar_ai_evaluations')).rows.length,0);
+ await assert.rejects(db.query('insert into scholar_ai_evaluations(usage_id,evaluator_id,specificity,methods,feasibility,sources,usefulness) values($1,$2,5,4,4,5,4)',[budgetRequest,outsider]),/row-level security/);
+ console.log('PASS: private project results, coordinator authority boundaries, immutable institutional audit and own-generation evaluations.');
+
  console.log('PASS: financial envelopes, idempotency, failed-operation admission retention and private settings.');
  console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support, reversible deletion requests and restricted operations monitoring.');
  await db.close();
