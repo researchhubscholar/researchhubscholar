@@ -8,7 +8,8 @@ const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOL
 const useGateway = process.env.VERCEL_ENV === "preview";
 const selectedModel = useGateway ? "anthropic/claude-haiku-5.5" : "gemini-3.6-flash";
 const providerConfigured = useGateway
-  ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN)
+  // Vercel Functions expose OIDC through request context, not always env.
+  ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_ENV === "preview")
   : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const modelIds = [selectedModel];
 
