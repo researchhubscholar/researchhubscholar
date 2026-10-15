@@ -1,6 +1,7 @@
+import type { AnalysisConfig } from "./inference";
 export type Dataset = { columns: string[]; rows: string[][] };
 export type Figure = { column: string; title: string; caption: string; kind: "bar" | "histogram" };
-export type ResultsWorkspace = { dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string };
+export type ResultsWorkspace = { dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig };
 export const emptyResults: ResultsWorkspace = { dataset: { columns: [], rows: [] }, figure: { column: "", title: "", caption: "", kind: "bar" }, flow: [{ label: "Identificados", count: 0 }, { label: "Avaliados", count: 0 }, { label: "Incluídos", count: 0 }], notes: "" };
 export function parseCsv(text: string): Dataset {
   const source = text.replace(/^\uFEFF/, "");
@@ -59,5 +60,5 @@ export function chartData(dataset: Dataset, column: string, kind: Figure["kind"]
 export function validWorkspace(input: unknown): input is ResultsWorkspace {
   if (!input || typeof input !== "object") return false;
   const x = input as ResultsWorkspace;
-  return !!x.dataset && Array.isArray(x.dataset.columns) && x.dataset.columns.length <= 80 && x.dataset.columns.every(c => typeof c === "string" && c.length > 0 && c.length <= 200) && new Set(x.dataset.columns).size === x.dataset.columns.length && Array.isArray(x.dataset.rows) && x.dataset.rows.length <= 5000 && x.dataset.rows.every(r => Array.isArray(r) && r.length === x.dataset.columns.length && r.every(v => typeof v === "string" && v.length <= 2000)) && !!x.figure && ["bar", "histogram"].includes(x.figure.kind) && [x.figure.column, x.figure.title, x.figure.caption, x.notes].every(v => typeof v === "string" && v.length <= 10000) && Array.isArray(x.flow) && x.flow.length <= 12 && x.flow.every(s => typeof s.label === "string" && s.label.length <= 200 && Number.isSafeInteger(s.count) && s.count >= 0);
+  return (!x.analysis || (["welch", "pearson", "chi2"].includes(x.analysis.kind) && typeof x.analysis.independent === "boolean" && [x.analysis.x, x.analysis.y].every(v => typeof v === "string" && v.length <= 200))) && !!x.dataset && Array.isArray(x.dataset.columns) && x.dataset.columns.length <= 80 && x.dataset.columns.every(c => typeof c === "string" && c.length > 0 && c.length <= 200) && new Set(x.dataset.columns).size === x.dataset.columns.length && Array.isArray(x.dataset.rows) && x.dataset.rows.length <= 5000 && x.dataset.rows.every(r => Array.isArray(r) && r.length === x.dataset.columns.length && r.every(v => typeof v === "string" && v.length <= 2000)) && !!x.figure && ["bar", "histogram"].includes(x.figure.kind) && [x.figure.column, x.figure.title, x.figure.caption, x.notes].every(v => typeof v === "string" && v.length <= 10000) && Array.isArray(x.flow) && x.flow.length <= 12 && x.flow.every(s => typeof s.label === "string" && s.label.length <= 200 && Number.isSafeInteger(s.count) && s.count >= 0);
 }

@@ -15,3 +15,23 @@ const perf=performanceSummary([{status:'completed',input_tokens:100,output_token
 fs.writeFileSync('/tmp/scholar-test.docx',wordDocument([{text:'Projeto <seguro>',heading:true},{table:[['Grupo','N'],['A',2]]}]));
 fs.writeFileSync('/tmp/scholar-test.xlsx',workbook([{name:'Dados',rows:[data.columns,...data.rows]},{name:'Análise',rows:[['Média',25],['Texto','=HYPERLINK("unsafe")']]}]));
 console.log('PASS: CSV validation, missing values, sample SD, frequency totals, evaluation rubric and OOXML fixtures.');
+const {analyze}=require('../lib/results/inference.ts');
+const near=(a,b)=>assert(Math.abs(a-b)<1e-6,`${a} differs from SciPy ${b}`);
+for(const fixture of require('./results-reference.json')){
+ const result=analyze({columns:['x','y'],rows:fixture.rows},{kind:fixture.kind,x:'x',y:'y',independent:true});
+ for(const key of ['statistic','p','df','estimate'])near(result[key],fixture[key]);
+ if(fixture.ci)fixture.ci.forEach((v,i)=>near(result.ci[i],v));
+ assert.equal(result.excluded,0); assert.equal(result.n,fixture.rows.length);
+ const withMissing=analyze({columns:['x','y'],rows:[...fixture.rows,['','missing']]},{kind:fixture.kind,x:'x',y:'y',independent:true});
+ assert.equal(withMissing.excluded,1); near(withMissing.p,result.p);
+}
+const cfg={kind:'pearson',x:'x',y:'y',independent:true};
+assert.throws(()=>analyze({columns:['x','y'],rows:[]},{...cfg,independent:false}),/independência/);
+assert.throws(()=>analyze({columns:['x','y'],rows:[['1','2'],['1','3'],['1','4'],['1','5']]},cfg),/constante/);
+assert.throws(()=>analyze({columns:['x','y'],rows:[['abc','2']]},cfg),/não numérico/);
+assert.throws(()=>analyze({columns:['x','y'],rows:[['A','yes'],['B','no']]},{...cfg,kind:'chi2'}),/menores que 5/);
+assert.throws(()=>analyze({columns:['x','y'],rows:[['1','A'],['2','B']]},{...cfg,kind:'welch'}),/três/);
+assert(validWorkspace({...emptyResults,analysis:cfg}));
+assert(!validWorkspace({...emptyResults,analysis:{...cfg,kind:'invalid'}}));
+assert(validWorkspace(JSON.parse(JSON.stringify({...emptyResults,analysis:cfg}))));
+console.log('PASS: 12 independent SciPy reference cases, Welch/Pearson confidence intervals, chi-square/Cramer V, missing data, blocked assumptions and persisted settings.');
