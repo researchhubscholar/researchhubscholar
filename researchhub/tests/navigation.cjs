@@ -80,3 +80,15 @@ assert.doesNotMatch(
 );
 
 console.log("product route and navigation contract passed");
+
+const ts=require('typescript');
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,filename);
+const {returnNavigation}=require('../lib/navigation/return-link.ts');
+for(const route of [...privatePages,'/resultados','/manuscrito','/geracoes/exemplo','/operacao/qualidade']) {
+ if(route==='/dashboard') assert.equal(returnNavigation(route),null);
+ else assert.deepEqual(returnNavigation(route),{href:'/dashboard',label:'Voltar ao meu espaço'});
+}
+for(const route of publicPages.filter(p=>p!=='/')) assert.equal(returnNavigation(route).href,'/');
+assert.equal(returnNavigation('/'),null);
+assert.equal(returnNavigation('/conta/').href,'/dashboard');
+console.log('PASS: internal return links stay in workspace, nested routes included; public return links keep homepage.');

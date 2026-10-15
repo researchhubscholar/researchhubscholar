@@ -113,7 +113,7 @@ export default function AccountPage() {
     <section className="mt-7 bg-white border border-line rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl">Perfil</h2>
       <p className="text-sm text-ink-soft mt-2">O e-mail de acesso é <strong>{email}</strong>.</p>
-      <form onSubmit={saveProfile} className="grid md:grid-cols-3 gap-4 mt-5">
+      <form onSubmit={saveProfile} className="aligned-fields grid md:grid-cols-3 gap-4 mt-5">
         <label className="text-sm">Nome<input value={profile.name||""} maxLength={150} onChange={e=>setProfile({...profile,name:e.target.value})} className="block w-full border rounded-card p-3 mt-2"/></label>
         <label className="text-sm">Instituição<input value={profile.institution||""} maxLength={200} onChange={e=>setProfile({...profile,institution:e.target.value})} className="block w-full border rounded-card p-3 mt-2"/></label>
         <label className="text-sm">Área ou especialidade<input value={profile.specialty||""} maxLength={160} onChange={e=>setProfile({...profile,specialty:e.target.value})} className="block w-full border rounded-card p-3 mt-2"/></label>
@@ -129,7 +129,7 @@ export default function AccountPage() {
 
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <p className="text-xs uppercase tracking-widest text-teal">Suporte privado</p><h2 className="font-display text-2xl mt-2">Abrir uma solicitação</h2>
-      <form onSubmit={createSupport} className="grid md:grid-cols-2 gap-4 mt-5">
+      <form onSubmit={createSupport} className="aligned-fields grid md:grid-cols-2 gap-4 mt-5">
         <label className="text-sm">Categoria<select name="category" className="block w-full border rounded-card p-3 mt-2">{Object.entries(categoryLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label className="text-sm">Assunto<input name="subject" required minLength={3} maxLength={160} className="block w-full border rounded-card p-3 mt-2"/></label>
         <label className="md:col-span-2 text-sm">Mensagem<textarea name="supportMessage" required minLength={10} maxLength={4000} rows={5} className="block w-full border rounded-card p-3 mt-2"/></label>

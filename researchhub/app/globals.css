@@ -2691,3 +2691,27 @@ body {
 }
 .account-hero > p:last-child { max-width: 48rem; line-height: 1.65; }
 .scholar-workspace.account-page > section { border-radius: var(--workspace-card-radius); }
+
+/* Composition pass: keep labels, controls and long scientific titles in bounds. */
+.scholar-workspace fieldset { min-inline-size: 0; }
+.scholar-workspace .aligned-fields { align-items: end; }
+.scholar-workspace :is(h1, h2, h3, h4) {
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+.scholar-workspace :is(.module-intro, .library-hero, .advising-hero, .documents-hero, .radar-intro, .account-hero) h1,
+.scholar-workspace > h1 { overflow-wrap: break-word; text-wrap: pretty; }
+.scholar-workspace :is(button, a)[class*='rounded-card'][class*='px-'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+.scholar-workspace :is(label, p, th, td) { overflow-wrap: break-word; }
+.scholar-workspace input:is([type='checkbox'], [type='radio']) { flex-shrink: 0; }
+.scholar-workspace .manuscript-project-picker { width: min(100%, 24rem); min-width: 0; }
+.site-return-link { min-height: 2.75rem; line-height: 1.4; }
+@media (max-width: 639px) {
+  .scholar-workspace .manuscript-project-picker { width: 100%; }
+}
