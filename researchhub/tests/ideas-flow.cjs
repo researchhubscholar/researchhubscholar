@@ -29,7 +29,7 @@ assert.match(page, /createProject=\{row => transfer\(row\.proposal, row\)\}/);
 assert.match(page, /idea-version:\$\{savedVersion\.id\}/);
 assert.match(project, /scholar_project_origins/);
 assert.match(project, /initialProjectMilestones/);
-assert.match(project, /Diagnóstico inicial/);
+assert.match(project, /const diagnosis = diagnoseProjectDraft\(draft\)/);
 assert.match(project, /evitar uma duplicação/);
 
 assert.match(generation, /promptForJson/);
