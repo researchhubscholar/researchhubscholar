@@ -93,5 +93,7 @@ assert.equal(configuration.scholarAIModels.length,1);
 assert.equal(configuration.scholarAIModels[0].id,'alibaba/qwen3.7-flash');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
+assert.equal(configuration.scholarAI.reasoning,"none");
+for (const route of ["ideas","assist","refine-idea"]) assert.match(fs.readFileSync(`app/api/ai/${route}/route.ts`,"utf8"), /reasoning:\s*scholarAI.reasoning/);
 assert.equal(configuration.estimatedCost(1000,1000),0.00016);
 console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides without additional paid fallback attempts.');

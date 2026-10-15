@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const generationTimeoutMs = 120_000;
-const modelAttemptTimeoutMs = 75_000;
+const modelAttemptTimeoutMs = 100_000;
 const staleReservationMs = 10 * 60_000;
 
 function generationTimedOut(error: unknown) {
@@ -73,7 +73,7 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
     if (remaining < 10_000) throw new Error("A geração atingiu o prazo máximo de espera. Tente novamente em instantes.");
     try {
       const result = await generateText({
-        model: candidate.model,
+        model: candidate.model, reasoning: scholarAI.reasoning,
         output: Output.object({ schema: jsonSchema<T>(schema) }),
         instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
         maxOutputTokens: budget,

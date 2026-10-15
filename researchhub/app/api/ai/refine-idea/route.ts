@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     for (const candidate of scholarAIModels) {
       try {
         const candidateResult = await generateText({
-          model: candidate.model,
+          model: candidate.model, reasoning: scholarAI.reasoning,
           instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos. Responda exclusivamente no formato estruturado solicitado.",
           maxOutputTokens,
           maxRetries: 0,

@@ -24,6 +24,8 @@ export const scholarAI = {
   provider: useGateway ? "gateway" as const : "google" as const,
   model: selectedModel,
   structuredOutput: "native" as const,
+  // Qwen structured output requires non-thinking mode.
+  reasoning: useGateway ? "none" as const : undefined,
   promptVersion: "ideas.v7-opportunity-map",
   reservedTokens: 10_000,
   maxIdeasOutputTokens: 6_000,
