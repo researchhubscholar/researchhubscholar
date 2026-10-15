@@ -1,4 +1,5 @@
 "use client";
+import { preserveVersion } from "@/lib/projects/preserve-version";
 
 import { projectRadarHref, insertCitationAt } from "@/lib/projects/editor-navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -87,6 +88,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
+  const versionLock = useRef(false);
+  const [versionSaving, setVersionSaving] = useState(false);
   const editorFields = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const citationPositions = useRef<Record<string, number>>({});
   const [message, setMessage] = useState(initialManuscript ? "Manuscrito carregado." : "Comece a escrever. O primeiro salvamento criará o manuscrito deste projeto.");
@@ -184,16 +187,22 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   }
 
   async function createVersion() {
-    if (!canEdit) return;
-    if (dirty || !manuscriptId) await save(false);
-    const id = stateRef.current.manuscriptId;
-    if (!id) { setMessage("Salve o manuscrito antes de criar uma versão."); return; }
-    const label = `Versão de ${new Date().toLocaleDateString("pt-BR")} — ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-    const snapshot = { title: stateRef.current.title, subtitle: stateRef.current.subtitle, authors: stateRef.current.authors, affiliations: stateRef.current.affiliations, keywords: stateRef.current.keywords, articleType: stateRef.current.articleType, targetJournal: stateRef.current.targetJournal, citationStyle: stateRef.current.citationStyle, citationIds: stateRef.current.citationIds, status: stateRef.current.status, sections: stateRef.current.sections };
-    const db = supabaseBrowser();
-    const { data, error } = await db.from("scholar_manuscript_versions").insert({ manuscript_id: id, owner_id: ownerId, label, snapshot }).select("id,label,snapshot,created_at").single();
-    if (error || !data) { setMessage("Não foi possível criar a versão."); return; }
-    setVersions(current => [data, ...current].slice(0, 12)); setMessage("Versão preservada no histórico.");
+    if (!canEdit || versionLock.current || saveLock.current) return;
+    versionLock.current = true; setVersionSaving(true);
+    const current = stateRef.current;
+    const snapshot = { title: current.title, subtitle: current.subtitle, authors: current.authors, affiliations: current.affiliations, keywords: current.keywords, articleType: current.articleType, targetJournal: current.targetJournal, citationStyle: current.citationStyle, citationIds: current.citationIds, status: current.status, sections: current.sections };
+    try {
+      const data = await preserveVersion(snapshot, () => save(false), async captured => {
+        const id = stateRef.current.manuscriptId;
+        if (!id) throw new Error("Salve o manuscrito antes de criar uma versão.");
+        const label = `Versão de ${new Date().toLocaleDateString("pt-BR")} — ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+        const { data, error } = await supabaseBrowser().from("scholar_manuscript_versions").insert({ manuscript_id: id, owner_id: ownerId, label, snapshot: captured }).select("id,label,snapshot,created_at").single();
+        if (error || !data) throw new Error("Não foi possível criar a versão. O texto salvo continua na conta.");
+        return data;
+      });
+      setVersions(current => [data, ...current].slice(0, 12)); setMessage("Versão preservada no histórico.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível criar a versão."); }
+    finally { versionLock.current = false; setVersionSaving(false); }
   }
 
   async function applySectionSuggestion(key: string, original: string, proposed: string) {
@@ -355,7 +364,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
         </section>;
       })}
       {comparisonVersions.length === 2 && <section className="bg-white border border-line rounded-2xl p-5 md:p-7"><p className="text-xs uppercase tracking-widest text-teal">Comparação visual</p><h2 className="font-display text-2xl mt-2">O que mudou entre as versões</h2><div className="grid md:grid-cols-2 gap-3 mt-4 text-xs"><p className="rounded-card bg-paper p-3"><strong>Antes:</strong> {comparisonVersions[0].label}</p><p className="rounded-card bg-paper p-3"><strong>Depois:</strong> {comparisonVersions[1].label}</p></div>{comparisonSections.length ? <div className="mt-5 space-y-5">{comparisonSections.map(section => <article key={section.section_key}><h3 className="font-medium">{section.heading}</h3><div className="grid md:grid-cols-2 gap-3 mt-2"><div className="rounded-card border border-line p-4"><p className="text-[11px] uppercase tracking-wide text-ink-soft">Antes · {wordCount(section.before)} palavras</p><p className="text-sm whitespace-pre-wrap mt-2">{section.before || "Seção vazia"}</p></div><div className="rounded-card border border-teal/30 bg-teal-soft/30 p-4"><p className="text-[11px] uppercase tracking-wide text-teal">Depois · {wordCount(section.after)} palavras</p><p className="text-sm whitespace-pre-wrap mt-2">{section.after || "Seção vazia"}</p></div></div></article>)}</div> : <p className="text-sm text-ink-soft mt-5">As seções destas versões são iguais.</p>}</section>}
-      {canEdit && <div className="bg-ink text-white rounded-2xl p-5 flex flex-wrap gap-4 justify-between items-center"><div><p className="text-xs uppercase text-teal-soft">Salvamento seguro</p><p className="text-sm text-white/70 mt-2">O autosave preserva o texto; versões registram marcos importantes.</p></div><div className="flex flex-wrap gap-3"><button onClick={() => void createVersion()} disabled={saving} className="border border-white/30 rounded-card px-4 py-3 disabled:opacity-50">Criar versão</button><button onClick={() => void save(true)} disabled={saving} className="bg-white text-ink rounded-card px-4 py-3 font-medium disabled:opacity-50">{saving ? "Salvando…" : "Salvar agora"}</button></div></div>}
+      {canEdit && <div className="bg-ink text-white rounded-2xl p-5 flex flex-wrap gap-4 justify-between items-center"><div><p className="text-xs uppercase text-teal-soft">Salvamento seguro</p><p className="text-sm text-white/70 mt-2">O autosave preserva o texto; versões registram marcos importantes.</p></div><div className="flex flex-wrap gap-3"><button onClick={() => void createVersion()} disabled={saving || versionSaving} className="border border-white/30 rounded-card px-4 py-3 disabled:opacity-50">{versionSaving ? "Preservando versão…" : "Criar versão"}</button><button onClick={() => void save(true)} disabled={saving} className="bg-white text-ink rounded-card px-4 py-3 font-medium disabled:opacity-50">{saving ? "Salvando…" : "Salvar agora"}</button></div></div>}
     </div>
 
     <aside aria-label="Contexto e citações" tabIndex={0} className="manuscript-citation-sidebar space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-2"><section className="bg-white border border-line rounded-2xl p-5"><Link href={projectRadarHref(project.id, title, project.research_question || "")} className="inline-block text-sm text-teal mb-4">Pesquisar este tema no Radar →</Link><Link href={`/resultados?projeto=${project.id}`} className="block text-sm text-teal mb-4">Dados, tabelas e gráficos →</Link><p className="text-xs uppercase tracking-widest text-teal">Base do projeto</p><h3 className="font-display text-xl mt-2">Coerência científica</h3><dl className="mt-4 space-y-3 text-sm"><div><dt className="text-xs text-ink-soft">Pergunta</dt><dd className="mt-1">{project.research_question || "Ainda não definida"}</dd></div><div><dt className="text-xs text-ink-soft">Objetivo</dt><dd className="mt-1">{project.objective || "Ainda não definido"}</dd></div><div><dt className="text-xs text-ink-soft">Desenho</dt><dd className="mt-1">{project.study_type || "Ainda não definido"}</dd></div></dl><Link href={`/meu-trabalho?id=${project.id}`} className="inline-block text-sm text-teal mt-4">Revisar protocolo →</Link></section>

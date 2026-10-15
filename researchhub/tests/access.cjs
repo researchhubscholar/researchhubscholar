@@ -51,7 +51,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec('reset role');
  const project=await scalar(`insert into research_projects(owner_id,title) values($1,'Projeto privado') returning id`,[resident]);
  // Match Supabase's existing grants; the original installer relies on platform defaults.
- await db.exec('grant select,insert,update,delete on research_projects to authenticated;');
+ await db.exec('grant select,insert,update,delete on research_projects,library_articles,evidence_matrix to authenticated;');
  await as(resident);await db.query(`insert into scholar_project_origins(project_id,owner_id,source_type,source_key,snapshot) values($1,$2,'idea','idea:test-origin','{}')`,[project,resident]);
  await as(director);assert.equal((await db.query('select id from research_projects where id=$1',[project])).rows.length,0);
  assert.equal((await db.query('select project_id from scholar_project_origins where project_id=$1',[project])).rows.length,0);
@@ -195,5 +195,16 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await assert.rejects(db.query("insert into scholar_saved_searches(owner_id,name,query) values($1,'Acima do limite',$2)",[resident,'x'.repeat(10001)]),/check constraint/);
  console.log('PASS: financial envelopes, idempotency, failed-operation admission retention and private settings.');
  console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support, reversible deletion requests and restricted operations monitoring.');
+ await db.exec('reset role');
+ await db.exec(fs.readFileSync('supabase/scholar_project_delete.sql','utf8'));
+ await as(outsider);await assert.rejects(db.query('select scholar_delete_project($1)',[project]),/sem permissão/);
+ await as(resident);await db.query('select scholar_delete_project($1)',[project]);
+ assert.equal((await db.query('select * from research_projects where id=$1',[project])).rows.length,0);
+ assert.equal((await db.query('select * from library_articles where id=$1',[articleKeep])).rows[0].project_id,null);
+ assert.equal((await db.query('select * from evidence_matrix where article_id=$1',[articleKeep])).rows[0].project_id,null);
+ assert.equal((await db.query('select * from scholar_manuscripts where id=$1',[manuscript])).rows.length,0);
+ assert.equal((await db.query('select * from scholar_project_results where project_id=$1',[project])).rows.length,0);
+ assert.equal((await db.query('select * from library_article_projects where project_id=$1',[project])).rows.length,0);
+ console.log('PASS: project deletion against complete migrated schema and real RLS preserves library/matrix and cascades manuscript, results and links.');
  await db.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});
