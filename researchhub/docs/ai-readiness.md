@@ -1,6 +1,6 @@
 # IA atual — ResearchHub Scholar
 
-Todas as operações de IA usam exclusivamente gemini-3.8-flash pelo Google AI SDK.
+Todas as operações de IA usam exclusivamente gemini-3.6-flash pelo Google AI SDK.
 O código ignora overrides antigos SCHOLAR_AI_MODEL e não troca para outro modelo.
 Geração, refinamento e assistentes exibem o mesmo dialog acessível com tempo de
 espera, texto contextual e fechamento automático no sucesso ou na falha. Não é uma conexão
@@ -57,3 +57,14 @@ de admissão estimado, não garantia de teto exato da fatura do provedor.
 - Validar navegador autenticado e celular com contas individuais e institucionais.
 - Comparar qualidade em casos científicos reais; feedback existe em Ideias e Minha licença.
 - Validar checkout, renovação e e-mails após configuração da Stripe brasileira.
+
+## Troca em 15/10/2026
+
+Os logs do Preview confirmaram high demand no Gemini 3.8 Flash. O modelo central
+foi alterado para `gemini-3.6-flash`, listado pela documentação oficial do Google
+com suporte a saídas estruturadas. Todas as rotas continuam usando o provedor
+Google já conectado, com uma única tentativa de modelo por operação; sem fallback
+que possa duplicar o envelope financeiro. Prompts, limites, schema e validação
+permanecem os mesmos. A disponibilidade para esta chave precisa ser confirmada
+em uma chamada autenticada no Preview. Tarifas configuradas são estimativas e
+devem corresponder ao modelo selecionado.
