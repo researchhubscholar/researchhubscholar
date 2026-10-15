@@ -3,10 +3,11 @@ import { google } from "@ai-sdk/google";
 import { gateway } from "ai";
 
 const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOLAR_AI_ENABLED !== "false";
-// Preview uses Vercel OIDC and Gateway credits, independently of Google capacity.
+// Qwen 3.7 Flash is marked availableToFreeTier in the Gateway catalog.
+// Preview uses Vercel OIDC and the included Gateway credit; no paid fallback.
 // Production stays on its existing provider until Preview has been validated.
 const useGateway = process.env.VERCEL_ENV === "preview";
-const selectedModel = useGateway ? "anthropic/claude-haiku-5.5" : "gemini-3.6-flash";
+const selectedModel = useGateway ? "alibaba/qwen3.7-flash" : "gemini-3.6-flash";
 const providerConfigured = useGateway
   // Vercel Functions expose OIDC through request context, not always env.
   ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_ENV === "preview")
@@ -27,8 +28,8 @@ export const scholarAI = {
   reservedTokens: 10_000,
   maxIdeasOutputTokens: 6_000,
   maxAssistOutputTokens: 4_000,
-  inputUsdPerToken: useGateway ? 0.0000001 : Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0"),
-  outputUsdPerToken: useGateway ? 0.0000005 : Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0"),
+  inputUsdPerToken: useGateway ? 0.00000003 : Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0"),
+  outputUsdPerToken: useGateway ? 0.00000013 : Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0"),
 } as const;
 
 const createModel = (id: string) => useGateway ? gateway(id) : google(id);

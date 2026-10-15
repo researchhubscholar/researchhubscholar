@@ -87,10 +87,11 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/ai/config.ts','utf8')
  require:name=>name==='server-only'?{}:name==='ai'?{gateway:id=>({modelId:id})}:name==='@ai-sdk/google'?{google:id=>({modelId:id})}:(()=>{throw new Error(name)})(),
 });
 const configuration=configurationModule.exports;
-assert.equal(configuration.scholarAI.model,'anthropic/claude-haiku-5.5');
-assert.equal(configuration.scholarAIModel.modelId,'anthropic/claude-haiku-5.5');
+assert.equal(configuration.scholarAI.model,'alibaba/qwen3.7-flash');
+assert.equal(configuration.scholarAIModel.modelId,'alibaba/qwen3.7-flash');
 assert.equal(configuration.scholarAIModels.length,1);
-assert.equal(configuration.scholarAIModels[0].id,'anthropic/claude-haiku-5.5');
+assert.equal(configuration.scholarAIModels[0].id,'alibaba/qwen3.7-flash');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
-console.log('PASS: Preview AI routes share Gateway Haiku 5.5, ignoring stale model overrides without additional paid fallback attempts.');
+assert.equal(configuration.estimatedCost(1000,1000),0.00016);
+console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides without additional paid fallback attempts.');
