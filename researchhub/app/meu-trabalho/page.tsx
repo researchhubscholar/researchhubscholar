@@ -6,6 +6,7 @@ import { readIdeaTransfer, type TransferOrigin } from "@/lib/ideas/transfer";
 import { LibraryStore } from "@/lib/literature/library-store";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
+import { projectRadarHref } from "@/lib/projects/editor-navigation";
 import ProjectSharing from "@/components/access/project-sharing";
 import ProjectJourney from "@/components/projects/journey";
 import AssistantPanel from "@/components/ai/assistant-panel";
@@ -36,7 +37,6 @@ function fromRecord(record: Record<string, unknown>): Draft {
 export default function MeuTrabalhoPage() {
   const savingLock = useRef(false);
   const draftRevision = useRef(0);
-  const [originRadarQuery, setOriginRadarQuery] = useState("");
   const [draft, setDraft] = useState<Draft>({ ...empty });
   const latestDraft = useRef(draft);
   latestDraft.current = draft;
@@ -82,9 +82,6 @@ export default function MeuTrabalhoPage() {
           if (error) throw new Error("Não foi possível carregar o projeto. Atualize a página para tentar novamente.");
           if (data) {
             setDraft(fromRecord(data));
-            const { data: origin } = await db.from("scholar_project_origins").select("snapshot").eq("owner_id", auth.user.id).eq("project_id", data.id).maybeSingle();
-            if (!active) return;
-            setOriginRadarQuery(typeof origin?.snapshot?.radarQuery === "string" ? origin.snapshot.radarQuery.slice(0, 2000) : "");
             try {
               const pending = JSON.parse(window.localStorage.getItem(key) || "{}");
               if (pending._projectId === data.id && Array.isArray(pending._referenceIds)) setReferenceIds(pending._referenceIds.filter((id: unknown) => typeof id === "string").slice(0, 10));
@@ -137,7 +134,7 @@ export default function MeuTrabalhoPage() {
         return;
       }
     }
-    draftRevision.current += 1; setOriginRadarQuery(incomingOrigin?.radarQuery || "");
+    draftRevision.current += 1;
     setDraft(incoming); setReferenceIds(incomingReferences); setIncomingReferences([]); setProjectId(null); setProjectStatus("draft"); setIncoming(null); setDirty(true); setSaveState("idle");
     setMessage("Proposta aplicada a um novo rascunho. Revise os campos antes de salvar.");
     window.history.replaceState(null, "", window.location.pathname);
@@ -219,14 +216,7 @@ export default function MeuTrabalhoPage() {
     ...(draft.studyType.includes("Revisão") ? ["Na revisão, defina bases, estratégia de busca, critérios de seleção e avaliação crítica."] : ["No estudo com dados ou participantes, registre autorizações, proteção dos dados e avaliação ética aplicável."]),
     "Confira com o orientador se pergunta, objetivo, desfecho e método respondem à mesma questão.",
   ];
-  const radarHref = projectId ? `/descobrir?${new URLSearchParams({
-    tema: originRadarQuery || draft.question.trim() || draft.theme.trim(),
-    populacao: draft.population.trim(),
-    desfecho: draft.outcome.trim(),
-    desenho: draft.studyType.trim(),
-    projeto: projectId,
-    origem: "projeto",
-  }).toString()}` : "/descobrir";
+  const radarHref = projectId ? projectRadarHref(projectId, draft.theme, draft.question) : "/descobrir";
   return <div className="scholar-workspace project-page max-w-6xl mx-auto grid lg:grid-cols-[260px_1fr] gap-8 lg:gap-10">
     <aside className="project-sidebar lg:sticky lg:top-24 self-start"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><p className="text-xs uppercase tracking-widest text-teal mt-6">Meu projeto</p><h1 className="font-display text-2xl mt-2">Construtor científico</h1>
       <div className="mt-5 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal transition-all" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{progress}% dos campos principais preenchidos</p><p className="text-xs text-ink-soft mt-1">O preenchimento não indica validação científica.</p>
