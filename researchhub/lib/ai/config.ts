@@ -1,12 +1,15 @@
 import "server-only";
 import { google } from "@ai-sdk/google";
+import { gateway } from "ai";
 
 const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOLAR_AI_ENABLED !== "false";
-// Central model for all Scholar AI operations. Gemini 3.6 Flash is a stable
-// structured-output alternative to the overloaded 3.8 deployment. Legacy env
-// overrides stay ignored so every feature uses the model selected here.
-const selectedModel = "gemini-3.6-flash";
-const googleConfigured = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+// Preview uses Vercel OIDC and Gateway credits, independently of Google capacity.
+// Production stays on its existing provider until Preview has been validated.
+const useGateway = process.env.VERCEL_ENV === "preview";
+const selectedModel = useGateway ? "anthropic/claude-haiku-5.5" : "gemini-3.6-flash";
+const providerConfigured = useGateway
+  ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN)
+  : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const modelIds = [selectedModel];
 
 export const scholarAI = {
@@ -14,21 +17,22 @@ export const scholarAI = {
   backendConfigured: Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
-    googleConfigured,
+    providerConfigured,
   ),
-  provider: "google" as const,
+  provider: useGateway ? "gateway" as const : "google" as const,
   model: selectedModel,
   structuredOutput: "native" as const,
   promptVersion: "ideas.v7-opportunity-map",
   reservedTokens: 10_000,
   maxIdeasOutputTokens: 6_000,
   maxAssistOutputTokens: 4_000,
-  inputUsdPerToken: Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0"),
-  outputUsdPerToken: Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0"),
+  inputUsdPerToken: useGateway ? 0.0000001 : Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0"),
+  outputUsdPerToken: useGateway ? 0.0000005 : Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0"),
 } as const;
 
-export const scholarAIModel = google(selectedModel);
-export const scholarAIModels = modelIds.map(id => ({ id, model: google(id) }));
+const createModel = (id: string) => useGateway ? gateway(id) : google(id);
+export const scholarAIModel = createModel(selectedModel);
+export const scholarAIModels = modelIds.map(id => ({ id, model: createModel(id) }));
 export const scholarAIReady = scholarAI.enabled && scholarAI.backendConfigured;
 
 export function providerErrorText(error: unknown): string {

@@ -83,14 +83,14 @@ const vm = require('node:vm');
 const configurationModule = {exports:{}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/ai/config.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
  module:configurationModule,exports:configurationModule.exports,
- process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',GOOGLE_GENERATIVE_AI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
- require:name=>name==='server-only'?{}:name==='@ai-sdk/google'?{google:id=>({modelId:id})}:(()=>{throw new Error(name)})(),
+ process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',VERCEL_OIDC_TOKEN:'test-only',GOOGLE_GENERATIVE_AI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
+ require:name=>name==='server-only'?{}:name==='ai'?{gateway:id=>({modelId:id})}:name==='@ai-sdk/google'?{google:id=>({modelId:id})}:(()=>{throw new Error(name)})(),
 });
 const configuration=configurationModule.exports;
-assert.equal(configuration.scholarAI.model,'gemini-3.6-flash');
-assert.equal(configuration.scholarAIModel.modelId,'gemini-3.6-flash');
+assert.equal(configuration.scholarAI.model,'anthropic/claude-haiku-5.5');
+assert.equal(configuration.scholarAIModel.modelId,'anthropic/claude-haiku-5.5');
 assert.equal(configuration.scholarAIModels.length,1);
-assert.equal(configuration.scholarAIModels[0].id,'gemini-3.6-flash');
+assert.equal(configuration.scholarAIModels[0].id,'anthropic/claude-haiku-5.5');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
-console.log('PASS: all AI routes share Gemini 3.6 Flash, ignoring stale model overrides without additional paid fallback attempts.');
+console.log('PASS: Preview AI routes share Gateway Haiku 5.5, ignoring stale model overrides without additional paid fallback attempts.');

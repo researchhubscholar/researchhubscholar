@@ -33,7 +33,8 @@ assert.match(project, /const diagnosis = diagnoseProjectDraft\(draft\)/);
 assert.match(project, /evitar uma duplicação/);
 
 assert.match(generation, /promptForJson/);
-assert.match(generation, /parseValidatedJson/);
+assert.match(generation, /Output\.object/);
+assert.match(generation, /validate\(result\.output\)/);
 assert.match(refinement, /Output\.object/);
 assert.match(refinement, /jsonSchema<IdeaRefinementDraft>/);
 assert.match(refinement, /articles\.slice\(0, 5\)/);

@@ -1,10 +1,10 @@
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
-import { generateText, type JSONSchema7 } from "ai";
+import { generateText, Output, jsonSchema, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
-import { outputBudget, parseValidatedJson, promptForJson } from "@/lib/ai/structured-output";
+import { outputBudget, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -28,11 +28,11 @@ function message(error: unknown) {
   if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. Sua franquia será devolvida; tente novamente.";
   if (raw.includes("Franquia")) return raw;
   if (raw.includes("limite") || raw.includes("Limite") || raw.includes("andamento")) return raw;
-  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do Gemini foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
-  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos do Gemini estão temporariamente sobrecarregados. Sua franquia foi devolvida; tente novamente em alguns minutos.";
-  if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do Gemini não foi aceita ou ainda não possui acesso ao modelo configurado.";
-  if (/model.*not found|not found.*model|no longer available|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do Gemini.";
-  if (/schema|structured output|response.?format/i.test(raw)) return "O Gemini não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
+  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do provedor de IA foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
+  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos de IA estão temporariamente sobrecarregados. Sua franquia foi devolvida; tente novamente em alguns minutos.";
+  if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do provedor de IA não foi aceita ou ainda não possui acesso ao modelo configurado.";
+  if (/model.*not found|not found.*model|no longer available|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do provedor de IA.";
+  if (/schema|structured output|response.?format/i.test(raw)) return "O provedor de IA não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
   return raw.length < 240 ? raw : "Não foi possível concluir o aprimoramento agora.";
 }
 
@@ -67,22 +67,28 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
   let parseFailures = 0;
   const budget = outputBudget(prompt, schema, maxOutputTokens, scholarAI.reservedTokens, 2_500);
   const deadline = Date.now() + generationTimeoutMs;
-  const candidates = [...scholarAIModels].sort((a, b) => Number(b.id === "gemini-3.8-flash") - Number(a.id === "gemini-3.8-flash"));
+  const candidates = scholarAIModels;
   for (const candidate of candidates) {
     const remaining = deadline - Date.now();
     if (remaining < 10_000) throw new Error("A geração atingiu o prazo máximo de espera. Tente novamente em instantes.");
     try {
       const result = await generateText({
         model: candidate.model,
+        output: Output.object({ schema: jsonSchema<T>(schema) }),
         instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
         maxOutputTokens: budget,
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(Math.min(modelAttemptTimeoutMs, remaining)),
         prompt: promptForJson(prompt, schema),
       });
-      return { result, output: parseValidatedJson(result.text, validate), modelId: candidate.id };
+      console.info("[scholar-ai:ideas] response", { model: candidate.id, finishReason: result.finishReason, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens });
+      if (result.finishReason === "length") throw new Error("A resposta atingiu o limite de tamanho. Tente gerar novamente com um recorte mais específico.");
+      if (!validate(result.output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado.");
+      return { result, output: result.output, modelId: candidate.id };
     } catch (error) {
       lastError = error;
+      const failure = error as { finishReason?: unknown; usage?: { inputTokens?: number; outputTokens?: number } };
+      console.warn("[scholar-ai:ideas] incomplete response", { model: candidate.id, finishReason: failure?.finishReason, inputTokens: failure?.usage?.inputTokens, outputTokens: failure?.usage?.outputTokens });
       if (/JSON|objeto.*completo|formato científico/i.test(error instanceof Error ? error.message : String(error))) {
         parseFailures += 1;
         if (parseFailures < 2) continue;
@@ -90,11 +96,11 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
       if (!generationTimedOut(error) && !retryWithFallback(error)) throw error;
     }
   }
-  throw lastError || new Error("Nenhum modelo do Gemini está disponível agora.");
+  throw lastError || new Error("Nenhum modelo de IA está disponível agora.");
 }
 
 export async function POST(request: Request) {
-  if (!scholarAIReady) return NextResponse.json({ error: "A IA de teste ainda não está conectada ao Google Gemini neste ambiente." }, { status: 503 });
+  if (!scholarAIReady) return NextResponse.json({ error: "A IA de teste ainda não está conectada ao provedor de IA neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
   const { data: { user }, error: authError } = await client.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Entre na sua conta para usar a assistência." }, { status: 401 });
