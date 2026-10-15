@@ -6,6 +6,7 @@ import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFal
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
 import { completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
 import { outputLanguage } from "@/lib/ai/language";
+import { ideaRadarQuery } from "@/lib/ideas/radar";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { fetchArticleDetails, pubmedSearch } from "@/lib/literature/pubmed";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
   let reserved = false;
   try {
     const input = validate(await request.json());
-    const query = input.idea.radar.trim();
+    const query = ideaRadarQuery(input.idea.radar);
     if (query.length < 5 || query.length > 1800) throw new Error("A estratégia bibliográfica desta proposta precisa ser revisada antes do refinamento.");
 
     const search = await pubmedSearch(query, 12, "relevance");

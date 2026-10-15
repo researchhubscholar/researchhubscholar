@@ -53,6 +53,19 @@ assert.equal(isAssistantOutput(simulatedOutput('radar')),true);assert.equal(isAs
 assert.equal(ledgerFeature.radar,'refinement');assert.equal(ledgerFeature.protocol,'protocol');assert.equal(ledgerFeature.reading,'reading');assert.equal(ledgerFeature.matrix,'matrix');assert.equal(ledgerFeature.orientation,'writing');assert.throws(()=>validateAssistRequest({feature:'unknown',context:{theme:'sono'}}),/inválida/);
 console.log('PASS: simplified AI idea request, responsible prompt and three-proposal merge.');
 
+const {ideaRadarQuery}=require('../lib/ideas/radar.ts');
+const ungrouped='"Rheumatoid Arthritis" AND "Biologics" AND "Adherence" OR "Compliance" AND "Prevalence" AND "Meta-Analysis"';
+const grouped='"Rheumatoid Arthritis" AND "Biologics" AND ("Adherence" OR "Compliance") AND "Prevalence" AND "Meta-Analysis"';
+assert.equal(ideaRadarQuery(ungrouped),grouped);
+assert.equal(ideaRadarQuery(grouped),grouped);
+assert.equal(ideaRadarQuery('"A OR B" AND C'),'"A OR B" AND C');
+assert.equal(ideaRadarQuery('A OR B AND C OR D'),'(A OR B) AND (C OR D)');
+assert.equal(ideaRadarQuery('A[Title] OR B[Title] AND C[MeSH Terms]'),'(A[Title] OR B[Title]) AND C[MeSH Terms]');
+for(const explicit of ['(A AND B) OR C','A NOT B OR C','A OR B','A AND','A AND OR B']) assert.equal(ideaRadarQuery(explicit),explicit);
+assert.equal(mergeAIProposals([base],{...complete,proposals:[{...validProposal,radar:ungrouped},validProposal,validProposal]})[0].radar,grouped);
+assert.equal(completeIdeaRefinement(validProposal,{...compactDraft,refinedProposal:{...compactDraft.refinedProposal,radar:ungrouped}}).refinedProposal.radar,grouped);
+console.log('PASS: generated PubMed synonym groups retain required concepts; explicit grouping, exclusions, field tags and quoted operators are preserved.');
+
 const writingContext={sectionKey:'methods',task:'revise',language:'en',original:'Método real informado',sources:[]};
 assert.equal(validateAssistRequest({feature:'writing',context:writingContext}).context.sectionKey,'methods');
 assert.throws(()=>validateAssistRequest({feature:'writing',context:{...writingContext,sectionKey:'unknown'}}),/Seção/);

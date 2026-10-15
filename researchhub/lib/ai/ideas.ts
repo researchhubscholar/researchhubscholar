@@ -1,5 +1,6 @@
 import type { Context, Idea } from "@/lib/ideas/generate";
 import type { JSONSchema7 } from "ai";
+import { ideaRadarQuery } from "../ideas/radar";
 import { languageInstruction, outputLanguage, type OutputLanguage } from "./language";
 
 export type AIProposal = Pick<Idea,
@@ -148,6 +149,7 @@ export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[]): AIId
     const base = current[index] || current[0];
     return {
       ...proposal,
+      radar: ideaRadarQuery(proposal.radar),
       ethics: base.ethics || "Submeter o protocolo à avaliação ética aplicável e proteger confidencialidade e dados pessoais.",
       limitations: base.limitations || base.difficulty,
       noveltyCheck: base.noveltyCheck || "Confirmar a lacuna com busca estruturada em mais de uma base e comparar revisões e estudos recentes.",
@@ -255,6 +257,7 @@ Não afirme causalidade em desenho transversal. Não force hipótese causal em e
 Inclua elegibilidade, riscos éticos, limitações, viabilidade, variáveis, análise e forma de verificar originalidade na literatura.
 Quando faltarem instrumento, desfecho ou amostra, apresente uma alternativa e marque explicitamente que precisa ser confirmada.
 O campo radar deve ser uma estratégia curta em inglês para busca inicial no PubMed.
+Una conceitos com AND e agrupe sinônimos entre parênteses com OR: "rheumatoid arthritis" AND (adherence OR compliance). Nunca deixe OR solto entre conceitos.
 Use textos objetivos: no máximo duas frases por campo e de dois a quatro itens nas listas.
 Não dê aconselhamento médico nem solicite dados identificáveis.`;
 }
@@ -422,6 +425,7 @@ export function mergeAIProposals(current: Idea[], output: AIIdeasOutput): Idea[]
   return output.proposals.map((proposal, index) => ({
     ...(current[index] || current[0]),
     ...proposal,
+    radar: ideaRadarQuery(proposal.radar),
     id: `ai-${index + 1}`,
   }));
 }

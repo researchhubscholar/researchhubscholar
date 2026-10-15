@@ -1,4 +1,5 @@
 import type { JSONSchema7 } from "ai";
+import { ideaRadarQuery } from "../ideas/radar";
 import { isAIProposal, type AIProposal } from "./ideas";
 import { languageInstruction, type OutputLanguage } from "./language";
 
@@ -86,7 +87,7 @@ export function isIdeaRefinementDraft(value: unknown): value is IdeaRefinementDr
 }
 
 export function completeIdeaRefinement(idea: AIProposal, draft: IdeaRefinementDraft): IdeaRefinement {
-  const refinedProposal = { ...idea, ...draft.refinedProposal };
+  const refinedProposal = { ...idea, ...draft.refinedProposal, radar: ideaRadarQuery(draft.refinedProposal.radar) };
   if (!isAIProposal(refinedProposal)) throw new Error("O refinamento não preservou uma proposta científica completa.");
   return { ...draft, refinedProposal };
 }
