@@ -187,6 +187,12 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await assert.rejects(db.query('insert into scholar_ai_evaluations(usage_id,evaluator_id,specificity,methods,feasibility,sources,usefulness) values($1,$2,5,4,4,5,4)',[budgetRequest,outsider]),/row-level security/);
  console.log('PASS: private project results, coordinator authority boundaries, immutable institutional audit and own-generation evaluations.');
 
+
+ await db.exec('reset role');await db.exec(fs.readFileSync('supabase/scholar_search_query_limits.sql','utf8'));await db.exec(fs.readFileSync('supabase/scholar_search_query_limits.sql','utf8'));
+ await as(resident);const longQuery='('+Array.from({length:40},(_,i)=>'"clinical factor '+i+'"[Title/Abstract]').join(' OR ')+')';
+ await db.query("insert into scholar_saved_searches(owner_id,name,query) values($1,'Estratégia completa',$2)",[resident,longQuery]);
+ assert.equal(await scalar("select query from scholar_saved_searches where name='Estratégia completa'"),longQuery);
+ await assert.rejects(db.query("insert into scholar_saved_searches(owner_id,name,query) values($1,'Acima do limite',$2)",[resident,'x'.repeat(10001)]),/check constraint/);
  console.log('PASS: financial envelopes, idempotency, failed-operation admission retention and private settings.');
  console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support, reversible deletion requests and restricted operations monitoring.');
  await db.close();

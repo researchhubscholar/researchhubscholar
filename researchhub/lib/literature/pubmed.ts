@@ -17,13 +17,15 @@ function ncbiParams(values: Record<string, string>) {
   return params;
 }
 
-async function ncbiFetch(url: string, accept = "application/json") {
+async function ncbiFetch(url: string, accept = "application/json", form?: URLSearchParams) {
   let lastStatus = 0;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const response = await fetch(url, {
+      ...(form ? { method: "POST", body: form.toString() } : {}),
       headers: {
         Accept: accept,
+        ...(form ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
         "User-Agent": "ResearchHub-Scholar/0.1",
       },
       cache: "no-store",
@@ -45,7 +47,10 @@ export async function pubmedSearch(term: string, retmax = 0, sort?: string, offs
   const params = ncbiParams({ db: "pubmed", term, retmode: "json", retmax: String(retmax), retstart: String(offset) });
   if (sort) params.set("sort", sort);
 
-  const response = await ncbiFetch(`${PUBMED_BASE}/esearch.fcgi?${params.toString()}`);
+  const endpoint = `${PUBMED_BASE}/esearch.fcgi`;
+  const response = params.toString().length > 1500
+    ? await ncbiFetch(endpoint, "application/json", params)
+    : await ncbiFetch(`${endpoint}?${params.toString()}`);
   const data = await response.json();
   return {
     count: Number(data?.esearchresult?.count ?? 0),

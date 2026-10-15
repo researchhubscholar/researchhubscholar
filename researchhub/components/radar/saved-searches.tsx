@@ -57,7 +57,7 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
       last_result_count: resultCount,
     }, { onConflict: "owner_id,name" });
     setBusy(false);
-    if (error) { setMessage(source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
+    if (error) { setMessage(error.code === "23514" && query.length > 500 ? "Para salvar esta estratégia completa, execute scholar_search_query_limits.sql no Supabase." : source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
     setName(""); setMessage("Estratégia salva."); void load();
   }
 

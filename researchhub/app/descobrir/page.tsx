@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -79,6 +80,7 @@ function DiscoverContent() {
   const [language, setLanguage] = useState("auto");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [termReview, setTermReview] = useState<TermReview | null>(null);
   const library = useLibrary();
@@ -103,7 +105,7 @@ function DiscoverContent() {
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
   const accessArticles = useMemo(() => lookupArticle ? [...articles, lookupArticle] : articles, [articles, lookupArticle]);
   const openAccess = useOpenAccess(accessArticles);
-  const effectiveQuery = useMemo(() => result?.strategy.interpreted || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
+  const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
 
   async function recordSearch(data: Result) {
@@ -115,7 +117,8 @@ function DiscoverContent() {
   }
 
   async function runAnalysis(translations: Record<string, string> = {}) {
-    if (loading || browsing) return;
+    if (searchLock.current || loading || browsing) return;
+    searchLock.current = true;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -124,6 +127,7 @@ function DiscoverContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period, studyType, translations }),
+        signal: AbortSignal.timeout(180000),
       });
       const data = await response.json();
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
@@ -141,6 +145,7 @@ function DiscoverContent() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
+      searchLock.current = false;
       setLoading(false);
     }
   }
@@ -203,17 +208,17 @@ function DiscoverContent() {
       {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Estratégia recebida do projeto</p><h2 className="font-display text-xl mt-2">Revise os conceitos antes de pesquisar.</h2><p className="text-sm text-ink-soft mt-2">A pergunta, a população, o desfecho e o desenho foram trazidos do construtor. O Radar ainda não consultou o PubMed.</p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal">Voltar ao projeto →</Link>}</section>}
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Qual pergunta ou tema você quer pesquisar?" />
+        <input aria-label="Tema da busca" required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Qual pergunta ou tema você quer pesquisar?" />
         <label className="text-xs text-ink-soft">Idioma<select aria-label="Idioma da busca" disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt">Português</option><option value="en">Inglês</option></select></label>
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : "Pesquisar artigos"}
         </button>
-        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
+        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
       <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Preparar a busca com IA <span className="text-ink-soft font-normal">· opcional</span></summary>
-      <AssistantPanel feature="radar" title="Transformar a pergunta em uma busca científica" description="A IA separa os conceitos, traduz termos biomédicos e propõe uma estratégia PubMed editável antes da consulta." context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){setTopic(item.content);setLanguage("en");setTermReview(null);window.scrollTo({top:0,behavior:"smooth"});}}}/>
+      <AssistantPanel feature="radar" title="Transformar a pergunta em uma busca científica" description="A IA separa os conceitos, traduz termos biomédicos e propõe uma estratégia PubMed editável antes da consulta." context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);window.scrollTo({top:0,behavior:"smooth"});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
       </details>
       <p className="text-xs text-ink-soft/70 mt-2">Pesquise em português ou inglês. Em “Automático”, o Radar identifica o idioma, separa os conceitos e mostra a estratégia utilizada.</p>
       <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Pesquisa termos livres em título/resumo.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
