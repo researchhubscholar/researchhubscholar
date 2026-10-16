@@ -4,6 +4,15 @@ import { isAIProposal, type AIProposal } from "./ideas";
 import { languageInstruction, type OutputLanguage } from "./language";
 
 export type RefinementSource = { pmid: string; title: string; contribution: string };
+export function groundRefinementSources<T extends { sources: RefinementSource[] }>(output: T, articles: { pmid: string; title: string }[]): T {
+  const provided = new Map(articles.filter(article => article.pmid).map(article => [article.pmid.trim(), article]));
+  const sources = output.sources.map(source => {
+    const article = provided.get(source.pmid.trim());
+    if (!article) throw new Error("A IA citou uma fonte que não estava entre os artigos analisados. O refinamento não foi aplicado.");
+    return { ...source, pmid: article.pmid.trim(), title: article.title };
+  });
+  return { ...output, sources };
+}
 export type IdeaRefinement = {
   refinedProposal: AIProposal;
   alternativeTitles: string[];

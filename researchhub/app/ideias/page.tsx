@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import GenerationDialog from "@/components/ai/loading-dialog";
+import { AIRequestError, postAI } from "@/lib/ai/client-request";
 import IdeaHistory from "@/components/ideas/history";
 import type { IdeaRefinement } from "@/lib/ai/refine-idea";
 import type { OutputLanguage } from "@/lib/ai/language";
@@ -166,18 +167,8 @@ export default function IdeasPage() {
     setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setQualityChecks([]); setMessage("");
     try {
       const startingIdeas = generate(requestContext, evidence);
-      const response = await fetch("/api/ai/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(150_000), body: JSON.stringify({ context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }) });
-      const raw = await response.text();
-      let data: { error?: string; ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] };
-      try {
-        data = JSON.parse(raw) as typeof data;
-      } catch {
-        throw new Error(response.status === 504 ? "A geração demorou mais que o esperado. Sua franquia não será consumida; tente novamente." : "A geração foi interrompida antes de concluir. Tente novamente em instantes.");
-      }
-      if (!response.ok || !data.ideas) {
-        const tracking = data.operationId ? ` Código da operação: ${data.operationId}.` : "";
-        throw new Error(`${data.error || "Não foi possível criar as propostas."}${tracking}`);
-      }
+      const { data } = await postAI<{ ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] }>("/api/ai/ideas", { context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }, 150_000);
+      if (!Array.isArray(data.ideas) || !data.ideas.length) throw new AIRequestError("A IA não retornou propostas válidas. Confira o registro antes de tentar novamente.", data.operationId);
       setContext(requestContext); setIdeas(data.ideas); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
@@ -188,7 +179,8 @@ export default function IdeasPage() {
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
       setAiMode("error");
-      setAiMessage(error instanceof Error && /TimeoutError|AbortError/.test(error.name) ? "A resposta não chegou dentro do prazo. Confira Minha licença antes de tentar novamente: a operação pode continuar no servidor." : error instanceof Error ? error.message : "Não foi possível criar as propostas.");
+      if (error instanceof AIRequestError) setAiOperation(error.operationId);
+      setAiMessage(error instanceof Error ? error.message : "Não foi possível criar as propostas.");
     } finally { generationInFlight.current = false; setAiLoading(false); }
   }
 
@@ -215,18 +207,11 @@ export default function IdeasPage() {
     setRefiningId(idea.id);
     setRefinementErrors(current => ({ ...current, [idea.id]: "" }));
     try {
-      const response = await fetch("/api/ai/refine-idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, projectId: projectId || null, language: outputLanguage }) });
-      const raw = await response.text();
-      let data: { error?: string; output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage };
-      try { data = JSON.parse(raw) as typeof data; }
-      catch { throw new Error(response.status === 504 ? "O refinamento demorou mais que o esperado. Tente novamente." : "O refinamento foi interrompido antes de concluir."); }
-      if (!response.ok || !data.output) {
-        const tracking = data.operationId ? ` Código da operação: ${data.operationId}.` : "";
-        throw new Error(`${data.error || "Não foi possível refinar esta proposta."}${tracking}`);
-      }
+      const { data } = await postAI<{ output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage }>("/api/ai/refine-idea", { idea, projectId: projectId || null, language: outputLanguage });
+      if (!data.output) throw new AIRequestError("A IA não retornou um refinamento válido. Confira o registro antes de tentar novamente.", data.operationId);
       setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage } }));
     } catch (error) {
-      setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? error.message : "Não foi possível refinar esta proposta." }));
+      setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? `${error.message}${error instanceof AIRequestError && error.operationId ? ` Código da operação: ${error.operationId}.` : ""}` : "Não foi possível refinar esta proposta." }));
     } finally { refinementInFlight.current = false; setRefiningId(""); }
   }
 

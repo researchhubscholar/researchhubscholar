@@ -7,8 +7,8 @@ const refinement = fs.readFileSync('app/api/ai/refine-idea/route.ts', 'utf8');
 const project = fs.readFileSync('app/meu-trabalho/page.tsx', 'utf8');
 const history = fs.readFileSync('components/ideas/history.tsx', 'utf8');
 
-assert.match(page, /fetch\("\/api\/ai\/ideas"/);
-assert.match(page, /fetch\("\/api\/ai\/refine-idea"/);
+assert.match(page, /postAI[\s\S]*?\("\/api\/ai\/ideas"/);
+assert.match(page, /postAI[\s\S]*?\("\/api\/ai\/refine-idea"/);
 assert.match(page, /Código da operação/);
 assert.match(page, /Idioma das propostas/);
 assert.match(page, /language: outputLanguage/);

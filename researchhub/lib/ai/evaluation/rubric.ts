@@ -14,8 +14,13 @@ export const scientificCases = [
   {id:"language",scenario:"Pedido em português com termos de busca em inglês.",expected:"Mantém texto científico no idioma solicitado e estratégia PubMed em inglês, com sinônimos e limites coerentes."},
 ] as const;
 export function evaluationScore(scores: Record<string,number>) { const values=scientificCriteria.map(c=>scores[c.key]);if(values.some(v=>!Number.isInteger(v)||v<1||v>5))throw new Error("Avalie todos os critérios de 1 a 5.");return values.reduce((a,b)=>a+b,0)/values.length; }
+export function operationDurationSeconds(createdAt: string, finishedAt: string | null) {
+  if (!finishedAt) return null;
+  const seconds = (Date.parse(finishedAt) - Date.parse(createdAt)) / 1000;
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
+}
 export function performanceSummary(rows: {status:string;input_tokens:number;output_tokens:number;cost_usd:number|string;created_at:string;finished_at:string|null}[]) {
   const complete=rows.filter(r=>r.status==="completed"),failed=rows.filter(r=>r.status==="failed");
-  const times=rows.filter(r=>r.finished_at).map(r=>(Date.parse(r.finished_at!)-Date.parse(r.created_at))/1000).filter(v=>Number.isFinite(v)&&v>=0).sort((a,b)=>a-b);
+  const times=rows.map(r=>operationDurationSeconds(r.created_at,r.finished_at)).filter((value): value is number=>value!==null).sort((a,b)=>a-b);
   return {operations:rows.length,completed:complete.length,failed:failed.length,reserved:rows.filter(r=>r.status==="reserved").length,tokens:rows.reduce((s,r)=>s+r.input_tokens+r.output_tokens,0),estimatedUsd:rows.reduce((s,r)=>s+Number(r.cost_usd||0),0),p50:times.length?times[Math.floor((times.length-1)*.5)]:null,p95:times.length?times[Math.ceil((times.length-1)*.95)]:null};
 }

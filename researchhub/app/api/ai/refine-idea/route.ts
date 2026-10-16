@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
-import { completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
+import { groundRefinementSources, completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
 import { outputLanguage } from "@/lib/ai/language";
 import { ideaRadarQuery } from "@/lib/ideas/radar";
 import { outputBudget } from "@/lib/ai/structured-output";
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     if (reserveError) throw reserveError;
     reserved = true;
     const articleContext = articles.slice(0, 5).map(article => ({ pmid: article.pmid || "", title: article.title, year: article.year, publicationTypes: article.publicationTypes, abstract: article.abstract }));
-    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v4-language-lock", input_snapshot: { idea: input.idea, language: input.language, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
+    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v5-grounded-sources", input_snapshot: { idea: input.idea, language: input.language, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
     if (artifactError) throw artifactError;
     if (license.mode === "simulation") throw new Error("O refinamento com literatura exige uma licença de IA ao vivo.");
 
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         const draft = candidateResult.output;
         if (!isIdeaRefinementDraft(draft)) throw new Error("A resposta estruturada não corresponde ao refinamento científico esperado.");
         result = candidateResult;
-        output = completeIdeaRefinement(input.idea, draft);
+        output = groundRefinementSources(completeIdeaRefinement(input.idea, draft), articleContext);
         break;
       } catch (error) {
         lastError = error;
