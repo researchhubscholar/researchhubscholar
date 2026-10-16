@@ -2,12 +2,12 @@
 
 import { useRef, useState } from "react";
 import { htmlWord, workbook, downloadBinary } from "@/lib/exports/ooxml";
-import { parseCsv, chartData } from "@/lib/results/data";
+import { chartData } from "@/lib/results/data";
 import { figurePng, figureSvg } from "@/lib/results/figure";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import {
   buildAdvisorReport,
-  buildProjectMatrixCsv,
+  buildProjectMatrixRows,
   buildProjectSummary,
   buildStructuredProtocol,
   type ProjectDocumentData,
@@ -39,7 +39,7 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
   async function generate(kind:DocumentKind) {
     if(generationLock.current)return;generationLock.current=true;setBusy(true);setError("");setLast("");
     try {
-      if(kind==="matrix") { const matrix=parseCsv(buildProjectMatrixCsv(data));downloadBinary(workbook([{name:"Matriz",rows:[matrix.columns,...matrix.rows]}]),filename(title,"matriz","xlsx"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
+      if(kind==="matrix") { downloadBinary(workbook([{name:"Matriz",rows:buildProjectMatrixRows(data)}]),filename(title,"matriz","xlsx"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
       else if(kind==="manuscript") {
         const [{supabaseBrowser},{loadManuscriptExport},{manuscriptDocument}]=await Promise.all([
           import("@/lib/supabase/browser"),import("@/lib/projects/load-manuscript-export"),import("@/lib/projects/manuscript-export"),

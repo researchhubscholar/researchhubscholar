@@ -43,7 +43,7 @@ export function wordDocument(blocks: WordBlock[]) {
       const widths = weights.map(value => Math.floor(value / total * pageWidth));
       widths[columns - 1] += pageWidth - widths.reduce((sum, value) => sum + value, 0);
       const fontSize = columns >= 8 ? 18 : 20;
-      return `<w:tbl><w:tblPr><w:tblW w:w="${pageWidth}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="70" w:type="dxa"/><w:left w:w="70" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar><w:tblBorders>${["top", "left", "bottom", "right", "insideH", "insideV"].map(x => `<w:${x} w:val="single" w:sz="4" w:color="CCD8D4"/>`).join("")}</w:tblBorders></w:tblPr><w:tblGrid>${widths.map(width => `<w:gridCol w:w="${width}"/>`).join("")}</w:tblGrid>${b.table.map((row, index) => `<w:tr>${index === 0 ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${widths.map((width, column) => `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${index === 0 ? '<w:shd w:fill="EDF3F1"/>' : ""}</w:tcPr><w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:sz w:val="${fontSize}"/>${index === 0 ? "<w:b/>" : ""}</w:rPr><w:t xml:space="preserve">${xml(row[column])}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`).join("")}</w:tbl>`;
+      return `<w:tbl><w:tblPr><w:tblW w:w="${pageWidth}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="70" w:type="dxa"/><w:left w:w="70" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar><w:tblBorders>${["top", "left", "bottom", "right", "insideH", "insideV"].map(x => `<w:${x} w:val="single" w:sz="4" w:color="CCD8D4"/>`).join("")}</w:tblBorders></w:tblPr><w:tblGrid>${widths.map(width => `<w:gridCol w:w="${width}"/>`).join("")}</w:tblGrid>${b.table.map((row, index) => `<w:tr>${index === 0 ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${widths.map((width, column) => `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${index === 0 ? '<w:shd w:fill="EDF3F1"/>' : ""}</w:tcPr><w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:sz w:val="${fontSize}"/>${index === 0 ? "<w:b/>" : ""}</w:rPr><w:t xml:space="preserve">${xml(row[column]).replace(/\r\n?|\n/g, '</w:t><w:br/><w:t xml:space="preserve">')}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`).join("")}</w:tbl>`;
     }
     if ("image" in b) {
       images++; entries[`word/media/image${images}.png`] = b.image;
@@ -62,4 +62,31 @@ export function wordDocument(blocks: WordBlock[]) {
   return zip(entries);
 }
 export function downloadBinary(bytes: Uint8Array, filename: string, type: string) { const buffer = new ArrayBuffer(bytes.length); new Uint8Array(buffer).set(bytes); const url = URL.createObjectURL(new Blob([buffer], { type })); const a = document.createElement("a"); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-export function htmlWord(html: string) { const doc = new DOMParser().parseFromString(html, "text/html"); const blocks: WordBlock[] = []; for (const node of doc.body.querySelectorAll("h1,h2,h3,p,.field,li,table")) { if (node.closest("table") !== node && node.closest("table")) continue; if (node.tagName === "TABLE") blocks.push({ table: Array.from(node.querySelectorAll("tr")).map(r => Array.from(r.querySelectorAll("th,td")).map(c => c.textContent || "")) }); else blocks.push({ text: node.classList.contains("field") ? Array.from(node.children).map(n=>n.textContent||"").join(": ") : node.textContent || "", heading: /^H/.test(node.tagName) }); } return wordDocument(blocks); }
+function htmlText(node: Node): string {
+  if (node.nodeType === 3) return node.textContent || "";
+  if (node.nodeName === "BR") return "\n";
+  return Array.from(node.childNodes).map(htmlText).join("");
+}
+
+export function htmlWordBlocks(html: string): WordBlock[] {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const blocks: WordBlock[] = [];
+  for (const node of doc.body.querySelectorAll("h1,h2,h3,p,.field,li,table,.box,.footer")) {
+    if (node.closest("table") !== node && node.closest("table")) continue;
+    if (node.parentElement?.closest(".field,.box,.footer,li")) continue;
+    if (node.tagName === "TABLE") {
+      blocks.push({ table: Array.from(node.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => htmlText(cell).trim())) });
+    } else {
+      let text = node.classList.contains("field") ? Array.from(node.children).map(child => htmlText(child).trim()).join(": ") : htmlText(node).trim();
+      if (node.tagName === "LI") {
+        const list = node.parentElement;
+        const index = list ? Array.from(list.children).indexOf(node) + 1 : 1;
+        text = `${list?.tagName === "OL" ? `${index}.` : "•"} ${text}`;
+      }
+      blocks.push({ text, ...(node.tagName === "H1" ? { style: "title" as const } : { heading: /^H[23]$/.test(node.tagName) }) });
+    }
+  }
+  return blocks;
+}
+
+export function htmlWord(html: string) { return wordDocument(htmlWordBlocks(html)); }
