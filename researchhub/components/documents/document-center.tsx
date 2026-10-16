@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { htmlWord, workbook, downloadBinary, wordDocument, type WordBlock } from "@/lib/exports/ooxml";
-import { parseCsv, describe, chartData, validWorkspace } from "@/lib/results/data";
+import { useRef, useState } from "react";
+import { htmlWord, workbook, downloadBinary } from "@/lib/exports/ooxml";
+import { parseCsv, chartData } from "@/lib/results/data";
 import { figurePng, figureSvg } from "@/lib/results/figure";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import {
@@ -18,7 +18,7 @@ const cards: { kind:DocumentKind; eyebrow:string; title:string; description:stri
   {kind:"protocol",eyebrow:"Documento principal",title:"Protocolo estruturado",description:"Reúne identificação, pergunta, objetivos, métodos, ética, planejamento e referências vinculadas.",format:"Word nativo · .docx"},
   {kind:"summary",eyebrow:"Visão rápida",title:"Resumo executivo",description:"Sintetiza as decisões centrais, o preenchimento, as referências e as próximas etapas do projeto.",format:"Word nativo · .docx"},
   {kind:"advisor",eyebrow:"Reunião produtiva",title:"Relatório para o orientador",description:"Organiza panorama, decisões, pendências, prazos e pontos que precisam ser validados na orientação.",format:"Word nativo · .docx"},
-  {kind:"manuscript",eyebrow:"Artigo completo",title:"Manuscrito com resultados",description:"Reúne as seções salvas do artigo, referências vinculadas, tabela descritiva e figura do projeto.",format:"Word nativo · .docx"},
+  {kind:"manuscript",eyebrow:"Artigo completo",title:"Manuscrito com resultados",description:"Reúne autores, seções salvas, referências citadas, tabelas, figura e análises disponíveis do projeto.",format:"Word nativo · .docx"},
   {kind:"matrix",eyebrow:"Dados de leitura",title:"Matriz de evidências",description:"Exporta artigos e campos críticos da leitura em formato compatível com Excel e Google Sheets.",format:"Excel nativo · .xlsx"},
 ];
 
@@ -31,29 +31,25 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
   const [last,setLast]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const generationLock=useRef(false);
   const p=data.project;
   const matrixCount=data.articles.filter(article=>Object.values(data.notes[article.id]||{}).some(value=>String(value||"").trim())).length;
   const pending=data.milestones.filter(item=>item.status!=="done").length;
   const title=p.title||p.theme||"projeto";
   async function generate(kind:DocumentKind) {
-    if(busy)return;setBusy(true);setError("");
+    if(generationLock.current)return;generationLock.current=true;setBusy(true);setError("");setLast("");
     try {
       if(kind==="matrix") { const matrix=parseCsv(buildProjectMatrixCsv(data));downloadBinary(workbook([{name:"Matriz",rows:[matrix.columns,...matrix.rows]}]),filename(title,"matriz","xlsx"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
       else if(kind==="manuscript") {
-        const {supabaseBrowser}=await import("@/lib/supabase/browser");const db=supabaseBrowser();
-        const {data:manuscript,error:me}=await db.from("scholar_manuscripts").select("id,title,keywords").eq("project_id",p.id).maybeSingle();
-        if(me)throw new Error("Não foi possível carregar o manuscrito.");if(!manuscript)throw new Error("Salve um artigo em Escrever artigo antes de exportar.");
-        const [sectionResult,resultResponse]=await Promise.all([db.from("scholar_manuscript_sections").select("heading,content").eq("manuscript_id",manuscript.id).order("position"),fetch(`/api/results?project=${p.id}`)]);
-        if(sectionResult.error)throw new Error("Não foi possível carregar as seções.");
-        if(!resultResponse.ok)throw new Error("Não foi possível conferir os resultados. Ative o módulo antes de consolidar o artigo.");
-        const resultBody=await resultResponse.json();const blocks:WordBlock[]=[{text:manuscript.title||title,heading:true},{text:data.profile.name+" · "+data.profile.institution},{text:"Palavras-chave: "+(manuscript.keywords||[]).join("; ")}];
-        for(const section of sectionResult.data||[])blocks.push({text:section.heading,heading:true},{text:section.content||"A definir"});
-        if(validWorkspace(resultBody.workspace)) {const w=resultBody.workspace;const stats=describe(w.dataset);if(stats.length)blocks.push({text:"Apêndice: resultados descritivos",heading:true},{table:[["Variável","N","Ausentes","Média","Mediana","DP"],...stats.map(s=>[s.column,s.n,s.missing,s.mean??"",s.median??"",s.sd??""])]});if(chartData(w.dataset,w.figure.column,w.figure.kind).length){const png=await figurePng(figureSvg(w));blocks.push({image:png.bytes,width:560,height:png.height/png.width*560,caption:w.figure.caption||w.figure.title||w.figure.column});}if(w.notes)blocks.push({text:w.notes});}
-        blocks.push({text:"Referências vinculadas ao projeto",heading:true});data.articles.forEach(a=>blocks.push({text:`${a.authors.join("; ")}. ${a.title}. ${a.journal||""}. ${a.year||""}. ${a.doi?"DOI: "+a.doi:""} ${a.pmid?"PMID: "+a.pmid:""}`}));
-        downloadBinary(wordDocument(blocks),filename(title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        const [{supabaseBrowser},{loadManuscriptExport},{manuscriptDocument}]=await Promise.all([
+          import("@/lib/supabase/browser"),import("@/lib/projects/load-manuscript-export"),import("@/lib/projects/manuscript-export"),
+        ]);
+        const {input,results}=await loadManuscriptExport(supabaseBrowser(),p.id);
+        const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind).length?await figurePng(figureSvg(results)):null;
+        downloadBinary(manuscriptDocument(input,results,image),filename(input.title||title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
       } else { const html=kind==="protocol"?buildStructuredProtocol(data):kind==="summary"?buildProjectSummary(data):buildAdvisorReport(data);downloadBinary(htmlWord(html),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
       setLast(cards.find(card=>card.kind===kind)?.title||"Documento");
-    } catch(e){setError(e instanceof Error?e.message:"Falha na exportação.");} finally {setBusy(false);}
+    } catch(e){setError(e instanceof Error?e.message:"Falha na exportação.");} finally {generationLock.current=false;setBusy(false);}
   }
   return <>
     <section className="documents-metrics grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6" aria-label="Preparação dos documentos">
@@ -67,6 +63,7 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
         <p className="text-xs uppercase tracking-widest text-teal">{card.eyebrow}</p>
         <h2 className="font-display text-2xl mt-3">{card.title}</h2>
         <p className="text-sm text-ink-soft leading-relaxed mt-3 flex-1">{card.description}</p>
+        {card.kind==="manuscript"&&<p className="text-xs text-ink-soft mt-3">Usa a última versão salva em Escrever artigo e Resultados. Salve suas alterações nessas abas antes de gerar o documento.</p>}
         <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-4 border-t border-line"><span className="text-xs text-ink-soft">{card.format}</span><button type="button" onClick={()=>generate(card.kind)} disabled={busy||(card.kind==="matrix"&&!data.articles.length)} className="bg-ink text-white rounded-card px-4 py-2 text-sm disabled:opacity-40">{busy?"Preparando…":"Gerar documento"}</button></div>
       </article>)}
     </section>

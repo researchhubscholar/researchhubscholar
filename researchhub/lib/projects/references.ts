@@ -1,4 +1,13 @@
-type CitationArticle = { title: string; authors: unknown; journal?: string | null; publication_year: number | null; doi: string | null; pmid: string | null };
+export type CitationArticle = { title: string; authors: unknown; journal?: string | null; publication_year: number | null; doi: string | null; pmid: string | null };
+
+export function formattedCitedReferences(ids: string[], articles: (CitationArticle & { id: string })[], style: string) {
+  const byId = new Map(articles.map(article => [article.id, article]));
+  return ids.map((id, index) => {
+    const article = byId.get(id);
+    if (!article) throw new Error(`A referência citada na posição ${index + 1} não está disponível. Confira as fontes do manuscrito antes de exportar.`);
+    return formattedReference(article, index, style);
+  });
+}
 const sentence = (value: string) => /[.!?]$/.test(value.trim()) ? value.trim() : `${value.trim()}.`;
 function authorNames(article: CitationArticle) {
   if (!Array.isArray(article.authors) || !article.authors.length) return ["Autor não informado"];

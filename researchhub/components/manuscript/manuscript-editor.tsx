@@ -11,7 +11,7 @@ import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/l
 import { chartData, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
 import { figurePng, figureSvg } from "@/lib/results/figure";
 import { downloadBinary } from "@/lib/exports/ooxml";
-import { formattedReference } from "@/lib/projects/references";
+import { formattedReference, formattedCitedReferences } from "@/lib/projects/references";
 
 type Project = ManuscriptProject & { id: string; title?: string | null; theme?: string | null };
 type Manuscript = { id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
@@ -261,9 +261,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   async function exportWord() {
     if (exportLock.current) return;
     exportLock.current = true; setExporting(true);
-    const cited = citationIds.map(id => articles.find(article => article.id === id)).filter(Boolean) as Article[];
-    const input = { title, subtitle, authors, affiliations, keywords, sections, references: cited.map((article, index) => formattedReference(article, index, citationStyle)) };
     try {
+      const input = { title, subtitle, authors, affiliations, keywords, sections, references: currentUserId === ownerId ? formattedCitedReferences(citationIds, articles, citationStyle) : [] };
       let results: ResultsWorkspace | null = null;
       // Results remain private to the project owner; sharing a manuscript does not share its dataset.
       if (currentUserId === ownerId) {
