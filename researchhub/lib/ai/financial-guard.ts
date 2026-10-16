@@ -16,7 +16,9 @@ export async function verifyFinancialEnvelope(mode: "live" | "simulation") {
   }
   const rates = [scholarAI.inputUsdPerToken, scholarAI.outputUsdPerToken];
   if (rates.some(rate => !Number.isFinite(rate) || rate <= 0)) throw new Error("Configure as tarifas de entrada e saída da IA antes de ativar o orçamento financeiro.");
+  const envelope = Number(data.operation_envelope_usd);
+  if (!Number.isFinite(envelope) || envelope <= 0) throw new Error("Configure um orçamento por operação válido antes de liberar IA.");
   // Rates must cover the most expensive candidate, including reasoning output.
   const worstEstimate = scholarAI.reservedTokens * Math.max(...rates) * scholarAIModels.length;
-  if (worstEstimate > Number(data.operation_envelope_usd)) throw new Error("O orçamento por operação não cobre as tentativas dos modelos configurados. Revise as tarifas e o limite financeiro.");
+  if (worstEstimate > envelope) throw new Error("O orçamento por operação não cobre as tentativas dos modelos configurados. Revise as tarifas e o limite financeiro.");
 }

@@ -1,3 +1,4 @@
+import { settleFailedReservation, reservationNotice, providerMetering, type ProviderMetering } from "@/lib/ai/failed-reservation";
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
@@ -27,10 +28,10 @@ function timedOut(error: unknown) {
 
 function safeMessage(error: unknown) {
   const raw = error instanceof Error ? error.message : "Não foi possível refinar a proposta.";
-  if (timedOut(error)) return "O refinamento demorou mais que o esperado. Sua franquia será devolvida; tente novamente.";
-  if (/NCBI|PubMed/i.test(raw)) return "O PubMed não respondeu ao refinamento agora. Sua franquia será devolvida; tente novamente em instantes.";
-  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do modelo foi atingido. Sua franquia será devolvida; tente novamente em alguns minutos.";
-  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos estão temporariamente sobrecarregados. Sua franquia será devolvida; tente novamente em alguns minutos.";
+  if (timedOut(error)) return "O refinamento demorou mais que o esperado. tente novamente.";
+  if (/NCBI|PubMed/i.test(raw)) return "O PubMed não respondeu ao refinamento agora. tente novamente em instantes.";
+  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do modelo foi atingido. tente novamente em alguns minutos.";
+  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos estão temporariamente sobrecarregados. tente novamente em alguns minutos.";
   return raw.length < 260 ? raw : "Não foi possível concluir o refinamento agora.";
 }
 
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
 
   let operationId: string | null = null;
   let reserved = false;
+  let metering: ProviderMetering | null = null;
   try {
     const input = validate(await request.json());
     const query = ideaRadarQuery(input.idea.radar);
@@ -115,12 +117,14 @@ export async function POST(request: Request) {
           output: Output.object({ schema: jsonSchema<IdeaRefinementDraft>(ideaRefinementJsonSchema) }),
           prompt,
         });
+        metering = providerMetering(candidateResult);
         const draft = candidateResult.output;
         if (!isIdeaRefinementDraft(draft)) throw new Error("A resposta estruturada não corresponde ao refinamento científico esperado.");
         result = candidateResult;
         output = groundRefinementSources(completeIdeaRefinement(input.idea, draft), articleContext);
         break;
       } catch (error) {
+        metering = providerMetering(error) || metering;
         lastError = error;
         const raw = error instanceof Error ? error.message : String(error);
         if (/No object generated|could not parse|JSON|objeto.*completo|formato científico|resposta estruturada/i.test(raw)) continue;
@@ -140,15 +144,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ operationId, output, pubmedQuery: query, pubmedTotal: search.count, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
     console.error("[scholar-ai:refine-idea] failed", { operationId, stage: operationId ? "generation-or-settlement" : "input-or-literature", error: error instanceof Error ? error.message : "unknown" });
-    if (operationId && reserved) {
-      try {
-        const admin = supabaseAdmin();
-        await admin.from("scholar_generation_artifacts").update({ error_code: timedOut(error) ? "GENERATION_TIMEOUT" : "GENERATION_FAILED" }).eq("usage_id", operationId);
-        await admin.rpc("scholar_settle", { p_request: operationId, p_input: 0, p_output: 0, p_cost: 0, p_failed: true, p_provider_id: null });
-      } catch (cleanupError) {
-        console.error("[scholar-ai:refine-idea] cleanup failed", cleanupError);
-      }
-    }
-    return NextResponse.json({ error: safeMessage(error), operationId }, { status: timedOut(error) ? 504 : 400 });
+    const reservation = operationId && reserved ? await settleFailedReservation(operationId, timedOut(error) ? "GENERATION_TIMEOUT" : "GENERATION_FAILED", metering || providerMetering(error)) : null;
+    return NextResponse.json({ error: reservation === "completed" ? reservationNotice(reservation) : [safeMessage(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut(error) ? 504 : 400 });
   }
 }

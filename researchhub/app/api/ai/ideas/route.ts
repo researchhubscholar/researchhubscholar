@@ -1,3 +1,4 @@
+import { settleFailedReservation, reservationNotice, providerMetering, type ProviderMetering } from "@/lib/ai/failed-reservation";
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
@@ -25,14 +26,14 @@ type Wallet = { id: string; license_id: string; allowance: number; used: number;
 
 function message(error: unknown) {
   const raw = error instanceof Error ? error.message : "Não foi possível concluir o aprimoramento.";
-  if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. Sua franquia será devolvida; tente novamente.";
+  if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. tente novamente.";
   if (raw.includes("Franquia")) return raw;
   if (raw.includes("limite") || raw.includes("Limite") || raw.includes("andamento")) return raw;
-  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do provedor de IA foi atingido. Sua franquia foi devolvida; tente novamente em alguns minutos.";
-  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos de IA estão temporariamente sobrecarregados. Sua franquia foi devolvida; tente novamente em alguns minutos.";
+  if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do provedor de IA foi atingido. tente novamente em alguns minutos.";
+  if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos de IA estão temporariamente sobrecarregados. tente novamente em alguns minutos.";
   if (/api.?key|unauthenticated|permission.?denied|forbidden|401|403/i.test(raw)) return "A chave do provedor de IA não foi aceita ou ainda não possui acesso ao modelo configurado.";
   if (/model.*not found|not found.*model|no longer available|unsupported model|404/i.test(raw)) return "O modelo configurado não está disponível para este projeto do provedor de IA.";
-  if (/schema|structured output|response.?format/i.test(raw)) return "O provedor de IA não aceitou o formato estruturado desta geração. Sua franquia foi devolvida.";
+  if (/schema|structured output|response.?format/i.test(raw)) return "O provedor de IA não aceitou o formato estruturado desta geração.";
   return raw.length < 240 ? raw : "Não foi possível concluir o aprimoramento agora.";
 }
 
@@ -62,7 +63,7 @@ async function activeWallet(userId: string, selected: string | null) {
   return chooseWallet(available, selected) as { wallet: Wallet; license: License };
 }
 
-async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number, validate: (value: unknown) => value is T) {
+async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOutputTokens: number, validate: (value: unknown) => value is T, capture: (value: unknown) => void) {
   let lastError: unknown;
   let parseFailures = 0;
   const budget = outputBudget(prompt, schema, maxOutputTokens, scholarAI.reservedTokens, 2_500);
@@ -81,11 +82,13 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
         abortSignal: AbortSignal.timeout(Math.min(modelAttemptTimeoutMs, remaining)),
         prompt: promptForJson(prompt, schema),
       });
+      capture(result);
       console.info("[scholar-ai:ideas] response", { model: candidate.id, finishReason: result.finishReason, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens });
       if (result.finishReason === "length") throw new Error("A resposta atingiu o limite de tamanho. Tente gerar novamente com um recorte mais específico.");
       if (!validate(result.output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado.");
       return { result, output: result.output, modelId: candidate.id };
     } catch (error) {
+      capture(error);
       lastError = error;
       const failure = error as { finishReason?: unknown; usage?: { inputTokens?: number; outputTokens?: number } };
       console.warn("[scholar-ai:ideas] incomplete response", { model: candidate.id, finishReason: failure?.finishReason, inputTokens: failure?.usage?.inputTokens, outputTokens: failure?.usage?.outputTokens });
@@ -107,6 +110,7 @@ export async function POST(request: Request) {
 
   let operationId: string | null = null;
   let reserved = false;
+  let metering: ProviderMetering | null = null;
   try {
     const input = validateIdeasRequest(await request.json());
     const { wallet, license } = await activeWallet(user.id, requestedWallet(request, user.id));
@@ -131,7 +135,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
-    const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context, input.language), 4_300, isAIIdeasDraft);
+    const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context, input.language), 4_300, isAIIdeasDraft, value => { metering = providerMetering(value) || metering; });
     const output: AIIdeasOutput = completeAIIdeasDraft(generation.output, input.ideas);
     if (!Array.isArray(output.proposals) || output.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
     for (const proposal of output.proposals) {
@@ -157,15 +161,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const timedOut = generationTimedOut(error);
     console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: error instanceof Error ? error.message : "unknown" });
-    if (operationId && reserved) {
-      try {
-        const admin = supabaseAdmin();
-        await admin.from("scholar_generation_artifacts").update({ error_code: timedOut ? "GENERATION_TIMEOUT" : "GENERATION_FAILED" }).eq("usage_id", operationId);
-        await admin.rpc("scholar_settle", { p_request: operationId, p_input: 0, p_output: 0, p_cost: 0, p_failed: true, p_provider_id: null });
-      } catch (cleanupError) {
-        console.error("[scholar-ai:ideas] cleanup failed", { operationId, error: cleanupError instanceof Error ? cleanupError.message : "unknown" });
-      }
-    }
-    return NextResponse.json({ error: message(error), operationId }, { status: timedOut ? 504 : 400 });
+    const reservation = operationId && reserved ? await settleFailedReservation(operationId, timedOut ? "GENERATION_TIMEOUT" : "GENERATION_FAILED", metering || providerMetering(error)) : null;
+    return NextResponse.json({ error: reservation === "completed" ? reservationNotice(reservation) : [message(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut ? 504 : 400 });
   }
 }
