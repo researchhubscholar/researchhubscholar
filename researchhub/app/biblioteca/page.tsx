@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import AILoadingDialog from "@/components/ai/loading-dialog";
 import Link from "next/link";
 
-import { Article, articleKey } from "@/lib/literature/types";
+import { articleKey } from "@/lib/literature/types";
 
 import { useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/literature/use-library";
@@ -12,6 +13,7 @@ import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scienti
 import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
 import { DuplicateReview } from "@/components/library/duplicate-review";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
+import AssistantPanel from "@/components/ai/assistant-panel";
 import { useOpenAccess } from "@/lib/literature/use-open-access";
 
 type Suggestion = { value: string; source: string; confidence: "alta" | "media" | "baixa" } | null;
@@ -68,6 +70,7 @@ function BibliotecaContent() {
   const [comparison, setComparison] = useState<string[]>([]);
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
+  const analysisLock = useRef(false);
   const [loadingPmid, setLoadingPmid] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const openAccess = useOpenAccess();
@@ -101,22 +104,26 @@ function BibliotecaContent() {
     }
   }
 
-  async function analyzeArticle(article: Article & { id: string }) {
-    if (!article.abstract) return;
+  async function analyzeArticle(article: LibraryArticle) {
+    if (!article.abstract || analysisLock.current) return;
+    analysisLock.current = true;
     setLoadingPmid(article.id);
     setErrors((prev) => ({ ...prev, [article.id]: "" }));
     try {
-      const response = await fetch("/api/literature/extract", {
+      const response = await fetch("/api/ai/assist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ abstract: article.abstract, publicationTypes: article.publicationTypes }),
+        body: JSON.stringify({ feature:"reading", projectId: article.projectId || null, context: { title:article.title, abstract: article.abstract, publicationTypes: article.publicationTypes, doi:article.doi, pmid:article.pmid } }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Falha na pré-análise");
-      setSuggestions((prev) => ({ ...prev, [article.id]: data.suggestions }));
+      const next:SuggestionSet={objective:null,population:null,method:null,finding:null,limitation:null};
+      for(const item of data.output?.recommendations||[]){if(item.targetField in next)next[item.targetField as SuggestionField]={value:item.content,source:item.source,confidence:item.confidence};}
+      setSuggestions((prev) => ({ ...prev, [article.id]: next }));
     } catch (error) {
       setErrors((prev) => ({ ...prev, [article.id]: error instanceof Error ? error.message : "Não foi possível analisar o artigo." }));
     } finally {
+      analysisLock.current = false;
       setLoadingPmid(null);
     }
   }
@@ -142,6 +149,7 @@ function BibliotecaContent() {
 
   return (
     <div className="scholar-workspace library-page max-w-6xl mx-auto">
+      <AILoadingDialog open={Boolean(loadingPmid)} title="Analisando o artigo com IA" description="A IA está lendo o resumo disponível e preparando sugestões de campos com trechos de suporte. Você revisará as sugestões antes de salvar." />
       <header className="library-hero flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-teal font-semibold">Biblioteca científica</p>
@@ -160,15 +168,15 @@ function BibliotecaContent() {
           <p>Encontramos {library.legacyCount} artigos da versão anterior neste navegador. Se esse material é seu, importe-o para a conta atual. As anotações já salvas na conta serão preservadas.</p>
           <button disabled={library.working || hasUnsaved} onClick={() => library.importLegacy()} className="mt-3 bg-ink text-white px-4 py-2 rounded-card disabled:opacity-50">{library.working ? "Aguarde..." : "Importar artigos e anotações para minha conta"}</button>
         </div>}
-        {library.userId && <div className="mt-5 flex flex-wrap gap-4 items-end">
-          <label className="text-xs text-ink-soft">Projeto<select aria-label="Filtrar biblioteca por projeto" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os artigos</option><option value="none">Sem projeto associado</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
-          <label className="text-xs text-ink-soft flex-1">Buscar na biblioteca<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Título, autor, DOI ou PMID" className="block w-full border border-line px-3 py-2 rounded-card mt-1" /></label>
-          <label className="text-xs text-ink-soft">Leitura<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os status</option><option value="unread">Não lidos</option><option value="reading">Em leitura</option><option value="reviewed">Avaliados</option><option value="excluded">Excluídos</option><option value="favorite">Favoritos</option></select></label>
+        {library.userId && <div className="library-filter-grid mt-5">
+          <label className="library-filter-project text-xs text-ink-soft">Projeto<select aria-label="Filtrar biblioteca por projeto" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os artigos</option><option value="none">Sem projeto associado</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
+          <label className="library-filter-search text-xs text-ink-soft">Buscar na biblioteca<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Título, autor, DOI ou PMID" className="block w-full border border-line px-3 py-2 rounded-card mt-1" /></label>
+          <label className="library-filter-status text-xs text-ink-soft">Leitura<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os status</option><option value="unread">Não lidos</option><option value="reading">Em leitura</option><option value="reviewed">Avaliados</option><option value="excluded">Excluídos</option><option value="favorite">Favoritos</option></select></label>
           <label className="text-xs text-ink-soft">Pasta<select value={folderFilter} onChange={e=>setFolderFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as pastas</option><option value="none">Sem pasta</option>{folders.map(folder=><option key={folder} value={folder}>{folder}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Etiqueta<select value={tagFilter} onChange={e=>setTagFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as etiquetas</option>{tags.map(tag=><option key={tag} value={tag}>{tag}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Desenho<select value={designFilter} onChange={e=>setDesignFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os desenhos</option>{studyDesignOptions.filter(([value])=>value!=="auto").map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Ano<select value={yearFilter} onChange={e=>setYearFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os anos</option>{years.map(year=><option key={year} value={String(year)}>{year}</option>)}</select></label>
-          <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/ideias?projeto=${projectFilter}` : "/ideias"} className="text-sm text-teal">Explorar ideias com estas leituras →</Link><Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link>
+          <div className="library-filter-links flex flex-wrap gap-4"><Link href={projectFilter !== "all" && projectFilter !== "none" ? `/ideias?projeto=${projectFilter}` : "/ideias"} className="text-sm text-teal">Explorar ideias com estas leituras →</Link><Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link></div>
         </div>}
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>
@@ -189,6 +197,13 @@ function BibliotecaContent() {
 
       {view === "matrix" && library.userId && !library.loading && <section className="library-compare mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Compare suas leituras</h2><p className="text-sm text-ink-soft mt-2">Selecione até cinco artigos deste recorte para comparar suas anotações. As interpretações são suas; confira os resultados no artigo.</p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
       {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3">Anotações do usuário; campos em edição estão indicados como não salvos.</caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1">{designLabels[resolvedStudyDesign(article)]}</span>{dirty[article.id] && <span className="block text-xs text-amber">Alterações não salvas</span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top">{label}</th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || "Ainda não anotado"}</td>)}</tr>)}</tbody></table></div>}</section>}
+      {view === "matrix" && comparison.length >= 2 && <AssistantPanel
+        feature="matrix"
+        title="Comparar evidências com IA"
+        description="Sintetiza convergências, divergências, limitações e lacunas somente a partir dos artigos e anotações selecionados."
+        projectId={projectFilter !== "all" && projectFilter !== "none" ? projectFilter : null}
+        context={articles.filter(article => comparison.includes(article.id)).map(article => ({ id: article.id, title: article.title, doi: article.doi, pmid: article.pmid, abstract: article.abstract, notes: notes[article.id] || {} }))}
+      />}
 
       {library.loading ? <p className="mt-8 text-sm text-ink-soft">Carregando artigos...</p> : !library.userId ? null : articles.length === 0 ? (
         <div className="library-empty mt-8 border border-dashed border-line rounded-2xl p-10 text-center bg-white">
@@ -220,7 +235,7 @@ function BibliotecaContent() {
                 </div>
                 <div className="flex lg:flex-col gap-2 self-start">
                   <label className="text-xs text-ink-soft">Projeto associado<select aria-label={`Projeto do artigo ${article.title}`} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="block border border-line rounded-card px-2 py-2 mt-1 max-w-56"><option value="">Sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
-                  <button disabled={library.working || !article.abstract || loadingPmid === article.id} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : "Pré-analisar abstract"}</button>
+                  <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : "Pré-analisar abstract"}</button>
                   <button onClick={() => { setView("matrix"); if (!suggestions[article.id] && article.abstract) analyzeArticle(article); }} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card">Ir para matriz</button>
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
                 </div>
@@ -248,7 +263,7 @@ function BibliotecaContent() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button disabled={library.working || !article.abstract || loadingPmid === article.id} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
+                    <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? "Analisando..." : set ? "Refazer análise" : "Sugerir campos"}</button>
                     {set && <button disabled={library.working} onClick={() => acceptAll(article.id)} className="text-xs border border-teal text-teal px-3 py-2 rounded-card">Confirmar todos</button>}
                   </div>
                 </div>

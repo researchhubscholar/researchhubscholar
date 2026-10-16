@@ -1880,11 +1880,27 @@ body {
   background: rgba(255,255,255,.86);
   box-shadow: 0 20px 48px -40px rgba(20,33,61,.66) !important;
 }
-.library-controls > div:last-child {
+.library-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: 1rem;
   padding-top: 1.1rem;
   border-top: 1px solid #e5ebe8;
 }
 .library-controls label { font-weight: 500; }
+.library-filter-grid > label { min-width: 0; }
+.library-filter-grid :is(input, select) { width: 100%; min-width: 0; }
+.library-filter-links { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .library-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .library-filter-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .library-filter-grid > label { grid-column: span 3; }
+  .library-filter-grid > .library-filter-project { grid-column: span 4; }
+  .library-filter-grid > .library-filter-search { grid-column: span 5; }
+}
 .library-metrics > div,
 .documents-metrics > div {
   position: relative;
@@ -2044,9 +2060,6 @@ body {
   .library-hero,
   .advising-hero,
   .documents-hero { padding: 1.35rem; border-radius: 18px; }
-  .library-controls > div:last-child { align-items: stretch; }
-  .library-controls > div:last-child label,
-  .library-controls > div:last-child select { width: 100%; }
   .library-article-card:hover,
   .document-card:hover { transform: none; }
   .library-article-card > div:first-child > div:last-child {
@@ -2578,4 +2591,140 @@ body {
   .marketing-page .plan-phase {
     border-radius: 14px;
   }
+}
+
+/* Project actions must fit the content column at every viewport. */
+.project-content { min-width: 0; }
+.project-action-panel { flex-direction: column; align-items: stretch; }
+.project-action-panel > div { min-width: 0; width: 100%; }
+.project-action-panel > div:last-child { display: flex; flex-wrap: wrap; flex-shrink: 1; gap: .75rem; }
+.project-action-panel button, .project-action-panel a { flex: 1 1 10rem; white-space: normal; overflow-wrap: anywhere; }
+.project-action-panel h3 { overflow-wrap: anywhere; }
+
+/* Shared composition for Scholar modules: reading, editing and data areas. */
+.scholar-workspace {
+  --workspace-card-radius: 1rem;
+  width: 100%;
+  max-width: 72rem;
+  min-width: 0;
+  margin-inline: auto;
+}
+.scholar-workspace > :is(header, .module-intro, .library-hero, .advising-hero, .documents-hero, .radar-intro) {
+  margin-bottom: 1.5rem;
+}
+.scholar-workspace :is(.module-intro, .library-hero, .advising-hero, .documents-hero, .radar-intro) h1,
+.scholar-workspace > h1 {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.scholar-workspace :is(.module-intro, .library-hero, .advising-hero, .documents-hero, .radar-intro) > p,
+.scholar-workspace > h1 + p {
+  max-width: 48rem;
+  line-height: 1.65;
+}
+.scholar-workspace > :is(section, details).border,
+.scholar-workspace :is(.library-article-card, .library-matrix-card, .project-stage-card, .document-card, .advising-access, .advising-comments, .advising-meetings, .advising-versions) {
+  border-radius: var(--workspace-card-radius);
+}
+.scholar-workspace :is(.module-commandbar, .library-controls, .radar-disclosure, .document-card, .advising-access, .advising-comments, .advising-meetings, .advising-versions) {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+.scholar-workspace :is(.library-hero, .advising-hero, .documents-hero) {
+  padding: clamp(1.25rem, 2.5vw, 2rem);
+  border-radius: var(--workspace-card-radius);
+}
+.scholar-workspace :is(.grid, .flex) > :is(div, section, article, form, label) { min-width: 0; }
+.scholar-workspace :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+  max-width: 100%;
+}
+.scholar-workspace select { text-overflow: ellipsis; }
+.scholar-workspace :is(button, a)[class*='rounded-card'][class*='px-'] {
+  min-height: 2.75rem;
+  line-height: 1.4;
+  white-space: normal;
+  text-align: center;
+}
+.scholar-workspace :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--scholar-teal);
+  outline-offset: 3px;
+}
+.scholar-workspace details > summary {
+  line-height: 1.5;
+  min-height: 1.75rem;
+}
+.scholar-workspace :is(.advising-project-picker, .documents-project-picker) {
+  width: min(100%, 24rem);
+}
+.scholar-workspace :is(.advising-project-picker, .documents-project-picker) select {
+  width: 100%;
+  min-width: 0;
+}
+.scholar-workspace .radar-search-panel > input:first-child {
+  flex-basis: 24rem;
+  min-width: min(100%, 14rem);
+}
+.scholar-workspace .radar-disclosure > summary { padding-block: .15rem; }
+@media (max-width: 767px) {
+  .scholar-workspace { --workspace-card-radius: .875rem; }
+  .scholar-workspace :is(.library-hero, .advising-hero, .documents-hero) { padding: 1.25rem; }
+  .scholar-workspace :is(.radar-search-panel, .module-commandbar) > label {
+    flex: 1 1 8rem;
+  }
+  .scholar-workspace :is(.radar-search-panel, .module-commandbar) > label select { width: 100%; }
+  .scholar-workspace :is(.radar-search-panel, .module-commandbar) > button { flex: 1 1 100%; }
+  .scholar-workspace .project-sidebar { position: static; }
+  .scholar-workspace .project-content { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scholar-workspace *, .scholar-workspace *::before, .scholar-workspace *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Account uses a real full-width hero, not the legacy floating decoration. */
+.scholar-workspace.account-page { padding-top: 0; }
+.scholar-workspace.account-page::before { content: none; }
+.account-hero {
+  width: 100%;
+  padding: clamp(1.25rem, 2.5vw, 2rem);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--scholar-line);
+  border-radius: var(--workspace-card-radius);
+  background: linear-gradient(120deg, #f0f7f5, #fff);
+}
+.account-hero h1 {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.account-hero > p:last-child { max-width: 48rem; line-height: 1.65; }
+.scholar-workspace.account-page > section { border-radius: var(--workspace-card-radius); }
+
+/* Composition pass: keep labels, controls and long scientific titles in bounds. */
+.scholar-workspace fieldset { min-inline-size: 0; }
+.scholar-workspace .aligned-fields { align-items: end; }
+.scholar-workspace :is(h1, h2, h3, h4) {
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+.scholar-workspace :is(.module-intro, .library-hero, .advising-hero, .documents-hero, .radar-intro, .account-hero) h1,
+.scholar-workspace > h1 { overflow-wrap: break-word; text-wrap: pretty; }
+.scholar-workspace :is(button, a)[class*='rounded-card'][class*='px-'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+.scholar-workspace :is(label, p, th, td) { overflow-wrap: break-word; }
+.scholar-workspace input:is([type='checkbox'], [type='radio']) { flex-shrink: 0; }
+.scholar-workspace .manuscript-project-picker { width: min(100%, 24rem); min-width: 0; }
+.site-return-link { min-height: 2.75rem; line-height: 1.4; }
+@media (max-width: 639px) {
+  .scholar-workspace .manuscript-project-picker { width: 100%; }
 }

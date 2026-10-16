@@ -1,0 +1,14 @@
+import { chartData, type ResultsWorkspace } from "./data";
+const esc = (v: string) => v.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]!));
+export function figureSvg(workspace: ResultsWorkspace, flow = false) {
+  const bars = chartData(workspace.dataset, workspace.figure.column, workspace.figure.kind);
+  const items = flow ? workspace.flow : bars;
+  const width = 900, height = Math.max(260, items.length * (flow ? 100 : 44) + 140), max = Math.max(1, ...items.map(i => i.count));
+  const content = flow ? items.map((item, i) => `<rect x="150" y="${80+i*100}" width="600" height="66" rx="10" fill="#e4f2ee"/><text x="450" y="${108+i*100}" text-anchor="middle" font-size="17">${esc(item.label)}</text><text x="450" y="${132+i*100}" text-anchor="middle" font-size="18" font-weight="bold">n = ${item.count}</text>${i<items.length-1?`<path d="M450 ${146+i*100}v30m-6-6 6 6 6-6" stroke="#2d7066" fill="none" stroke-width="2"/>`:""}`).join("") : bars.map((item, i) => `<text x="12" y="${101+i*44}" font-size="14">${esc(item.label.slice(0,32))}</text><rect x="290" y="${82+i*44}" width="${item.count/max*520}" height="27" rx="3" fill="#2d7066"/><text x="${300+item.count/max*520}" y="${101+i*44}" font-size="14">${item.count}</text>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="white"/><g font-family="Arial,sans-serif" fill="#172644"><text x="24" y="38" font-size="23" font-weight="bold">${esc(flow?"Fluxo de seleção":workspace.figure.title||workspace.figure.column)}</text><text x="24" y="60" font-size="13">${flow?"Contagens informadas pelo pesquisador":`${workspace.dataset.rows.length} registros · valores ausentes excluídos da figura · eixo: frequência absoluta`}</text>${content}<text x="24" y="${height-20}" font-size="12">Fonte: dados informados pelo pesquisador · ResearchHub Scholar</text></g></svg>`;
+}
+export async function figurePng(svg: string) {
+  const match = /width="(\d+)" height="(\d+)"/.exec(svg); const width = Number(match?.[1] || 900), height = Number(match?.[2] || 400);
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  try { const img = new Image(); img.src = url; await img.decode(); const canvas = document.createElement("canvas"); canvas.width = width*3; canvas.height = height*3; const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("Exportação de imagem indisponível."); ctx.scale(3,3); ctx.drawImage(img,0,0); const blob = await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Falha na imagem.")),"image/png")); return { bytes: new Uint8Array(await blob.arrayBuffer()), width, height }; } finally { URL.revokeObjectURL(url); }
+}

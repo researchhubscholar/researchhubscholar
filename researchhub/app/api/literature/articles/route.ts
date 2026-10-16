@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { pubmedSearch, fetchArticleDetails } from "@/lib/literature/pubmed";
 import { crossrefFetch, crossrefArticle } from "@/lib/literature/crossref";
 import { mergeArticles } from "@/lib/literature/types";
+import { searchLimits } from "@/lib/literature/search-limits";
+export const maxDuration = 180;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -11,8 +13,8 @@ export async function POST(request: NextRequest) {
     const crossrefQuery = String(body.crossrefQuery || topic).trim();
     const offset = Number(body.offset ?? 0);
     if (!["pubmed", "crossref", "both"].includes(source) || !["recent", "relevance"].includes(sort) ||
-        !["all", "3", "5", "10"].includes(period) || topic.length < 3 || topic.length > 300 ||
-        term.length > 1000 || crossrefQuery.length < 2 || crossrefQuery.length > 500 || !Number.isInteger(offset) || offset < 0 || offset > 9980 || offset % 20 !== 0) {
+        !["all", "3", "5", "10"].includes(period) || topic.length < 3 || topic.length > searchLimits.query ||
+        term.length > searchLimits.derivedQuery || crossrefQuery.length < 2 || crossrefQuery.length > searchLimits.crossrefQuery || !Number.isInteger(offset) || offset < 0 || offset > 9980 || offset % 20 !== 0) {
       return NextResponse.json({ error: "Parâmetros de busca inválidos." }, { status: 400 });
     }
     if ((source === "pubmed" || source === "both") && !term) {

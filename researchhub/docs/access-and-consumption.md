@@ -1,5 +1,9 @@
 # Licenças, residências e franquias
 
+> A implementação evoluiu desde este documento. Para IA conectada, seleção de
+> carteira e controles financeiros atuais, consulte docs/ai-readiness.md. As
+> referências abaixo a IA futura/desligada e modelos recomendados são históricas.
+
 ## Ativação da base
 
 Executar apenas supabase/scholar_access.sql em uma base Scholar já instalada.

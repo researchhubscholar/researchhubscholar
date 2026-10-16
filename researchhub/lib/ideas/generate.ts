@@ -68,7 +68,21 @@ function generateBase(c: Context): BaseIdea[] {
 
 export type Evidence = { article: LibraryArticle; note: EvidenceNote };
 export type Reference = { id: string; label: string; title: string; year: number | null; identifier: string; url: string | null; hasAbstract: boolean; observations: string[] };
-export type Idea = BaseIdea & { justification: string; unresolved: string[]; plan: string[]; refinements: string[]; evaluation?: IdeaEvaluation; references: Reference[]; contextSummary: string; startingQuestion: string };
+export type Idea = BaseIdea & {
+  justification: string;
+  unresolved: string[];
+  plan: string[];
+  refinements: string[];
+  evaluation?: IdeaEvaluation;
+  references: Reference[];
+  contextSummary: string;
+  startingQuestion: string;
+  hypothesis?: string;
+  eligibility?: string;
+  ethics?: string;
+  limitations?: string;
+  noveltyCheck?: string;
+};
 
 function score(labelScore: number, reason: string): EvaluationItem {
   const value = Math.max(0, Math.min(100, Math.round(labelScore)));
@@ -154,11 +168,16 @@ export function ideaBrief(idea: Idea): string {
   return ["PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR", idea.title, "", "CONTEXTO", idea.contextSummary,
     ...(idea.startingQuestion ? ["Pergunta do projeto usado como ponto de partida:", idea.startingQuestion] : []),
     "", "PERGUNTA", idea.question, "", "OBJETIVO", idea.objective, "", "DESENHO", idea.studyType,
+    ...(idea.hypothesis ? ["", "HIPÓTESE OU PRESSUPOSTO", idea.hypothesis] : []),
     "", "JUSTIFICATIVA INICIAL", idea.justification, "", "POPULAÇÃO", idea.population, "", "DESFECHO", idea.outcome, "", "VARIÁVEIS", idea.variables, "", "MÉTODOS", idea.methods, "", "ANÁLISE", idea.analysis,
+    ...(idea.eligibility ? ["", "ELEGIBILIDADE", idea.eligibility] : []),
+    ...(idea.ethics ? ["", "ÉTICA", idea.ethics] : []),
+    ...(idea.limitations ? ["", "LIMITAÇÕES PREVISÍVEIS", idea.limitations] : []),
+    ...(idea.noveltyCheck ? ["", "COMO VERIFICAR A LACUNA", idea.noveltyCheck] : []),
     "", "AVALIAÇÃO DO CAMINHO", ...(idea.evaluation ? [`Pontuação geral: ${idea.evaluation.overall}/100`, `Relevância: ${idea.evaluation.relevance.score}/100 — ${idea.evaluation.relevance.reason}`, `Viabilidade: ${idea.evaluation.feasibility.score}/100 — ${idea.evaluation.feasibility.reason}`, `Execução: ${idea.evaluation.execution.score}/100 — ${idea.evaluation.execution.reason}`] : []),
     "", "RECORTES SUGERIDOS", ...(idea.refinements || []).map(value => `• ${value}`), "", "VIABILIDADE", idea.feasibility, "", "RECURSOS NECESSÁRIOS", idea.resources, "", "DIFICULDADES", idea.difficulty, "", "DECISÕES PENDENTES", ...idea.unresolved.map(value => `• ${value}`),
     "", "PLANO DE EXECUÇÃO", ...idea.plan.map((value, index) => `${index + 1}. ${value}`),
     "", "REFERÊNCIAS SELECIONADAS PARA VERIFICAÇÃO", ...(idea.references.length ? idea.references.flatMap(ref => [`${ref.label}. ${ref.title} (${ref.year || "ano não informado"}) · ${ref.identifier}`, ...ref.observations]) : ["Nenhuma referência selecionada."]),
-    "", "Proposta elaborada com estruturas guiadas, sem geração por IA. As observações citadas são anotações do usuário. Não comprova originalidade ou adequação final do método.",
+    "", "Proposta preliminar para discussão. Não comprova originalidade, viabilidade, adequação ética ou validade final do método. Confirme referências, instrumentos e decisões com o orientador.",
   ].join("\n");
 }
