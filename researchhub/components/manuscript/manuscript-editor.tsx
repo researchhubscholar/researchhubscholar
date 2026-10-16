@@ -8,12 +8,16 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { readManuscriptRecovery, type ManuscriptRecovery } from "@/lib/projects/manuscript-recovery";
 import SectionAssistant, { type WritingSource } from "./section-assistant";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
+import { chartData, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
+import { figurePng, figureSvg } from "@/lib/results/figure";
+import { downloadBinary } from "@/lib/exports/ooxml";
+import { formattedReference } from "@/lib/projects/references";
 
 type Project = ManuscriptProject & { id: string; title?: string | null; theme?: string | null };
 type Manuscript = { id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
 type Section = { section_key: string; heading: string; content: string; position: number; updated_at?: string };
 type Version = { id: string; label: string; snapshot: unknown; created_at: string };
-type Article = { id: string; title: string; authors: unknown; publication_year: number | null; pmid: string | null; doi: string | null; abstract?: string | null; evidence?: Record<string, unknown> | null };
+type Article = { id: string; title: string; authors: unknown; journal?: string | null; publication_year: number | null; pmid: string | null; doi: string | null; abstract?: string | null; evidence?: Record<string, unknown> | null };
 type ManuscriptComment = { id: string; manuscript_id: string; project_id: string; author_id: string; section_key: string; body: string; quoted_text: string | null; status: "open" | "resolved"; resolved_at?: string | null; resolved_by?: string | null; created_at: string };
 type CommentReply = { id: string; comment_id: string; author_id: string; body: string; created_at: string };
 
@@ -51,23 +55,6 @@ function firstAuthor(article: Article) {
 }
 function displayDate(value: string) { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value)); }
 function stringList(value: unknown) { return Array.isArray(value) ? value.filter(item => typeof item === "string") as string[] : []; }
-function escapeHtml(value: string) { return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char] || char); }
-function paragraphs(value: string) { return value.split(/\n+/).filter(Boolean).map(line => `<p>${escapeHtml(line)}</p>`).join(""); }
-function authorNames(article: Article) {
-  if (!Array.isArray(article.authors)) return ["Autor não informado"];
-  return article.authors.map(author => {
-    if (typeof author === "string") return author;
-    if (author && typeof author === "object") { const data = author as Record<string, unknown>; return String(data.name || [data.family, data.given].filter(Boolean).join(" ") || "Autor não informado"); }
-    return "Autor não informado";
-  }).filter(Boolean);
-}
-function formattedReference(article: Article, index: number, style: string) {
-  const authors = authorNames(article);
-  const year = article.publication_year || "s.d.";
-  const locator = article.doi ? `https://doi.org/${article.doi}` : article.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${article.pmid}/` : "";
-  if (style === "abnt") return `${authors.map(name => name.toUpperCase()).join("; ")}. ${article.title}. ${year}.${locator ? ` Disponível em: ${locator}.` : ""}`;
-  return `${index + 1}. ${authors.slice(0, 6).join(", ")}${authors.length > 6 ? ", et al." : "."} ${article.title}. ${year}.${locator ? ` ${locator}` : ""}`;
-}
 
 export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, project, initialManuscript, initialSections, initialVersions, initialComments, initialReplies, reviewAvailable, articles }: { currentUserId: string; ownerId: string; canEdit: boolean; project: Project; initialManuscript: Manuscript; initialSections: Section[]; initialVersions: Version[]; initialComments: ManuscriptComment[]; initialReplies: CommentReply[]; reviewAvailable: boolean; articles: Article[] }) {
   const hydrated = sectionTemplates.map(template => ({ ...template, content: initialSections.find(section => section.section_key === template.section_key)?.content || "" }));
@@ -90,6 +77,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const saveLock = useRef(false);
   const versionLock = useRef(false);
   const [versionSaving, setVersionSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportLock = useRef(false);
   const editorFields = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const citationPositions = useRef<Record<string, number>>({});
   const [message, setMessage] = useState(initialManuscript ? "Manuscrito carregado." : "Comece a escrever. O primeiro salvamento criará o manuscrito deste projeto.");
@@ -269,13 +258,27 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
     setMessage(`${cited.length} referências foram formatadas em ${citationStyle === "vancouver" ? "Vancouver" : "ABNT"}.`);
   }
 
-  function exportWord() {
+  async function exportWord() {
+    if (exportLock.current) return;
+    exportLock.current = true; setExporting(true);
     const cited = citationIds.map(id => articles.find(article => article.id === id)).filter(Boolean) as Article[];
-    const body = sections.map(section => `<h2>${escapeHtml(section.heading)}</h2>${paragraphs(section.section_key === "references" && cited.length ? cited.map((article, index) => formattedReference(article, index, citationStyle)).join("\n\n") : section.content)}`).join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;margin:3cm;color:#111}h1{text-align:center;font-size:18pt}h2{font-size:14pt;margin-top:24pt}p{text-align:justify;margin:0 0 10pt}.meta{text-align:center;color:#444}</style></head><body><h1>${escapeHtml(title || "Manuscrito")}</h1>${subtitle ? `<p class="meta">${escapeHtml(subtitle)}</p>` : ""}<p class="meta">${escapeHtml(authors.split("\n").filter(Boolean).join("; "))}</p><p class="meta">${escapeHtml(affiliations.split("\n").filter(Boolean).join("; "))}</p>${body}<h2>Palavras-chave</h2><p>${escapeHtml(keywords)}</p></body></html>`;
-    const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
-    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${(title || "manuscrito").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.doc`; anchor.click(); URL.revokeObjectURL(url);
-    setMessage("Arquivo Word gerado. Revise a formatação conforme as normas do periódico.");
+    const input = { title, subtitle, authors, affiliations, keywords, sections, references: cited.map((article, index) => formattedReference(article, index, citationStyle)) };
+    try {
+      let results: ResultsWorkspace | null = null;
+      // Results remain private to the project owner; sharing a manuscript does not share its dataset.
+      if (currentUserId === ownerId) {
+        const response = await fetch(`/api/results?project=${encodeURIComponent(project.id)}`, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "Não foi possível conferir os resultados salvos.");
+        if (body.workspace !== null && !validWorkspace(body.workspace)) throw new Error("Confira os resultados salvos antes de exportar.");
+        results = body.workspace;
+      }
+      const image = results && chartData(results.dataset, results.figure.column, results.figure.kind).length ? await figurePng(figureSvg(results)) : null;
+      const { manuscriptDocument } = await import("@/lib/projects/manuscript-export");
+      downloadBinary(manuscriptDocument(input, results, image), `${(input.title || "manuscrito").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.docx`, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      setMessage(results ? "DOCX gerado com o manuscrito, as referências citadas e os resultados salvos do projeto." : "DOCX gerado com o manuscrito e as referências citadas. Não há resultados salvos disponíveis para incluir.");
+    } catch (error) { setMessage(`Exportação não concluída: ${error instanceof Error ? error.message : "tente novamente."}`); }
+    finally { exportLock.current = false; setExporting(false); }
   }
 
   async function addComment(sectionKey: string) {
@@ -371,7 +374,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
       <section className="bg-white border border-line rounded-2xl p-5"><div className="flex justify-between gap-3 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Normalização</p><h3 className="font-display text-xl mt-2">Citações</h3></div><select disabled={!canEdit} value={citationStyle} onChange={event => markMetadata(setCitationStyle, event.target.value)} className="text-xs border border-line rounded-card p-2 bg-paper disabled:opacity-70"><option value="vancouver">Vancouver</option><option value="abnt">ABNT</option></select></div><p className="text-xs text-ink-soft mt-3">{citationIds.length} fontes citadas. Ao mudar o estilo, atualize as referências e revise as marcações já inseridas.</p></section>
       {canEdit && <section className="bg-white border border-line rounded-2xl p-5"><button onClick={() => setShowSources(value => !value)} className="w-full flex justify-between items-center text-left"><span><span className="block text-xs uppercase tracking-widest text-teal">Fontes do projeto</span><span className="block font-display text-xl mt-2">Inserir citação</span></span><span>{showSources ? "−" : "+"}</span></button>{showSources && <div className="mt-4 space-y-3">{articles.length ? articles.map(article => <article key={article.id} className="border-t border-line pt-3"><p className="text-sm line-clamp-3">{article.title}</p><p className="text-xs text-ink-soft mt-1">{firstAuthor(article)} · {article.publication_year || "sem ano"}</p><button onClick={() => cite(article)} className="text-xs text-teal mt-2">{citationIds.includes(article.id) ? "Citar novamente" : "Inserir na seção ativa"} →</button></article>) : <p className="text-sm text-ink-soft">Vincule artigos pela Biblioteca para citá-los durante a escrita.</p>}<Link href={`/biblioteca?projeto=${project.id}`} className="inline-block text-sm text-teal mt-2">Abrir Biblioteca →</Link></div>}</section>}
       <section className="bg-white border border-line rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-teal">Pendências da revisão</p><h3 className="font-display text-xl mt-2">Comentários abertos</h3>{openComments.length ? <div className="mt-4 space-y-3">{openComments.map(comment => <button key={comment.id} onClick={() => { setActiveReview(comment.section_key); setActiveKey(comment.section_key); document.getElementById(`section-${comment.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="w-full text-left border-t border-line pt-3"><span className="block text-xs text-teal">{sectionTemplates.find(section => section.section_key === comment.section_key)?.heading}</span><span className="block text-sm mt-1 line-clamp-2">{comment.body}</span></button>)}</div> : <p className="text-sm text-ink-soft mt-3">Nenhuma pendência aberta.</p>}</section>
-      <section className="bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-teal">Checklist editorial</p><h3 className="font-display text-xl mt-2">Antes de exportar</h3><div className="mt-4 space-y-2">{editorialChecks.map(([ok, label]) => <p key={label} className="text-sm"><span className={ok ? "text-teal" : "text-ink-soft"}>{ok ? "✓" : "○"}</span> {label}</p>)}</div><button onClick={exportWord} className="w-full bg-ink text-white rounded-card px-4 py-3 mt-5">Exportar para Word</button><p className="text-[11px] text-ink-soft mt-3">O arquivo é editável. Confira as instruções específicas do periódico antes da submissão.</p></section>
+      <section className="bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs uppercase tracking-widest text-teal">Checklist editorial</p><h3 className="font-display text-xl mt-2">Antes de exportar</h3><div className="mt-4 space-y-2">{editorialChecks.map(([ok, label]) => <p key={label} className="text-sm"><span className={ok ? "text-teal" : "text-ink-soft"}>{ok ? "✓" : "○"}</span> {label}</p>)}</div><button onClick={() => void exportWord()} disabled={exporting} className="w-full bg-ink text-white rounded-card px-4 py-3 mt-5 disabled:opacity-50">{exporting ? "Preparando DOCX…" : "Exportar para Word"}</button><p className="text-[11px] text-ink-soft mt-3">O DOCX reúne o texto, as referências citadas e os resultados salvos disponíveis para sua conta. Salve tabelas e gráficos em Resultados antes de exportar. Confira as normas do periódico.</p></section>
       <section className="bg-white border border-line rounded-2xl p-5"><div className="flex justify-between gap-3 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Histórico</p><h3 className="font-display text-xl mt-2">Versões</h3></div><select disabled={!canEdit} value={status} onChange={event => markMetadata(setStatus, event.target.value)} className="text-xs border border-line rounded-card p-2 bg-paper disabled:opacity-70"><option value="draft">Rascunho</option><option value="review">Em revisão</option><option value="ready">Pronto</option><option value="submitted">Submetido</option></select></div><p className="text-xs text-ink-soft mt-3">Selecione duas versões para comparar lado a lado.</p><div className="mt-4 space-y-3">{versions.length ? versions.map(version => <div key={version.id} className="border-t border-line pt-3"><label className="flex gap-2 items-start cursor-pointer"><input type="checkbox" checked={compareIds.includes(version.id)} onChange={() => toggleComparison(version.id)} className="mt-0.5" /><span><span className="block text-xs">{version.label}</span><span className="block text-[11px] text-ink-soft mt-1">{displayDate(version.created_at)}</span></span></label>{canEdit && <button onClick={() => restoreVersion(version)} className="text-xs text-teal mt-2 ml-5">Carregar esta versão</button>}</div>) : <p className="text-sm text-ink-soft">Crie uma versão antes de uma revisão importante.</p>}</div></section>
     </aside>
   </div>;

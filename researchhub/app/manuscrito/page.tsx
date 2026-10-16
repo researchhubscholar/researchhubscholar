@@ -22,12 +22,12 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
   const [{ data: sections }, { data: versions }, { data: directArticles }, { data: links }, commentsResult] = await Promise.all([
     manuscript ? db.from("scholar_manuscript_sections").select("section_key,heading,content,position,updated_at").eq("manuscript_id", manuscript.id).order("position") : Promise.resolve({ data: [] }),
     manuscript ? db.from("scholar_manuscript_versions").select("id,label,snapshot,created_at").eq("manuscript_id", manuscript.id).order("created_at", { ascending: false }).limit(12) : Promise.resolve({ data: [] }),
-    isOwner ? db.from("library_articles").select("id,title,authors,publication_year,pmid,doi,abstract").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
+    isOwner ? db.from("library_articles").select("id,title,authors,journal,publication_year,pmid,doi,abstract").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     isOwner ? db.from("library_article_projects").select("article_id").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     manuscript ? db.from("scholar_manuscript_comments").select("id,manuscript_id,project_id,author_id,section_key,body,quoted_text,status,resolved_at,resolved_by,created_at").eq("manuscript_id", manuscript.id).order("created_at") : Promise.resolve({ data: [], error: null }),
   ]);
   const linkedIds = (links || []).map(row => row.article_id);
-  const { data: linkedArticles } = linkedIds.length ? await db.from("library_articles").select("id,title,authors,publication_year,pmid,doi,abstract").eq("owner_id", user.id).in("id", linkedIds) : { data: [] };
+  const { data: linkedArticles } = linkedIds.length ? await db.from("library_articles").select("id,title,authors,journal,publication_year,pmid,doi,abstract").eq("owner_id", user.id).in("id", linkedIds) : { data: [] };
   const articleMap = new Map([...(directArticles || []), ...(linkedArticles || [])].map(article => [article.id, article]));
   const articleIds = [...articleMap.keys()];
   const { data: evidence } = isOwner && articleIds.length ? await db.from("evidence_matrix").select("article_id,objective,population,method,main_finding,limitation,notes,sample_size,intervention,comparator,outcomes,evidence_level,risk_of_bias").eq("owner_id", user.id).in("article_id", articleIds) : { data: [] };
