@@ -193,6 +193,21 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.query("insert into scholar_saved_searches(owner_id,name,query) values($1,'Estratégia completa',$2)",[resident,longQuery]);
  assert.equal(await scalar("select query from scholar_saved_searches where name='Estratégia completa'"),longQuery);
  await assert.rejects(db.query("insert into scholar_saved_searches(owner_id,name,query) values($1,'Acima do limite',$2)",[resident,'x'.repeat(10001)]),/check constraint/);
+ // Exercise the actual alert constraints and policies, including returned-row deduplication.
+ const alertSearch=await scalar("insert into scholar_saved_searches(owner_id,name,query,updated_at) values($1,'Alerta privado','sleep quality','2000-01-01') returning id",[resident]);
+ const insertAlert="insert into scholar_search_alerts(owner_id,saved_search_id,article_key,title,source,article_snapshot) values($1,$2,'doi:10.1/private','Novidade privada','Crossref','{}') on conflict(owner_id,saved_search_id,article_key) do nothing returning id";
+ assert.equal((await db.query(insertAlert,[resident,alertSearch])).rows.length,1);
+ assert.equal((await db.query(insertAlert,[resident,alertSearch])).rows.length,0);
+ await db.query("update scholar_saved_searches set alert_last_error='Fonte indisponível' where id=$1",[alertSearch]);
+ assert(new Date(await scalar('select updated_at from scholar_saved_searches where id=$1',[alertSearch])).getUTCFullYear()>2000);
+ await as(outsider);
+ assert.equal((await db.query('select * from scholar_search_alerts where saved_search_id=$1',[alertSearch])).rows.length,0);
+ assert.equal((await db.query('update scholar_search_alerts set read_at=now() where saved_search_id=$1 returning id',[alertSearch])).rows.length,0);
+ assert.equal((await db.query('update scholar_saved_searches set alerts_enabled=true where id=$1 returning id',[alertSearch])).rows.length,0);
+ await assert.rejects(db.query(insertAlert,[outsider,alertSearch]),/row-level security/);
+ await as(resident);
+ assert.equal((await db.query('select * from scholar_search_alerts where saved_search_id=$1',[alertSearch])).rows.length,1);
+ console.log('PASS: real alert uniqueness, private notifications and failure-attempt queue rotation.');
  console.log('PASS: financial envelopes, idempotency, failed-operation admission retention and private settings.');
  console.log('PASS: PostgreSQL migrations, RLS isolation, atomic duplicate merge, advisor collaboration, seat limits and protected AI accounting, private support, reversible deletion requests and restricted operations monitoring.');
  await db.exec('reset role');
