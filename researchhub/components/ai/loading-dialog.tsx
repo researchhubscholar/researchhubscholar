@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-export default function AILoadingDialog({ open, title = "Preparando suas ideias de pesquisa", description = "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o Scholar confere a estrutura antes de exibi-las." }: { open: boolean; title?: string; description?: string }) {
+export default function AILoadingDialog({ open, statusText = "Aguardando a resposta do modelo.", title = "Preparando suas ideias de pesquisa", description = "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o Scholar confere a estrutura antes de exibi-las." }: { open: boolean; title?: string; description?: string; statusText?: string }) {
   const id = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const [seconds, setSeconds] = useState(0);
@@ -20,7 +20,7 @@ export default function AILoadingDialog({ open, title = "Preparando suas ideias 
     <h2 id={`${id}-title`} className="mt-5 text-center font-display text-2xl">{title}</h2>
     <p id={`${id}-description`} className="mt-3 text-center text-sm leading-relaxed text-ink-soft">{description}</p>
     <p className="mt-5 text-center font-medium tabular-nums">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")} de espera</p>
-    <p role="status" className="mt-3 text-center text-sm text-teal">{seconds < 60 ? "Aguardando a resposta do modelo." : "Está demorando mais que o esperado. A solicitação continua em andamento; uma falha será informada na tela."}</p>
+    <p role="status" className="mt-3 text-center text-sm text-teal">{seconds < 60 ? statusText : "Está demorando mais que o esperado. A solicitação continua em andamento; uma falha será informada na tela."}</p>
     <p className="mt-5 text-center text-xs text-ink-soft">Aguarde sem recarregar. Esta janela fecha automaticamente ao concluir ou informar uma falha.</p>
   </dialog>;
 }

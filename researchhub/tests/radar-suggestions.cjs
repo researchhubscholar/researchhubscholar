@@ -8,17 +8,22 @@ const recommendation=(text,index)=>({label:'Conceito '+(index+1),content:text,ra
 const recommendations=content.map(recommendation);
 const full='(Burnout, Occupational[MeSH Terms] OR "Burnout"[Title/Abstract]) AND ("Health Personnel"[MeSH Terms] OR Nurses[MeSH Terms])';
 const combined=composer.combineSuggestionQueries(content);
-assert(combined.includes('"Burnout, Occupational"[Title/Abstract] OR "Stress, Psychological"[Title/Abstract]'));
+assert(combined.includes("(Burnout, Occupational) OR (Stress, Psychological)"));
+assert(!combined.includes("[Title/Abstract]"), "untagged descriptors must retain PubMed mapping");
 assert(combined.includes(' AND '));assert(!combined.includes(';'));assert(!combined.includes('"Occupational"[Title/Abstract]'));
 assert.equal(buildSearchStrategy(limits.appliedPubmedStrategy(combined)).pubmedQuery,combined,'the query applied to Radar must reach the search builder unchanged');
 assert.equal(composer.combineSuggestionQueries([full]),full);
+for (const content of ['health personnel', 'Burnout, Occupational', '"sleep quality"']) {
+ const normalized = composer.normalizeSuggestionQuery(content);
+ assert.equal(buildSearchStrategy(limits.appliedPubmedStrategy(normalized)).pubmedQuery,normalized,'a single untagged suggestion must reach PubMed without added field restrictions');
+}
 const withExclusion=composer.combineSuggestionQueries([full,'"Humans"[MeSH Terms] NOT "Animals"[MeSH Terms]']);
 assert(withExclusion.includes('('+full+') AND ("Humans"[MeSH Terms] NOT "Animals"[MeSH Terms])'));
-assert.equal(composer.combineSuggestionQueries(['burnout','burnout']),'"burnout"[Title/Abstract]');
-assert.equal(composer.normalizeSuggestionQuery('Nurses\nPhysicians'),'("Nurses"[Title/Abstract] OR "Physicians"[Title/Abstract])');
+assert.equal(composer.combineSuggestionQueries(['burnout','burnout']),'(burnout)');
+assert.equal(composer.normalizeSuggestionQuery('Nurses\nPhysicians'),'((Nurses) OR (Physicians))');
 assert.equal(composer.normalizeSuggestionQuery('Nurses[MeSH Terms]\nOR Physicians[MeSH Terms]'),'Nurses[MeSH Terms]\nOR Physicians[MeSH Terms]');
-assert.equal(composer.normalizeSuggestionQuery('“quality (clinical); assessment”'),'"quality (clinical); assessment"[Title/Abstract]');
-assert.equal(composer.normalizeSuggestionQuery('"War and Peace"'),'"War and Peace"[Title/Abstract]');
+assert.equal(composer.normalizeSuggestionQuery('“quality (clinical); assessment”'),'("quality (clinical); assessment")');
+assert.equal(composer.normalizeSuggestionQuery('"War and Peace"'),'("War and Peace")');
 for(const query of ['"unfinished','(burnout','burnout)','Nurses[MeSH Terms','Nurses]','Nurses[[tiab]]'])assert.throws(()=>composer.validateSuggestionQuery(query));
 assert.throws(()=>composer.validateSuggestionQuery('x'.repeat(10001)),/caracteres/);
 assert(composer.combineSuggestionQueries(['burnout','nurses'],'OR').includes(' OR '));
@@ -50,7 +55,7 @@ const appliedCount=ui.applied.length;ui.button('Aplicar combinação').props.onC
 ui.button('Restaurar combinação automática').props.onClick();assert.equal(ui.preview().props.value,composer.combineSuggestionQueries(content.slice(0,2),'OR'));
 ui.button('Limpar seleção').props.onClick();assert.equal(ui.preview(),undefined);assert.equal(ui.applied.length,appliedCount);
 ui.button('Selecionar todas').props.onClick();assert.equal(ui.checks().filter(check=>check.props.checked).length,4);
-ui.all().find(node=>node.type==='button'&&node.props.children==='Usar somente esta sugestão').props.onClick();assert.equal(ui.applied.at(-1).content,content[0]);
+ui.all().find(node=>node.type==='button'&&node.props.children==='Usar somente esta sugestão').props.onClick();assert.equal(ui.applied.at(-1).content,composer.normalizeSuggestionQuery(content[0]));
 const bad=harness([{...recommendations[0],content:'(burnout'}]);bad.checks()[0].props.onChange();assert(bad.preview().props.value.includes('(burnout'));assert(bad.button('Aplicar combinação').props.disabled);
 bad.preview().props.onChange({target:{value:'"burnout"[tiab]'}});bad.button('Aplicar combinação').props.onClick();assert.equal(bad.applied[0].content,'"burnout"[tiab]');
 const long=harness([recommendation('"'+('a'.repeat(6000))+'"[tiab]',0),recommendation('"'+('b'.repeat(6000))+'"[tiab]',1)]);long.button('Selecionar todas').props.onClick();assert(long.preview().props.value.length>10000);assert(long.button('Aplicar combinação').props.disabled);

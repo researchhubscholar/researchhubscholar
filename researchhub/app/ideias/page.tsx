@@ -184,8 +184,8 @@ export default function IdeasPage() {
     } finally { generationInFlight.current = false; setAiLoading(false); }
   }
 
-  async function saveVersion(idea: Idea) {
-    if (!library.userId || !snapshot || stale || savingRef.current) return;
+  async function saveVersion(idea: Idea, forRadar = false): Promise<boolean> {
+    if (!library.userId || !snapshot || stale || savingRef.current || generationInFlight.current || refinementInFlight.current) return false;
     const owner = library.userId;
     savingRef.current = true; setSaving(true); setMessage("");
     try {
@@ -193,12 +193,19 @@ export default function IdeasPage() {
       const { data: auth, error: authError } = await client.auth.getUser();
       if (authError || auth.user?.id !== owner) throw new Error("Sua sessão mudou. Recarregue a página.");
       const seriesId = series.current[idea.id] || crypto.randomUUID();
-      const { error } = await client.from("idea_versions").insert({ owner_id: owner, series_id: seriesId, context: snapshot, proposal: idea, evidence_signature: evidenceSnapshot, reason: aiMode === "live" ? "Proposta gerada com assistência de IA" : "Proposta em avaliação" });
+      const { error } = await client.from("idea_versions").insert({ owner_id: owner, series_id: seriesId, context: snapshot, proposal: idea, evidence_signature: evidenceSnapshot, reason: forRadar ? "Salvamento automático antes de validar no Radar" : aiMode === "live" ? "Proposta gerada com assistência de IA" : "Proposta em avaliação" });
       if (error) throw error;
+      if (previousOwner.current !== owner) return false;
       series.current[idea.id] = seriesId; setHistoryRefresh(value => value + 1);
       setMessage("Proposta salva no histórico da sua conta.");
-    } catch (error) { setMessage(historyError(error as { code?: string })); }
+      return true;
+    } catch (error) { setMessage(`${forRadar ? "A proposta não foi salva e o Radar não foi aberto. " : ""}${historyError(error as { code?: string })}`); return false; }
     finally { savingRef.current = false; setSaving(false); }
+  }
+
+  async function validateInRadar(idea: Idea) {
+    if (!await saveVersion(idea, true)) return;
+    router.push(`/descobrir?${new URLSearchParams({ tema: ideaRadarQuery(idea.radar), ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`);
   }
 
   async function refineWithLiterature(idea: Idea) {
@@ -344,7 +351,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label="Propostas geradas">
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2">Três caminhos para comparar</h2><p className="text-sm text-ink-soft mt-2">Escolha pelo equilíbrio entre relevância e execução — não apenas pelo tema mais interessante.</p></div><span className="text-sm text-teal">{selected.length}/3 na comparação</span></div>
-      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => router.push(`/descobrir?${new URLSearchParams({ tema: ideaRadarQuery(idea.radar), ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -376,11 +383,12 @@ function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving
       <Info label="Recursos necessários" value={idea.resources} />
     </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title="Decisões que ainda precisam ser tomadas" values={idea.unresolved} /><List title="Sequência recomendada" values={idea.plan} ordered /></div></details>
 
-    <button type="button" onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? "Concluir ajustes" : "Editar esta proposta"}</button>
-    {editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium">{label}<textarea maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
+    <button type="button" disabled={saving} onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? "Concluir ajustes" : "Editar esta proposta"}</button>
+    {editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium">{label}<textarea disabled={saving} maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
     {refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
     {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm">{refinementError}</p>}
-    <div className="mt-6 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? "Consultando PubMed e refinando…" : "Refinar com literatura e IA"}</button><button type="button" onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2">Validar no Radar</button><button type="button" disabled={stale} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Transformar em projeto →</button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : "Salvar proposta"}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50">Baixar</button></div>
+    <p className="mt-5 text-xs text-ink-soft">Ao validar no Radar, esta versão será salva automaticamente no seu histórico de propostas.</p>
+    <div className="mt-3 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? "Consultando PubMed e refinando…" : "Refinar com literatura e IA"}</button><button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando proposta…" : "Validar no Radar"}</button><button type="button" disabled={stale || saving} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Transformar em projeto →</button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : "Salvar proposta"}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50">Baixar</button></div>
   </article>;
 }
 

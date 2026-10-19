@@ -133,7 +133,7 @@ function conceptQuery(concept: Concept) {
 }
 
 function isAdvanced(value: string) {
-  return /\[[^\]]+\]|(?:^|\s)(?:AND|OR|NOT)(?:\s|$)/.test(value);
+  return /\[[^\]]+\]|(?:^|\s)(?:AND|OR|NOT)(?:\s|$)|^\([\s\S]*\)$|^"[^" ]+(?: [^" ]+)*"$/.test(value);
 }
 
 function plainAdvanced(value: string) {

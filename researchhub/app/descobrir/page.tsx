@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useRef, useState } from "react";
 import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
+import LoadingDialog from "@/components/ai/loading-dialog";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -164,7 +165,7 @@ function DiscoverContent() {
     setBrowsing(true); setBrowseError(null);
     try {
       const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }) });
+        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
       setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
@@ -178,7 +179,7 @@ function DiscoverContent() {
     e.preventDefault(); if (lookupLoading) return;
     setLookupLoading(true); setLookupError(null); setLookupArticle(null);
     try {
-      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }) });
+      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Artigo não encontrado.");
       setLookupArticle(data.article);
@@ -186,12 +187,10 @@ function DiscoverContent() {
     finally { setLookupLoading(false); }
   }
 
-  const refinements = result
-    ? [`${result.topic} AND young adults`, `${result.topic} AND clinical outcomes`, `${result.topic} AND systematic review`]
-    : [];
 
   return (
     <div className="scholar-workspace radar-page max-w-5xl mx-auto">
+      <LoadingDialog open={loading || browsing || lookupLoading} title={lookupLoading ? "Buscando o artigo" : browsing ? "Carregando artigos" : "Consultando a literatura científica"} description={lookupLoading ? "O Radar está consultando o identificador informado para recuperar os dados do artigo." : browsing ? "O Radar está recuperando os artigos da fonte e da ordenação escolhidas." : "O Radar consulta o PubMed e o Crossref, reúne os artigos e prepara as contagens e os indicadores da sua busca."} statusText="Aguardando a resposta das fontes científicas." />
       <div className="module-intro radar-intro max-w-3xl">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
         <h1 className="font-display text-4xl md:text-5xl mt-3">Seu tema tem espaço para investigação?</h1>
@@ -205,6 +204,8 @@ function DiscoverContent() {
         </div>
       </div>
 
+      {params.get("origem") === "ideias" && <p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal">Sua proposta foi salva no histórico de Ideias. Revise a busca inicial e os filtros antes de consultar os artigos. <Link href="/ideias" className="underline">Abrir Ideias</Link></p>}
+
       {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Estratégia recebida do projeto</p><h2 className="font-display text-xl mt-2">Revise os conceitos antes de pesquisar.</h2><p className="text-sm text-ink-soft mt-2">O tema atual do projeto foi trazido para o Radar. Revise os conceitos e os filtros antes de consultar a literatura.</p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal">Voltar ao projeto →</Link>}</section>}
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
@@ -217,11 +218,11 @@ function DiscoverContent() {
         </button>
         <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
-      <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Preparar a busca com IA <span className="text-ink-soft font-normal">· opcional</span></summary>
-      <AssistantPanel feature="radar" title="Transformar a pergunta em uma busca científica" description="A IA separa os conceitos, traduz termos biomédicos e propõe uma estratégia PubMed editável antes da consulta." context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);window.scrollTo({top:0,behavior:"smooth"});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
-      </details>
+      <div id="preparar-busca-ia" className="scroll-mt-24">
+      <AssistantPanel feature="radar" title="Prepare uma busca mais ampla com IA" actionLabel="Preparar busca com IA" disabled={loading || browsing || lookupLoading} description="A IA identifica os conceitos centrais, sugere sinônimos em inglês e monta buscas editáveis para o PubMed. Comece pela busca ampla; aplique uma sugestão ou combine conceitos e depois clique em Pesquisar artigos. A preparação com IA usa sua franquia." context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);window.scrollTo({top:0,behavior:"smooth"});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
+      </div>
       <p className="text-xs text-ink-soft/70 mt-2">Pesquise em português ou inglês. Em “Automático”, o Radar identifica o idioma, separa os conceitos e mostra a estratégia utilizada.</p>
-      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Pesquisa termos livres em título/resumo.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
+      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Usa título/resumo e MeSH na interpretação automática; estratégias explícitas preservam os campos escolhidos.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
       {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Pesquisar artigos para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
       {termReview && <form onSubmit={confirmTerms} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5" aria-label="Revisão de conceitos da busca">
@@ -403,17 +404,18 @@ function DiscoverContent() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Próxima decisão</p>
-                <h2 className="font-display text-2xl mt-2">Teste recortes mais específicos</h2>
+                <h2 className="font-display text-2xl mt-2">Ajuste a abrangência da busca</h2>
+                <p className="mt-2 text-sm text-ink-soft">Poucos resultados também podem indicar uma estratégia restrita. Amplie antes de concluir que há uma lacuna.</p>
               </div>
               <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">Explorar ideias com este tema →</Link>
             </div>
-            <div className="grid md:grid-cols-3 gap-3 mt-5">
-              {refinements.map((item) => (
-                <button key={item} onClick={() => { setTopic(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
-                  <p className="text-sm font-medium">{item}</p>
-                  <span className="text-xs text-teal mt-2 inline-block">Analisar este recorte →</span>
-                </button>
-              ))}
+            <div className="grid md:grid-cols-2 gap-3 mt-5">
+              <button type="button" onClick={() => { setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setStudyType("all"); setPeriod("all"); setTermReview(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium">Ampliar os filtros</p><span className="text-xs text-ink-soft mt-2 block">Todo o período, todos os tipos e sem campos adicionais. Revise e clique em Pesquisar artigos; os termos da busca serão mantidos.</span>
+              </button>
+              <a href="#preparar-busca-ia" className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium">Revisar os conceitos com IA</p><span className="text-xs text-ink-soft mt-2 block">Prepare uma alternativa com os conceitos centrais e mais sinônimos, sem exigir todos os detalhes da proposta.</span>
+              </a>
             </div>
           </section>
 

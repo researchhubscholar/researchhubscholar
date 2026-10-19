@@ -256,7 +256,7 @@ Delimite população, contexto, exposição ou intervenção quando aplicável e
 Não afirme causalidade em desenho transversal. Não force hipótese causal em estudo descritivo ou revisão.
 Inclua elegibilidade, riscos éticos, limitações, viabilidade, variáveis, análise e forma de verificar originalidade na literatura.
 Quando faltarem instrumento, desfecho ou amostra, apresente uma alternativa e marque explicitamente que precisa ser confirmada.
-O campo radar deve ser uma estratégia curta em inglês para busca inicial no PubMed.
+O campo radar deve ser uma estratégia curta e ampla em inglês para busca exploratória inicial no PubMed, com somente um ou dois conceitos centrais. Inclua sinônimos usuais com OR. Não exija desenho, instrumento, cenário local, faixa etária ou todos os elementos da proposta ao mesmo tempo; mantenha somente os essenciais para o problema.
 Una conceitos com AND e agrupe sinônimos entre parênteses com OR: "rheumatoid arthritis" AND (adherence OR compliance). Nunca deixe OR solto entre conceitos.
 Use textos objetivos: no máximo duas frases por campo e de dois a quatro itens nas listas.
 Não dê aconselhamento médico nem solicite dados identificáveis.`;

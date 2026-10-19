@@ -138,6 +138,7 @@ PROCESSO OBRIGATÓRIO
 3. Escolha PICO, PECO, PCC ou SPIDER e explicite seus elementos.
 4. Reescreva o título no padrão de artigo biomédico: específico, conciso, informativo e coerente com o desenho. Título não é pergunta e não deve prometer causalidade indevida.
 5. Em refinedProposal, devolva SOMENTE os oito campos solicitados no schema: title, question, objective, outcome, methods, analysis, variables e radar. Reescreva-os para que formem um único protocolo coerente. Os demais campos da proposta serão preservados pelo sistema.
+O campo radar deve continuar amplo: use um ou dois conceitos centrais em inglês, com sinônimos unidos por OR e grupos unidos por AND. Não transforme todos os detalhes do protocolo, desenho, instrumento ou cenário local em condições obrigatórias de busca.
 6. Crie de 3 a 5 títulos alternativos realmente utilizáveis.
 7. Sugira termos MeSH somente quando reconhecíveis nos artigos ou como candidatos a confirmar.
 8. Em sources, cite somente PMIDs presentes no contexto e explique brevemente como cada artigo orientou o refinamento.

@@ -39,7 +39,9 @@ export function normalizeSuggestionQuery(content: string) {
   const normalized = terms.map(term => term.trim()).filter(Boolean).map(term => {
     const syntax = term.replace(/"[^"]*"/g, "");
     if (/\[[^\]]+\]|[()]/.test(syntax) || /\b(?:AND|OR|NOT)\b/i.test(syntax)) return term;
-    return `${term.startsWith('"') && term.endsWith('"') ? term : `"${term}"`}[Title/Abstract]`;
+    // Preserve untagged terms for PubMed Automatic Term Mapping. Adding exact
+    // Title/Abstract phrases here excluded indexed articles unnecessarily.
+    return `(${term})`;
   });
   const unique = Array.from(new Map(normalized.map(term => [term.toLowerCase(), term])).values());
   if (!unique.length) throw new Error("Selecione sugestões com termos de busca.");
