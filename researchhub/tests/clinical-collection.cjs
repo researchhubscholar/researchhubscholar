@@ -2,6 +2,7 @@ const fs = require('node:fs'), assert = require('node:assert/strict'), vm = requ
 const compile = (source, jsx = false) => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: jsx ? ts.JsxEmit.ReactJSX : undefined } }).outputText;
 require.extensions['.ts'] = (module, file) => module._compile(compile(fs.readFileSync(file, 'utf8')), file);
 const collection = require('../lib/clinical/collection.ts'), summary = require('../lib/clinical/summary.ts');
+const followup = require('../lib/clinical/followup.ts');
 const data = require('../lib/results/data.ts'), ai = require('../lib/ai/assist.ts');
 const { resultsWordBlocks } = require('../lib/results/word.ts');
 const { manuscriptWordBlocks } = require('../lib/projects/manuscript-export.ts');
@@ -105,6 +106,13 @@ function handler(dependencies) { const module = { exports: {} }; vm.runInNewCont
  assert.equal((await put(compared)).status, 200);
  assert.deepEqual((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, clone(compared));
  assert.equal((await put({ ...compared, comparison: { ...compared.comparison, groups: ['0', '0'] } })).status, 400);
+ let longitudinal = followup.applyFollowupPlan(undefined, [c.fields[0]], [{ key: 'visit_0', label: 'Início', day: 0 }], c);
+ longitudinal = followup.putVisit(longitudinal, c, { code: 'P001', momentKey: 'visit_0', status: 'completed', date: '2025-01-01', reason: '', values: { v_age: '42' } });
+ const followed = { ...compared, followup: longitudinal };
+ assert.equal((await put(followed)).status, 200);
+ assert.deepEqual((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, clone(followed));
+ assert.equal((await put({ ...followed, followup: { ...longitudinal, visits: [...longitudinal.visits, longitudinal.visits[0]] } })).status, 400);
+
  assert(queries.some(query => query.table === 'research_projects' && query.owner_id === 'owner-a'));
  owner = 'owner-b'; assert.equal((await put(w)).status, 404); assert.equal((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, null);
  owner = null; assert.equal((await put(w)).status, 401);

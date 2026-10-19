@@ -74,3 +74,57 @@ a comparação. As tabelas são recalculadas com a base atual. Exportações Wor
 Excel e manuscrito incluem a comparação salva; exportações da seção usam o estado
 atual. Word e manuscrito contêm agregados, sem códigos individuais. Excel completo
 da coleta continua contendo a aba de registros para uso autorizado do pesquisador.
+
+## Acompanhamento por visitas
+
+`workspace.followup` é opcional e versionado (`version: 1`). A ficha inicial e sua
+base de análises continuam com uma linha por participante. O acompanhamento
+armazena momentos, um dicionário próprio, datas de início por código e visitas
+identificadas pelo par participante/momento, sem duplicação. A ativação não
+transforma dados existentes nem copia valores para visitas. As definições podem
+ser copiadas da ficha inicial e revisadas de forma independente, ou criadas
+manualmente para medidas, tratamentos e desfechos.
+
+Nesta etapa são até 12 momentos (dias inteiros distintos de 0 a 36.500 após a data
+de início), 20 variáveis por visita e 5.000 registros de visita, dentro do limite
+geral de 1,5 MB por projeto. Somente participantes incluídos podem registrar
+visitas. Excluir ou retornar um participante à conferência preserva suas visitas,
+mas remove-as da agenda, medidas, gráficos e resumos. As tabelas mostram a
+situação por momento, com pendências, não realizadas e visitas sem registro.
+
+Visitas realizadas exigem uma data válida e valores compatíveis com a ficha,
+incluindo campos obrigatórios. Rascunhos podem preservar valores a corrigir;
+possíveis identificadores detectáveis são bloqueados em qualquer situação.
+Visitas não realizadas exigem um motivo previsto na interface. Seus valores
+anteriores são preservados, mas não entram nos resumos. Uma visita por momento
+pode ser editada sem duplicar o registro. Não há remoção de visitas nesta versão.
+Momentos com registros e variáveis com dados não podem ser removidos. Revisar a
+ficha ou os momentos preserva valores e devolve visitas realizadas à conferência,
+com confirmação explícita; não altera o dicionário nem os valores da linha de base.
+
+A agenda é derivada para participantes incluídos e todos os momentos previstos.
+Datas são dias de calendário, com cálculo em UTC para evitar deslocamento por
+horário de verão. O dia atual da agenda usa America/Sao_Paulo. Prazos sem visita
+registrada são comparados ao dia nominal, sem janela de tolerância ou inferência
+automática de perda. Sem data de início, a agenda pede o início e não inventa
+prazos. A alteração da data de início recalcula prazos sem mover a data real.
+Nenhuma notificação externa é enviada.
+
+Perfis e gráficos usam somente visitas realizadas e conferidas de participantes
+incluídos. Percentuais usam as respostas informadas em cada momento; ausências
+em visitas conferidas são contadas por variável, enquanto visitas sem registro
+são contadas no resumo de situação. Zero e categorias numéricas permanecem
+válidos. O gráfico mostra um participante selecionado ou médias disponíveis,
+com N por ponto e sem preencher ou conectar momentos ausentes. O eixo representa
+dias nominais. A composição da amostra pode mudar entre momentos: estes resumos
+não são estimativas pareadas de mudança, efeitos de tratamentos ou análises
+inferenciais de medidas repetidas. As visitas nunca alimentam o motor de
+Welch/Pearson/qui-quadrado como observações independentes.
+
+Salvar resultados persiste todo o plano e suas visitas na estrutura já protegida
+do projeto; não exige migração nem serviço externo. A agenda e os dados brutos
+são exportados para Excel com códigos e datas para conferência autorizada. Word,
+centro de documentos e manuscrito recebem agregados por momento, sem códigos ou
+datas individuais. A seção não envia dados de visitas à IA. O histórico recente
+da coleta registra ações e códigos, dentro dos limites existentes, sem pretensão
+de auditoria imutável.

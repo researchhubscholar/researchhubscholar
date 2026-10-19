@@ -1,3 +1,4 @@
+import { followupNote, followupProfile, followupSummary, validFollowup } from "../clinical/followup";
 import { comparisonData, comparisonNarrative } from "../clinical/comparison";
 import { assertAnalysisKinds } from "../clinical/collection";
 import { profileRows, selectionCounts } from "../clinical/summary";
@@ -42,6 +43,10 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
         blocks.push({ text: "Análise da comparação selecionada", heading: true }, { table: [["Medida", "Valor"], ...analysisRows(result).map(row => row.map(format))] }, { text: "Texto sugerido para revisão", heading: true }, { text: comparisonNarrative(result) });
       }
     } catch (error) { blocks.push({ text: `Comparação: ${error instanceof Error ? error.message : "revise os grupos."}` }); }
+  }
+  if (workspace.collection && workspace.followup && validFollowup(workspace.followup, workspace.collection)) {
+    blocks.push({ text: "Acompanhamento dos participantes por visitas", heading: true }, { table: followupSummary(workspace.followup, workspace.collection) },
+      { text: "Medidas descritivas por momento", heading: true }, { table: followupProfile(workspace.followup, workspace.collection) }, { text: followupNote });
   }
   if (figure) blocks.push({ image: figure.bytes, width: 560, height: figure.height / figure.width * 560,
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });

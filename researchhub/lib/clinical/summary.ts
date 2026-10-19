@@ -1,3 +1,4 @@
+import { followupWorkbook } from "./followup";
 import { comparisonWorkbook, validComparison } from "./comparison";
 import { describe, type ResultsWorkspace } from "../results/data";
 import { collectionDataset, type ClinicalCollection } from "./collection";
@@ -32,12 +33,13 @@ export function syncCollection(workspace: ResultsWorkspace, collection: Clinical
     figure: { ...workspace.figure, column, kind },
     flow: [{ label: "Prontuários registrados", count: counts.total }, { label: "Pendentes de conferência", count: counts.pending }, { label: "Excluídos", count: counts.excluded }, { label: "Incluídos na análise", count: counts.included }] };
 }
-export function collectionWorkbook(collection: ClinicalCollection, comparison?: ResultsWorkspace["comparison"]) {
+export function collectionWorkbook(collection: ClinicalCollection, comparison?: ResultsWorkspace["comparison"], followup?: ResultsWorkspace["followup"]) {
   return [
     { name: "Ficha", rows: [["Variável", "Tipo", "Definição", "Unidade", "Categorias", "Obrigatória", "Mínimo", "Máximo"], ...collection.fields.map(f => [f.label, f.kind, f.definition, f.unit, f.options.join(" | "), f.required ? "Sim" : "Não", f.minimum ?? "", f.maximum ?? ""])] },
     { name: "Coleta", rows: [["codigo_pesquisa", "situacao", "motivo_exclusao", ...collection.fields.map(f => f.label)], ...collection.records.map(r => [r.code, r.status, r.reason, ...collection.fields.map(f => r.values[f.key] || "")])] },
     { name: "Tabela 1", rows: profileRows(collection) },
     ...(comparison && validComparison(comparison, collection) ? comparisonWorkbook(collection, comparison) : []),
+    ...(followup ? followupWorkbook(followup, collection) : []),
     { name: "Histórico recente", rows: [["Data", "Ação", "Código de pesquisa"], ...collection.history.map(h => [h.at, h.action, h.code])] },
   ];
 }
