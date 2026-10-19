@@ -1,3 +1,4 @@
+import { repeatedData, repeatedTest, repeatedNote, repeatedNarrative, repeatedResultRows } from "../clinical/repeated";
 import { pairedData, pairedTest, pairedResultRows, pairedNarrative, pairedNote } from "../clinical/paired";
 import { followupNote, followupProfile, followupSummary, validFollowup } from "../clinical/followup";
 import { comparisonData, comparisonNarrative } from "../clinical/comparison";
@@ -56,6 +57,14 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
       try { const result = pairedTest(data, workspace.paired); blocks.push({ text: "Teste t pareado", heading: true }, { table: pairedResultRows(result) }, { text: "Texto sugerido para revisão", heading: true }, { text: pairedNarrative(data, result) }); }
       catch (error) { blocks.push({ text: `Teste pareado não calculado: ${error instanceof Error ? error.message : "Revise os dados."}` }); }
     } catch (error) { blocks.push({ text: `Comparação pareada não incluída: ${error instanceof Error ? error.message : "Revise a seleção."}` }); }
+  }
+  if (workspace.collection && workspace.followup && workspace.repeated) {
+    try {
+      const data = repeatedData(workspace.collection, workspace.followup, workspace.repeated);
+      blocks.push({ text: `Análise de vários momentos · ${data.field.label}${data.field.unit ? ` (${data.field.unit})` : ""}`, heading: true }, { table: data.selection }, { table: data.missingRows }, { text: "Ausências por momento podem se sobrepor; não somar para obter exclusões." }, { table: data.rows }, { text: repeatedNote });
+      try { const r = repeatedTest(data, workspace.repeated); blocks.push({ text: "ANOVA de medidas repetidas · Greenhouse–Geisser", heading: true }, { table: repeatedResultRows(r) }, { text: "Texto sugerido para revisão", heading: true }, { text: repeatedNarrative(data, r) }); }
+      catch (e) { blocks.push({ text: `ANOVA de medidas repetidas não calculada: ${e instanceof Error ? e.message : "Revise os dados."}` }); }
+    } catch (e) { blocks.push({ text: `Análise de vários momentos não incluída: ${e instanceof Error ? e.message : "Revise a seleção."}` }); }
   }
   if (figure) blocks.push({ image: figure.bytes, width: 560, height: figure.height / figure.width * 560,
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });

@@ -1,4 +1,5 @@
 "use client";
+import { validRepeated } from "@/lib/clinical/repeated";
 import { validPaired } from "@/lib/clinical/paired";
 import { useMemo, useState } from "react";
 import { addHistory, blankField, type CollectionField } from "@/lib/clinical/collection";
@@ -38,7 +39,8 @@ export default function FollowupPanel({ workspace, projectId, onChange }: { work
   function commit(next: ClinicalFollowup, label: string, participant = "") {
     if (!validFollowup(next, collection)) throw new Error("Revise o plano, os participantes e as visitas antes de salvar.");
     const paired = validPaired(workspace.paired, next) ? { ...workspace.paired, confirmed: JSON.stringify(next) === JSON.stringify(plan) ? workspace.paired.confirmed : false } : undefined;
-    const updated = { ...workspace, paired, followup: next, collection: addHistory(collection!, label, participant) };
+    const repeated = validRepeated(workspace.repeated, next) ? { ...workspace.repeated, confirmed: JSON.stringify(next) === JSON.stringify(plan) ? workspace.repeated.confirmed : false } : undefined;
+    const updated = { ...workspace, repeated, paired, followup: next, collection: addHistory(collection!, label, participant) };
     if (new TextEncoder().encode(JSON.stringify({ project: projectId, workspace: updated })).byteLength > 1_500_000) throw new Error("Esta alteração excederia 1,5 MB. Os dados anteriores foram preservados; exporte uma cópia e reduza a base.");
     onChange(updated);
   }

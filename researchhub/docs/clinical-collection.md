@@ -185,3 +185,74 @@ Referências de implementação e verificação:
 - Seis casos de referência em `tests/paired-reference.json`, gerados com SciPy
   1.17.0 e conferidos contra o motor jStat existente, incluindo sinais, zeros,
   ausência de mudança média, escalas decimais e diferentes tamanhos de amostra.
+
+## Análise global de três ou mais momentos
+
+`workspace.repeated` é uma configuração opcional com `fieldKey`, `moments` e
+`confirmed`. Requer uma medida numérica do dicionário de visitas e de 3 a 12
+momentos únicos, ordenados pelo dia nominal. A interface permite escolher um
+subconjunto e aplica a ordem temporal antes de salvar. Alterações em rascunho só
+substituem a análise depois de Aplicar seleção. Resultados existentes continuam
+compatíveis sem esta configuração. Não requer migração, API de IA ou dependência
+estatística nova; usa o jStat 1.9.6 já incluído no repositório.
+
+O vínculo é pelo par código/momento. Apenas participantes incluídos com visitas
+realizadas e conferidas e valores presentes em todos os momentos selecionados
+compõem a matriz completa. Visitas de momentos não selecionados não interferem.
+A mesma matriz de participantes alimenta todas as médias e a ANOVA, evitando
+comparar médias de amostras diferentes. Zero é válido, vazio é ausente, e não há
+imputação. As exclusões são contadas sem sobreposição: primeiro participantes
+com pelo menos uma visita não conferida/ausente/não realizada; depois medidas
+vazias entre aqueles com todas as visitas conferidas. Há também uma tabela de
+ausências por momento, cujas contagens podem se sobrepor e não devem ser somadas
+para calcular exclusões. Datas reais decrescentes na sequência nominal bloqueiam
+a inferência; valores e códigos permanecem acessíveis para revisão na interface.
+
+O método implementado é ANOVA de medidas repetidas de um fator (momento), com
+correção de Greenhouse–Geisser aplicada sempre. O teste global avalia igualdade
+das médias dos momentos; não identifica quais pares diferem, não estima uma
+inclinação por dia e não usa os intervalos reais entre consultas como preditor.
+Não há seleção automática de método, pós-testes, Mauchly automático, método não
+paramétrico, comparação entre grupos, modelo misto ou ajuste por covariáveis.
+O pesquisador confirma mesma escala, vínculo das medidas, independência entre
+participantes, adequação da normalidade dos contrastes/resíduos e valores extremos.
+A correção de esfericidade não resolve não normalidade nem multiplicidade.
+
+O cálculo remove deslocamentos individuais por centragem dentro do participante
+e escala os contrastes para evitar overflow. Separa somas de quadrados de momento
+e erro; F usa GL originais k-1 e (N-1)(k-1). O epsilon GG vem da matriz de
+covariância centrada, equivalente à matriz de contrastes ortonormais: quadrado do
+traço / ((k-1) × soma dos quadrados dos elementos). Os GL são multiplicados pelo
+epsilon e o p global corrigido vem da cauda F, calculada pela beta incompleta
+regularizada para evitar subtração próxima de 1. São exportados F, epsilon, GL
+originais/corrigidos, p corrigido e eta-quadrado parcial (sem IC nesta versão).
+
+O limite operacional exige N completo > k momentos; não é uma afirmação de poder
+ou adequação estatística. Falta de variação dentro de participantes, variabilidade
+residual nula ou próxima demais de zero, resultados não finitos, epsilon fora dos
+limites teóricos além da tolerância numérica e datas invertidas bloqueiam o teste.
+Sem confirmação dos pressupostos, apenas contagens e resumos são apresentados.
+Casos completos podem ter viés por perdas; o texto não atribui causalidade ou
+melhora clínica e não faz interpretação automática de significância.
+
+Alterações no plano, nas visitas, na data de início, na base inicial ou nas
+identidades/situações dos participantes exigem nova confirmação. Configurações
+incompatíveis com a medida ou os momentos revisados são removidas. As estimativas
+são sempre recalculadas da base atual. Salvar resultados persiste a seleção na
+estrutura privada já existente. Word, Excel, manuscrito e centro de documentos
+recebem agregados, contagens, análise válida confirmada e redação para revisão.
+A listagem individual fica na interface, sem códigos nas exportações da seção.
+
+Verificação numérica independente em `tests/repeated-reference.json`:
+- F e eta parcial: comparação de modelos por mínimos quadrados NumPy com fatores
+  participante e momento, em vez da decomposição por centragem usada no JS.
+- Epsilon: autovalores da covariância de contrastes ortonormais Helmert
+  (`scipy.linalg.helmert`), em vez do traço da covariância centrada usado no JS.
+- p corrigido: `scipy.stats.f.sf`, com SciPy 1.17.0.
+- Sete casos: 3 a 12 momentos, amostra mínima operacional, efeito temporal nulo,
+  heterogeneidade de variâncias, escalas diferentes e exemplo publicado com
+  epsilon arredondado 0,56.
+
+Referências primárias de método e exemplo:
+https://pingouin-stats.org/generated/pingouin.rm_anova.html
+https://pingouin-stats.org/generated/pingouin.epsilon.html

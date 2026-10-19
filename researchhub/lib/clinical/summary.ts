@@ -1,3 +1,4 @@
+import { repeatedWorkbook } from "./repeated";
 import { pairedWorkbook } from "./paired";
 import { followupWorkbook } from "./followup";
 import { comparisonWorkbook, validComparison } from "./comparison";
@@ -31,11 +32,11 @@ export function syncCollection(workspace: ResultsWorkspace, collection: Clinical
   const sameParticipants = JSON.stringify(workspace.collection?.records.map(r => [r.code, r.status])) === JSON.stringify(collection.records.map(r => [r.code, r.status]));
   const selectedGroups = workspace.comparison ? { ...workspace.comparison, analysis: undefined } : undefined;
   const comparison = validComparison(selectedGroups, collection) ? { ...selectedGroups, analysis: sameData && JSON.stringify(workspace.collection?.fields) === JSON.stringify(collection.fields) && validComparison(workspace.comparison, collection) ? workspace.comparison.analysis : undefined } : undefined;
-  return { ...workspace, collection, comparison, paired: workspace.paired ? { ...workspace.paired, confirmed: sameData && sameParticipants ? workspace.paired.confirmed : false } : undefined, dataset, analysis: sameData ? workspace.analysis : undefined,
+  return { ...workspace, collection, comparison, repeated: workspace.repeated ? { ...workspace.repeated, confirmed: sameData && sameParticipants ? workspace.repeated.confirmed : false } : undefined, paired: workspace.paired ? { ...workspace.paired, confirmed: sameData && sameParticipants ? workspace.paired.confirmed : false } : undefined, dataset, analysis: sameData ? workspace.analysis : undefined,
     figure: { ...workspace.figure, column, kind },
     flow: [{ label: "Prontuários registrados", count: counts.total }, { label: "Pendentes de conferência", count: counts.pending }, { label: "Excluídos", count: counts.excluded }, { label: "Incluídos na análise", count: counts.included }] };
 }
-export function collectionWorkbook(collection: ClinicalCollection, comparison?: ResultsWorkspace["comparison"], followup?: ResultsWorkspace["followup"], paired?: ResultsWorkspace["paired"]) {
+export function collectionWorkbook(collection: ClinicalCollection, comparison?: ResultsWorkspace["comparison"], followup?: ResultsWorkspace["followup"], paired?: ResultsWorkspace["paired"], repeated?: ResultsWorkspace["repeated"]) {
   return [
     { name: "Ficha", rows: [["Variável", "Tipo", "Definição", "Unidade", "Categorias", "Obrigatória", "Mínimo", "Máximo"], ...collection.fields.map(f => [f.label, f.kind, f.definition, f.unit, f.options.join(" | "), f.required ? "Sim" : "Não", f.minimum ?? "", f.maximum ?? ""])] },
     { name: "Coleta", rows: [["codigo_pesquisa", "situacao", "motivo_exclusao", ...collection.fields.map(f => f.label)], ...collection.records.map(r => [r.code, r.status, r.reason, ...collection.fields.map(f => r.values[f.key] || "")])] },
@@ -43,6 +44,7 @@ export function collectionWorkbook(collection: ClinicalCollection, comparison?: 
     ...(comparison && validComparison(comparison, collection) ? comparisonWorkbook(collection, comparison) : []),
     ...(followup ? followupWorkbook(followup, collection) : []),
     ...(followup && paired ? pairedWorkbook(collection, followup, paired) : []),
+    ...(followup && repeated ? repeatedWorkbook(collection, followup, repeated) : []),
     { name: "Histórico recente", rows: [["Data", "Ação", "Código de pesquisa"], ...collection.history.map(h => [h.at, h.action, h.code])] },
   ];
 }
