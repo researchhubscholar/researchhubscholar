@@ -1,6 +1,6 @@
 import type { JSONSchema7 } from "ai";
 
-export const assistantFeatures = ["radar", "protocol", "reading", "matrix", "orientation", "writing"] as const;
+export const assistantFeatures = ["radar", "protocol", "reading", "matrix", "orientation", "writing", "collection"] as const;
 export type AssistantFeature = typeof assistantFeatures[number];
 
 export type AssistantRecommendation = {
@@ -47,6 +47,7 @@ A primeira recommendation deve se chamar "Busca ampla recomendada", ter targetFi
 Não exija simultaneamente população, exposição, comparador, desfecho, desenho, instrumento, local e faixa etária. Na busca inicial, deixe de fora detalhes acessórios, cenário local, instrumentos e desenho; não acrescente clinical outcomes, young adults, prevalence ou systematic review sem necessidade central explícita. Respeite filtros escolhidos como contexto separado, sem duplicá-los na consulta.
 Ofereça no máximo três recomendações de busca: a ampla primeiro; outra estratégia completa equilibrada com o conceito adicional mais importante, se útil; e um bloco opcional de sinônimos claramente identificado para combinação. No rationale, explique o que cada opção pode recuperar ou excluir e indique quais cartões já contêm os mesmos conceitos. Não oriente a selecionar todos.
 Use MeSH apenas com segurança e sempre acompanhado por alternativas em termos livres unidas por OR; nunca transforme descritores invertidos em uma frase obrigatória de título/resumo. Evite restringir todos os termos a campos ou aspas sem necessidade. Sinalize termos incertos. A consulta ainda não foi executada: não invente contagens nem prometa que a ampliação encontrará mais artigos. Poucos resultados não comprovam uma lacuna.`,
+  collection: "Ajude a preparar uma ficha de coleta para perfil clínico ou revisão retrospectiva de prontuários, usando somente o protocolo e o dicionário de variáveis fornecidos. Não solicite nem invente dados de pacientes, categorias clínicas, instrumentos validados, pontos de corte ou autorizações. Devolva até oito recomendações, uma por variável estritamente necessária à pergunta. label deve ser o nome curto da variável (até 80 caracteres); targetField deve ser exatamente number, category ou date; content deve explicar a definição operacional, a fonte no prontuário e a janela de coleta a confirmar (até 800 caracteres). rationale deve explicar a relação com a pergunta. Não inclua nome, CPF, nascimento, telefone, endereço nem número do prontuário. Não proponha código de participante como variável estatística: ele já existe na ficha. Categorias, unidades e limites serão definidos e revisados pelo pesquisador na ficha. Sinalize dados ausentes, viés de seleção e limitações de inferência sem presumir que o estudo está aprovado ou concluído.",
   protocol: "Revise coerência entre pergunta, objetivo, desenho, população, desfecho, método, análise e ética. Use targetField exatamente entre theme, question, objective, studyType, population, outcome, hypothesis, inclusion, exclusion, variables, methods, analysis, ethics e manuscript. Não use nomes de colunas do banco. Cada content deve conter o texto completo revisado do campo de destino, preservando as decisões corretas existentes. Não invente dados.",
   reading: "Extraia somente do texto do artigo. Para cada achado informe no campo source um trecho literal curto que o sustente e confiança. Use targetField objective, population, method, finding ou limitation. Se não constar, diga que não foi identificado.",
   matrix: "Compare somente os artigos fornecidos. Identifique convergências, divergências, limitações e lacunas. Cite em source os títulos/identificadores fornecidos, sem criar referências.",
@@ -55,14 +56,26 @@ Use MeSH apenas com segurança e sempre acompanhado por alternativas em termos l
 };
 
 export const ledgerFeature: Record<AssistantFeature, "refinement"|"protocol"|"reading"|"matrix"|"writing"> = {
-  radar: "refinement", protocol: "protocol", reading: "reading", matrix: "matrix", orientation: "writing", writing: "writing",
+  collection: "protocol", radar: "refinement", protocol: "protocol", reading: "reading", matrix: "matrix", orientation: "writing", writing: "writing",
 };
 
 export function validateAssistRequest(value: unknown) {
   if (!value || typeof value !== "object") throw new Error("Contexto não enviado.");
   const body = value as Record<string, unknown>;
   if (!assistantFeatures.includes(body.feature as AssistantFeature)) throw new Error("Ferramenta de assistência inválida.");
-  const context = body.context;
+  let context = body.context;
+  if (body.feature === "collection") {
+    const raw = context && typeof context === "object" ? context as Record<string, unknown> : {};
+    const protocol = raw.protocol && typeof raw.protocol === "object" ? raw.protocol as Record<string, unknown> : {};
+    const keys = ["research_question", "population", "inclusion_criteria", "exclusion_criteria", "primary_outcome", "variables", "study_type", "methods", "ethics_notes"];
+    // Only study planning and variable definitions reach the provider or usage history.
+    // Raw participant rows, codes and imported files are never used as AI context.
+    context = { protocol: Object.fromEntries(keys.map(key => [key, typeof protocol[key] === "string" ? (protocol[key] as string).slice(0, 3000) : ""])),
+      fields: Array.isArray(raw.fields) ? raw.fields.slice(0, 40).map(value => {
+        const field = value && typeof value === "object" ? value as Record<string, unknown> : {};
+        return Object.fromEntries(["label", "kind", "definition", "unit"].map(key => [key, typeof field[key] === "string" ? (field[key] as string).slice(0, 1000) : ""]));
+      }) : [] };
+  }
   const serialized = JSON.stringify(context ?? {});
   if (serialized.length < 10) throw new Error("Inclua contexto suficiente para a análise.");
   if (serialized.length > 80_000) throw new Error("O contexto excede o limite desta operação.");
@@ -87,6 +100,6 @@ CONTEXTO\n${JSON.stringify(context)}`;
 }
 
 export function simulatedOutput(feature: AssistantFeature): AssistantOutput {
-  const labels: Record<AssistantFeature,string> = { radar:"Estratégia de busca preparada",protocol:"Revisão do projeto preparada",reading:"Leitura assistida preparada",matrix:"Síntese da matriz preparada",orientation:"Pauta de orientação preparada",writing:"Revisão de texto preparada" };
+  const labels: Record<AssistantFeature,string> = { collection:"Ficha de coleta preparada",radar:"Estratégia de busca preparada",protocol:"Revisão do projeto preparada",reading:"Leitura assistida preparada",matrix:"Síntese da matriz preparada",orientation:"Pauta de orientação preparada",writing:"Revisão de texto preparada" };
   return { title: labels[feature], summary: "O fluxo completo foi validado em modo de simulação. Ative a licença de teste ao vivo para receber uma análise do conteúdo enviado.", recommendations: [{ label:"Próximo passo", content:"Ativar a IA ao vivo para esta conta de teste.", rationale:"A simulação registra operação, franquia, histórico e interface sem enviar conteúdo ao modelo.", targetField:"", confidence:"alta", source:"Configuração da licença" }], warnings:[], caution:"Simulação sem análise científica e sem cobrança de modelo." };
 }

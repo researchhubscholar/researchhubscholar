@@ -1,3 +1,5 @@
+import { assertAnalysisKinds } from "../clinical/collection";
+import { profileRows, selectionCounts } from "../clinical/summary";
 import { describe, type ResultsWorkspace } from "./data";
 import { analyze, analysisRows } from "./inference";
 import type { WordBlock } from "../exports/ooxml";
@@ -9,7 +11,16 @@ const format = (value: unknown) => typeof value === "number"
 export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFigure | null): WordBlock[] {
   const blocks: WordBlock[] = [];
   const stats = describe(workspace.dataset);
-  if (stats.length) {
+  if (workspace.collection) {
+    const collection = workspace.collection, counts = selectionCounts(collection);
+    blocks.push({ text: "Estudo com dados próprios · coleta e seleção", heading: true },
+      { text: `Unidade de observação: um participante por código. População: ${collection.population || "A definir"}. Período: ${collection.period || "A definir"}.` },
+      { text: `Inclusão: ${collection.inclusion || "A definir"}. Exclusão: ${collection.exclusion || "A definir"}.` },
+      { text: `${counts.total} registros; ${counts.included} incluídos; ${counts.excluded} excluídos; ${counts.pending} pendentes. Somente os incluídos compõem a tabela e as análises.` });
+    if (counts.included) blocks.push({ text: "Tabela 1  Perfil dos participantes incluídos", heading: true }, { table: profileRows(collection) },
+      { text: "Percentuais calculados sobre os valores informados de cada variável. Ausências são apresentadas separadamente. DP amostral; não se aplica a um único valor. Dados descritivos não demonstram causalidade." });
+  }
+  if (stats.length && !workspace.collection) {
     blocks.push({ text: "Tabela 1  Caracterização dos dados", heading: true }, { table: [
       ["Variável", "Tipo", "N válido", "Ausentes", "Categorias"],
       ...stats.map(s => [s.column, s.type, s.n, s.missing, s.unique]),
@@ -25,6 +36,7 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });
   if (workspace.analysis) {
     try {
+      assertAnalysisKinds(workspace.collection ? Object.fromEntries(workspace.collection.fields.map(field => [field.label, field.kind])) : undefined, workspace.analysis);
       const result = analyze(workspace.dataset, workspace.analysis);
       blocks.push({ text: "Análise estatística", heading: true }, { table: [["Medida", "Valor"], ...analysisRows(result).map(row => row.map(format))] });
       if (result.table) blocks.push({ text: workspace.analysis.kind === "chi2" ? "Tabela de contingência" : "Resumo por grupo", heading: true }, { table: result.table.map(row => row.map(format)) });
