@@ -48,3 +48,29 @@ pacientes, medidas repetidas ou novos modelos de regressão nesta etapa.
 Verificação: `tests/clinical-collection.cjs` cobre seleção, tipagem, ausências, privacidade,
 validação, persistência privada e exportações. `tests/clinical-flow.cjs` executa os handlers
 reais dos componentes, incluindo importação, revisão, exclusão, gravação, reabertura e erros.
+
+## Comparação entre grupos
+
+Depois da coleta, a seção **Comparar grupos de participantes** permite selecionar
+uma variável categórica da ficha e duas a quatro categorias. A configuração fica
+em `workspace.comparison` (opcional, compatível com os resultados anteriores).
+Somente participantes incluídos nas categorias selecionadas entram na comparação.
+Registros sem grupo e outras categorias são contados separadamente. Cada célula
+mostra o N válido e as ausências; percentuais categóricos usam os valores informados
+da variável naquele grupo. Códigos numéricos permanecem categorias.
+
+O pesquisador escolhe uma variável por vez para investigação: Welch para variável
+numérica em dois grupos, ou qui-quadrado para categórica. Reutiliza o motor existente,
+com confirmação de independência e pressupostos, bloqueio de amostras insuficientes
+e frequências esperadas pequenas. Não há teste automático em todas as linhas.
+A ordem selecionada dos grupos define o sinal da diferença de médias, sem depender
+da ordem de entrada dos registros. A comparação não ajusta confundidores, não usa
+dados pareados e não substitui revisão estatística. O texto sugerido é determinístico,
+baseado nos cálculos, e deve ser revisado pelo pesquisador.
+
+Salvar resultados persiste a configuração junto à coleta. Alterações na base ou no
+dicionário removem a análise anterior; alterações que invalidam os grupos removem
+a comparação. As tabelas são recalculadas com a base atual. Exportações Word,
+Excel e manuscrito incluem a comparação salva; exportações da seção usam o estado
+atual. Word e manuscrito contêm agregados, sem códigos individuais. Excel completo
+da coleta continua contendo a aba de registros para uso autorizado do pesquisador.

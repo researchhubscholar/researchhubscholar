@@ -1,3 +1,4 @@
+import { comparisonData, comparisonNarrative } from "../clinical/comparison";
 import { assertAnalysisKinds } from "../clinical/collection";
 import { profileRows, selectionCounts } from "../clinical/summary";
 import { describe, type ResultsWorkspace } from "./data";
@@ -31,6 +32,16 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
       ...numeric.map(s => [s.column, s.mean, s.median, s.sd ?? "—", s.min, s.max].map(format)),
     ] });
     blocks.push({ text: "Dados salvos pelo pesquisador. Células vazias foram excluídas dos cálculos; DP representa o desvio-padrão amostral." });
+  }
+  if (workspace.collection && workspace.comparison) {
+    try {
+      const comparison = comparisonData(workspace.collection, workspace.comparison);
+      blocks.push({ text: "Comparação entre grupos", heading: true }, { table: comparison.rows }, { text: comparison.note });
+      if (workspace.comparison.analysis) {
+        const result = analyze(comparison.dataset, workspace.comparison.analysis);
+        blocks.push({ text: "Análise da comparação selecionada", heading: true }, { table: [["Medida", "Valor"], ...analysisRows(result).map(row => row.map(format))] }, { text: "Texto sugerido para revisão", heading: true }, { text: comparisonNarrative(result) });
+      }
+    } catch (error) { blocks.push({ text: `Comparação: ${error instanceof Error ? error.message : "revise os grupos."}` }); }
   }
   if (figure) blocks.push({ image: figure.bytes, width: 560, height: figure.height / figure.width * 560,
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });

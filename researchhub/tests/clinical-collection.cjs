@@ -101,6 +101,10 @@ function handler(dependencies) { const module = { exports: {} }; vm.runInNewCont
  const put = workspace => api.PUT({ text: async () => JSON.stringify({ project: 'project-a', workspace }) });
  assert.equal((await put(w)).status, 200);
  const response = await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') }); assert.deepEqual((await response.json()).workspace, clone(w));
+ const compared = { ...w, comparison: { fieldKey: 'v_group', groups: ['0', '1'], analysis: { kind: 'welch', x: 'Idade', y: 'Grupo', independent: false } } };
+ assert.equal((await put(compared)).status, 200);
+ assert.deepEqual((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, clone(compared));
+ assert.equal((await put({ ...compared, comparison: { ...compared.comparison, groups: ['0', '0'] } })).status, 400);
  assert(queries.some(query => query.table === 'research_projects' && query.owner_id === 'owner-a'));
  owner = 'owner-b'; assert.equal((await put(w)).status, 404); assert.equal((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, null);
  owner = null; assert.equal((await put(w)).status, 401);

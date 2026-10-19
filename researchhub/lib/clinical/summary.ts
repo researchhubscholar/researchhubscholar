@@ -1,3 +1,4 @@
+import { comparisonWorkbook, validComparison } from "./comparison";
 import { describe, type ResultsWorkspace } from "../results/data";
 import { collectionDataset, type ClinicalCollection } from "./collection";
 const format = (value: number | null) => value === null ? "—" : value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -25,15 +26,18 @@ export function syncCollection(workspace: ResultsWorkspace, collection: Clinical
   const column = dataset.columns.includes(workspace.figure.column) ? workspace.figure.column : dataset.columns[0] || "";
   const kind = collection.fields.find(field => field.label === column)?.kind === "number" ? workspace.figure.kind : "bar";
   const sameData = JSON.stringify(dataset) === JSON.stringify(workspace.dataset);
-  return { ...workspace, collection, dataset, analysis: sameData ? workspace.analysis : undefined,
+  const selectedGroups = workspace.comparison ? { ...workspace.comparison, analysis: undefined } : undefined;
+  const comparison = validComparison(selectedGroups, collection) ? { ...selectedGroups, analysis: sameData && JSON.stringify(workspace.collection?.fields) === JSON.stringify(collection.fields) && validComparison(workspace.comparison, collection) ? workspace.comparison.analysis : undefined } : undefined;
+  return { ...workspace, collection, comparison, dataset, analysis: sameData ? workspace.analysis : undefined,
     figure: { ...workspace.figure, column, kind },
     flow: [{ label: "Prontuários registrados", count: counts.total }, { label: "Pendentes de conferência", count: counts.pending }, { label: "Excluídos", count: counts.excluded }, { label: "Incluídos na análise", count: counts.included }] };
 }
-export function collectionWorkbook(collection: ClinicalCollection) {
+export function collectionWorkbook(collection: ClinicalCollection, comparison?: ResultsWorkspace["comparison"]) {
   return [
     { name: "Ficha", rows: [["Variável", "Tipo", "Definição", "Unidade", "Categorias", "Obrigatória", "Mínimo", "Máximo"], ...collection.fields.map(f => [f.label, f.kind, f.definition, f.unit, f.options.join(" | "), f.required ? "Sim" : "Não", f.minimum ?? "", f.maximum ?? ""])] },
     { name: "Coleta", rows: [["codigo_pesquisa", "situacao", "motivo_exclusao", ...collection.fields.map(f => f.label)], ...collection.records.map(r => [r.code, r.status, r.reason, ...collection.fields.map(f => r.values[f.key] || "")])] },
     { name: "Tabela 1", rows: profileRows(collection) },
+    ...(comparison && validComparison(comparison, collection) ? comparisonWorkbook(collection, comparison) : []),
     { name: "Histórico recente", rows: [["Data", "Ação", "Código de pesquisa"], ...collection.history.map(h => [h.at, h.action, h.code])] },
   ];
 }
