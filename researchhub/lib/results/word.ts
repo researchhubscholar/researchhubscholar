@@ -1,3 +1,4 @@
+import { pairedData, pairedTest, pairedResultRows, pairedNarrative, pairedNote } from "../clinical/paired";
 import { followupNote, followupProfile, followupSummary, validFollowup } from "../clinical/followup";
 import { comparisonData, comparisonNarrative } from "../clinical/comparison";
 import { assertAnalysisKinds } from "../clinical/collection";
@@ -47,6 +48,14 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
   if (workspace.collection && workspace.followup && validFollowup(workspace.followup, workspace.collection)) {
     blocks.push({ text: "Acompanhamento dos participantes por visitas", heading: true }, { table: followupSummary(workspace.followup, workspace.collection) },
       { text: "Medidas descritivas por momento", heading: true }, { table: followupProfile(workspace.followup, workspace.collection) }, { text: followupNote });
+  }
+  if (workspace.collection && workspace.followup && workspace.paired) {
+    try {
+      const data = pairedData(workspace.collection, workspace.followup, workspace.paired);
+      blocks.push({ text: `Comparação antes/depois · ${data.field.label}${data.field.unit ? ` (${data.field.unit})` : ""}`, heading: true }, { table: data.selection }, { table: data.rows }, { text: pairedNote });
+      try { const result = pairedTest(data, workspace.paired); blocks.push({ text: "Teste t pareado", heading: true }, { table: pairedResultRows(result) }, { text: "Texto sugerido para revisão", heading: true }, { text: pairedNarrative(data, result) }); }
+      catch (error) { blocks.push({ text: `Teste pareado não calculado: ${error instanceof Error ? error.message : "Revise os dados."}` }); }
+    } catch (error) { blocks.push({ text: `Comparação pareada não incluída: ${error instanceof Error ? error.message : "Revise a seleção."}` }); }
   }
   if (figure) blocks.push({ image: figure.bytes, width: 560, height: figure.height / figure.width * 560,
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });

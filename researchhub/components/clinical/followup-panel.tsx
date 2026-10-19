@@ -1,4 +1,5 @@
 "use client";
+import { validPaired } from "@/lib/clinical/paired";
 import { useMemo, useState } from "react";
 import { addHistory, blankField, type CollectionField } from "@/lib/clinical/collection";
 import { applyFollowupPlan, expectedDate, followupDataset, followupLimit, followupNote, followupProfile, followupSchedule, followupSummary, followupWorkbook, missedReasons, putVisit, validFollowup, validFollowupDate, visitLabels, type ClinicalFollowup, type FollowupVisit } from "@/lib/clinical/followup";
@@ -36,7 +37,8 @@ export default function FollowupPanel({ workspace, projectId, onChange }: { work
   function attempt(task: () => void) { setMessage(""); try { task(); } catch (error) { setMessage(error instanceof Error ? error.message : "Revise os dados do acompanhamento."); } }
   function commit(next: ClinicalFollowup, label: string, participant = "") {
     if (!validFollowup(next, collection)) throw new Error("Revise o plano, os participantes e as visitas antes de salvar.");
-    const updated = { ...workspace, followup: next, collection: addHistory(collection!, label, participant) };
+    const paired = validPaired(workspace.paired, next) ? { ...workspace.paired, confirmed: JSON.stringify(next) === JSON.stringify(plan) ? workspace.paired.confirmed : false } : undefined;
+    const updated = { ...workspace, paired, followup: next, collection: addHistory(collection!, label, participant) };
     if (new TextEncoder().encode(JSON.stringify({ project: projectId, workspace: updated })).byteLength > 1_500_000) throw new Error("Esta alteração excederia 1,5 MB. Os dados anteriores foram preservados; exporte uma cópia e reduza a base.");
     onChange(updated);
   }

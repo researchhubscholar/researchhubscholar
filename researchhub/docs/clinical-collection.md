@@ -128,3 +128,60 @@ centro de documentos e manuscrito recebem agregados por momento, sem códigos ou
 datas individuais. A seção não envia dados de visitas à IA. O histórico recente
 da coleta registra ações e códigos, dentro dos limites existentes, sem pretensão
 de auditoria imutável.
+
+## Comparação antes e depois de dois momentos
+
+`workspace.paired` guarda somente `fieldKey`, `before`, `after` e a confirmação
+humana dos pressupostos (`confirmed`). É opcional e compatível com workspaces
+anteriores. A medida vem do dicionário numérico das visitas e o segundo momento
+precisa ter dia previsto maior que o primeiro. Os filtros visuais da agenda e os
+grupos da comparação independente não restringem este conjunto: a seção usa todos
+os participantes incluídos na coleta inicial.
+
+O pareamento usa o código de pesquisa e o momento, nunca a ordem de entrada das
+visitas. Cada participante contribui com um par. Somente duas visitas realizadas
+e conferidas, com valores presentes para a medida, geram um par completo. Zero é
+válido, vazio é ausente. A contagem por motivos é mutuamente exclusiva: primeiro
+visitas ausentes/não realizadas/em conferência (ambas, anterior, posterior),
+depois medidas vazias em visitas conferidas (ambas, anterior, posterior). As
+contagens reconciliam incluídos = pares completos + excluídos. Datas reais
+invertidas nos pares completos são contadas à parte e bloqueiam a inferência;
+os dados ficam visíveis para correção nas visitas.
+
+A tabela descritiva usa exatamente os mesmos pares para antes, depois e mudança
+individual (`depois - antes`). O teste t pareado bilateral testa mudança média
+zero, com erro-padrão DP das diferenças / raiz(N), N - 1 graus de liberdade e
+IC95% pela distribuição t. Requer confirmação de pareamento, mesma escala,
+independência entre participantes e normalidade aproximada das diferenças,
+especialmente em amostras pequenas. Não há verificação automática de normalidade.
+A interface permite conferir diferenças por participante para revisar escala e
+valores extremos. Nesta versão o mínimo operacional é três pares completos,
+sem afirmar que três garantem adequação estatística. Diferenças constantes,
+quase constantes, valores fora da precisão ou resultados não finitos bloqueiam
+o teste e o intervalo; os resumos disponíveis permanecem para conferência.
+
+Não há imputação, teste em todas as variáveis, ajuste por confundidores ou por
+comparações múltiplas. A análise por pares completos pode ser enviesada por
+perdas. A direção da mudança não é rotulada como melhora, e a redação sugerida
+não atribui causalidade ou efeito do tratamento. Métodos categóricos, não
+paramétricos ou para mais de dois momentos não foram adicionados.
+
+Editar visitas, plano ou data de início remove a confirmação; alterar a base
+inicial ou as identidades/situações dos participantes também exige reconferência.
+Remover ou mudar para categórica a medida selecionada, ou invalidar os momentos,
+remove a configuração pareada. Os resultados são recalculados da base atual,
+não guardados como estimativas independentes. Salvar resultados persiste a
+configuração com a coleta protegida pelo proprietário. Word, Excel, centro de
+documentos e manuscrito incluem contagens, resumos, teste confirmado quando
+válido e texto para revisão; as exportações da seção pareada são agregadas, sem
+códigos ou datas individuais. A lista de diferenças por código fica somente na
+interface, e os registros originais continuam nas exportações da coleta/visitas.
+
+Referências de implementação e verificação:
+- SciPy `stats.ttest_rel(after, before)` e `confidence_interval(0.95)`:
+  https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.ttest_rel.html
+- NIST, análise de observações pareadas:
+  https://www.itl.nist.gov/div898/handbook/prc/section3/prc311.htm
+- Seis casos de referência em `tests/paired-reference.json`, gerados com SciPy
+  1.17.0 e conferidos contra o motor jStat existente, incluindo sinais, zeros,
+  ausência de mudança média, escalas decimais e diferentes tamanhos de amostra.

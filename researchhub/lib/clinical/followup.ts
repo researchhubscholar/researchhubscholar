@@ -102,7 +102,7 @@ export function followupProfile(plan: ClinicalFollowup, collection: ClinicalColl
   });
   return rows;
 }
-export const followupNote = "Resumo descritivo por momento, apenas de visitas realizadas e conferidas de participantes incluídos. Os participantes com dados podem mudar entre momentos; diferenças entre médias não são estimativas pareadas de mudança nem efeitos do tratamento. Células vazias são ausentes, sem imputação. Visitas em conferência, não realizadas ou sem registro não entram nas medidas. Atraso é relativo ao dia nominal do protocolo, sem janela de tolerância configurada. Esta etapa não executa testes para medidas repetidas.";
+export const followupNote = "Resumo descritivo por momento, apenas de visitas realizadas e conferidas de participantes incluídos. Os participantes com dados podem mudar entre momentos; diferenças entre médias não são estimativas pareadas de mudança nem efeitos do tratamento. Células vazias são ausentes, sem imputação. Visitas em conferência, não realizadas ou sem registro não entram nas medidas. Atraso é relativo ao dia nominal do protocolo, sem janela de tolerância configurada. Esta tabela é descritiva; a comparação pareada de dois momentos, quando configurada, aparece em seção própria.";
 export function followupWorkbook(plan: ClinicalFollowup, collection: ClinicalCollection) {
   return [
     { name: "Plano de visitas", rows: [["Momento", "Dias após início"], ...plan.moments.map(m => [m.label, m.day])] },
