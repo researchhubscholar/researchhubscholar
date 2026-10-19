@@ -1,3 +1,4 @@
+import { validAdjusted, type AdjustedConfig } from "../clinical/adjusted";
 import { validRepeated, type RepeatedConfig } from "../clinical/repeated";
 import { validPaired, type PairedConfig } from "../clinical/paired";
 import { validFollowup, type ClinicalFollowup } from "../clinical/followup";
@@ -6,7 +7,7 @@ import { collectionDataset, validCollection, type ClinicalCollection } from "../
 import type { AnalysisConfig } from "./inference";
 export type Dataset = { columns: string[]; rows: string[][] };
 export type Figure = { column: string; title: string; caption: string; kind: "bar" | "histogram" };
-export type ResultsWorkspace = { dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig };
+export type ResultsWorkspace = { dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig; adjusted?: AdjustedConfig };
 export const emptyResults: ResultsWorkspace = { dataset: { columns: [], rows: [] }, figure: { column: "", title: "", caption: "", kind: "bar" }, flow: [{ label: "Identificados", count: 0 }, { label: "Avaliados", count: 0 }, { label: "Incluídos", count: 0 }], notes: "" };
 export function parseCsv(text: string): Dataset {
   const source = text.replace(/^\uFEFF/, "");
@@ -67,6 +68,7 @@ export function validWorkspace(input: unknown): input is ResultsWorkspace {
   const x = input as ResultsWorkspace;
   if (x.collection !== undefined && (!validCollection(x.collection) || (JSON.stringify(x.dataset?.columns) !== JSON.stringify(collectionDataset(x.collection).columns) || JSON.stringify(x.dataset?.rows) !== JSON.stringify(collectionDataset(x.collection).rows)))) return false;
   if (x.followup !== undefined && !validFollowup(x.followup, x.collection)) return false;
+  if (x.adjusted !== undefined && !validAdjusted(x.adjusted, x.collection)) return false;
   if (x.repeated !== undefined && !validRepeated(x.repeated, x.followup)) return false;
   if (x.paired !== undefined && !validPaired(x.paired, x.followup)) return false;
   if (x.comparison !== undefined && !validComparison(x.comparison, x.collection)) return false;

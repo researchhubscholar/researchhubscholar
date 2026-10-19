@@ -108,8 +108,9 @@ function handler(dependencies) { const module = { exports: {} }; vm.runInNewCont
  assert.equal((await put({ ...compared, comparison: { ...compared.comparison, groups: ['0', '0'] } })).status, 400);
  let longitudinal = followup.applyFollowupPlan(undefined, [c.fields[0]], [{ key: 'visit_0', label: 'Início', day: 0 }, { key: 'visit_30', label: '30 dias', day: 30 }, { key: 'visit_90', label: '90 dias', day: 90 }], c);
  longitudinal = followup.putVisit(longitudinal, c, { code: 'P001', momentKey: 'visit_0', status: 'completed', date: '2025-01-01', reason: '', values: { v_age: '42' } });
- const followed = { ...compared, followup: longitudinal, paired: { fieldKey: 'v_age', before: 'visit_0', after: 'visit_30', confirmed: false }, repeated: { fieldKey: 'v_age', moments: ['visit_0', 'visit_30', 'visit_90'], confirmed: false } };
+ const followed = { ...compared, adjusted: { outcome: 'v_age', predictors: [{ key: 'v_group', reference: '0' }], confirmed: false }, followup: longitudinal, paired: { fieldKey: 'v_age', before: 'visit_0', after: 'visit_30', confirmed: false }, repeated: { fieldKey: 'v_age', moments: ['visit_0', 'visit_30', 'visit_90'], confirmed: false } };
  assert.equal((await put(followed)).status, 200);
+ assert.equal((await put({ ...followed, adjusted: { ...followed.adjusted, predictors: [{ key: 'v_group', reference: 'unknown' }] } })).status, 400);
  assert.equal((await put({ ...followed, repeated: { ...followed.repeated, moments: ['visit_0', 'visit_30', 'visit_30'] } })).status, 400);
  assert.equal((await put({ ...followed, paired: { ...followed.paired, after: 'visit_0' } })).status, 400);
  assert.deepEqual((await (await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') })).json()).workspace, clone(followed));

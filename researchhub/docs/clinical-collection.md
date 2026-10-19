@@ -256,3 +256,32 @@ Verificação numérica independente em `tests/repeated-reference.json`:
 Referências primárias de método e exemplo:
 https://pingouin-stats.org/generated/pingouin.rm_anova.html
 https://pingouin-stats.org/generated/pingouin.epsilon.html
+
+
+## Análise ajustada da coleta inicial
+
+Regressão linear com desfecho numérico e até três covariáveis numéricas ou
+categóricas (2–4 níveis com referência explícita), sem seleção automática.
+Usa apenas participantes incluídos e casos completos da coleta inicial; não
+mistura visitas como observações independentes. Mostra perdas por variável.
+
+O ajuste usa QR com reortogonalização, centragem e escala internas, retornando
+coeficientes nas unidades originais. Erros padrão clássicos, IC95% e p bilateral
+t de Student só são apresentados após confirmação dos pressupostos. Exige
+N >= max(20, 5p), limite operacional que não garante poder ou adequação. Bloqueia
+colinearidade, níveis ausentes, variância residual nula e perda de precisão.
+
+Gráfico de resíduos e diagnósticos individuais (alavancagem e distância de Cook)
+permitem revisão, sem exclusão automática. Alterações na base exigem nova
+confirmação; configurações incompatíveis são removidas. Salvar resultados
+persiste o modelo no workspace privado existente, sem migração. Word, Excel,
+manuscrito e centro de documentos recebem somente agregados desta análise.
+
+Não inclui regressão logística, modelos longitudinais, erros robustos, imputação,
+interações ou interpretação causal. Cinco referências independentes NumPy
+(pseudoinversa SVD) e SciPy 1.17.0 verificam coeficientes, erros, IC, p, ajuste
+e influência em tests/clinical-adjusted.cjs e tests/adjusted-reference.json.
+
+Referências de método:
+https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.OLS.fit.html
+https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.RegressionResults.conf_int.html

@@ -1,3 +1,4 @@
+import { adjustedData, adjustedTest, adjustedNote, adjustedCoefficientRows, adjustedSummaryRows, adjustedNarrative } from "../clinical/adjusted";
 import { repeatedData, repeatedTest, repeatedNote, repeatedNarrative, repeatedResultRows } from "../clinical/repeated";
 import { pairedData, pairedTest, pairedResultRows, pairedNarrative, pairedNote } from "../clinical/paired";
 import { followupNote, followupProfile, followupSummary, validFollowup } from "../clinical/followup";
@@ -65,6 +66,14 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
       try { const r = repeatedTest(data, workspace.repeated); blocks.push({ text: "ANOVA de medidas repetidas · Greenhouse–Geisser", heading: true }, { table: repeatedResultRows(r) }, { text: "Texto sugerido para revisão", heading: true }, { text: repeatedNarrative(data, r) }); }
       catch (e) { blocks.push({ text: `ANOVA de medidas repetidas não calculada: ${e instanceof Error ? e.message : "Revise os dados."}` }); }
     } catch (e) { blocks.push({ text: `Análise de vários momentos não incluída: ${e instanceof Error ? e.message : "Revise a seleção."}` }); }
+  }
+  if (workspace.collection && workspace.adjusted) {
+    try {
+      const data = adjustedData(workspace.collection, workspace.adjusted);
+      blocks.push({ text: `Análise ajustada · ${data.outcome.label}`, heading: true }, { table: data.selection }, { table: data.dictionary }, { table: data.missingRows }, { text: "As ausências por variável podem se sobrepor; não somar para obter exclusões." }, { text: adjustedNote });
+      try { const r = adjustedTest(data, workspace.adjusted); blocks.push({ text: "Regressão linear ajustada", heading: true }, { table: adjustedCoefficientRows(r) }, { table: adjustedSummaryRows(r) }, { text: "Texto sugerido para revisão", heading: true }, { text: adjustedNarrative(data, r) }); }
+      catch (e) { blocks.push({ text: `Inferência ajustada não calculada: ${e instanceof Error ? e.message : "Revise o modelo."}` }); }
+    } catch (e) { blocks.push({ text: `Modelo ajustado não incluído: ${e instanceof Error ? e.message : "Revise a seleção."}` }); }
   }
   if (figure) blocks.push({ image: figure.bytes, width: 560, height: figure.height / figure.width * 560,
     caption: `Figura 1. ${workspace.figure.caption || workspace.figure.title || workspace.figure.column}. Fonte: dados salvos pelo pesquisador.` });
