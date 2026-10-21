@@ -285,3 +285,26 @@ e influência em tests/clinical-adjusted.cjs e tests/adjusted-reference.json.
 Referências de método:
 https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.OLS.fit.html
 https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.RegressionResults.conf_int.html
+
+
+## Jornada guiada de Resultados
+
+Quatro etapas locais à página: preparar ficha ou escolher CSV avulso; adicionar
+e conferir dados (ficha inicial ou visitas); escolher a pergunta; revisar
+tabelas, gráficos, fluxo e exportações. O usuário pode voltar livremente.
+A escolha de pergunta apenas controla a apresentação: não muda nem remove
+configurações, dados ou confirmações estatísticas já existentes. Somente
+o painel correspondente aparece, com explicação das dependências ausentes.
+
+Painéis continuam montados com wrappers hidden, preservando rascunhos ao
+trocar de etapa ou pergunta. A ficha recebe uma visualização prepare, records
+ou profile; o padrão all mantém usos independentes compatíveis. Projetos
+salvos com CSV avulso retomam esse caminho ao carregar. Navegação move foco
+para o título da etapa; etapa atual e escolhas possuem atributos acessíveis.
+
+Salvar resultados permanece explícito, com barra visível em todas as etapas
+e aviso de alterações locais. Não há autosave nem migração do workspace.
+Os testes de clinical-flow.cjs verificam visibilidade por ancestral hidden,
+rotas de CSV e coleta, pré-requisitos de visitas, seleção exclusiva da análise,
+preservação de rascunhos e ausência de gravações ao navegar. A revisão de
+pressupostos, cálculos e formatos de exportação permanece a mesma.

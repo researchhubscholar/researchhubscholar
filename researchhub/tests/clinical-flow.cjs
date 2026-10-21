@@ -18,7 +18,7 @@ function hooks() {
 }
 function load(file, react, dependencies, globals = {}) {
  const module = { exports: {} };
- vm.runInNewContext(compile(file), { module, exports: module.exports, crypto: require('node:crypto').webcrypto, AbortController, Date, Error, TextEncoder, window: { confirm: () => true, addEventListener() {}, removeEventListener() {} }, ...globals, require(name) {
+ vm.runInNewContext(compile(file), { module, exports: module.exports, crypto: require('node:crypto').webcrypto, AbortController, Date, Error, TextEncoder, requestAnimationFrame: fn => fn(), window: { confirm: () => true, addEventListener() {}, removeEventListener() {} }, ...globals, require(name) {
   if (name === 'react') return react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name in dependencies) return dependencies[name]; throw Error(name);
@@ -48,7 +48,22 @@ function harness(initial = null) {
   save: () => nodes(renderParent()).find(node => node.type === 'button' && visibleText(node) === 'Salvar resultados').props.onClick() };
 }
 (async () => {
+ const visible = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(visible) : tree.props?.hidden ? [] : [tree,...visible(tree.props?.children)];
+ const press = (h, label) => { const b=visible(h.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes(label)); assert(b,label); b.props.onClick(); };
+ const csvWorkspace=JSON.parse(JSON.stringify(data.emptyResults)); csvWorkspace.dataset={columns:['Idade'],rows:[['40'],['50']]};
+ const csvGuide=harness(csvWorkspace);csvGuide.renderParent();await tick();
+ assert(visible(csvGuide.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes('Usar uma planilha avulsa')).props['aria-pressed']);
+ press(csvGuide,'Etapa 2 de 4');assert(visible(csvGuide.renderParent()).some(n=>n.type==='input'&&n.props.type==='file'));
+ press(csvGuide,'Etapa 3 de 4');press(csvGuide,'Investigar outra diferença');assert(visible(csvGuide.renderParent()).some(n=>n.type==='inference'));
+ assert(!visible(csvGuide.renderParent()).some(n=>n.type==='adjusted'));
+ press(csvGuide,'Etapa 4 de 4');assert(!visible(csvGuide.renderParent()).some(n=>n.type==='inference'));
+ assert.equal(csvGuide.requests.filter(r=>r.options?.method==='PUT').length,0,'navigation never saves or mutates the dataset');
+ assert.equal(csvGuide.workspace().dataset.rows.length,2);
  const h = harness(); h.renderParent(); await tick();
+ assert.equal(visible(h.renderParent()).filter(n=>n.type==='button'&&n.props['aria-current']==='step').length,1);
+ press(h,'Etapa 3 de 4');press(h,'Comparar antes e depois');assert(visibleText(h.renderParent()).includes('Prepare o acompanhamento'));
+ press(h,'Preparar acompanhamento por visitas');assert(visible(h.renderParent()).some(n=>n.type==='followup'));
+ press(h,'Etapa 1 de 4');
  h.button('Preparar ficha de coleta').props.onClick();
  assert.equal(h.workspace().collection.population, protocol.population);
  assert.equal(h.button('Adicionar participante').props.disabled, true, 'a draft schema cannot collect records');
@@ -60,6 +75,7 @@ function harness(initial = null) {
  h.field('Mínimo permitido').props.onChange({ target: { value: '0' } }); h.field('Máximo permitido').props.onChange({ target: { value: '120' } });
  h.button('Concluir revisão da ficha').props.onClick(); assert.equal(h.button('Adicionar participante').props.disabled, false, 'a completed schema must allow the first participant');
  h.button('Adicionar participante').props.onClick();
+ press(h,'Etapa 2 de 4');press(h,'Etapa 4 de 4');press(h,'Etapa 2 de 4');assert(h.all().some(n=>n.props?.['aria-label']==='Ficha do participante'),'participant draft survives step changes');
  h.field('Código de pesquisa').props.onChange({ target: { value: 'P001' } }); h.field('Idade').props.onChange({ target: { value: '40' } }); h.field('Situação').props.onChange({ target: { value: 'included' } });
  h.all().find(node => node.props?.['aria-label'] === 'Ficha do participante').props.onSubmit({ preventDefault() {} });
  assert.equal(h.workspace().dataset.rows[0][0], '40'); assert.equal(h.workspace().collection.records[0].status, 'included');
@@ -80,6 +96,7 @@ function harness(initial = null) {
  h.fail(true); await h.save(); assert(visibleText(h.renderParent()).includes('Falha de gravação')); assert(visibleText(h.renderParent()).includes('Alterações ainda não salvas'));
  h.fail(false); await h.save(); assert(visibleText(h.renderParent()).includes('Pronto para editar')); assert.equal(h.persisted().collection.records.length, 3);
  const payload = JSON.parse(h.requests.filter(request => request.options?.method === 'PUT').at(-1).options.body); assert.equal(payload.project, 'project-a'); assert.equal(payload.workspace.dataset.rows.length, 2);
+ press(h,'Etapa 3 de 4');press(h,'Considerar outras características');assert(visible(h.renderParent()).some(n=>n.type==='adjusted'));assert(!visible(h.renderParent()).some(n=>n.type==='comparison'));press(h,'Comparar grupos');assert(visible(h.renderParent()).some(n=>n.type==='comparison'));assert(!visible(h.renderParent()).some(n=>n.type==='adjusted'));
  const restored = harness(h.persisted()); restored.renderParent(); await tick(); assert.equal(restored.workspace().collection.records.length, 3);
  restored.button('Revisar ficha e critérios').props.onClick(); assert.equal(restored.workspace().collection.records.filter(row => row.status === 'included').length, 0); assert.equal(restored.workspace().dataset.rows.length, 0);
  ai = restored.all().find(node => node.type === 'assistant'); const context = JSON.stringify(ai.props.context); assert(!context.includes('P002')); assert(!context.includes('P001')); assert(!context.includes('400'));

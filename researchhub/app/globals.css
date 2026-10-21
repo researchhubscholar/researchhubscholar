@@ -2728,3 +2728,6 @@ body {
 @media (max-width: 639px) {
   .scholar-workspace .manuscript-project-picker { width: 100%; }
 }
+
+/* Keep inactive guided steps out of layout and the accessibility tree. */
+.results-guided [hidden] { display: none !important; }
