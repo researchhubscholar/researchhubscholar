@@ -376,3 +376,14 @@ GET/POST reais com banco/provedor simulados, histórico concluído, modo de
 simulação, falha/liquidação e handlers reais da UI para carga, envio duplicado e
 preservação da pergunta. Verificação ao vivo na conta autenticada permanece
 parte da avaliação do Preview.
+
+### Janela flutuante do assistente
+
+Botão fixo no canto inferior direito alterna abertura/fechamento e mantém o
+rascunho local. Painel e botão usam portal no body, evitando estilos e contextos
+de empilhamento dos cards de Resultados. Cabeçalho e envio compactos deixam a
+conversa em uma área com rolagem independente; dimensões usam o viewport dinâmico
+e safe areas, com ajustes para celular e telas baixas. Ao receber uma resposta,
+o início da última troca é mostrado para não cortar o começo da orientação.
+Escape e o botão Fechar devolvem foco ao botão flutuante. O teste do componente
+verifica o portal, a alternância e a preservação do rascunho sem novos envios.
