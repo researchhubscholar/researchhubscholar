@@ -1,3 +1,5 @@
+import { guideScope } from "./areas";
+import type { GuideInput } from "./guide";
 import { validateGuideInput } from "./guide";
 import type { JSONSchema7 } from "ai";
 
@@ -91,7 +93,7 @@ export function validateAssistRequest(value: unknown) {
     if (!Array.isArray(writing.sources) || writing.sources.length > 5) throw new Error("Selecione até cinco fontes para esta seção.");
   }
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
-  if(body.feature === "guide" && !projectId)throw new Error("Selecione um projeto para conversar.");
+  if(body.feature === "guide"){const area=(context as GuideInput).area||"resultados";if(body.projectId!=null&&body.projectId!==""&&!projectId)throw new Error("Projeto inválido.");if(!projectId&&guideScope(area)==="project")throw new Error("Selecione um projeto para conversar.");if(projectId&&guideScope(area)==="general")throw new Error("Esta conversa deve continuar sem projeto.");}
   return { feature: body.feature as AssistantFeature, context, projectId };
 }
 

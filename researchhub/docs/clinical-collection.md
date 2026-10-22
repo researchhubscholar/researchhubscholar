@@ -478,3 +478,18 @@ adicionais. A consulta só ocorre quando o usuário clica em Pesquisar artigos.
 O envio ao Radar não salva estratégia nem faz chamada adicional de IA.
 Respostas em simulação não oferecem aplicação. O contexto da busca parte do
 protocolo salvo e da pergunta enviada; não lê automaticamente os campos do Radar.
+
+### Conversas sem projeto e vínculo opcional
+
+Ideias, Meu espaço e Conta usam conversa geral, sem consultar projetos mesmo
+que exista um ID na URL. Radar e Biblioteca permitem vínculo opcional; nenhuma
+conversa começa automaticamente com o projeto mais recente. Nas áreas de
+desenvolvimento, um projeto deve ser indicado para enviar perguntas.
+
+Histórico sem projeto é filtrado por usuário, área e uso com project_id nulo;
+não entra no histórico de projetos nem de outras áreas avulsas. O servidor
+prepara apenas a mensagem, a ajuda da área e esse histórico, sem buscar
+protocolos, dados ou artigos. Todas as modalidades usam os mesmos controles
+de franquia, reserva, liquidação e falha. A busca preparada sem projeto abre
+o Radar sem inserir um vínculo na URL. Trocar o vínculo remonta a conversa,
+preservando os históricos separados.
