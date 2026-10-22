@@ -411,3 +411,20 @@ critérios são acrescentados e duplicações são ignoradas. Se algum item for
 inválido ou ultrapassar limites, todo o lote é recusado sem alteração parcial.
 A revisão da ficha permanece aberta para completar categorias/unidades.
 Salvar resultados continua sendo necessário para persistir na conta.
+
+### Ajuda prática em três frentes
+
+O assistente flutuante reúne conferência da coleta, caminhos de análise e texto
+dos resultados em seções recolhidas. A conferência local conta pendências,
+problemas de ficha/registros ativos e ausências entre incluídos, sem exibir
+códigos ou modificar registros. Ausência não gera exclusão automática.
+
+Os caminhos de análise indicam requisitos de estrutura (tipos e momentos),
+sem declarar elegibilidade estatística; o botão abre a pergunta e a configuração
+existente, que continua exigindo revisão e confirmação dos pressupostos.
+
+O rascunho é derivado das leituras protegidas das análises confirmadas e válidas
+na base atual. Análises pendentes ficam fora; texto pode ser editado e copiado,
+sem inserir automaticamente no manuscrito. Mudança nas leituras bloqueia a cópia
+do rascunho anterior até regenerar. Regenerar texto editado pede confirmação.
+As três funções são locais e não fazem chamadas pagas de IA.
