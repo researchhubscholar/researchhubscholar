@@ -308,3 +308,30 @@ Os testes de clinical-flow.cjs verificam visibilidade por ancestral hidden,
 rotas de CSV e coleta, pré-requisitos de visitas, seleção exclusiva da análise,
 preservação de rascunhos e ausência de gravações ao navegar. A revisão de
 pressupostos, cálculos e formatos de exportação permanece a mesma.
+
+
+## Leitura guiada e revisão estatística
+
+ResultReading apresenta resumo determinístico, contagens, estimativa e incerteza
+antes das tabelas técnicas. Inclui explicações de IC95%, p, estimativa e casos
+completos, sem rótulos automáticos por limiar de p ou conclusão causal/clínica.
+Antes/depois mantém o sentido depois menos antes; Welch explicita a ordem dos
+grupos; ANOVA permanece global; ajuste descreve coeficientes nas unidades originais
+e usa referências já escolhidas. O intercepto permanece na tabela técnica.
+
+ReviewGuide apresenta conferências práticas por método e ajuda para revisão com
+orientador, sem marcar confirmações ou alegar verificação automática dos
+pressupostos. Tabelas de perdas, método e limitações ficam disponíveis em detalhes.
+Avisos de bloqueio, cronologia e influência continuam visíveis.
+
+A quarta etapa recalcula as análises preparadas a partir do workspace atual,
+usando os mesmos testes e gates de confirmação. Modelos inválidos ou não
+confirmados aparecem como pendentes, sem resumos inferenciais. Nenhum cálculo,
+configuração persistida, exportação ou envio à IA é alterado por esta camada.
+
+Validação em tests/result-reading.cjs: direção e zero, ordem dos grupos, perdas,
+p muito pequeno, IC indisponível, ausência de causalidade/veredito por limiar,
+revisão de modelo atual/pendente/inválido, ausência de códigos e mutações e
+renderização dos componentes reais de glossário e ajuda.
+Referência de interpretação:
+https://www.amstat.org/asa/files/pdfs/p-valuestatement.pdf

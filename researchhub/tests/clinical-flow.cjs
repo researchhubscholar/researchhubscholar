@@ -35,7 +35,7 @@ function harness(initial = null) {
  });
  const Editor = load('components/results/editor.tsx', parentHooks.react, {
   '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
-  './inference-panel': { default: 'inference' }, 'next/link': { default: 'link' }, '@/lib/results/data': data,
+  './inference-panel': { default: 'inference' }, './saved-readings': { default: 'saved-readings' }, 'next/link': { default: 'link' }, '@/lib/results/data': data,
   '@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
  }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true }) }; } return { ok: true, json: async () => ({ workspace: persisted }) }; } });
  const renderParent = () => parentHooks.render(() => Editor({ projectId: 'project-a', title: 'Estudo de perfil', protocol }));
