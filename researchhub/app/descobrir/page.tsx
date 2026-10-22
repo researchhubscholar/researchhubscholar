@@ -75,10 +75,10 @@ export default function DiscoverPage() {
 function DiscoverContent() {
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
-  const [period, setPeriod] = useState("5");
+  const [period, setPeriod] = useState(params.get("origem")==="assistente"?"all":"5");
   const incomingStudy = params.get("desenho") || "";
   const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
-  const [language, setLanguage] = useState("auto");
+  const [language, setLanguage] = useState(params.get("origem")==="assistente"?"en":"auto");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const searchLock = useRef(false);
@@ -204,6 +204,7 @@ function DiscoverContent() {
         </div>
       </div>
 
+      {params.get("origem")==="assistente"&&<p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal">Busca recebida do assistente. Confira os conceitos em inglês e os filtros antes de clicar em Pesquisar artigos. Nenhuma consulta foi executada automaticamente.</p>}
       {params.get("origem") === "ideias" && <p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal">Sua proposta foi salva no histórico de Ideias. Revise a busca inicial e os filtros antes de consultar os artigos. <Link href="/ideias" className="underline">Abrir Ideias</Link></p>}
 
       {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Estratégia recebida do projeto</p><h2 className="font-display text-xl mt-2">Revise os conceitos antes de pesquisar.</h2><p className="text-sm text-ink-soft mt-2">O tema atual do projeto foi trazido para o Radar. Revise os conceitos e os filtros antes de consultar a literatura.</p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal">Voltar ao projeto →</Link>}</section>}

@@ -466,3 +466,15 @@ Ajuda da tela e atalhos funcionam sem IA. Próximo passo prepara uma pergunta
 para envio explícito com a franquia existente. As ações de geração/refinamento
 continuam nos módulos, com suas prévias e confirmações. Nenhuma ação de escrita
 ou busca é executada só por abrir a conversa ou navegar pelos atalhos.
+
+### Preparar uma busca pela conversa
+
+O assistente pode devolver uma consulta em inglês com targetField guide_radar.
+No servidor, destinos desconhecidos ou consultas inválidas perdem a ação.
+O cliente valida novamente, permite editar e descartar a prévia e monta somente
+a URL interna do Radar com parâmetros codificados. A confirmação abre o
+formulário no mesmo projeto, com todos os períodos e tipos e sem filtros
+adicionais. A consulta só ocorre quando o usuário clica em Pesquisar artigos.
+O envio ao Radar não salva estratégia nem faz chamada adicional de IA.
+Respostas em simulação não oferecem aplicação. O contexto da busca parte do
+protocolo salvo e da pergunta enviada; não lê automaticamente os campos do Radar.
