@@ -493,3 +493,18 @@ protocolos, dados ou artigos. Todas as modalidades usam os mesmos controles
 de franquia, reserva, liquidação e falha. A busca preparada sem projeto abre
 o Radar sem inserir um vínculo na URL. Trocar o vínculo remonta a conversa,
 preservando os históricos separados.
+
+### Da conversa de Ideias ao novo projeto
+
+Em Ideias sem projeto, o assistente pode propor um rascunho estruturado após
+esclarecer tema/pergunta. O servidor só libera a ação guide_idea nesse contexto,
+com campos validados e sem referências inventadas. A prévia permite editar tema,
+pergunta, objetivo, desenho, população, desfecho, método, análise e ética.
+
+Confirmar prepara uma transferência vinculada à conta no navegador e abre o
+fluxo existente de nova ideia no editor, com novo=1 e sem ID de projeto existente.
+Não grava um projeto automaticamente: o usuário aplica ao novo rascunho e salva
+no editor. A origem usa o ID da geração para rastreabilidade e a verificação
+existente de duplicação de propostas. Campos desconhecidos continuam sujeitos
+a confirmação, sem alegar validação de literatura, viabilidade ou ética.
+Prévia e transferência não fazem outra chamada de IA.
