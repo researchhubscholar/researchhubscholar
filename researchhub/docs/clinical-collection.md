@@ -335,3 +335,44 @@ revisão de modelo atual/pendente/inválido, ausência de códigos e mutações 
 renderização dos componentes reais de glossário e ajuda.
 Referência de interpretação:
 https://www.amstat.org/asa/files/pdfs/p-valuestatement.pdf
+
+## Assistente do projeto · primeira entrega
+
+Painel lateral em Resultados, acessível em todas as quatro etapas. Conversa
+contextual sem aplicação automática de sugestões. O estado de trabalho usa
+somente contagens, nomes/tipos dos campos e situações das análises; códigos,
+linhas da planilha, valores individuais e fichas de visitas não são enviados.
+Mensagens livres têm limite de 1.200 caracteres e bloqueio de formatos comuns
+de identificadores; isso não equivale a anonimização de texto livre.
+
+POST /api/ai/assist com feature guide reutiliza modelo, franquia, limite diário,
+reserva atômica, proteção financeira, timeout e liquidação já existentes.
+Antes de reservar consumo, o servidor verifica owner_id do projeto, carrega
+protocolo/resultados salvos e recompõe o histórico privado. O histórico recebido
+no corpo do cliente é descartado. O rascunho é validado por lista de campos,
+identificado como não verificado e apresentado separado dos dados salvos.
+Somente um resumo de até 12 campos e três turnos anteriores entra no prompt.
+Não há interpretação de resultados numéricos pelo modelo nesta entrega.
+
+Histórico usa scholar_generation_artifacts + scholar_usage existentes, sem
+migração. Ledger feature protocol, prompt guide.v1 e input_snapshot.feature guide
+identificam as conversas. GET /api/ai/guide exige autenticação e propriedade do
+projeto, filtra também usuário/projeto/status completed no join e retorna as
+últimas 20 respostas em ordem temporal, com Cache-Control private, no-store.
+Falhas permanecem no registro de uso, sem aparecer como respostas concluídas.
+Exportação da conta e exclusão em cascata já abrangem os mesmos registros.
+
+Fechar/reabrir preserva o rascunho na página. Carregamento de histórico não
+chama a IA. Sem histórico disponível, envio fica bloqueado; falha no envio
+preserva a pergunta e permite recarregar o histórico antes de repetir. Não há
+retry automático de chamadas pagas. Cada troca de projeto monta outro painel.
+Simulação é rotulada e não gera resposta científica. As conversas são gravadas
+por solicitação concluída, independentemente de Salvar resultados; dados e
+configurações de análise continuam com salvamento explícito.
+
+Tests/project-guide.cjs cobre metadados sem dados individuais, descarte de
+histórico forjado, autenticação/propriedade antes do consumo, filtros privados,
+GET/POST reais com banco/provedor simulados, histórico concluído, modo de
+simulação, falha/liquidação e handlers reais da UI para carga, envio duplicado e
+preservação da pergunta. Verificação ao vivo na conta autenticada permanece
+parte da avaliação do Preview.
