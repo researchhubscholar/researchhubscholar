@@ -443,3 +443,26 @@ Conferir atualização. O checklist da exportação consulta a base novamente,
 avisa mudanças, análises pendentes e texto ainda não salvo, permitindo cancelar
 ou gerar o documento para revisão. Alterações não salvas na tela de Resultados
 não são visíveis em outra página até serem gravadas.
+
+### Assistente global do projeto
+
+O botão flutuante está disponível nas áreas autenticadas principais: Meu espaço,
+Ideias, Radar, Biblioteca, Protocolo, Manuscrito, Documentos, Orientação e Conta.
+Resultados mantém seu assistente específico, evitando dois botões na mesma tela.
+O projeto da conversa fica visível; trocar projeto remonta a conversa para não
+misturar históricos. Um ID de projeto não pertencente ao usuário não recebe
+contexto de outro projeto por substituição silenciosa. Sem projetos, a ajuda
+orienta a iniciar uma ideia, sem chamada de IA.
+
+A conversa recebe uma área validada e orientações da tela, protocolo salvo,
+resumo agregado dos resultados e, nas demais áreas, contagem deduplicada de
+artigos vinculados e nomes das seções não vazias do manuscrito. O servidor
+filtra todas as consultas por proprietário/projeto. Artigos, manuscrito, dados
+individuais e textos em edição não são enviados automaticamente. Contagem não
+determina suficiência científica. Consultas indisponíveis retornam estado
+desconhecido, sem inventar progresso.
+
+Ajuda da tela e atalhos funcionam sem IA. Próximo passo prepara uma pergunta
+para envio explícito com a franquia existente. As ações de geração/refinamento
+continuam nos módulos, com suas prévias e confirmações. Nenhuma ação de escrita
+ou busca é executada só por abrir a conversa ou navegar pelos atalhos.

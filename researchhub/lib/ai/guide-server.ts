@@ -1,3 +1,4 @@
+import { guideAreas } from "./areas";
 import type { supabaseServer } from "../supabase/server";
 import { validWorkspace } from "../results/data";
 import { guideSnapshot, guideStages, guideText, type GuideInput } from "./guide";
@@ -5,7 +6,7 @@ import { isAssistantOutput, type AssistantOutput } from "./assist";
 type DB=Awaited<ReturnType<typeof supabaseServer>>;
 export type GuideTurn={id:string;message:string;output:AssistantOutput;at:string;mode:string;tokens:number};
 export async function guideProject(db:DB,userId:string,projectId:string) {
- const {data,error}=await db.from("research_projects").select("id,title,research_question,study_type,population,primary_outcome,methods").eq("id",projectId).eq("owner_id",userId).maybeSingle();
+ const {data,error}=await db.from("research_projects").select("id,title,research_question,study_type,population,primary_outcome,methods,objective,analysis_plan,inclusion_criteria,exclusion_criteria").eq("id",projectId).eq("owner_id",userId).maybeSingle();
  if(error)throw Error("Não foi possível verificar o projeto.");if(!data)throw Error("Projeto indisponível.");return data;
 }
 export async function guideHistory(db:DB,userId:string,projectId:string):Promise<GuideTurn[]> {
@@ -20,9 +21,16 @@ export async function prepareGuideContext(db:DB,userId:string,projectId:string,i
  const project=await guideProject(db,userId,projectId);
  const [{data,error},turns]=await Promise.all([db.from("scholar_project_results").select("workspace").eq("project_id",projectId).eq("owner_id",userId).maybeSingle(),guideHistory(db,userId,projectId)]);
  if(error)throw Error("Não foi possível verificar os resultados salvos.");if(data?.workspace&&!validWorkspace(data.workspace))throw Error("Os resultados salvos precisam de revisão antes de usar o assistente.");
+ let overview:unknown=null;
+ if(input.area&&input.area!=="resultados"){
+  const [direct,links,manuscript]=await Promise.all([db.from("library_articles").select("id").eq("owner_id",userId).eq("project_id",projectId),db.from("library_article_projects").select("article_id").eq("owner_id",userId).eq("project_id",projectId),db.from("scholar_manuscripts").select("id").eq("owner_id",userId).eq("project_id",projectId).maybeSingle()]);
+  let sections:string[]|null=null;
+  if(manuscript.data&&!manuscript.error){const result=await db.from("scholar_manuscript_sections").select("section_key").eq("manuscript_id",manuscript.data.id).eq("owner_id",userId).neq("content","");if(!result.error)sections=(result.data||[]).map(s=>s.section_key);}
+  overview={linkedArticleCount:direct.error||links.error?null:new Set([...(direct.data||[]).map(a=>a.id),...(links.data||[]).map(a=>a.article_id)]).size,manuscriptExists:manuscript.error?null:Boolean(manuscript.data),nonemptyManuscriptSections:sections,scope:"Contagens e seções preenchidas, sem conteúdo de artigos ou texto do manuscrito. Contagem não mede suficiência científica."};
+ }
  const saved=data?.workspace?guideSnapshot(data.workspace):null;
  const compact=(snapshot:ReturnType<typeof guideSnapshot>|null)=>snapshot?{...snapshot,fieldCount:snapshot.fields.length,fields:snapshot.fields.slice(0,12)}:null;
- return {message:input.message,stage:guideStages[input.stage],question:input.question,workingSource:input.dirty?"Rascunho informado pela tela, ainda não salvo nem verificado no servidor":"Dados salvos verificados no servidor",working:input.dirty?compact(input.draft):null,saved:compact(saved),
- protocol:Object.fromEntries((["title","research_question","study_type","population","primary_outcome","methods"] as const).map(k=>[k,guideText(project[k],400)])),
+ return {overview,area:guideAreas[input.area||"resultados"].title,pageHelp:guideAreas[input.area||"resultados"].help,scope:input.area&&input.area!=="resultados"?"Somente protocolo e resultados salvos. Texto em edição, artigos e outras telas não foram enviados. Não afirme ter lido fontes nem manuscrito.":"Dados da tela de Resultados e protocolo salvo",message:input.message,stage:guideStages[input.stage],question:input.question,workingSource:input.dirty?"Rascunho informado pela tela, ainda não salvo nem verificado no servidor":"Dados salvos verificados no servidor",working:input.dirty?compact(input.draft):null,saved:compact(saved),
+ protocol:Object.fromEntries((["title","research_question","study_type","population","primary_outcome","methods","objective","analysis_plan","inclusion_criteria","exclusion_criteria"] as const).map(k=>[k,guideText(project[k],400)])),
  history:turns.slice(-3).map(t=>({user:t.message.slice(0,600),assistant:t.mode==="simulation"?"Resposta anterior em simulação, sem análise científica.":[t.output.summary,...t.output.recommendations.slice(0,2).map(r=>r.content)].join("\n").slice(0,1000)}))};
 }
