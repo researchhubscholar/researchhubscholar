@@ -428,3 +428,18 @@ na base atual. Análises pendentes ficam fora; texto pode ser editado e copiado,
 sem inserir automaticamente no manuscrito. Mudança nas leituras bloqueia a cópia
 do rascunho anterior até regenerar. Regenerar texto editado pede confirmação.
 As três funções são locais e não fazem chamadas pagas de IA.
+
+### Transferência revisada ao manuscrito
+
+O botão Enviar ao manuscrito prepara uma prévia no mesmo navegador e projeto,
+exigindo resultados salvos antes de navegar. A seção do manuscrito permite
+editar ou descartar a prévia; confirmar acrescenta texto, sem substituir o
+conteúdo atual, após salvar e preservar uma versão anterior. A base salva é
+conferida novamente antes da aplicação; duplicação do mesmo texto é recusada.
+
+A origem da última transferência fica no snapshot de versão, sem novo esquema
+de banco. O manuscrito compara essa origem com a base salva ao carregar ou
+Conferir atualização. O checklist da exportação consulta a base novamente,
+avisa mudanças, análises pendentes e texto ainda não salvo, permitindo cancelar
+ou gerar o documento para revisão. Alterações não salvas na tela de Resultados
+não são visíveis em outra página até serem gravadas.
