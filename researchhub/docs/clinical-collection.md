@@ -387,3 +387,12 @@ e safe areas, com ajustes para celular e telas baixas. Ao receber uma resposta,
 o início da última troca é mostrado para não cortar o começo da orientação.
 Escape e o botão Fechar devolvem foco ao botão flutuante. O teste do componente
 verifica o portal, a alternância e a preservação do rascunho sem novos envios.
+
+### Próxima tarefa e atalhos no assistente
+
+A janela apresenta a próxima tarefa sugerida a partir do estado atual da coleta
+e dos resultados. Outros atalhos ficam recolhidos para reduzir a carga visual.
+Os destinos são fixos: ficha, participantes, CSV, visitas, análise e resultados.
+A disponibilidade é verificada novamente pelo editor no clique. Navegar fecha
+a janela, preserva a pergunta e os painéis montados; não altera o workspace,
+salva, confirma testes nem chama o provedor. Os atalhos funcionam sem envio de IA.

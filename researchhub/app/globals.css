@@ -2817,3 +2817,5 @@ body {
   .project-guide-footer { padding-block: .4rem; }
   .project-guide-compose textarea { min-height: 2.6rem; max-height: 3rem; }
 }
+
+.project-guide-next{padding:14px;border:1px solid #b9dcd5;border-radius:12px;background:#f0f8f5;font-size:13px;display:grid;gap:8px;margin-bottom:16px}.project-guide-next button{display:block;text-align:left;border-radius:8px;padding:9px 12px;background:#12756c;color:white;white-space:normal}.project-guide-next button:disabled{opacity:.5}.project-guide-next details button{margin-top:6px;background:white;color:#12685f;border:1px solid #b9dcd5}.project-guide-next summary{cursor:pointer}.project-guide-next small{color:#536b65}

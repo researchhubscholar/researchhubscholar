@@ -36,7 +36,7 @@ function harness(initial = null) {
  const Editor = load('components/results/editor.tsx', parentHooks.react, {
   '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
   './inference-panel': { default: 'inference' }, './saved-readings': { default: 'saved-readings' }, '@/components/ai/project-guide': {default:'project-guide'}, 'next/link': { default: 'link' }, '@/lib/results/data': data,
-  '@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
+  '@/lib/ai/guide':require('../lib/ai/guide.ts'),'@/lib/ai/guide-actions':require('../lib/ai/guide-actions.ts'),'@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
  }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true }) }; } return { ok: true, json: async () => ({ workspace: persisted }) }; } });
  const renderParent = () => parentHooks.render(() => Editor({ projectId: 'project-a', title: 'Estudo de perfil', protocol }));
  const props = () => nodes(renderParent()).find(node => node.type === Panel).props;
@@ -59,6 +59,7 @@ function harness(initial = null) {
  press(csvGuide,'Etapa 4 de 4');assert(!visible(csvGuide.renderParent()).some(n=>n.type==='inference'));
  assert.equal(csvGuide.requests.filter(r=>r.options?.method==='PUT').length,0,'navigation never saves or mutates the dataset');
  assert.equal(csvGuide.workspace().dataset.rows.length,2);
+ const before=JSON.stringify(csvGuide.workspace());const nav=()=>nodes(csvGuide.renderParent()).find(n=>n.type==='project-guide').props.onNavigate;assert.equal(nav()('review'),true);assert(visible(csvGuide.renderParent()).some(n=>n.type==='button'&&n.props['aria-current']==='step'&&visibleText(n).includes('Etapa 4')));assert.equal(nav()('visits'),false);assert.equal(nav()('https://external.example'),false);assert.equal(JSON.stringify(csvGuide.workspace()),before);assert.equal(csvGuide.requests.filter(r=>r.options?.method==='PUT').length,0);
  const h = harness(); h.renderParent(); await tick();
  assert.equal(visible(h.renderParent()).filter(n=>n.type==='button'&&n.props['aria-current']==='step').length,1);
  press(h,'Etapa 3 de 4');press(h,'Comparar antes e depois');assert(visibleText(h.renderParent()).includes('Prepare o acompanhamento'));
