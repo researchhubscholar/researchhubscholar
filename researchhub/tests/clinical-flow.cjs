@@ -31,7 +31,7 @@ function harness(initial = null) {
  const Panel = load('components/clinical/collection-panel.tsx', panelHooks.react, {
   '@/lib/results/data': data, '@/lib/clinical/collection': core, '@/lib/clinical/summary': summary, '@/lib/results/word': word,
   '@/lib/exports/scientific': { download: (text, mime, filename) => downloads.push({ text, mime, filename }) }, '@/lib/exports/ooxml': exporter,
-  '@/components/ai/assistant-panel': { default: 'assistant' },
+  '@/components/ai/assistant-panel': { default: 'assistant' }, '@/lib/clinical/suggestions':require('../lib/clinical/suggestions.ts'),
  });
  const Editor = load('components/results/editor.tsx', parentHooks.react, {
   '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
@@ -50,6 +50,8 @@ function harness(initial = null) {
 (async () => {
  const visible = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(visible) : tree.props?.hidden ? [] : [tree,...visible(tree.props?.children)];
  const press = (h, label) => { const b=visible(h.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes(label)); assert(b,label); b.props.onClick(); };
+ const previewHooks=hooks();let applied=0;const Preview=load('components/clinical/suggestion-preview.tsx',previewHooks.react,{'@/lib/clinical/suggestions':require('../lib/clinical/suggestions.ts')});const preview=()=>previewHooks.render(()=>Preview({items:[{label:'Idade',targetField:'number',content:'Idade em anos',rationale:'Perfil'}],disabled:false,onApply:items=>{applied+=items.length;return true;}}));const previewNodes=()=>nodes(preview());
+ previewNodes().find(n=>n.type==='input').props.onChange({target:{checked:true}});assert.equal(applied,0);previewNodes().find(n=>n.type==='button'&&visibleText(n).includes('Revisar seleção')).props.onClick();assert.equal(applied,0);previewNodes().find(n=>n.type==='button'&&visibleText(n).includes('Confirmar e adicionar')).props.onClick();assert.equal(applied,1);assert(previewNodes().some(n=>n.props?.role==='status'));assert(!previewNodes().some(n=>n.type==='button'&&visibleText(n).includes('Confirmar e adicionar')));
  const csvWorkspace=JSON.parse(JSON.stringify(data.emptyResults)); csvWorkspace.dataset={columns:['Idade'],rows:[['40'],['50']]};
  const csvGuide=harness(csvWorkspace);csvGuide.renderParent();await tick();
  assert(visible(csvGuide.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes('Usar uma planilha avulsa')).props['aria-pressed']);
@@ -70,7 +72,12 @@ function harness(initial = null) {
  assert.equal(h.button('Adicionar participante').props.disabled, true, 'a draft schema cannot collect records');
  h.field('Período dos registros').props.onChange({ target: { value: 'Ano de 2025' } });
  let ai = h.all().find(node => node.type === 'assistant'); assert.equal(ai.props.feature, 'collection');
- ai.props.onApply({ label: 'Idade', targetField: 'number', content: 'Idade em anos no atendimento definido pelo protocolo' });
+ h.field('Descreva o estudo').props.onChange({target:{value:'Perfil de adultos no serviço em 2025'}});
+ ai=h.all().find(node=>node.type==='assistant');assert.equal(ai.props.context.description,'Perfil de adultos no serviço em 2025');
+ assert.equal(ai.props.onApplyBatch([{label:'Idade',targetField:'number',content:'Idade em anos no atendimento definido pelo protocolo'},{label:'Inclusão no período',targetField:'inclusion',content:'Registro no período definido'}]),true);
+ assert(h.workspace().collection.inclusion.startsWith(protocol.inclusion_criteria));assert(h.workspace().collection.inclusion.includes('Registro no período definido'));
+ const beforeBatch=JSON.stringify(h.workspace());ai=h.all().find(node=>node.type==='assistant');assert.equal(ai.props.onApplyBatch([{label:'Pressão',targetField:'number',content:'Valor registrado'},{label:'Nome',targetField:'category',content:'Identificador'}]),false);assert.equal(JSON.stringify(h.workspace()),beforeBatch,'invalid batch never partially applies');
+
  assert.equal(h.workspace().collection.fields.length, 1);
  h.field('Unidade').props.onChange({ target: { value: 'anos' } });
  h.field('Mínimo permitido').props.onChange({ target: { value: '0' } }); h.field('Máximo permitido').props.onChange({ target: { value: '120' } });

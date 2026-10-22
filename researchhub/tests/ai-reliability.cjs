@@ -24,6 +24,7 @@ function sectionHarness(content, panel = false) {
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (name === '@/lib/ai/client-request') return transport;
     if (name === '@/lib/ai/assist') return assist;
+    if (name === '@/components/clinical/suggestion-preview') return { default: name };
     if (name === '@/components/radar/suggestion-composer') return { default: name };
     if (name === 'next/link' || name === '@/components/ai/loading-dialog') return { default: name };
     throw Error(name);

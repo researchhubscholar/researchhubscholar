@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { applyCollectionSuggestions } from "@/lib/clinical/suggestions";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import type { ResultsWorkspace, Dataset } from "@/lib/results/data";
 import { parseCsv } from "@/lib/results/data";
@@ -19,6 +20,7 @@ const csvCell = (value: string) => `"${(/^[=+@-]/.test(value) ? "'" + value : va
 export default function CollectionPanel({ workspace, protocol = {}, projectId, onChange, view = "all" }: {
   view?: "all" | "prepare" | "records" | "profile"; workspace: ResultsWorkspace; protocol?: CollectionProtocol; projectId: string; onChange: (value: ResultsWorkspace) => void;
 }) {
+  const [studyDescription,setStudyDescription]=useState("");
   const collection = workspace.collection;
   const [message, setMessage] = useState("");
   const [schemaEditing, setSchemaEditing] = useState(false);
@@ -132,7 +134,8 @@ export default function CollectionPanel({ workspace, protocol = {}, projectId, o
           </fieldset>)}
           <div className="flex flex-wrap gap-3"><button type="button" onClick={() => addField()} disabled={collection.fields.length >= collectionLimit.fields} className={actionClass}>Adicionar variável</button><button type="button" onClick={finishSchema} className="rounded-card bg-teal px-4 py-2.5 text-sm text-white">Concluir revisão da ficha</button></div>
         </fieldset>
-        {canEdit && <AssistantPanel feature="collection" title="Defina as variáveis com apoio da IA" description="A IA usa o protocolo salvo para sugerir variáveis e suas definições. Aplique cada sugestão à ficha e revise tipo, categorias, unidade e momento da coleta. Esta operação usa sua franquia de IA." actionLabel="Sugerir variáveis do protocolo" projectId={projectId} context={{ protocol: { ...protocol, population: collection.population, inclusion_criteria: collection.inclusion, exclusion_criteria: collection.exclusion }, fields: collection.fields.map(({ label, kind, definition, unit }) => ({ label, kind, definition, unit })) }} disabled={reading} onApply={item => { if (!["number", "category", "date"].includes(item.targetField)) { setMessage("A sugestão não indicou um tipo de variável válido. Revise antes de adicionar manualmente."); return; } addField(item.label, item.targetField as CollectionField["kind"], item.content); }}/>}
+        {canEdit && <label className="block mt-5 text-sm font-medium">Descreva o estudo para preparar a ficha<textarea rows={3} maxLength={2000} value={studyDescription} onChange={e=>setStudyDescription(e.target.value)} placeholder="Ex.: quero descrever o perfil de adultos atendidos no serviço, usando registros de 2025. Não inclua dados de pacientes." className={inputClass}/><span className="block text-xs text-ink-soft mt-1">A descrição complementa o protocolo. A IA usa sua franquia e não altera a ficha sozinha.</span></label>}
+        {canEdit && <AssistantPanel feature="collection" title="Monte sua ficha com apoio da IA" description="Descreva o estudo, gere sugestões e selecione campos e critérios para adicionar juntos. Confira a prévia antes de confirmar." actionLabel="Preparar sugestões de ficha" projectId={projectId} context={{ description:studyDescription, protocol: { ...protocol, population: collection.population, inclusion_criteria: collection.inclusion, exclusion_criteria: collection.exclusion }, fields: collection.fields.map(({ label, kind, definition, unit }) => ({ label, kind, definition, unit })) }} disabled={reading} onApplyBatch={items=>{if(!collection||!canEdit)return false;try{const next=applyCollectionSuggestions(collection,items);if(!commit(next))return false;setMessage("Sugestões adicionadas. Confira as definições, categorias e unidades antes de concluir a ficha.");return true;}catch(e){setMessage(e instanceof Error?e.message:"Revise as sugestões.");return false;}}} onApply={item => { if (!["number", "category", "date"].includes(item.targetField)) { setMessage("A sugestão não indicou um tipo de variável válido. Revise antes de adicionar manualmente."); return; } addField(item.label, item.targetField as CollectionField["kind"], item.content); }}/>}
         {issues.length > 0 && <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-amber-900">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
       </details>
       <section hidden={view!=="all"&&view!=="records"} aria-label="Coletar e conferir registros" className="rounded-card border border-line p-4">

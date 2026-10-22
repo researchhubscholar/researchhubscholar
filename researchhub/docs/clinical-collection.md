@@ -396,3 +396,18 @@ Os destinos são fixos: ficha, participantes, CSV, visitas, análise e resultado
 A disponibilidade é verificada novamente pelo editor no clique. Navegar fecha
 a janela, preserva a pergunta e os painéis montados; não altera o workspace,
 salva, confirma testes nem chama o provedor. Os atalhos funcionam sem envio de IA.
+
+### Preparação da ficha com sugestões selecionáveis
+
+Na etapa Preparar a coleta, a revisão da ficha recebe uma descrição opcional do
+estudo (até 2.000 caracteres), junto do protocolo e das definições existentes.
+O contexto exclui registros e códigos de participantes. A IA pode propor tipos
+de variável e critérios de inclusão/exclusão, com justificativas, sem inventar
+categorias ou pontos de corte. Cada envio usa a franquia atual.
+
+As sugestões começam desmarcadas. Selecionar e revisar não altera a ficha;
+somente Confirmar e adicionar aplica o lote. Campos existentes são preservados,
+critérios são acrescentados e duplicações são ignoradas. Se algum item for
+inválido ou ultrapassar limites, todo o lote é recusado sem alteração parcial.
+A revisão da ficha permanece aberta para completar categorias/unidades.
+Salvar resultados continua sendo necessário para persistir na conta.
