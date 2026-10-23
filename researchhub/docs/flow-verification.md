@@ -53,3 +53,12 @@ não retornou registros, o que só demonstra ausência de registros nessa janela
 Critério de fechamento: registrar evidência por etapa nas contas reais de teste,
 corrigir bloqueadores e repetir apenas as passagens afetadas. Nenhuma senha deve
 ser enviada no chat.
+
+
+## Biblioteca no assistente — fontes escolhidas
+
+- Marcar de um a três artigos e abrir “Revisar fontes no assistente” prepara a pergunta sem chamar IA. É possível retirar fontes ou limpar a seleção.
+- O envio transmite IDs; o servidor verifica a conta e busca somente resumos e anotações salvas dos artigos escolhidos. Artigo ausente, sem conteúdo utilizável ou de outra conta bloqueia antes da reserva. Sem texto completo, importação externa ou alterações não salvas.
+- Limites por artigo: 2.000 caracteres de resumo e 800 de anotações. O histórico registra quais fontes e tipos de conteúdo foram recebidos, identificadores e eventual truncamento.
+- Recomendações com fontes devem trazer um trecho literal validado no servidor, distinguindo resumo de anotação do pesquisador. Isso confere a existência do trecho, não garante a interpretação científica. Fonte ou trecho inválido segue o tratamento existente de falha de geração; não há repetição paga automática.
+- Cobertura automatizada: seleção e limpeza no componente real, envio só de IDs, isolamento por proprietário antes da reserva, limites, histórico e rejeição de trechos fabricados. Validação visual com sessão autenticada continua a ser feita no Preview.

@@ -11,6 +11,7 @@ import { useLibrary } from "@/lib/literature/use-library";
 import { EvidenceNote, findDuplicateGroups, LibraryArticle, ReadingStatus, ResearchProject } from "@/lib/literature/library-store";
 import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scientific";
 import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
+import { sourceIds } from "@/lib/ai/guide-sources";
 import { DuplicateReview } from "@/components/library/duplicate-review";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
 import AssistantPanel from "@/components/ai/assistant-panel";
@@ -67,6 +68,7 @@ function BibliotecaContent() {
     `${article.title} ${article.authors.join(" ")} ${article.doi || ""} ${article.pmid || ""}`.toLowerCase().includes(query.toLowerCase()));
   const notes = { ...library.notes, ...drafts };
   const duplicateGroups = useMemo(() => findDuplicateGroups(library.articles), [library.articles]);
+  const [sourceError,setSourceError]=useState("");
   const [comparison, setComparison] = useState<string[]>([]);
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
@@ -181,6 +183,14 @@ function BibliotecaContent() {
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>
 
+      {library.userId && <section className="rounded-card border border-teal/30 bg-teal-soft p-4 mt-5 space-y-2 text-sm" aria-label="Artigos para o assistente">
+        <h2 className="font-semibold">Conversar sobre artigos selecionados</h2>
+        <p>Marque até três artigos nas caixas de comparação abaixo. O assistente recebe somente os resumos disponíveis e suas anotações salvas, sem acessar o texto completo.</p>
+        <button type="button" disabled={!comparison.length||comparison.length>3||hasUnsaved||library.loading||library.working} className="bg-teal text-white rounded-card px-3 py-2 disabled:opacity-50" onClick={()=>{try{sourceIds(comparison);setSourceError("");window.dispatchEvent(new CustomEvent("scholar-guide-sources",{detail:library.articles.filter(a=>comparison.includes(a.id)).map(a=>({id:a.id,title:a.title,abstractAvailable:Boolean(a.abstract),notesAvailable:Boolean(library.notes[a.id]&&Object.values(library.notes[a.id]).some(Boolean))}))}));}catch(e){setSourceError(e instanceof Error?e.message:"Confira a seleção.");}}}>Revisar {comparison.length} fontes no assistente</button>
+        {comparison.length>3&&<p>Reduza a seleção para até três artigos para conversar com o assistente.</p>}
+        {hasUnsaved&&<p>Salve suas anotações antes de preparar as fontes.</p>}
+        {sourceError&&<p role="alert">{sourceError}</p>}
+      </section>}
       {library.userId && <DuplicateReview groups={duplicateGroups} notes={library.notes} disabled={library.working || hasUnsaved} onMerge={library.mergeDuplicates} />}
 
       <section className="library-metrics grid sm:grid-cols-3 gap-3 mt-8">

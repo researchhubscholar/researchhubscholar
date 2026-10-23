@@ -1,3 +1,4 @@
+import { sourceIds } from "./guide-sources";
 import { validGuideArea, type GuideArea } from "./areas";
 import type { ResultsWorkspace } from "../results/data";
 import { workspaceReadings } from "../results/review";
@@ -5,7 +6,7 @@ import { identifierHeader, identifierValue } from "../clinical/collection";
 export const guideStages=["Preparar a coleta","Adicionar e conferir dados","Responder à pergunta","Revisar e usar resultados"] as const;
 export const guideQuestions=["","profile","groups","paired","repeated","adjusted","general"] as const;
 export type GuideSnapshot={collection:boolean;records:number;included:number;pending:number;excluded:number;rows:number;fields:{label:string;kind:string}[];visits:{moments:number;completed:number;pending:number;missed:number};analyses:{title:string;status:"ready"|"pending"}[]};
-export type GuideInput={message:string;stage:number;question:string;dirty:boolean;draft:GuideSnapshot;area?:GuideArea};
+export type GuideInput={message:string;stage:number;question:string;dirty:boolean;draft:GuideSnapshot;area?:GuideArea;sourceIds?:string[]};
 export function guideText(value:unknown,max=600){return typeof value==="string"&&!identifierValue(value)?value.trim().slice(0,max):"";}
 export function guideSnapshot(w:ResultsWorkspace):GuideSnapshot {
  const c=w.collection,records=c?.records||[],visits=w.followup?.visits||[];
@@ -24,5 +25,7 @@ export function validateGuideInput(value:unknown):GuideInput {
  const fields=d.fields.map(f=>{if(!f||typeof f.label!=="string"||f.label.length>100||!["number","category","date","a conferir"].includes(f.kind))throw Error("Definição de campo inválida.");return{label:guideText(f.label,100),kind:f.kind};}).filter(f=>f.label&&!identifierHeader(f.label));
  const analyses=d.analyses.map(a=>{if(!a||!["ready","pending"].includes(a.status)||typeof a.title!=="string")throw Error("Resumo de análise inválido.");return{title:guideText(a.title,80),status:a.status};});
  if(v.area!==undefined&&!validGuideArea(v.area))throw Error("Área do assistente inválida.");
- return {...(v.area?{area:v.area as GuideArea}:{}),message:v.message.trim(),stage:Number(v.stage),question:String(v.question),dirty:v.dirty,draft:{collection:d.collection,records:count(d.records),included:count(d.included),pending:count(d.pending),excluded:count(d.excluded),rows:count(d.rows),fields,visits:{moments:count(d.visits.moments),completed:count(d.visits.completed),pending:count(d.visits.pending),missed:count(d.visits.missed)},analyses}};
+ const selectedSources=sourceIds(v.sourceIds);
+ if(selectedSources.length&&v.area!=="biblioteca")throw Error("Selecione fontes na Biblioteca para esta conversa.");
+ return {sourceIds:selectedSources,...(v.area?{area:v.area as GuideArea}:{}),message:v.message.trim(),stage:Number(v.stage),question:String(v.question),dirty:v.dirty,draft:{collection:d.collection,records:count(d.records),included:count(d.included),pending:count(d.pending),excluded:count(d.excluded),rows:count(d.rows),fields,visits:{moments:count(d.visits.moments),completed:count(d.visits.completed),pending:count(d.visits.pending),missed:count(d.visits.missed)},analyses}};
 }
