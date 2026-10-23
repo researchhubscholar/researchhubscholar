@@ -5,7 +5,7 @@ import { validWorkspace } from "../results/data";
 import { guideSnapshot, guideStages, guideText, type GuideInput } from "./guide";
 import { isAssistantOutput, type AssistantOutput } from "./assist";
 type DB=Awaited<ReturnType<typeof supabaseServer>>;
-export type GuideTurn={id:string;message:string;output:AssistantOutput;at:string;mode:string;tokens:number;sources?:SourceManifest[]};
+export type GuideTurn={id:string;message:string;output:AssistantOutput;at:string;mode:string;tokens:number;excerptToken?:string;sources?:SourceManifest[]};
 export async function guideProject(db:DB,userId:string,projectId:string) {
  const {data,error}=await db.from("research_projects").select("id,title,research_question,study_type,population,primary_outcome,methods,objective,analysis_plan,inclusion_criteria,exclusion_criteria").eq("id",projectId).eq("owner_id",userId).maybeSingle();
  if(error)throw Error("Não foi possível verificar o projeto.");if(!data)throw Error("Projeto indisponível.");return data;
@@ -52,7 +52,7 @@ export async function prepareGuideContext(db:DB,userId:string,projectId:string|n
  }
  const saved=data?.workspace?guideSnapshot(data.workspace):null;
  const compact=(snapshot:ReturnType<typeof guideSnapshot>|null)=>snapshot?{...snapshot,fieldCount:snapshot.fields.length,fields:snapshot.fields.slice(0,12)}:null;
- return {sources,areaKey:area,overview,area:guideAreas[input.area||"resultados"].title,pageHelp:guideAreas[input.area||"resultados"].help,scope:input.area&&input.area!=="resultados"?"Somente protocolo e resultados salvos. Texto em edição e outras telas não foram enviados. Somente as fontes explicitamente selecionadas em sources estão disponíveis; não afirme ter lido o manuscrito.":"Dados da tela de Resultados e protocolo salvo",message:input.message,stage:guideStages[input.stage],question:input.question,workingSource:input.dirty?"Rascunho informado pela tela, ainda não salvo nem verificado no servidor":"Dados salvos verificados no servidor",working:input.dirty?compact(input.draft):null,saved:compact(saved),
+ return {excerpt:input.excerpt||null,sources,areaKey:area,overview,area:guideAreas[input.area||"resultados"].title,pageHelp:guideAreas[input.area||"resultados"].help,scope:input.area&&input.area!=="resultados"?"Somente protocolo e resultados salvos. Do texto em edição, somente o trecho explicitamente anexado em excerpt está disponível; é um rascunho, não validado nem salvo por este envio. Outras telas não foram enviadas. Somente as fontes explicitamente selecionadas em sources estão disponíveis; não afirme ter lido o manuscrito.":"Dados da tela de Resultados e protocolo salvo",message:input.message,stage:guideStages[input.stage],question:input.question,workingSource:input.dirty?"Rascunho informado pela tela, ainda não salvo nem verificado no servidor":"Dados salvos verificados no servidor",working:input.dirty?compact(input.draft):null,saved:compact(saved),
  protocol:Object.fromEntries((["title","research_question","study_type","population","primary_outcome","methods","objective","analysis_plan","inclusion_criteria","exclusion_criteria"] as const).map(k=>[k,guideText(project[k],400)])),
  history:turns.slice(-3).map(t=>({user:t.message.slice(0,600),assistant:t.mode==="simulation"?"Resposta anterior em simulação, sem análise científica.":[t.output.summary,...t.output.recommendations.slice(0,2).map(r=>r.content)].join("\n").slice(0,1000)}))};
 }

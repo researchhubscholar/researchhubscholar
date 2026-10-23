@@ -78,7 +78,7 @@ function load(path, deps) {
       'next/server': { NextResponse: { json: (body, options) => new Response(JSON.stringify(body), options) } },
       ai: { generateText: async () => ({ output: {}, usage: { inputTokens: 1000, outputTokens: 500 }, response: { id: 'provider-fixture' } }), jsonSchema: value => value, Output: { object: value => value } },
       '@/lib/ai/config': config,
-      '@/lib/ai/guide-policy':require('../lib/ai/guide-policy.ts'),'@/lib/ai/guide-sources':require('../lib/ai/guide-sources.ts'),'@/lib/ai/radar-action':require('../lib/ai/radar-action.ts'),'@/lib/ai/assist': require('../lib/ai/assist.ts'), '@/lib/ai/guide-server': {prepareGuideContext:async()=>{throw Error('guide not used');}},
+      '@/lib/ai/guide-excerpt':require('../lib/ai/guide-excerpt.ts'),'@/lib/ai/guide-policy':require('../lib/ai/guide-policy.ts'),'@/lib/ai/guide-sources':require('../lib/ai/guide-sources.ts'),'@/lib/ai/radar-action':require('../lib/ai/radar-action.ts'),'@/lib/ai/assist': require('../lib/ai/assist.ts'), '@/lib/ai/guide-server': {prepareGuideContext:async()=>{throw Error('guide not used');}},
       '@/lib/ai/structured-output': require('../lib/ai/structured-output.ts'),
       '@/lib/supabase/admin': { supabaseAdmin: () => admin },
       '@/lib/supabase/server': { supabaseServer: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'fixture-user' } } }) } }) },

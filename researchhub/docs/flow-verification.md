@@ -73,3 +73,12 @@ ser enviada no chat.
 - O chat informa o escopo e que cada envio, inclusive um redirecionamento, consome a franquia normal; não existe nova taxa/chamada.
 - Testes automatizados verificam instruções e schema enviados, substituição integral de resposta e ações para cada recusa, persistência, compatibilidade com fontes selecionadas, esclarecimento sem ações e falha fechada na ausência de classificação. A decisão semântica ainda depende do modelo: não equivale a uma garantia absoluta contra falhas ou alucinações.
 - Avaliação manual no Preview: testar dúvida legítima de estatística/ciências humanas, saudação, pedido de receita culinária sem contexto científico, pergunta curta em continuação, conduta para paciente específico, pedido de inventar DOI/resultados e tentativa de ignorar regras; conferir resposta breve e retorno ao trabalho científico. Repetir com fontes selecionadas e sem projeto.
+
+
+## Trechos do Protocolo e Manuscrito no assistente
+
+- Selecionar texto em um campo/seção mostra quatro objetivos: esclarecer, melhorar escrita, revisar coerência e identificar lacunas. “Pedir ajuda” anexa somente esse trecho (até 3.000 caracteres) ao assistente flutuante do mesmo projeto e prepara a pergunta, sem chamar IA.
+- O usuário confere o trecho ou o retira antes do envio. O servidor valida área, objetivo, tamanho, padrões comuns de identificadores e propriedade do projeto. O restante do documento em edição não acompanha o trecho; o contexto salvo já usado pelo assistente continua explícito.
+- Somente melhorar escrita habilita uma substituição. A sugestão abre uma prévia editável (até 6.000 caracteres), exige confirmação e substitui apenas a faixa original; o restante do campo fica intacto. Documento alterado desde a seleção, permissão/busy inválidos, token diferente ou clique duplicado impedem substituição.
+- Protocolo recebe a edição como alteração não salva. Manuscrito reutiliza a preservação de versão anterior e o salvamento existentes. Histórico recuperado não reativa uma ação de substituição antiga: é preciso selecionar novamente. Simulação não permite aplicar.
+- Testes: validação, descarte de campos extras, área/proprietário, conteúdo enviado e não enviado, seleção/handoff no componente real, correlação da confirmação, preservação do entorno, bloqueio de duplicidade e texto alterado. Revisão visual autenticada permanece no Preview.
