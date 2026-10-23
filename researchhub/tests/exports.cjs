@@ -13,3 +13,15 @@ assert(buildAdvisorReport(data).includes('Validar teste'));
 assert(buildProjectMatrixCsv(data).includes('"Projeto teste"'));
 assert(!buildStructuredProtocol({...data,project:{...data.project,title:'<script>'}}).includes('<script>'));
 console.log('PASS: CSV/Excel, RIS, BibTeX, protocol, project summary, advisor report and evidence matrix exports.');
+
+const {projectRadarHref,insertCitationAt}=require('../lib/projects/editor-navigation.ts');
+const refinedTitle='Terapia imunobiológica e toxicidade em idosos';
+const radarParams=new URL('https://test.local'+projectRadarHref('project-1',refinedTitle,'Pergunta anterior')).searchParams;
+assert.equal(radarParams.get('tema'),refinedTitle);
+assert.equal(radarParams.get('projeto'),'project-1');
+assert.equal(radarParams.has('populacao'),false);
+assert.equal(new URL('https://test.local'+projectRadarHref('p','','Pergunta atual')).searchParams.get('tema'),'Pergunta atual');
+assert.deepEqual(insertCitationAt('Achado importante. Outro trecho.','[1]',18),{content:'Achado importante. [1] Outro trecho.',caret:22});
+assert.equal(insertCitationAt('Texto','[2]').content,'Texto [2]');
+assert.equal(insertCitationAt('ABC','[3]',0).content,'[3] ABC');
+console.log('PASS: current refined editor title reaches Radar and citations preserve surrounding text at the saved caret.');

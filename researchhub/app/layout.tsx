@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import GlobalGuide from "@/components/ai/global-guide";
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
@@ -30,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <body className="font-sans antialiased">
         <ProductTelemetry />
+        <Suspense fallback={null}><GlobalGuide /></Suspense>
         <header className="app-header">
           <div className="app-header-inner">
             <Link href="/" className="brand-lockup" aria-label="ResearchHub Scholar — página inicial">

@@ -15,19 +15,21 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   const {data:{user}}=await db.auth.getUser();
   if(!user) redirect("/login");
   const params=await searchParams;
-  const [{data:projects,error:projectError},{data:profile}]=await Promise.all([
+  const [{data:projects,error:projectError},{data:profile,error:profileError}]=await Promise.all([
     db.from("research_projects").select(projectSelection).eq("owner_id",user.id).order("updated_at",{ascending:false}),
     db.from("profiles").select("name,institution,specialty,training_stage").eq("id",user.id).maybeSingle(),
   ]);
-  if(projectError) return <Message title="Não foi possível carregar seus projetos." text="Atualize a página para tentar novamente." />;
+  if(projectError||profileError) return <Message title="Não foi possível carregar os dados dos documentos." text="Atualize a página para tentar novamente." />;
   const project=(projects||[]).find(item=>item.id===params.projeto)||(projects||[])[0];
-  if(!project) return <div className="scholar-workspace secondary-page documents-page max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/meu-trabalho?novo=1" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
-  const [{data:articleRows},{data:linkRows},{data:noteRows},{data:milestoneRows}]=await Promise.all([
+  if(!project) return <div className="scholar-workspace secondary-page documents-page max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/ideias" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
+  const [articleResult,linkResult,noteResult,milestoneResult]=await Promise.all([
     db.from("library_articles").select("*").eq("owner_id",user.id),
     db.from("library_article_projects").select("article_id,project_id").eq("owner_id",user.id).eq("project_id",project.id),
     db.from("evidence_matrix").select("*").eq("owner_id",user.id),
     db.from("scholar_project_milestones").select("milestone_key,status,note,due_date,position").eq("owner_id",user.id).eq("project_id",project.id).order("position"),
   ]);
+  if([articleResult,linkResult,noteResult,milestoneResult].some(result=>result.error)) return <Message title="Não foi possível conferir todos os dados do projeto." text="As exportações aguardam o carregamento completo das referências, leituras e etapas. Atualize a página para tentar novamente." />;
+  const articleRows=articleResult.data,linkRows=linkResult.data,noteRows=noteResult.data,milestoneRows=milestoneResult.data;
   const linked=new Set((linkRows||[]).map(row=>row.article_id));
   const articles:LibraryArticle[]=(articleRows||[]).filter(row=>row.project_id===project.id||linked.has(row.id)).map(row=>({...fromArticleRow(row),projectIds:[project.id]}));
   const articleIds=new Set(articles.map(article=>article.id));

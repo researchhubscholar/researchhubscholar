@@ -1,0 +1,117 @@
+const fs = require('node:fs'), assert = require('node:assert/strict'), vm = require('node:vm'), ts = require('typescript');
+const compile = file => ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+require.extensions['.ts'] = (module, file) => module._compile(compile(file), file);
+const core = require('../lib/clinical/collection.ts'), summary = require('../lib/clinical/summary.ts'), data = require('../lib/results/data.ts');
+const word = require('../lib/results/word.ts');
+const tick = () => new Promise(resolve => setImmediate(resolve));
+const jsx = (type, props) => ({ type, props });
+const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)];
+const visibleText = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : !tree ? '' : Array.isArray(tree) ? tree.map(visibleText).join('') : visibleText(tree.props?.children);
+function hooks() {
+ const state = [], effects = []; let cursor = 0;
+ return { react: {
+  useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], value => { state[i] = typeof value === 'function' ? value(state[i]) : value; }]; },
+  useRef(initial) { const i = cursor++; return state[i] ||= { current: initial }; },
+  useMemo: fn => fn(),
+  useEffect(effect, deps) { const i = cursor++, old = state[i]; if (!old || deps.some((value, j) => value !== old.deps[j])) effects.push(() => { old?.cleanup?.(); state[i] = { deps, cleanup: effect() }; }); },
+ }, render(component) { cursor = 0; const tree = component(); while (effects.length) effects.shift()(); return tree; } };
+}
+function load(file, react, dependencies, globals = {}) {
+ const module = { exports: {} };
+ vm.runInNewContext(compile(file), { module, exports: module.exports, crypto: require('node:crypto').webcrypto, AbortController, Date, Error, TextEncoder, requestAnimationFrame: fn => fn(), window: { confirm: () => true, addEventListener() {}, removeEventListener() {} }, ...globals, require(name) {
+  if (name === 'react') return react;
+  if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
+  if (name in dependencies) return dependencies[name]; throw Error(name);
+ } }); return module.exports.default;
+}
+const protocol = { population: 'Adultos atendidos no serviço', inclusion_criteria: 'Atendimento no período definido', research_question: 'Qual o perfil dos participantes?', variables: 'Idade e condição registrada' };
+function harness(initial = null) {
+ const parentHooks = hooks(), panelHooks = hooks(), downloads = [], requests = []; let persisted = initial, fail = false;
+ const exporter = { workbook: sheets => ({ sheets }), wordDocument: blocks => ({ blocks }), downloadBinary: (file, filename) => downloads.push({ file, filename }) };
+ const Panel = load('components/clinical/collection-panel.tsx', panelHooks.react, {
+  '@/lib/results/data': data, '@/lib/clinical/collection': core, '@/lib/clinical/summary': summary, '@/lib/results/word': word,
+  '@/lib/exports/scientific': { download: (text, mime, filename) => downloads.push({ text, mime, filename }) }, '@/lib/exports/ooxml': exporter,
+  '@/components/ai/assistant-panel': { default: 'assistant' }, '@/lib/clinical/suggestions':require('../lib/clinical/suggestions.ts'),
+ });
+ const Editor = load('components/results/editor.tsx', parentHooks.react, {
+  '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
+  './inference-panel': { default: 'inference' }, './saved-readings': { default: 'saved-readings' }, '@/components/ai/project-guide': {default:'project-guide'}, 'next/link': { default: 'link' }, '@/lib/results/data': data,
+  '@/lib/results/transfer':require('../lib/results/transfer.ts'),'@/lib/ai/guide':require('../lib/ai/guide.ts'),'@/lib/ai/guide-actions':require('../lib/ai/guide-actions.ts'),'@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
+ }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true }) }; } return { ok: true, json: async () => ({ workspace: persisted }) }; } });
+ const renderParent = () => parentHooks.render(() => Editor({ projectId: 'project-a', title: 'Estudo de perfil', protocol }));
+ const props = () => nodes(renderParent()).find(node => node.type === Panel).props;
+ const render = () => panelHooks.render(() => Panel(props()));
+ const all = () => nodes(render());
+ const button = label => all().find(node => node.type === 'button' && visibleText(node) === label);
+ const field = label => { const node = all().find(node => node.type === 'label' && visibleText(node).startsWith(label)); assert(node, label); const input = nodes(node).find(node => ['input', 'textarea', 'select'].includes(node.type)); return input; };
+ return { render, renderParent, all, button, field, downloads, requests, workspace: () => props().workspace, fail: value => { fail = value; }, persisted: () => persisted,
+  save: () => nodes(renderParent()).find(node => node.type === 'button' && visibleText(node) === 'Salvar resultados').props.onClick() };
+}
+(async () => {
+ const visible = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(visible) : tree.props?.hidden ? [] : [tree,...visible(tree.props?.children)];
+ const press = (h, label) => { const b=visible(h.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes(label)); assert(b,label); b.props.onClick(); };
+ const previewHooks=hooks();let applied=0;const Preview=load('components/clinical/suggestion-preview.tsx',previewHooks.react,{'@/lib/clinical/suggestions':require('../lib/clinical/suggestions.ts')});const preview=()=>previewHooks.render(()=>Preview({items:[{label:'Idade',targetField:'number',content:'Idade em anos',rationale:'Perfil'}],disabled:false,onApply:items=>{applied+=items.length;return true;}}));const previewNodes=()=>nodes(preview());
+ previewNodes().find(n=>n.type==='input').props.onChange({target:{checked:true}});assert.equal(applied,0);previewNodes().find(n=>n.type==='button'&&visibleText(n).includes('Revisar seleção')).props.onClick();assert.equal(applied,0);previewNodes().find(n=>n.type==='button'&&visibleText(n).includes('Confirmar e adicionar')).props.onClick();assert.equal(applied,1);assert(previewNodes().some(n=>n.props?.role==='status'));assert(!previewNodes().some(n=>n.type==='button'&&visibleText(n).includes('Confirmar e adicionar')));
+ const helpHooks=hooks();let copied='',opened='';const Help=load('components/ai/workflow-help.tsx',helpHooks.react,{'@/lib/ai/workflow-help':require('../lib/ai/workflow-help.ts')},{navigator:{clipboard:{writeText:async text=>{copied=text;}}}});let helpWorkspace={...data.emptyResults,dataset:{columns:['X','Y'],rows:[['1','2'],['2','4'],['3','5'],['4','8'],['5','9']]},analysis:{kind:'pearson',x:'X',y:'Y',independent:true}};let workflowDraft={text:'',basis:'',status:''};const helpTree=()=>helpHooks.render(()=>Help({state:workflowDraft,onState:state=>workflowDraft=state,workspace:helpWorkspace,disabled:false,onNavigate:id=>opened=id,onQuestion:id=>opened=id}));const helpNodes=()=>nodes(helpTree());assert(!helpNodes().some(n=>n.type==='textarea'));helpNodes().find(n=>n.type==='button'&&visibleText(n)==='Preparar rascunho').props.onClick();assert(helpNodes().find(n=>n.type==='textarea').props.value.includes('relação linear'));assert.equal(copied,'');helpNodes().find(n=>n.type==='button'&&visibleText(n)==='Copiar texto revisado').props.onClick();assert(copied.includes('relação linear'));helpWorkspace={...helpWorkspace,analysis:{...helpWorkspace.analysis,independent:false}};assert(helpNodes().find(n=>n.type==='button'&&visibleText(n)==='Copiar texto revisado').props.disabled);assert(helpNodes().some(n=>n.props?.role==='alert'));
+ const transferCore=require('../lib/results/transfer.ts'),transferHooks=hooks();const savedResults={...data.emptyResults,dataset:{columns:['Medida'],rows:[['3']]}};let handoff=JSON.stringify({project:'project-a',text:'Novo resultado revisado',stamp:transferCore.resultsStamp(savedResults)}),appended='';let remote=savedResults;
+ const Transfer=load('components/manuscript/results-transfer.tsx',transferHooks.react,{'@/lib/results/data':data,'@/lib/results/transfer':transferCore},{sessionStorage:{getItem:()=>handoff,removeItem:()=>handoff=null},fetch:async()=>({ok:true,json:async()=>({workspace:remote})})});const transferTree=()=>transferHooks.render(()=>Transfer({projectId:'project-a',currentText:'Texto original',source:'',onAppend:async(original,proposed)=>{assert.equal(original,'Texto original');appended=proposed;return true;}}));const transferNodes=()=>nodes(transferTree());transferTree();await tick();assert(transferNodes().some(n=>n.type==='textarea'));assert.equal(appended,'');remote={...savedResults,notes:'Dados atualizados'};await transferNodes().find(n=>n.type==='button'&&visibleText(n).includes('Confirmar e acrescentar')).props.onClick();assert.equal(appended,'','changed saved data must block append');remote=savedResults;transferNodes().find(n=>n.type==='button'&&visibleText(n).includes('Conferir atualização')).props.onClick();await tick();await transferNodes().find(n=>n.type==='button'&&visibleText(n).includes('Confirmar e acrescentar')).props.onClick();assert.equal(appended,'Texto original\n\nNovo resultado revisado');assert.equal(handoff,null);assert(!transferNodes().some(n=>n.type==='textarea'));
+ const csvWorkspace=JSON.parse(JSON.stringify(data.emptyResults)); csvWorkspace.dataset={columns:['Idade'],rows:[['40'],['50']]};
+ const csvGuide=harness(csvWorkspace);csvGuide.renderParent();await tick();
+ assert(visible(csvGuide.renderParent()).find(n=>n.type==='button'&&visibleText(n).includes('Usar uma planilha avulsa')).props['aria-pressed']);
+ press(csvGuide,'Etapa 2 de 4');assert(visible(csvGuide.renderParent()).some(n=>n.type==='input'&&n.props.type==='file'));
+ press(csvGuide,'Etapa 3 de 4');press(csvGuide,'Investigar outra diferença');assert(visible(csvGuide.renderParent()).some(n=>n.type==='inference'));
+ assert(!visible(csvGuide.renderParent()).some(n=>n.type==='adjusted'));
+ press(csvGuide,'Etapa 4 de 4');assert(!visible(csvGuide.renderParent()).some(n=>n.type==='inference'));
+ assert.equal(csvGuide.requests.filter(r=>r.options?.method==='PUT').length,0,'navigation never saves or mutates the dataset');
+ assert.equal(csvGuide.workspace().dataset.rows.length,2);
+ const before=JSON.stringify(csvGuide.workspace());const guideNode=nodes(csvGuide.renderParent()).find(n=>n.type==='project-guide');assert.equal(guideNode.props.onQuestion('general'),true);assert(visible(csvGuide.renderParent()).some(n=>n.type==='inference'));assert.equal(guideNode.props.onQuestion('unknown'),false);const nav=()=>nodes(csvGuide.renderParent()).find(n=>n.type==='project-guide').props.onNavigate;assert.equal(nav()('review'),true);assert(visible(csvGuide.renderParent()).some(n=>n.type==='button'&&n.props['aria-current']==='step'&&visibleText(n).includes('Etapa 4')));assert.equal(nav()('visits'),false);assert.equal(nav()('https://external.example'),false);assert.equal(JSON.stringify(csvGuide.workspace()),before);assert.equal(csvGuide.requests.filter(r=>r.options?.method==='PUT').length,0);
+ const h = harness(); h.renderParent(); await tick();
+ assert.equal(visible(h.renderParent()).filter(n=>n.type==='button'&&n.props['aria-current']==='step').length,1);
+ press(h,'Etapa 3 de 4');press(h,'Comparar antes e depois');assert(visibleText(h.renderParent()).includes('Prepare o acompanhamento'));
+ press(h,'Preparar acompanhamento por visitas');assert(visible(h.renderParent()).some(n=>n.type==='followup'));
+ press(h,'Etapa 1 de 4');
+ h.button('Preparar ficha de coleta').props.onClick();
+ assert.equal(h.workspace().collection.population, protocol.population);
+ assert.equal(h.button('Adicionar participante').props.disabled, true, 'a draft schema cannot collect records');
+ h.field('Período dos registros').props.onChange({ target: { value: 'Ano de 2025' } });
+ let ai = h.all().find(node => node.type === 'assistant'); assert.equal(ai.props.feature, 'collection');
+ h.field('Descreva o estudo').props.onChange({target:{value:'Perfil de adultos no serviço em 2025'}});
+ ai=h.all().find(node=>node.type==='assistant');assert.equal(ai.props.context.description,'Perfil de adultos no serviço em 2025');
+ assert.equal(ai.props.onApplyBatch([{label:'Idade',targetField:'number',content:'Idade em anos no atendimento definido pelo protocolo'},{label:'Inclusão no período',targetField:'inclusion',content:'Registro no período definido'}]),true);
+ assert(h.workspace().collection.inclusion.startsWith(protocol.inclusion_criteria));assert(h.workspace().collection.inclusion.includes('Registro no período definido'));
+ const beforeBatch=JSON.stringify(h.workspace());ai=h.all().find(node=>node.type==='assistant');assert.equal(ai.props.onApplyBatch([{label:'Pressão',targetField:'number',content:'Valor registrado'},{label:'Nome',targetField:'category',content:'Identificador'}]),false);assert.equal(JSON.stringify(h.workspace()),beforeBatch,'invalid batch never partially applies');
+
+ assert.equal(h.workspace().collection.fields.length, 1);
+ h.field('Unidade').props.onChange({ target: { value: 'anos' } });
+ h.field('Mínimo permitido').props.onChange({ target: { value: '0' } }); h.field('Máximo permitido').props.onChange({ target: { value: '120' } });
+ h.button('Concluir revisão da ficha').props.onClick(); assert.equal(h.button('Adicionar participante').props.disabled, false, 'a completed schema must allow the first participant');
+ h.button('Adicionar participante').props.onClick();
+ press(h,'Etapa 2 de 4');press(h,'Etapa 4 de 4');press(h,'Etapa 2 de 4');assert(h.all().some(n=>n.props?.['aria-label']==='Ficha do participante'),'participant draft survives step changes');
+ h.field('Código de pesquisa').props.onChange({ target: { value: 'P001' } }); h.field('Idade').props.onChange({ target: { value: '40' } }); h.field('Situação').props.onChange({ target: { value: 'included' } });
+ h.all().find(node => node.props?.['aria-label'] === 'Ficha do participante').props.onSubmit({ preventDefault() {} });
+ assert.equal(h.workspace().dataset.rows[0][0], '40'); assert.equal(h.workspace().collection.records[0].status, 'included');
+ h.all().find(node => node.props?.['aria-label'] === 'Conferir P001').props.onClick(); h.field('Idade').props.onChange({ target: { value: '400' } });
+ h.all().find(node => node.props?.['aria-label'] === 'Ficha do participante').props.onSubmit({ preventDefault() {} });
+ assert.equal(h.workspace().dataset.rows[0][0], '40', 'invalid edits must not change analysis data'); assert(visibleText(h.render()).includes('limites definidos'));
+ h.field('Situação').props.onChange({ target: { value: 'excluded' } }); h.field('Motivo da exclusão').props.onChange({ target: { value: core.exclusionReasons[0] } });
+ h.all().find(node => node.props?.['aria-label'] === 'Ficha do participante').props.onSubmit({ preventDefault() {} });
+ assert.equal(h.workspace().dataset.rows.length, 0); assert.equal(h.workspace().collection.records.length, 1);
+ const csv = h.all().find(node => node.type === 'input' && node.props.type === 'file');
+ await csv.props.onChange({ target: { files: [{ size: 70, text: async () => 'codigo_pesquisa;Idade\nP002;60\nP003;70' }], value: 'file.csv' } }); await tick();
+ h.button('Importar como pendentes').props.onClick(); assert.equal(h.workspace().collection.records.length, 3); assert.equal(h.workspace().dataset.rows.length, 0);
+ h.button('Conferir e incluir registros válidos').props.onClick(); assert.equal(h.workspace().dataset.rows.length, 2); assert.deepEqual(h.workspace().dataset.rows.map(row => row[0]), ['60', '70']);
+ assert(!JSON.stringify(h.workspace().dataset).includes('400'));
+ h.button('Exportar perfil · Word').props.onClick(); assert(h.downloads.at(-1).file.blocks.some(block => block.text === 'Tabela 1  Perfil dos participantes incluídos'));
+ h.button('Exportar ficha, coleta e Tabela 1 · Excel').props.onClick(); assert.equal(h.downloads.at(-1).file.sheets.find(sheet => sheet.name === 'Coleta').rows.length, 4);
+ h.button('Baixar modelo CSV vazio').props.onClick(); assert(h.downloads.at(-1).text.includes('codigo_pesquisa')); assert(!h.downloads.at(-1).text.includes('P002'));
+ h.fail(true); await h.save(); assert(visibleText(h.renderParent()).includes('Falha de gravação')); assert(visibleText(h.renderParent()).includes('Alterações ainda não salvas'));
+ h.fail(false); await h.save(); assert(visibleText(h.renderParent()).includes('Pronto para editar')); assert.equal(h.persisted().collection.records.length, 3);
+ const payload = JSON.parse(h.requests.filter(request => request.options?.method === 'PUT').at(-1).options.body); assert.equal(payload.project, 'project-a'); assert.equal(payload.workspace.dataset.rows.length, 2);
+ press(h,'Etapa 3 de 4');press(h,'Considerar outras características');assert(visible(h.renderParent()).some(n=>n.type==='adjusted'));assert(!visible(h.renderParent()).some(n=>n.type==='comparison'));press(h,'Comparar grupos');assert(visible(h.renderParent()).some(n=>n.type==='comparison'));assert(!visible(h.renderParent()).some(n=>n.type==='adjusted'));
+ const restored = harness(h.persisted()); restored.renderParent(); await tick(); assert.equal(restored.workspace().collection.records.length, 3);
+ restored.button('Revisar ficha e critérios').props.onClick(); assert.equal(restored.workspace().collection.records.filter(row => row.status === 'included').length, 0); assert.equal(restored.workspace().dataset.rows.length, 0);
+ ai = restored.all().find(node => node.type === 'assistant'); const context = JSON.stringify(ai.props.context); assert(!context.includes('P002')); assert(!context.includes('P001')); assert(!context.includes('400'));
+ const blocked = harness({ invalid: 'DATA_MUST_NOT_BE_OVERWRITTEN' }); blocked.renderParent(); await tick(); assert(visibleText(blocked.renderParent()).includes('edição foi bloqueada')); assert(nodes(blocked.renderParent()).find(node => node.type === 'fieldset').props.disabled);
+ const privacy = harness(h.persisted()); privacy.renderParent(); await tick(); const file = privacy.all().find(node => node.type === 'input' && node.props.type === 'file'); file.props.onChange({ target: { files: [{ size: 35, text: async () => 'nome;idade\nPessoa;30' }], value: '' } }); await tick(); assert(visibleText(privacy.render()).includes('identificação pessoal'), visibleText(privacy.render()).slice(0,1800)); assert.equal(privacy.workspace().collection.records.length, 3);
+ console.log('PASS: actual clinical UI prepares a protocol-linked schema, applies AI variable definitions without patient data, collects/edits/excludes records, maps pending imports, generates the included dataset, exports native files, persists/reloads, recovers failed saves and blocks incompatible stored workspaces.');
+})().catch(error => { console.error(error); process.exitCode = 1; });
