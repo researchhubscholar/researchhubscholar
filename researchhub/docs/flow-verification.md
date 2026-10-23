@@ -82,3 +82,12 @@ ser enviada no chat.
 - Somente melhorar escrita habilita uma substituição. A sugestão abre uma prévia editável (até 6.000 caracteres), exige confirmação e substitui apenas a faixa original; o restante do campo fica intacto. Documento alterado desde a seleção, permissão/busy inválidos, token diferente ou clique duplicado impedem substituição.
 - Protocolo recebe a edição como alteração não salva. Manuscrito reutiliza a preservação de versão anterior e o salvamento existentes. Histórico recuperado não reativa uma ação de substituição antiga: é preciso selecionar novamente. Simulação não permite aplicar.
 - Testes: validação, descarte de campos extras, área/proprietário, conteúdo enviado e não enviado, seleção/handoff no componente real, correlação da confirmação, preservação do entorno, bloqueio de duplicidade e texto alterado. Revisão visual autenticada permanece no Preview.
+
+
+## Plano de tarefas do projeto
+
+- Instalar `supabase/scholar_project_tasks.sql` no SQL Editor após produtividade. SQL reexecutável, tabela separada das confirmações de marcos, RLS por proprietário/projeto, origem imutável e limite de 100 tarefas. Sem a migração, a interface informa indisponibilidade e não simula salvamento.
+- Plano no Protocolo e no assistente de projeto. Adicionar manualmente ou abrir a prévia por uma recomendação da conversa. Título, detalhes e prazo opcional revisados antes de confirmar. Abrir/revisar/salvar tarefa não gera outra chamada de IA.
+- Origem da orientação verificada no servidor (conta, projeto, geração concluída e modo real), link de rastreio, duplicidade da mesma recomendação evitada. Retry manual preserva o identificador; nenhuma tentativa é repetida automaticamente.
+- Próxima tarefa = aberta com prazo mais próximo; sem prazo usa a ordem de criação. Marcar concluída/reabrir é ação do usuário e não confirma qualidade científica. Atualização concorrente gera conflito e pede recarregar. Remover exige confirmação na interface.
+- Migração incluída no teste do esquema completo; testes específicos de RLS, origem, duplicidade, limite, exclusão em cascata, autenticação e conflito na API e revisão/salvamento/falha no componente real. Tarefas incluídas na exportação dos dados da conta.

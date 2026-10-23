@@ -17,6 +17,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  await db.exec(fs.readFileSync('supabase/scholar_install.sql','utf8').replace('create extension if not exists "pgcrypto";',''));
  await db.exec(fs.readFileSync('supabase/scholar_access.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_productivity.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/scholar_project_tasks.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_project_origins.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_upgrade.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/scholar_library_duplicates.sql','utf8'));

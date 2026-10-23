@@ -20,6 +20,7 @@ export async function GET() {
       {key:"ideaVersions",table:"idea_versions",ownerColumn:"owner_id"},
       {key:"savedSearches",table:"scholar_saved_searches",ownerColumn:"owner_id"},
       {key:"searchAlerts",table:"scholar_search_alerts",ownerColumn:"owner_id"},
+      {key:"projectTasks",table:"scholar_project_tasks",ownerColumn:"owner_id"},
       {key:"milestones",table:"scholar_project_milestones",ownerColumn:"owner_id"},
       {key:"memberships",table:"scholar_memberships",ownerColumn:"user_id"},
       {key:"wallets",table:"scholar_wallets",ownerColumn:"user_id"},
