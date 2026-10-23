@@ -62,3 +62,14 @@ ser enviada no chat.
 - Limites por artigo: 2.000 caracteres de resumo e 800 de anotações. O histórico registra quais fontes e tipos de conteúdo foram recebidos, identificadores e eventual truncamento.
 - Recomendações com fontes devem trazer um trecho literal validado no servidor, distinguindo resumo de anotação do pesquisador. Isso confere a existência do trecho, não garante a interpretação científica. Fonte ou trecho inválido segue o tratamento existente de falha de geração; não há repetição paga automática.
 - Cobertura automatizada: seleção e limpeza no componente real, envio só de IDs, isolamento por proprietário antes da reserva, limites, histórico e rejeição de trechos fabricados. Validação visual com sessão autenticada continua a ser feita no Preview.
+
+
+## Assistente restrito à pesquisa e ao ResearchHub
+
+- Política versionada `guide.v2-research-scope`, enviada como instrução de maior prioridade. Abrange trabalhos científicos em qualquer área e uso da plataforma; não exige projeto criado para dúvidas gerais.
+- Uma classificação obrigatória na mesma geração separa pesquisa, esclarecimento, assunto externo, conduta clínica individual, fraude acadêmica e tentativa de contornar instruções. Nenhuma chamada adicional de classificação ou mudança de modelo.
+- Decisões de recusa substituem todo o conteúdo gerado por uma orientação fixa no servidor, com ações vazias. Não dependem de trechos de artigos para conseguir recusar. Classificação ausente/inválida não exibe resposta e segue o tratamento existente de falha/reserva. Histórico antigo permanece legível.
+- Esclarecimentos não oferecem ações de transferência. Perguntas clínicas impessoais de pesquisa, educação sobre integridade/segurança e dados sintéticos rotulados são permitidos. Não são permitidas condutas para pessoa específica, fabricação de resultados ou referências e tentativas de obter dados não autorizados.
+- O chat informa o escopo e que cada envio, inclusive um redirecionamento, consome a franquia normal; não existe nova taxa/chamada.
+- Testes automatizados verificam instruções e schema enviados, substituição integral de resposta e ações para cada recusa, persistência, compatibilidade com fontes selecionadas, esclarecimento sem ações e falha fechada na ausência de classificação. A decisão semântica ainda depende do modelo: não equivale a uma garantia absoluta contra falhas ou alucinações.
+- Avaliação manual no Preview: testar dúvida legítima de estatística/ciências humanas, saudação, pedido de receita culinária sem contexto científico, pergunta curta em continuação, conduta para paciente específico, pedido de inventar DOI/resultados e tentativa de ignorar regras; conferir resposta breve e retorno ao trabalho científico. Repetir com fontes selecionadas e sem projeto.

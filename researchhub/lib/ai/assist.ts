@@ -99,7 +99,7 @@ export function validateAssistRequest(value: unknown) {
 
 export function assistantPrompt(feature: AssistantFeature, context: unknown) {
   const language = feature === "writing" && context && typeof context === "object" && "language" in context && context.language === "en" ? "Responda em inglês." : "Responda em português do Brasil.";
-  return `Você é um assistente de planejamento científico em saúde. ${language} ${instructions[feature]}
+  return `Você é um assistente de planejamento científico${feature === "guide" ? " em qualquer área do conhecimento, dedicado ao ResearchHub Scholar" : " em saúde"}. ${language} ${instructions[feature]}
 
 REGRAS: não invente evidências, referências, resultados, validações, autorizações ou dados de pacientes; não faça diagnóstico médico; explicite incertezas; produza sugestões para revisão humana, nunca decisões finais. Em source, indique a origem presente no contexto ou escreva "Contexto informado pelo usuário".
 
