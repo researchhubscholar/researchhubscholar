@@ -2776,6 +2776,7 @@ body {
   line-height: 1.55;
   text-align: left;
 }
+.project-guide-window--expanded { width: min(58rem, calc(100vw - 2.5rem)); }
 .project-guide-window *, .project-guide-toggle * { box-sizing: border-box; }
 .project-guide-window p { margin: 0; overflow-wrap: anywhere; }
 .project-guide-header { padding: .9rem 1rem .7rem; border-bottom: 1px solid #e0e9e7; background: #fff; }

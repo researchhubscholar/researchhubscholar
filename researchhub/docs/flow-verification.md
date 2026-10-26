@@ -91,3 +91,11 @@ ser enviada no chat.
 - Origem da orientação verificada no servidor (conta, projeto, geração concluída e modo real), link de rastreio, duplicidade da mesma recomendação evitada. Retry manual preserva o identificador; nenhuma tentativa é repetida automaticamente.
 - Próxima tarefa = aberta com prazo mais próximo; sem prazo usa a ordem de criação. Marcar concluída/reabrir é ação do usuário e não confirma qualidade científica. Atualização concorrente gera conflito e pede recarregar. Remover exige confirmação na interface.
 - Migração incluída no teste do esquema completo; testes específicos de RLS, origem, duplicidade, limite, exclusão em cascata, autenticação e conflito na API e revisão/salvamento/falha no componente real. Tarefas incluídas na exportação dos dados da conta.
+
+
+## Orientação prática e janela ampliada
+
+- Política `guide.v3-guided-next-step`: dúvidas amplas de pesquisa recebem primeira ação, duas ou três etapas com nomes reais das telas e no máximo uma pergunta para personalizar. Atalhos gerados só aceitam módulos internos conhecidos; áreas que exigem projeto não são liberadas sem seleção.
+- Pedidos curtos como “como começar um trabalho?” têm um roteiro inicial consistente após a validação de escopo: Ideias sem projeto; pergunta e Protocolo no projeto aberto. Trechos e fontes explicitamente selecionados mantêm a análise específica. Recusas de escopo continuam prevalecendo.
+- Botão no cabeçalho amplia a janela de 30rem para até 58rem e permite retornar. Preserva mensagem, conversa, prévias e seleção, sem chamada de IA. Em telas pequenas a largura continua limitada ao espaço disponível.
+- Testes da rota e dos componentes cobrem roteiro/links, bloqueio de destinos externos ou sem projeto, prevalência de recusas, ampliar/reduzir sem perder rascunho nem repetir envios. Avaliação visual autenticada permanece no Preview.
