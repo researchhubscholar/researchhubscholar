@@ -32,7 +32,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
   const isLoading = loading || projectList.ownerId !== ownerId;
   const current = projects.find(project => project.id === projectId);
   const currentTitle = title.trim() || current?.title || current?.theme || "Projeto sem título";
-  return <section aria-label="Escolher projeto de trabalho" className="mb-6 bg-white border border-line rounded-2xl p-5">
+  return <section aria-label="Escolher projeto de trabalho" className="project-picker-strip mb-6 bg-white border border-line rounded-2xl p-5">
     <p className="text-xs uppercase tracking-widest text-teal">Seus projetos</p>
     <div className="grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-end mt-3">
       <label className="block min-w-0 text-sm font-medium">Projeto em edição

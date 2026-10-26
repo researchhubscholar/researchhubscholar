@@ -266,19 +266,20 @@ export default function IdeasPage() {
     <GenerationDialog open={aiLoading || Boolean(refiningId)} title={refiningId ? "Refinando sua ideia com literatura" : undefined} description={refiningId ? "O Scholar consulta o PubMed e envia a proposta e os artigos recuperados à IA para refinar o recorte científico." : undefined} />
     <header className="max-w-3xl">
       <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa com IA</p>
-      <h1 className="font-display text-4xl md:text-5xl mt-3">Encontre um caminho científico que cabe na sua realidade.</h1>
-      <p className="text-ink-soft mt-4 leading-relaxed">Comece com poucas informações ou controle todos os critérios. A IA explora diferentes oportunidades e entrega três propostas completas para comparar, validar no Radar e discutir com seu orientador.</p>
+      <h1 className="font-display text-4xl md:text-5xl mt-3">Da sua ideia à pergunta de pesquisa.</h1>
+      <p className="text-ink-soft mt-4 leading-relaxed">Escolha como começar. Depois compare as propostas e refine a pergunta com apoio da literatura.</p>
     </header>
 
-    <section className="mt-8 grid md:grid-cols-3 gap-3" aria-label="Modo de criação da ideia">
+    <section className="ideas-mode-tabs" aria-label="Modo de criação da ideia">
       {([
         ["automatic", "Gerar para mim", "Use minha área, meu acesso e meu prazo para descobrir oportunidades."],
         ["theme", "Partir de um tema", "Expandir um interesse ou problema inicial em caminhos científicos."],
         ["guided", "Controlar critérios", "Definir população, medidas, recursos e exigências em detalhes."],
-      ] as const).map(([mode, label, description]) => <button key={mode} type="button" onClick={() => { setCreationMode(mode); setAiMessage(""); }} className={`text-left rounded-2xl border p-5 transition-colors ${creationMode === mode ? "border-teal bg-teal-soft" : "border-line bg-white hover:border-teal/40"}`}><span className="text-xs uppercase tracking-widest text-teal">{mode === "automatic" ? "Recomendado" : "Opção"}</span><strong className="block font-display text-xl mt-2">{label}</strong><span className="block text-sm text-ink-soft mt-2 leading-relaxed">{description}</span></button>)}
+      ] as const).map(([mode, label, description]) => <button key={mode} type="button" onClick={() => { setCreationMode(mode); setAiMessage(""); }} aria-pressed={creationMode===mode} title={description} className="ideas-mode-tab"><strong>{label}</strong></button>)}
     </section>
 
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4">
+    <p className="ideas-mode-description" aria-live="polite">{creationMode==="automatic"?"Recomendado para começar: use sua área, acesso a dados e prazo.":creationMode==="theme"?"Transforme um interesse ou problema inicial em uma pergunta de pesquisa.":"Defina população, recursos e exigências do trabalho em detalhes."}</p>
+    <div className="ideas-language-row">
       <div><p className="text-sm font-medium">Idioma das propostas</p><p className="text-xs text-ink-soft mt-1">A escolha também será mantida ao refinar com literatura.</p></div>
       <select aria-label="Idioma das propostas" value={outputLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
         <option value="pt-BR">Português (Brasil)</option>
@@ -286,7 +287,7 @@ export default function IdeasPage() {
       </select>
     </div>
 
-    {creationMode === "automatic" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-5 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
+    {creationMode === "automatic" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="ideas-main-form mt-5 bg-white border border-line rounded-2xl p-5 md:p-7">
       <div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Geração automática</p><h2 className="font-display text-2xl mt-2">Três informações para começar.</h2><p className="text-sm text-ink-soft mt-2 max-w-2xl">A IA primeiro explora oportunidades diferentes; depois seleciona as três com melhor equilíbrio entre relevância, viabilidade e execução.</p></div><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-2">1 operação · até 10.000 tokens</span></div>
       <div className="grid md:grid-cols-2 gap-4 mt-6">
         <Text required label="Sua especialidade ou área" value={context.specialty} change={value => update("specialty", value)} placeholder="Ex.: Clínica médica, pediatria, saúde mental" />
@@ -300,7 +301,7 @@ export default function IdeasPage() {
       <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || profileLoading || library.loading || !aiEnabled || !context.specialty.trim() || !context.setting.trim()} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Explorando oportunidades científicas…" : aiEnabled ? "Gerar ideias automaticamente" : "IA ainda não ativada"}</button>{!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}</div>
     </form>}
 
-    {creationMode === "theme" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-5 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
+    {creationMode === "theme" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="ideas-main-form mt-5 bg-white border border-line rounded-2xl p-5 md:p-7">
       <p className="text-xs uppercase tracking-widest text-teal">A partir de um tema</p><h2 className="font-display text-2xl mt-2">Dê um ponto de partida, não um título pronto.</h2>
       <label className="block text-base font-medium mt-5">Tema, problema ou pergunta inicial<textarea required minLength={10} maxLength={1500} rows={5} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Tenho observado dificuldade de sono entre residentes após plantões noturnos e quero explorar possibilidades de pesquisa." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" /></label>
       <div className="grid md:grid-cols-3 gap-4 mt-5"><Text label="População — opcional" value={context.population} change={value => update("population", value)} /><Select label="Tipo de trabalho" value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Comparar possibilidades"], ["original", "Artigo original"], ["review", "Revisão"], ["case", "Relato de caso"], ["tcc", "TCC"]]} /><Select label="Prazo" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} /></div>

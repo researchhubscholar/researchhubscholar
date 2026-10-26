@@ -1,0 +1,124 @@
+/* Calm workspace layer: a clear page heading, one working surface, quiet secondary tools.
+   Public/marketing pages retain their independent visual language. */
+.scholar-workspace { --workspace-card-radius: .8rem; }
+.scholar-workspace:is(.account-page,.license-page,.commerce-page,.residency-page,.operation-page) {
+  padding-top: 0;
+}
+.scholar-workspace:is(.account-page,.license-page,.commerce-page,.residency-page,.operation-page)::before,
+.scholar-workspace :is(.ideas-intro,.project-intro,.radar-intro,.library-hero,.advising-hero,.documents-hero)::after,
+.scholar-workspace .project-sidebar::before,
+.scholar-workspace .project-stage-card::before,
+.scholar-workspace .project-stage-card > p:first-child::before,
+.scholar-workspace.license-page > section.bg-white::before {
+  content: none;
+}
+.scholar-workspace :is(.ideas-intro,.project-intro,.radar-intro,.library-hero,.advising-hero,.documents-hero) {
+  padding: 0 0 1.75rem;
+  border: 0;
+  border-bottom: 1px solid #dde6e2;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+.scholar-workspace :is(header,.module-intro,.project-intro,.radar-intro) :is(h1,h2),
+.scholar-workspace > h1 {
+  max-width: 26ch;
+  font-size: clamp(1.85rem, 3vw, 2.65rem);
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+.scholar-workspace :is(header,.module-intro,.project-intro,.radar-intro) > p:not(:first-child) {
+  max-width: 65ch;
+  font-size: .95rem;
+  line-height: 1.7;
+}
+.scholar-workspace :is(section,article,form,details).border {
+  box-shadow: none;
+}
+.scholar-workspace .project-intro-steps { margin-top: 1rem; gap: .65rem; }
+.scholar-workspace .project-intro-steps span {
+  min-height: 0; padding: 0; border: 0; border-radius: 0; background: none;
+}
+.scholar-workspace .project-sidebar { background: transparent; border: 0; box-shadow: none; padding: .5rem 1rem .5rem 0; }
+.scholar-workspace .project-sidebar nav a { border-radius: .4rem; }
+.scholar-workspace .project-sidebar nav a::after { content: none; }
+.scholar-workspace .project-picker-strip {
+  border: 0; border-bottom: 1px solid #dde6e2; border-radius: 0; padding: 0 0 1.25rem; background: none;
+}
+.scholar-workspace .project-picker-strip > p:first-child { display: none; }
+.scholar-workspace .project-stage-card {
+  min-height: 0; padding: 1.5rem 0 2rem; border: 0; border-bottom: 1px solid #dde6e2;
+  border-radius: 0; background: transparent; box-shadow: none !important;
+}
+.scholar-workspace .project-stage-card h3 { font-size: 1.5rem; }
+.scholar-workspace .project-stage-card > p:first-child { font-size: .7rem; letter-spacing: .08em; }
+.scholar-workspace .project-stage-card :is(input,textarea,select) { background: #fff; border-color: #ccd8d2; }
+.workspace-disclosure {
+  border: 0; border-block: 1px solid #dde6e2; padding: .95rem 0; background: transparent;
+}
+.workspace-disclosure + .workspace-disclosure { border-top: 0; }
+.workspace-disclosure > summary { color: #236a64; font-size: .9rem; font-weight: 500; cursor: pointer; }
+.workspace-disclosure .assistant-inline-panel { border: 0; padding: 1rem 0 0; margin-top: 0; background: transparent; }
+.workspace-disclosure .assistant-inline-panel h2 { font-size: 1.4rem; }
+.workspace-disclosure section[aria-label="Plano de trabalho do projeto"] { padding: 0; border: 0; background: transparent; }
+.scholar-workspace .ideas-mode-tabs {
+  display: flex; flex-wrap: wrap; gap: .25rem; margin-top: 2rem; border-bottom: 1px solid #ccd8d2;
+  background: transparent; padding: 0; border-radius: 0;
+}
+.scholar-workspace .ideas-mode-tab {
+  padding: .85rem 1rem; border: 0; border-bottom: 2px solid transparent; border-radius: .4rem .4rem 0 0;
+  background: transparent; color: #546172; font-size: .9rem; min-height: 44px; text-align: left;
+}
+.scholar-workspace .ideas-mode-tab[aria-pressed="true"] { color: #1b655d; border-bottom-color: #236a64; background: #eef5f2; }
+.scholar-workspace .ideas-mode-tab:hover { background: #eef5f2; }
+.ideas-mode-description { font-size: .875rem; color: #546172; margin-top: .9rem; max-width: 65ch; }
+.ideas-language-row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 1rem; margin-top: 1.5rem; padding: .75rem 0; border: 0; background: transparent;
+}
+.ideas-language-row > div p:nth-child(2) { display: none; }
+.scholar-workspace.ideas-page > form { box-shadow: none; border-radius: .8rem; }
+.scholar-workspace.ideas-page .ideas-main-form { padding: clamp(1.25rem,3vw,2rem); }
+.scholar-workspace.ideas-page .ideas-main-form h2 { font-size: 1.6rem; }
+.scholar-workspace .library-controls {
+  border-radius: .6rem; box-shadow: none; background: #fff;
+}
+.scholar-workspace :is(.library-metrics,.radar-metrics) > div,
+.scholar-workspace.license-page > section.bg-white .grid > div {
+  min-height: 0; padding: 1rem; border: 0; border-left: 1px solid #dde6e2; border-radius: 0;
+  box-shadow: none; background: transparent;
+}
+.scholar-workspace:is(.license-page,.account-page) > .mt-5.flex {
+  border: 0; border-bottom: 1px solid #dde6e2; border-radius: 0; padding: .75rem 0;
+  box-shadow: none; background: transparent; gap: .75rem 1.5rem;
+}
+.scholar-workspace.license-page > section.bg-white .grid > div::after { content: none; }
+.scholar-workspace :is(.library-article-card,.advising-comments,.advising-versions,.document-card) { box-shadow: none; background-image: none; }
+.scholar-workspace .assistant-inline-panel { box-shadow: none; background: #f6f9f7; border-color: #dde6e2; }
+/* Keep chat conversation in focus; help and navigation stay available as disclosures. */
+.project-guide-thread { background: #fff; }
+.project-guide-answer { padding: .4rem 0 .75rem; border: 0; border-radius: 0; background: transparent; }
+.project-guide-question { margin-left: 2rem; background: #eef5f2; border-radius: .65rem; }
+.project-guide-recommendation { padding: .85rem 0 0; border-top: 1px solid #e3eae7; background: transparent; }
+.project-guide-tools { margin-bottom: 1rem; padding-bottom: .8rem; border-bottom: 1px solid #e3eae7; font-size: .8rem; }
+.project-guide-tools > summary { color: #236a64; cursor: pointer; padding-block: .3rem; }
+.project-guide-tools[open] > section,
+.project-guide-tools[open] > div { margin-top: .8rem; }
+.project-guide-tools button[aria-pressed] { border-color: transparent; border-radius: .4rem; background: #f3f7f5; }
+.project-guide-tools button[aria-pressed="true"] { color: #1b655d; background: #e4f0eb; }
+.project-guide-window { box-shadow: 0 12px 40px #14213d20; }
+.project-guide-footer { background: #fafcfb; }
+@media (max-width: 639px) {
+  .scholar-workspace :is(.ideas-intro,.project-intro,.radar-intro,.library-hero,.advising-hero,.documents-hero) { padding: 0 0 1.25rem; }
+  .scholar-workspace .ideas-mode-tabs { flex-wrap: nowrap; gap: 0; }
+  .scholar-workspace .ideas-mode-tab { flex: 1; padding: .7rem .4rem; font-size: .78rem; text-align: center; }
+  .scholar-workspace .project-stage-card { padding: 1.25rem 0 1.5rem; }
+  .ideas-language-row { align-items: start; }
+}
+/* Remove overlapping dashboard metrics and legacy decorative shadows. */
+.scholar-workspace::before { content: none; }
+.scholar-workspace .workspace-summary { margin-top: 1.25rem; padding-inline: 0; }
+.scholar-workspace .workspace-summary > div { box-shadow: none; }
+.scholar-workspace .workspace-summary > div::after { content: none; }
+.scholar-workspace :is(.library-controls,.library-article-card,.library-matrix-card,.advising-access,.advising-comments,.advising-meetings,.advising-versions,.document-card) { box-shadow: none !important; }

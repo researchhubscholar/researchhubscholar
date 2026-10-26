@@ -3,6 +3,7 @@ import GlobalGuide from "@/components/ai/global-guide";
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import "./workspace.css";
 import SiteShortcuts from "@/components/public/site-shortcuts";
 import SessionNavigation from "@/components/session-navigation";
 import ProductTelemetry from "@/components/product-telemetry";

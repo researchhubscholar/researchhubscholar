@@ -57,3 +57,11 @@ barra final; typecheck, lint, testes de acesso e resultados, build e smoke de ro
 O Preview exige autenticação da Vercel no navegador disponível: inspeção visual
 privada, com projetos reais e em diferentes tamanhos de tela, continua pendente.
 Não houve alteração dos dados científicos nem do provedor de IA neste bloco.
+
+## Revisão de hierarquia visual — outubro de 2026
+
+Camada de composição em `app/workspace.css`, restrita às áreas de trabalho: títulos sobre fundo simples, sem círculos/faixas decorativas, sombras secundárias reduzidas, métricas sem sobreposição e superfícies de edição com separadores em vez de caixas aninhadas.
+
+Ideias usa três modos compactos com estado pressionado e descrição apenas do modo escolhido. Meu Projeto mantém o seletor visível, com tarefas e revisão de IA recolhidas em disclosures. Esses conteúdos permanecem montados para preservar rascunhos, prévias e resultados ao recolher. Assistente dá prioridade à conversa; ajuda/atalhos e guias de Resultados ficam em disclosures, com recomendações separadas por linhas em vez de novas caixas.
+
+Verificação: typecheck, lint, suíte funcional e build/smoke. O acesso visual ao Preview nesta sessão encontrou a autenticação da Vercel; a revisão visual com conta conectada continua necessária, inclusive em celular. Nenhuma mudança de permissão, dado, preço, franquia ou algoritmo de pesquisa/análise faz parte desta revisão.
