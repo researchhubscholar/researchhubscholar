@@ -16,3 +16,15 @@ export function chooseWallet<T extends { wallet: { id: string } }>(available: T[
   if (!available.length) throw new Error("Franquia indisponível ou insuficiente para esta operação.");
   return available[0];
 }
+
+type AdmissionLicense={status:string;starts_at:string;ends_at:string};
+type AdmissionWallet={id:string;allowance:number;used:number;reserved:number;unlimited?:boolean};
+export function walletsForOperation<T extends {wallet:AdmissionWallet;license?:AdmissionLicense}>(rows:T[],selected:string|null,required:number,now=Date.now()):T[]{
+ const eligible=rows.filter(r=>r.license&&['active','trial'].includes(r.license.status)&&Date.parse(r.license.starts_at)<=now&&Date.parse(r.license.ends_at)>=now);
+ const picked=selected?rows.find(r=>r.wallet.id===selected):rows.length===1?rows[0]:undefined;
+ if(picked&&!eligible.includes(picked))throw Error('A licença desta franquia está inativa ou fora da validade. Abra Minha licença para conferir.');
+ const available=eligible.filter(r=>r.wallet.unlimited===true||r.wallet.allowance-r.wallet.used-r.wallet.reserved>=required);
+ const insufficient=selected?eligible.find(r=>r.wallet.id===selected):eligible.length===1&&!available.length?eligible[0]:undefined;
+ if(insufficient&&!available.includes(insufficient)){const balance=Math.max(0,insufficient.wallet.allowance-insufficient.wallet.used-insufficient.wallet.reserved);throw Error(`Você tem ${balance.toLocaleString('pt-BR')} tokens disponíveis; esta operação exige uma reserva de ${required.toLocaleString('pt-BR')}. Abra Minha licença para conferir sua franquia.`);}
+ return available;
+}

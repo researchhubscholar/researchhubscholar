@@ -1,6 +1,6 @@
 import { settleFailedReservation, reservationNotice, providerMetering, type ProviderMetering } from "@/lib/ai/failed-reservation";
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
-import { chooseWallet, requestedWallet } from "@/lib/ai/wallet-selection";
+import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
 import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
@@ -19,7 +19,7 @@ export const maxDuration = 300;
 const timeoutMs = 240_000;
 const staleReservationMs = 10 * 60_000;
 type License = { id: string; status: string; mode: "simulation" | "live"; starts_at: string; ends_at: string };
-type Wallet = { id: string; license_id: string; allowance: number; used: number; reserved: number };
+type Wallet = { id: string; license_id: string; allowance: number; used: number; reserved: number; unlimited?:boolean };
 
 function timedOut(error: unknown) {
   const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error);
@@ -49,7 +49,7 @@ async function releaseStale(userId: string) {
 async function activeWallet(userId: string, selected: string | null) {
   await releaseStale(userId);
   const admin = supabaseAdmin();
-  const { data: walletData, error } = await admin.from("scholar_wallets").select("id,license_id,allowance,used,reserved").eq("user_id", userId);
+  const { data: walletData, error } = await admin.from("scholar_wallets").select("*").eq("user_id", userId);
   if (error) throw error;
   const wallets = (walletData || []) as Wallet[];
   if (!wallets.length) throw new Error("Sua conta ainda não possui uma franquia de assistência.");
@@ -57,7 +57,7 @@ async function activeWallet(userId: string, selected: string | null) {
   if (licenseError) throw licenseError;
   const now = Date.now();
   const licenses = new Map(((licenseData || []) as License[]).map(item => [item.id, item]));
-  const available = wallets.map(wallet => ({ wallet, license: licenses.get(wallet.license_id) })).filter(item => item.license && ["active", "trial"].includes(item.license.status) && Date.parse(item.license.starts_at) <= now && Date.parse(item.license.ends_at) >= now && item.wallet.allowance - item.wallet.used - item.wallet.reserved >= scholarAI.reservedTokens).sort((a, b) => (b.wallet.allowance - b.wallet.used - b.wallet.reserved) - (a.wallet.allowance - a.wallet.used - a.wallet.reserved));
+  const available = walletsForOperation(wallets.map(wallet => ({ wallet, license: licenses.get(wallet.license_id) })), selected, scholarAI.reservedTokens, now);
   return chooseWallet(available, selected) as { wallet: Wallet; license: License };
 }
 

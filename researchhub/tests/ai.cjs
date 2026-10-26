@@ -89,6 +89,13 @@ assert.throws(()=>chooseWallet([walletA],walletB.wallet.id),/nenhum outro saldo/
 assert.equal(chooseWallet([walletA],null),walletA);
 assert.equal(requestedWallet(new Request('https://test.local',{headers:{cookie:`scholar-wallet-owner=${walletB.wallet.id}`}}),'owner'),walletB.wallet.id);
 assert.equal(requestedWallet(new Request('https://test.local',{headers:{cookie:`scholar-wallet-other=${walletB.wallet.id}`}}),'owner'),null);
+const {walletsForOperation}=require('../lib/ai/wallet-selection.ts');
+const admission={wallet:{id:walletA.wallet.id,allowance:200000,used:192300,reserved:0},license:{status:'active',starts_at:'2020-01-01',ends_at:'2099-01-01'}};
+assert.throws(()=>walletsForOperation([admission],null,10000),/7.700 tokens disponíveis.*10.000/);
+assert.equal(walletsForOperation([{...admission,wallet:{...admission.wallet,unlimited:true}}],null,10000).length,1);
+assert.throws(()=>walletsForOperation([{...admission,license:{...admission.license,status:'suspended'}}],null,10000),/inativa/);
+assert.throws(()=>walletsForOperation([admission],admission.wallet.id,10000),/7.700/);
+assert.equal(walletsForOperation([{...admission,wallet:{...admission.wallet,used:190000}}],null,10000).length,1);
 console.log('PASS: explicit wallet selection, account isolation and no silent fallback.');
 
 // Load the real configuration with a fake SDK constructor; no paid request.

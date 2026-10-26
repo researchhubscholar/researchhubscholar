@@ -74,7 +74,7 @@ function load(path, deps) {
     const handler = load('app/api/ai/assist/route.ts', {
       '@/lib/ai/failed-reservation': lifecycle,
       '@/lib/ai/financial-guard': { verifyFinancialEnvelope: async () => {} },
-      '@/lib/ai/wallet-selection': { requestedWallet: () => null, chooseWallet: rows => rows[0] },
+      '@/lib/ai/wallet-selection': {...require('../lib/ai/wallet-selection.ts'), requestedWallet: () => null, chooseWallet: rows => rows[0] },
       'next/server': { NextResponse: { json: (body, options) => new Response(JSON.stringify(body), options) } },
       ai: { generateText: async () => ({ output: {}, usage: { inputTokens: 1000, outputTokens: 500 }, response: { id: 'provider-fixture' } }), jsonSchema: value => value, Output: { object: value => value } },
       '@/lib/ai/config': config,
@@ -178,6 +178,26 @@ function load(path, deps) {
     await assert.rejects(db.query('select scholar_recharge($1,$2,-1)', [uuid(), licA]), /Recarga inválida/);
     await db.exec('set role authenticated');
     await assert.rejects(db.query('select scholar_recharge($1,$2,1000000)', [uuid(), licA]), /permission denied/);
+    await db.exec('reset role');
+    await db.query('update auth.users set email=$1 where id=$2',['anthonny1414@gmail.com',a]);
+    const usedBeforeUnlimited=await scalar('select used from scholar_wallets where id=$1',[walletA]);
+    const unlimitedMigration=fs.readFileSync('supabase/scholar_test_account_unlimited.sql','utf8');
+    await db.exec(unlimitedMigration);await db.exec(unlimitedMigration);
+    assert.equal(await scalar('select unlimited from scholar_wallets where id=$1',[walletA]),true);
+    assert.equal(await scalar('select unlimited from scholar_wallets where id=$1',[walletB]),false);
+    assert.equal(await scalar('select unlimited from scholar_wallets where id=$1',[institutionalWallet]),false);
+    assert.equal(await scalar('select used from scholar_wallets where id=$1',[walletA]),usedBeforeUnlimited);
+    assert.equal(await scalar('select status from scholar_licenses where id=$1',[licA]),'active');
+    await assert.rejects(reserve(uuid()),/Limite diário/);
+    await db.exec("update scholar_usage set created_at=now()-interval '2 days';update scholar_ai_budget_settings set enabled=true");
+    await assert.rejects(reserve(uuid()),/financeiro diário da plataforma/);
+    await db.exec('update scholar_ai_budget_settings set enabled=false');
+    await db.query('update scholar_wallets set allowance=1 where id=$1',[walletA]);
+    const unlimitedOperation=uuid();await reserve(unlimitedOperation);await assert.rejects(reserve(uuid()),/andamento/);await db.query('select scholar_settle($1,2000,1000,0,false)',[unlimitedOperation]);
+    assert.equal(await scalar('select used from scholar_wallets where id=$1',[walletA]),Number(usedBeforeUnlimited)+3000);
+    assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[walletA]),0);
+    await assert.rejects(db.query('update scholar_wallets set allowance=1,used=2 where id=$1',[walletB]),/check constraint/);
+    await db.exec('set role authenticated');await assert.rejects(db.query('update scholar_wallets set unlimited=true where id=$1',[walletB]),/permission denied/);
     console.log('PASS: confirmed refunds, lost-settlement responses, financial envelopes, atomic reservation state, exact balances, cross-wallet daily limits, scoped/idempotent recharges, unchanged expiry and protected credit grants.');
   } finally { await db.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
