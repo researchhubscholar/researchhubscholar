@@ -38,7 +38,7 @@ export default function AccountPage() {
       db.from("profiles").select("name,institution,specialty").eq("id",user.id).maybeSingle(),
       db.from("scholar_support_requests").select("id,category,subject,status,created_at,updated_at").eq("owner_id",user.id).order("updated_at",{ascending:false}),
       db.from("scholar_support_messages").select("id,request_id,sender_type,message,created_at").eq("owner_id",user.id).order("created_at",{ascending:true}),
-      db.from("scholar_account_requests").select("id,status,requested_at,scheduled_for").eq("owner_id",user.id).eq("status","pending").maybeSingle(),
+      db.from("scholar_account_requests").select("id,status,requested_at,scheduled_for").eq("owner_id",user.id).in("status",["pending","processing"]).maybeSingle(),
     ]);
     if(profileResult.data)setProfile(profileResult.data);
     const ready=!requestResult.error&&!messageResult.error&&!accountResult.error;
@@ -103,7 +103,7 @@ export default function AccountPage() {
   async function cancelDeletion() {
     if(!deletion||busy)return;setBusy(true);
     const result=await supabaseBrowser().rpc("scholar_cancel_account_deletion",{p_request_id:deletion.id});setBusy(false);
-    if(result.error||!result.data){setMessage("Não foi possível cancelar a solicitação.");return;}
+    if(result.error||!result.data){setMessage("A solicitação não está mais disponível para cancelamento. Atualize a página para conferir se o processamento já começou.");return;}
     setDeletion(null);setMessage("Solicitação de exclusão cancelada.");
   }
 
@@ -155,7 +155,7 @@ export default function AccountPage() {
 
     <section className="mt-6 border border-red-200 bg-red-50 rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl text-red-800">Excluir minha conta</h2>
-      {deletion?<><p className="text-sm text-red-800 mt-3">Solicitação registrada em {new Date(deletion.requested_at).toLocaleDateString("pt-BR")}. Processamento previsto após {new Date(deletion.scheduled_for).toLocaleDateString("pt-BR")}.</p><p className="text-xs text-red-700 mt-2">Até o processamento, sua conta e seus dados continuam disponíveis.</p><button type="button" disabled={busy} onClick={cancelDeletion} className="mt-4 bg-white border border-red-300 text-red-800 px-4 py-2 rounded-card">Cancelar exclusão</button></>:<>
+      {deletion?<><p className="text-sm text-red-800 mt-3">Solicitação registrada em {new Date(deletion.requested_at).toLocaleDateString("pt-BR")}. Processamento previsto após {new Date(deletion.scheduled_for).toLocaleDateString("pt-BR")}.</p><p className="text-xs text-red-700 mt-2">{deletion.status==="processing"?"A execução foi iniciada. O cancelamento não está mais disponível; a equipe está conferindo o resultado.":"Até o processamento, sua conta e seus dados continuam disponíveis."}</p><button type="button" disabled={busy||deletion.status==="processing"} onClick={cancelDeletion} className="mt-4 bg-white border border-red-300 text-red-800 px-4 py-2 rounded-card">Cancelar exclusão</button></>:<>
         <p className="text-sm text-red-800 mt-3">A solicitação terá um prazo de segurança de sete dias. Depois desse período, a equipe poderá excluir autenticação, projetos, biblioteca e demais dados associados.</p>
         <label className="block text-sm text-red-900 mt-4">Digite <strong>EXCLUIR</strong> para confirmar<input value={confirmText} onChange={e=>setConfirmText(e.target.value)} className="block w-full max-w-sm border border-red-300 rounded-card p-3 mt-2 bg-white"/></label>
         <button type="button" disabled={busy||confirmText!=="EXCLUIR"||!moduleReady} onClick={requestDeletion} className="mt-4 bg-red-700 text-white px-5 py-3 rounded-card disabled:opacity-40">Solicitar exclusão</button>

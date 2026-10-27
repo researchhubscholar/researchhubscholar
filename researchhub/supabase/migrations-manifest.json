@@ -235,6 +235,19 @@
       "repeatability": "tested-repeatable"
     },
     {
+      "file": "scholar_account_deletion.sql",
+      "sha256": "668f17046b9d3cee7dc7d47fe0c06ca81a7b93053878491389c6d863611c8ab7",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_account_support.sql",
+        "scholar_operations.sql",
+        "scholar_access.sql",
+        "scholar_manuscript.sql",
+        "scholar_results.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
       "file": "scholar_idea_history.sql",
       "sha256": "fa75c3e67832b357bb0306f0ccfe689ca78550fec75de06b18728e9a4d7b8f49",
       "kind": "compatibility-only",

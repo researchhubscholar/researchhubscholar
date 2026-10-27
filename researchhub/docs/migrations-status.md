@@ -26,3 +26,15 @@ Próximos passos desta frente:
    não substituem esse ensaio nem autorizam execução em lote.
 4. Adotar registro de execução para migrations futuras, sem marcar antigas como
    instaladas automaticamente.
+
+## Diagnóstico estrutural disponível após a nova migration
+
+Operação → Revisar exclusões → Conferir estruturas deste ambiente informa o
+ambiente de deploy, hostname público do banco e horário da consulta. Verifica
+presença de tabelas, RLS e assinaturas de funções essenciais. Não registra
+retroativamente migrations como aplicadas. Instalação e homologação reais de
+`scholar_account_deletion.sql` ainda precisam ser confirmadas pelo operador.
+
+O teste de exclusão instala os módulos de schema do inventário em PostgreSQL de
+teste, incluindo reexecução desta migration. Isso melhora a evidência de ordem,
+sem substituir a homologação em um Supabase descartável real.

@@ -28,24 +28,65 @@ A leitura é ao vivo, sem snapshot transacional; evitar edições concorrentes.
 O JSON é portabilidade/conferência, não um backup restaurável. Alguns comentários
 podem constar no contexto do projeto e também na seção de autoria.
 
-## Exclusão de conta — pendente
+## Exclusão administrativa — implementada, homologação pendente
 
-O sistema registra/cancela pedidos e a operação lista pendências. Não há executor
-homologado nesta entrega. Nenhuma conta real foi excluída e nenhum job automático
-de exclusão foi ativado.
+Instalar `supabase/scholar_account_deletion.sql` depois de conta/suporte,
+operação, acesso, manuscrito e resultados. Reexecutável; instalar não processa
+nenhum pedido, não concede papéis e não ativa cron de exclusão.
 
-Antes da execução administrativa:
+Operação → Revisar exclusões é restrito ao papel `owner`. Revisar a conta e seus
+contadores, digitar o e-mail atual e clicar em excluir. A API valida sessão,
+papel e origem; o banco valida novamente papel, pedido pendente, e-mail, sete
+dias desde a solicitação e data prevista. O alvo vem do banco, não do navegador.
+A conta do próprio operador e contas com papel de gestão são bloqueadas.
 
-- Resolver no servidor a disputa entre cancelar e executar, respeitando o pedido
-  pendente e os sete dias de segurança.
-- Revisar cascatas, compartilhamentos, último diretor/responsável institucional
-  e eventuais arquivos em Storage/serviços externos.
-- Restringir execução ao responsável autorizado, com revisão explícita da conta.
-- Registrar processamento/falha/repetição sem guardar o conteúdo científico excluído.
-- Testar conta descartável com todos os módulos: autenticação removida, cascatas,
-  acesso revogado e preservação das contas/projetos de terceiros.
-- Documentar os limites de retenção em backups, logs e serviços externos sem
-  prometer remoção imediata de tudo.
+A admissão trava o pedido e muda para `processing`, impedindo cancelamento ou
+execução duplicada. Também bloqueia último diretor ativo, operações de IA
+reservadas e arquivos no Storage, inclusive propriedade legada. Arquivos nunca
+são removidos diretamente por SQL: resolver a propriedade/remoção pelo fluxo
+adequado de Storage antes de excluir. As condições são revalidadas por trigger
+na transação efetiva do Auth, para cobrir mudanças após a admissão.
 
-A etapa 2 segue aberta até esse fluxo, a conferência por ambiente e a validação
-autenticada de uma exportação representativa estarem concluídos.
+A exclusão usa `auth.admin.deleteUser(id, false)` somente no backend. As cascatas
+removem os registros vinculados à conta e aos seus projetos. O comprovante fica
+em tabela separada, sem FK ao usuário/pedido, sem e-mail e sem conteúdo científico:
+identificadores técnicos, situação, datas, tentativas e código de falha.
+
+`Verificar resultado` consulta a existência no banco e atualiza o comprovante;
+nunca chama a exclusão. Falha definitiva 4xx (exceto timeout) pode devolver o
+pedido a pendente para revisão/cancelamento. Falha de rede, 5xx ou perda da
+resposta mantém processamento e bloqueia repetição/cancelamento automáticos.
+Se o usuário já foi removido e faltou atualizar o comprovante, verificar conclui
+o registro. Se a conta ainda existe com resultado incerto, investigar o Auth e
+seus logs antes de qualquer liberação administrativa; não há botão de forçar.
+
+A tela Conta diferencia pedido pendente de processamento iniciado. Novos pedidos
+não duplicam um processamento existente. Comprovantes do próprio usuário entram
+na exportação, sujeitos à RLS; nenhum cliente pode alterar ou iniciar execuções
+pela tabela de comprovantes ou pelas funções privadas.
+
+Diagnóstico estrutural: identifica ambiente, hostname público do banco, horário,
+tabelas, RLS e funções essenciais. Não comprova políticas completas nem histórico
+de execução de todas as migrations; essa conferência por ambiente segue aberta.
+
+### Verificações antes de concluir a etapa 2
+
+- Instalar a migration e homologar no Preview com conta descartável, sem dados reais.
+- Conferir SDK/Auth reais, sessão inválida após remoção, Storage e preservação de terceiros.
+- Validar cancelamento antes da admissão, bloqueio após início, impedimentos e recuperação.
+- Conferir exportação autenticada e registrar evidência por ambiente/migration.
+- Revisar retenção dos comprovantes e procedimentos para resultados incertos.
+
+Os testes automatizados instalam os módulos de schema em PostgreSQL de teste e
+simulam a transação do Auth, além de exercer a API e os componentes reais com
+serviços simulados. Não constituem exclusão de conta real nem validação de
+permissões do projeto Supabase em produção. Nenhuma conta real foi excluída.
+
+Downloads, cópias locais do navegador e retenção em backups/logs/serviços externos
+não são apagados por esse fluxo. Um JWT pode permanecer válido até expirar; o
+aplicativo verifica o usuário nos fluxos protegidos e não promete apagar dados
+já carregados em outros dispositivos.
+
+Referências oficiais consultadas:
+- https://supabase.com/docs/reference/javascript/auth-admin-deleteuser
+- https://supabase.com/docs/guides/auth/managing-user-data

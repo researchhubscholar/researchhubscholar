@@ -63,3 +63,18 @@ antes ausentes, manifesto por seção e indicação de arquivo parcial. Inventá
 de migrations com hashes no repositório não equivale a histórico aplicado no
 banco. Conferência por ambiente e executor de exclusão continuam pendentes.
 Ver `migrations-status.md` e `account-data-operations.md`.
+
+## Etapa 2 — processamento administrativo preparado em 27/10/2026
+
+Nova migration `scholar_account_deletion.sql`: admissões serializadas com pedidos,
+comprovantes mínimos, bloqueios institucionais/Storage/operação ativa e guardas
+revalidadas na exclusão efetiva. A instalação não remove nenhuma conta.
+
+Operação, papel owner: revisar conta, digitar e-mail atual, executar pelo Auth no
+backend e verificar resultado incerto sem repetir a exclusão. Conta acompanha
+`processing`; cancelamento vale somente antes da admissão. Há diagnóstico de
+estruturas/RLS por ambiente, que não presume histórico de migrations aplicado.
+
+Testes SQL, API e componentes usam dados sintéticos. Nenhuma conta real foi
+excluída. Instalação da nova migration, homologação com Auth/Storage reais e
+conferência do histórico por ambiente continuam pendentes antes de concluir a etapa 2.

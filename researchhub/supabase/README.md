@@ -49,3 +49,14 @@ Após manuscrito e resultados instalados, aplicar somente `scholar_safe_saves.sq
 É reexecutável e preserva os dados. Atualizar todas as abas após aplicar. Não
 reexecutar o instalador histórico. Até instalar, os novos salvamentos são bloqueados
 com explicação. Verificações: `../docs/consolidation-plan.md`.
+
+## Consolidação — exclusão administrativa
+
+Aplicar `scholar_account_deletion.sql` após os módulos de conta/suporte, operação,
+acesso, manuscrito e resultados. Reexecutável. Instalar não executa exclusões e
+não cria agendamento automático. As ações aparecem em Operação somente para
+o papel `owner` já existente; a migration não concede esse papel a ninguém.
+
+Antes de usar em conta real, homologar com conta descartável no Preview: prazo,
+cancelamento, confirmações, arquivos, vínculos e resultado do Auth. Referência:
+`../docs/account-data-operations.md`.

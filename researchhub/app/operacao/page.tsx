@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import DeletionOperations from "@/components/account/deletion-operations";
 import { useEffect,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -14,6 +15,7 @@ const moduleLabels:Record<string,string>={dashboard:"Meu espaço",radar:"Radar",
 const supportLabels:Record<string,string>={open:"Aberto",in_progress:"Em atendimento",resolved:"Resolvido",closed:"Encerrado"};
 
 export default function OperationPage(){
+  const [operatorRole,setOperatorRole]=useState("");
   const [summary,setSummary]=useState<Summary|null>(null);const [activity,setActivity]=useState<Activity[]>([]);
   const [tickets,setTickets]=useState<Ticket[]>([]);const [errors,setErrors]=useState<ErrorItem[]>([]);const [deletions,setDeletions]=useState<Deletion[]>([]);
   const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [denied,setDenied]=useState(false);
@@ -25,6 +27,7 @@ export default function OperationPage(){
     const admin=await db.from("scholar_platform_admins").select("role").eq("user_id",auth.user.id).maybeSingle();
     if(admin.error){setMessage("Execute scholar_operations.sql para ativar o painel.");setLoading(false);return;}
     if(!admin.data){setDenied(true);setLoading(false);return;}
+    setOperatorRole(admin.data.role);
     const [s,a,t,e,d]=await Promise.all([
       db.rpc("scholar_operation_summary"),db.rpc("scholar_operation_activity",{p_days:14}),
       db.rpc("scholar_operation_support"),db.rpc("scholar_operation_errors"),db.rpc("scholar_operation_deletions"),
@@ -75,6 +78,6 @@ export default function OperationPage(){
 
     <section className="mt-7"><h2 className="font-display text-2xl">Erros recentes</h2><div className="space-y-3 mt-4">{errors.map(item=><article key={item.id} className="bg-white border border-line rounded-card p-4 flex flex-wrap justify-between gap-4"><div><div className="flex gap-2 text-xs"><span className={item.status==="open"?"text-red-700":"text-teal"}>{item.status==="open"?"Aberto":"Resolvido"}</span><span>{moduleLabels[item.module]||item.module}</span><span>{item.error_code}</span></div><p className="text-sm mt-2">{item.message}</p><p className="text-[11px] text-ink-soft mt-2">{item.route} · {item.user_email||"conta removida"} · {new Date(item.last_seen_at).toLocaleString("pt-BR")}</p></div>{item.status==="open"&&<button type="button" disabled={busy} onClick={()=>resolveError(item.id)} className="text-sm text-teal underline self-start">Marcar resolvido</button>}</article>)}{!errors.length&&<p className="text-sm text-ink-soft">Nenhum erro registrado.</p>}</div></section>
 
-    <section className="mt-7 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Exclusões pendentes</h2><div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr><th className="p-2">Usuário</th><th className="p-2">Solicitada</th><th className="p-2">Prevista</th></tr></thead><tbody>{deletions.map(item=><tr key={item.id} className="border-t"><td className="p-2">{item.user_name||item.user_email}</td><td className="p-2">{new Date(item.requested_at).toLocaleDateString("pt-BR")}</td><td className="p-2">{new Date(item.scheduled_for).toLocaleDateString("pt-BR")}</td></tr>)}</tbody></table></div>{!deletions.length&&<p className="text-sm text-ink-soft mt-3">Nenhuma exclusão pendente.</p>}</section>
+    {operatorRole==="owner"?<DeletionOperations/>:<p className="mt-7 text-sm text-ink-soft">{deletions.length} solicitações de exclusão pendentes. O processamento é restrito ao responsável da plataforma.</p>}
   </div>;
 }

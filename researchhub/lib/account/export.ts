@@ -39,6 +39,7 @@ export const accountExportSources:Source[]=[
  {key:"scientificEvaluations",label:"Avaliações científicas",table:"scholar_ai_evaluations",owner:"evaluator_id",order:["usage_id"]},
  {key:"supportRequests",label:"Chamados",table:"scholar_support_requests",owner:"owner_id"},
  {key:"supportMessages",label:"Mensagens de suporte",table:"scholar_support_messages",owner:"owner_id"},
+ {key:"accountDeletionReceipts",label:"Processamento da exclusão",table:"scholar_account_deletion_runs",owner:"user_id",order:["request_id"]},
  {key:"accountRequests",label:"Solicitações da conta",table:"scholar_account_requests",owner:"owner_id"},
  {key:"productEvents",label:"Eventos de uso",table:"scholar_product_events",owner:"owner_user_id"},
  {key:"errorEvents",label:"Erros da conta",table:"scholar_error_events",owner:"owner_user_id"},
