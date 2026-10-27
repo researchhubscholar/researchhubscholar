@@ -5,7 +5,7 @@ e monetização ficam fora deste ciclo. Nenhuma etapa está concluída ainda.
 
 1. **Proteger o trabalho — implementação da primeira entrega.** Projeto correto,
    navegação com salvar/continuar/descartar, conflito entre abas e transação do manuscrito.
-2. **Gestão dos dados — pendente.** Exportação completa e paginada, migrations
+2. **Gestão dos dados — em implementação (primeira entrega: exportação).** Exportação completa e paginada, migrations
    rastreáveis e execução comprovada da exclusão de conta.
 3. **Jornada completa — pendente.** Ideia até exportação, persistência, contas
    distintas, permissões, desktop e celular.
@@ -51,3 +51,15 @@ cobrem conflito, criação sem sobrescrita, rollback, propriedade, seleção rea
 páginas, navegação e autosave após descartar. Os testes usam banco de teste e
 harnesses de componentes; não equivalem a navegador autenticado no Supabase real.
 Instalação da migration e validação autenticada/mobile continuam pendentes.
+
+## Retorno do usuário em 27/10/2026
+
+`scholar_safe_saves.sql` aplicado com sucesso, conforme retorno do usuário.
+Validação autenticada da etapa 1 continua em andamento. O usuário autorizou
+iniciar a etapa 2 em paralelo enquanto testa a primeira.
+
+Etapa 2, primeira entrega: exportação v2 paginada/em fluxo, dados científicos
+antes ausentes, manifesto por seção e indicação de arquivo parcial. Inventário
+de migrations com hashes no repositório não equivale a histórico aplicado no
+banco. Conferência por ambiente e executor de exclusão continuam pendentes.
+Ver `migrations-status.md` e `account-data-operations.md`.

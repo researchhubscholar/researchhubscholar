@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { accountExportSummary,accountExportMessage,type ExportSummary } from "@/lib/account/export-client";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Profile = { name: string | null; institution: string | null; specialty: string | null };
@@ -23,6 +24,9 @@ export default function AccountPage() {
   const [message,setMessage]=useState("");
   const [moduleReady,setModuleReady]=useState(true);
   const [confirmText,setConfirmText]=useState("");
+  const [exportSummary,setExportSummary]=useState<ExportSummary|null>(null);
+  const exportLock=useRef(false);
+  const exportController=useRef<AbortController|null>(null);
 
   async function load() {
     const db=supabaseBrowser();
@@ -43,7 +47,7 @@ export default function AccountPage() {
     setLoading(false);
   }
 
-  useEffect(()=>{void load();},[]);
+  useEffect(()=>{void load();return()=>{exportController.current?.abort();};},[]);
 
   async function saveProfile(e:React.FormEvent) {
     e.preventDefault();if(!userId||busy)return;setBusy(true);setMessage("");
@@ -72,15 +76,20 @@ export default function AccountPage() {
   }
 
   async function exportData() {
-    if(busy)return;setBusy(true);setMessage("");
+    if(busy||exportLock.current)return;exportLock.current=true;const controller=new AbortController();exportController.current=controller;setBusy(true);setMessage("");setExportSummary(null);
     try{
-      const response=await fetch("/api/account/export");
-      if(!response.ok)throw new Error("Falha");
-      const blob=await response.blob();const url=URL.createObjectURL(blob);
-      const anchor=document.createElement("a");anchor.href=url;anchor.download=`researchhub-scholar-dados-${new Date().toISOString().slice(0,10)}.json`;anchor.click();
-      URL.revokeObjectURL(url);setMessage("Arquivo de dados preparado.");
-    }catch{setMessage("Não foi possível exportar os dados agora.");}
-    finally{setBusy(false);}
+      const response=await fetch("/api/account/export",{cache:"no-store",signal:controller.signal});
+      if(!response.ok)throw new Error(response.status===401?"Sua sessão expirou. Entre novamente antes de exportar.":"Não foi possível exportar os dados agora.");
+      let payload;
+      try{payload=await response.json();}catch{throw new Error("A exportação foi interrompida. Nenhum arquivo foi preparado. Tente novamente.");}
+      if(controller.signal.aborted)return;
+      if(payload.account?.id!==userId)throw new Error("A conta mudou. Atualize a página antes de exportar.");
+      const summary=accountExportSummary(payload);
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob);
+      try{const anchor=document.createElement("a");anchor.href=url;anchor.download=`researchhub-scholar-dados${summary.status==="partial"?"-parcial":""}-${new Date().toISOString().slice(0,10)}.json`;anchor.click();}finally{window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
+      setExportSummary(summary);
+    }catch(error){if(!controller.signal.aborted)setMessage(error instanceof Error?error.message:"A exportação foi interrompida. Tente novamente.");}
+    finally{exportController.current=null;exportLock.current=false;setBusy(false);}
   }
 
   async function requestDeletion() {
@@ -123,8 +132,9 @@ export default function AccountPage() {
 
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl">Exportar meus dados</h2>
-      <p className="text-sm text-ink-soft mt-2">Baixe um arquivo JSON com perfil, projetos, biblioteca, matriz, ideias, buscas, jornada, uso e solicitações vinculadas à sua conta.</p>
-      <button type="button" disabled={busy} onClick={exportData} className="mt-4 border border-teal text-teal px-5 py-3 rounded-card disabled:opacity-50">Baixar meus dados</button>
+      <p className="text-sm text-ink-soft mt-2">Baixe um arquivo JSON com os registros salvos: projetos, biblioteca, coleta, visitas, análises, manuscritos e versões, orientação, conversas e dados da conta. Evite editar durante a exportação. Rascunhos locais e arquivos externos não são incluídos.</p>
+      <button type="button" disabled={busy} onClick={exportData} className="mt-4 border border-teal text-teal px-5 py-3 rounded-card disabled:opacity-50">{busy?"Aguarde…":"Baixar meus dados"}</button>
+      {exportSummary&&<div className="mt-4 text-sm"><p role={exportSummary.status==="partial"?"alert":"status"} className={exportSummary.status==="partial"?"text-red-700":"text-teal"}>{accountExportMessage(exportSummary)}</p><details className="mt-3"><summary className="cursor-pointer text-teal">Conferir conteúdo do arquivo</summary><ul className="mt-3 space-y-1">{exportSummary.sections.map(section=><li key={section.key}>{section.label}: {section.rows} registros{section.status!=="complete"?" · incompleto ou indisponível":""}</li>)}</ul></details></div>}
     </section>
 
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
