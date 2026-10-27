@@ -77,3 +77,12 @@ seleção explícita e proteção de alterações não salvas foram preservados.
 Esta é uma primeira entrega da etapa, não uma auditoria visual autenticada. Ainda
 é preciso conferir estados reais, teclado e responsividade em desktop e celular,
 e revisar os demais cabeçalhos, mensagens e estados de salvamento.
+
+## Etapa 4 — clareza do estado de salvamento
+
+Resultados deixa de indicar carregamento contínuo quando houve falha ao abrir os
+dados; edição continua bloqueada e a mensagem mantém o motivo. Projeto já aberto
+passa a ser identificado como projeto carregado, em vez de novo rascunho. No
+Manuscrito, a mensagem de estado é anunciada a tecnologias assistivas e o texto
+explica que o salvamento automático precisa ser conferido, sem prometer sucesso.
+A avaliação visual autenticada permanece pendente.

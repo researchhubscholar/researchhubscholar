@@ -92,3 +92,6 @@ Seletores de projeto padronizados em Resultados, Manuscrito, Documentos e
 Orientação, incluindo escolha inicial e largura em celular. A validação visual
 autenticada e as demais partes da revisão permanecem pendentes. As etapas 2 e 3
 continuam abertas. Detalhes em `design-audit.md`.
+
+Continuidade da etapa 4: estados de carregamento/salvamento mais claros em
+Projeto, Resultados e Manuscrito; revisão autenticada e demais telas pendentes.
