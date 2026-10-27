@@ -9,7 +9,7 @@ e monetização ficam fora deste ciclo. Nenhuma etapa está concluída ainda.
    rastreáveis e execução comprovada da exclusão de conta.
 3. **Jornada completa — iniciada em paralelo; validação real pendente.** Ideia até exportação, persistência, contas
    distintas, permissões, desktop e celular.
-4. **Consistência visual — pendente.** Cabeçalhos, seletores, salvamento,
+4. **Consistência visual — iniciada em paralelo; validação real pendente.** Cabeçalhos, seletores, salvamento,
    mensagens, acessibilidade e hierarquia nas telas reais.
 5. **Qualidade e acompanhamento — pendente.** Avaliação humana de IA real,
    métricas dos pontos de falha/abandono e recuperação operacional.
@@ -85,3 +85,10 @@ Teste integrado em banco sintético para ideia, origem, biblioteca/matriz, resul
 manuscrito e isolamento entre contas. Roteiro reproduzível e critérios de evidência
 em `journey-validation.md`. Não houve teste autenticado de ponta a ponta nem em
 celular nesta rodada. A etapa 2 continua aberta até instalação e validação pendentes.
+
+## Etapa 4 — início em 27/10/2026
+
+Seletores de projeto padronizados em Resultados, Manuscrito, Documentos e
+Orientação, incluindo escolha inicial e largura em celular. A validação visual
+autenticada e as demais partes da revisão permanecem pendentes. As etapas 2 e 3
+continuam abertas. Detalhes em `design-audit.md`.

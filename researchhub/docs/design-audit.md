@@ -65,3 +65,15 @@ Camada de composição em `app/workspace.css`, restrita às áreas de trabalho: 
 Ideias usa três modos compactos com estado pressionado e descrição apenas do modo escolhido. Meu Projeto mantém o seletor visível, com tarefas e revisão de IA recolhidas em disclosures. Esses conteúdos permanecem montados para preservar rascunhos, prévias e resultados ao recolher. Assistente dá prioridade à conversa; ajuda/atalhos e guias de Resultados ficam em disclosures, com recomendações separadas por linhas em vez de novas caixas.
 
 Verificação: typecheck, lint, suíte funcional e build/smoke. O acesso visual ao Preview nesta sessão encontrou a autenticação da Vercel; a revisão visual com conta conectada continua necessária, inclusive em celular. Nenhuma mudança de permissão, dado, preço, franquia ou algoritmo de pesquisa/análise faz parte desta revisão.
+
+## Etapa 4 — início: contexto do projeto
+
+Seletores de Resultados, Manuscrito, Documentos e Orientação usam a mesma
+composição: rótulo “Projeto em uso”, campo legível e ação explícita para abrir.
+A escolha inicial usa o mesmo padrão. Superfícies redundantes foram removidas;
+em telas estreitas campo e botão ocupam a largura disponível. Formulários GET,
+seleção explícita e proteção de alterações não salvas foram preservados.
+
+Esta é uma primeira entrega da etapa, não uma auditoria visual autenticada. Ainda
+é preciso conferir estados reais, teclado e responsividade em desktop e celular,
+e revisar os demais cabeçalhos, mensagens e estados de salvamento.
