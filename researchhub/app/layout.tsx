@@ -1,3 +1,4 @@
+import NavigationProtection from "@/components/projects/navigation-protection";
 import { Suspense } from "react";
 import GlobalGuide from "@/components/ai/global-guide";
 import type { Metadata } from "next";
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">
+        <NavigationProtection />
         <ProductTelemetry />
         <Suspense fallback={null}><GlobalGuide /></Suspense>
         <header className="app-header">

@@ -1,3 +1,5 @@
+import ProjectChoice from "@/components/projects/project-choice";
+import { selectedProject } from "@/lib/projects/selection";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ManuscriptEditor from "@/components/manuscript/manuscript-editor";
@@ -10,22 +12,26 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
   const params = await searchParams;
-  const { data: projects } = await db.from("research_projects").select("id,owner_id,title,theme,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes").order("updated_at", { ascending: false });
-  const project = (projects || []).find(item => item.id === params.projeto) || (projects || [])[0];
-  if (!project) return <main className="scholar-workspace max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><section className="bg-white border border-line rounded-2xl p-7 mt-6"><h1 className="font-display text-3xl">Crie um projeto antes de escrever o artigo.</h1><p className="text-ink-soft mt-3">O manuscrito fica ligado ao protocolo, às referências e à matriz de evidências.</p><Link href="/ideias" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></section></main>;
+  const { data: projects, error: projectError } = await db.from("research_projects").select("id,owner_id,title,theme,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes").order("updated_at", { ascending: false });
+  if (projectError) return <p role="alert">Não foi possível carregar seus projetos. Atualize para tentar novamente.</p>;
+  const project = selectedProject(projects || [], params.projeto);
+  if (!project) return <ProjectChoice projects={projects || []} requested={params.projeto} path="/manuscrito" label="Manuscrito"/>;
 
   const isOwner = project.owner_id === user.id;
   const manuscriptResult = await db.from("scholar_manuscripts").select("*").eq("project_id", project.id).maybeSingle();
   const schemaMissing = Boolean(manuscriptResult.error && (manuscriptResult.error.code === "42P01" || manuscriptResult.error.message?.includes("schema cache")));
   if (schemaMissing) return <main className="scholar-workspace max-w-4xl mx-auto"><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><section className="bg-white border border-line rounded-2xl p-7 mt-6"><p className="text-xs uppercase tracking-widest text-teal">Editor de manuscrito</p><h1 className="font-display text-3xl mt-3">Ative o novo módulo no Supabase.</h1><p className="text-ink-soft mt-3">Execute o arquivo <strong>scholar_manuscript.sql</strong>. O projeto e os textos atuais não serão alterados.</p></section></main>;
+  if(manuscriptResult.error) return <p role="alert">Não foi possível carregar o manuscrito. A edição foi bloqueada para preservar o texto salvo.</p>;
   const manuscript = manuscriptResult.data;
-  const [{ data: sections }, { data: versions }, { data: directArticles }, { data: links }, commentsResult] = await Promise.all([
-    manuscript ? db.from("scholar_manuscript_sections").select("section_key,heading,content,position,updated_at").eq("manuscript_id", manuscript.id).order("position") : Promise.resolve({ data: [] }),
-    manuscript ? db.from("scholar_manuscript_versions").select("id,label,snapshot,created_at").eq("manuscript_id", manuscript.id).order("created_at", { ascending: false }).limit(12) : Promise.resolve({ data: [] }),
+  const [sectionsResult, versionsResult, { data: directArticles }, { data: links }, commentsResult] = await Promise.all([
+    manuscript ? db.from("scholar_manuscript_sections").select("section_key,heading,content,position,updated_at").eq("manuscript_id", manuscript.id).order("position") : Promise.resolve({ data: [], error: null }),
+    manuscript ? db.from("scholar_manuscript_versions").select("id,label,snapshot,created_at").eq("manuscript_id", manuscript.id).order("created_at", { ascending: false }).limit(12) : Promise.resolve({ data: [], error: null }),
     isOwner ? db.from("library_articles").select("id,title,authors,journal,publication_year,pmid,doi,abstract").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     isOwner ? db.from("library_article_projects").select("article_id").eq("owner_id", user.id).eq("project_id", project.id) : Promise.resolve({ data: [] }),
     manuscript ? db.from("scholar_manuscript_comments").select("id,manuscript_id,project_id,author_id,section_key,body,quoted_text,status,resolved_at,resolved_by,created_at").eq("manuscript_id", manuscript.id).order("created_at") : Promise.resolve({ data: [], error: null }),
   ]);
+  if(sectionsResult.error || versionsResult.error) return <p role="alert">Não foi possível carregar todas as seções e versões. A edição foi bloqueada para preservar o manuscrito.</p>;
+  const sections=sectionsResult.data, versions=versionsResult.data;
   const linkedIds = (links || []).map(row => row.article_id);
   const { data: linkedArticles } = linkedIds.length ? await db.from("library_articles").select("id,title,authors,journal,publication_year,pmid,doi,abstract").eq("owner_id", user.id).in("id", linkedIds) : { data: [] };
   const articleMap = new Map([...(directArticles || []), ...(linkedArticles || [])].map(article => [article.id, article]));

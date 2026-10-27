@@ -97,9 +97,9 @@ function handler(dependencies) { const module = { exports: {} }; vm.runInNewCont
    if (table === 'research_projects') return { data: filters.owner_id === 'owner-a' && filters.id === 'project-a' ? { id: 'project-a' } : null };
    const row = stored.get(filters.project_id); return { data: row?.owner_id === filters.owner_id ? row : null };
   }, async upsert(row) { stored.set(row.project_id, row); return { error: null }; } }; return chain;
- } };
- const api = handler({ 'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), { status: init?.status || 200 }) } }, '@/lib/supabase/server': { supabaseServer: async () => db }, '@/lib/results/data': data });
- const put = workspace => api.PUT({ text: async () => JSON.stringify({ project: 'project-a', workspace }) });
+ }, async rpc(name,args){assert.equal(name,'scholar_save_results');const row={project_id:args.p_project,owner_id:owner,workspace:args.p_workspace,revision:(stored.get(args.p_project)?.revision||0)+1};stored.set(args.p_project,row);return{data:{revision:row.revision},error:null};} };
+ const api = handler({ 'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), { status: init?.status || 200 }) } }, '@/lib/supabase/server': { supabaseServer: async () => db }, '@/lib/results/data': data, '@/lib/projects/save-errors':require('../lib/projects/save-errors.ts') });
+ const put = workspace => api.PUT({ text: async () => JSON.stringify({ project: 'project-a', workspace,expectedRevision:stored.get('project-a')?.revision??null }) });
  assert.equal((await put(w)).status, 200);
  const response = await api.GET({ nextUrl: new URL('https://local/api/results?project=project-a') }); assert.deepEqual((await response.json()).workspace, clone(w));
  const compared = { ...w, comparison: { fieldKey: 'v_group', groups: ['0', '1'], analysis: { kind: 'welch', x: 'Idade', y: 'Grupo', independent: false } } };

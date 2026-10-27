@@ -42,3 +42,10 @@ Não rode novamente a sequência inteira. Alguns arquivos usam `create table` e 
 - nunca exponha a chave `service_role` no navegador ou na Vercel como `NEXT_PUBLIC_*`;
 - toda tabela com dados de usuário deve ter RLS e políticas testadas;
 - mudanças futuras devem ser adicionadas em novos arquivos de migração, sem editar uma migração já aplicada em produção.
+
+## Consolidação — etapa 1
+
+Após manuscrito e resultados instalados, aplicar somente `scholar_safe_saves.sql`.
+É reexecutável e preserva os dados. Atualizar todas as abas após aplicar. Não
+reexecutar o instalador histórico. Até instalar, os novos salvamentos são bloqueados
+com explicação. Verificações: `../docs/consolidation-plan.md`.

@@ -166,7 +166,7 @@ assert(usageAlert(750,1000).includes('75%'));assert(usageAlert(900,1000).include
  assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[personalWallet]),0);
  await as(outsider);await assert.rejects(db.query('select * from scholar_ai_budget_settings'),/permission denied/);
  await db.exec('reset role');
- for(const migration of ['scholar_results.sql','scholar_institutional_roles.sql','scholar_ai_evaluation.sql']) {await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));}
+ for(const migration of ['scholar_results.sql','scholar_institutional_roles.sql','scholar_ai_evaluation.sql','scholar_safe_saves.sql']) {await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));await db.exec(fs.readFileSync('supabase/'+migration,'utf8'));}
  const resultWorkspace=JSON.stringify({dataset:{columns:['Grupo'],rows:[['A']]},figure:{column:'Grupo',kind:'bar',title:'Grupo',caption:''},flow:[],notes:''});
  await as(resident);await db.query('insert into scholar_project_results(project_id,owner_id,workspace) values($1,$2,$3)',[project,resident,resultWorkspace]);
  await as(director);assert.equal((await db.query('select * from scholar_project_results')).rows.length,0);

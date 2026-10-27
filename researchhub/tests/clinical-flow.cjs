@@ -34,10 +34,11 @@ function harness(initial = null) {
   '@/components/ai/assistant-panel': { default: 'assistant' }, '@/lib/clinical/suggestions':require('../lib/clinical/suggestions.ts'),
  });
  const Editor = load('components/results/editor.tsx', parentHooks.react, {
+  '@/components/projects/use-unsaved-changes':{useUnsavedChanges(){}},
   '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
   './inference-panel': { default: 'inference' }, './saved-readings': { default: 'saved-readings' }, '@/components/ai/project-guide': {default:'project-guide'}, 'next/link': { default: 'link' }, '@/lib/results/data': data,
   '@/lib/results/transfer':require('../lib/results/transfer.ts'),'@/lib/ai/guide':require('../lib/ai/guide.ts'),'@/lib/ai/guide-actions':require('../lib/ai/guide-actions.ts'),'@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
- }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true }) }; } return { ok: true, json: async () => ({ workspace: persisted }) }; } });
+ }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true, revision: 1 }) }; } return { ok: true, json: async () => ({ workspace: persisted, revision: persisted?1:null }) }; } });
  const renderParent = () => parentHooks.render(() => Editor({ projectId: 'project-a', title: 'Estudo de perfil', protocol }));
  const props = () => nodes(renderParent()).find(node => node.type === Panel).props;
  const render = () => panelHooks.render(() => Panel(props()));

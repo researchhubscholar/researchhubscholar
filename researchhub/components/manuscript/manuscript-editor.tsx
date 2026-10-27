@@ -1,4 +1,6 @@
 "use client";
+import { useUnsavedChanges } from "@/components/projects/use-unsaved-changes";
+import { saveError } from "@/lib/projects/save-errors";
 import ResultsTransferPanel from "./results-transfer";
 import { lastResultsStamp, resultsChecklist } from "@/lib/results/transfer";
 import { preserveVersion } from "@/lib/projects/preserve-version";
@@ -17,7 +19,7 @@ import { downloadBinary } from "@/lib/exports/ooxml";
 import { formattedReference, formattedCitedReferences } from "@/lib/projects/references";
 
 type Project = ManuscriptProject & { id: string; title?: string | null; theme?: string | null };
-type Manuscript = { id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
+type Manuscript = { revision?: number; id: string; title: string; subtitle: string; authors?: unknown; affiliations?: unknown; keywords?: string[]; article_type: string; target_journal: string; citation_style?: string; citation_ids?: string[]; language: string; status: string } | null;
 type Section = { section_key: string; heading: string; content: string; position: number; updated_at?: string };
 type Version = { id: string; label: string; snapshot: unknown; created_at: string };
 type Article = { id: string; title: string; authors: unknown; journal?: string | null; publication_year: number | null; pmid: string | null; doi: string | null; abstract?: string | null; evidence?: Record<string, unknown> | null };
@@ -78,6 +80,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
+  const discardedEdits = useRef(false);
+  const savedRevision = useRef<number|null>(initialManuscript?.revision ?? null);
   const versionLock = useRef(false);
   const [versionSaving, setVersionSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -133,7 +137,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   useEffect(() => {
     if (!dirty || !canEdit) return;
     const backup = window.setTimeout(() => {
-      try { window.localStorage.setItem(`scholar-manuscript:${ownerId}:${project.id}`, JSON.stringify(stateRef.current)); } catch { /* Account save remains available. */ }
+      try { if(!discardedEdits.current) window.localStorage.setItem(`scholar-manuscript:${ownerId}:${project.id}`, JSON.stringify(stateRef.current)); } catch { /* Account save remains available. */ }
     }, 300);
     const autosave = window.setTimeout(() => { void save(false); }, 1800);
     return () => { window.clearTimeout(backup); window.clearTimeout(autosave); };
@@ -141,43 +145,30 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canEdit, dirty, title, subtitle, authors, affiliations, keywords, articleType, targetJournal, citationStyle, citationIds, status, sections]);
 
-  useEffect(() => {
-    const prevent = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
-    window.addEventListener("beforeunload", prevent);
-    return () => window.removeEventListener("beforeunload", prevent);
-  }, [dirty]);
-
-  function markMetadata(setter: (value: string) => void, value: string) { setter(value); setDirty(true); setMessage("Alterações ainda não salvas."); }
-  function updateSection(key: string, content: string) { setSections(current => current.map(section => section.section_key === key ? { ...section, content } : section)); setDirty(true); setMessage("Alterações ainda não salvas."); }
+  function markMetadata(setter: (value: string) => void, value: string) { discardedEdits.current=false; setter(value); setDirty(true); setMessage("Alterações ainda não salvas."); }
+  function updateSection(key: string, content: string) { discardedEdits.current=false; setSections(current => current.map(section => section.section_key === key ? { ...section, content } : section)); setDirty(true); setMessage("Alterações ainda não salvas."); }
 
   async function save(showConfirmation = true) {
-    if (!canEdit || saveLock.current) return false;
+    if (!canEdit || saveLock.current || discardedEdits.current) return false;
     saveLock.current = true; setSaving(true);
     const current = stateRef.current;
     try {
       const db = supabaseBrowser();
-      let id = current.manuscriptId;
       const metadata = { owner_id: ownerId, project_id: project.id, title: current.title.trim(), subtitle: current.subtitle.trim(), authors: current.authors.split("\n").map(value => value.trim()).filter(Boolean), affiliations: current.affiliations.split("\n").map(value => value.trim()).filter(Boolean), keywords: current.keywords.split(",").map(value => value.trim()).filter(Boolean), article_type: current.articleType, target_journal: current.targetJournal.trim(), citation_style: current.citationStyle, citation_ids: current.citationIds, language: "pt-BR", status: current.status };
-      if (!id) {
-        const { data, error } = await db.from("scholar_manuscripts").insert(metadata).select("id").single();
-        if (error || !data) throw error || new Error("Manuscrito não criado");
-        id = data.id; setManuscriptId(id); stateRef.current.manuscriptId = id;
-      } else {
-        const { error } = await db.from("scholar_manuscripts").update(metadata).eq("id", id).eq("owner_id", ownerId);
-        if (error) throw error;
-      }
-      const rows = current.sections.map(section => ({ manuscript_id: id, owner_id: ownerId, section_key: section.section_key, heading: section.heading, content: section.content, position: section.position }));
-      const { error: sectionError } = await db.from("scholar_manuscript_sections").upsert(rows, { onConflict: "manuscript_id,section_key" });
-      if (sectionError) throw sectionError;
+      const {data,error}=await db.rpc("scholar_save_manuscript", {p_project:project.id,p_expected:savedRevision.current,p_data:metadata,p_sections:current.sections});
+      if(error || !data) throw saveError(error);
+      const id=data.id; savedRevision.current=data.revision;
+      setManuscriptId(id); stateRef.current.manuscriptId=id;
       const unchanged = current.sections === stateRef.current.sections && ["title", "subtitle", "authors", "affiliations", "keywords", "articleType", "targetJournal", "citationStyle", "status"].every(key => current[key as keyof typeof current] === stateRef.current[key as keyof typeof current]) && current.citationIds === stateRef.current.citationIds;
       if (unchanged) setDirty(false);
-      setMessage(showConfirmation ? "Manuscrito salvo na sua conta." : `Salvo automaticamente às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
+      setMessage(!unchanged ? "A versão enviada foi salva. Há alterações mais recentes ainda não salvas nesta página." : showConfirmation ? "Manuscrito salvo na sua conta." : `Salvo automaticamente às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
       try { if (unchanged) window.localStorage.removeItem(`scholar-manuscript:${ownerId}:${project.id}`); } catch { /* Database copy is confirmed. */ }
-      return true;
-    } catch { setMessage("Não foi possível sincronizar agora. A cópia deste dispositivo foi preservada."); return false; }
+      return unchanged;
+    } catch(error) { setMessage(error instanceof Error ? error.message : "Não foi possível sincronizar agora. Seu rascunho continua aqui."); return false; }
     finally { saveLock.current = false; setSaving(false); }
   }
 
+  useUnsavedChanges({label:"Manuscrito",dirty:canEdit&&dirty,busy:saving||versionSaving,onSave:()=>save(false),onDiscard:()=>{discardedEdits.current=true;setDirty(false);try{window.localStorage.removeItem(`scholar-manuscript:${ownerId}:${project.id}`);}catch{}}});
   async function createVersion() {
     if (!canEdit || versionLock.current || saveLock.current) return;
     versionLock.current = true; setVersionSaving(true);
@@ -351,7 +342,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
 
     {canEdit && <section className="xl:col-span-3 bg-white border border-line rounded-2xl p-5"><div className="flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Do protocolo à escrita</p><h2 className="font-display text-2xl mt-2">Comece pelas decisões do seu projeto.</h2><p className="text-sm text-ink-soft mt-2">Revise uma estrutura inicial de introdução e métodos, com espaço para desenvolver a discussão.</p></div><button type="button" onClick={() => setShowPlan(value => !value)} className="border border-teal/30 text-teal rounded-card px-4 py-2">{showPlan ? "Recolher prévia" : "Preparar estrutura do artigo"}</button></div>{showPlan && <div className="mt-5 space-y-4">{Object.entries(plan).map(([key, content]) => { const occupied = Boolean(sections.find(section => section.section_key === key)?.content.trim()); return <details key={key} className="border border-line rounded-card p-4"><summary className="cursor-pointer flex gap-3 items-center"><input aria-label={`Incluir ${sectionTemplates.find(section => section.section_key === key)?.heading}`} type="checkbox" disabled={occupied} checked={!occupied && planSelection.includes(key)} onClick={event => event.stopPropagation()} onChange={() => setPlanSelection(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])}/><span>{sectionTemplates.find(section => section.section_key === key)?.heading}{occupied ? " · texto existente preservado" : " · disponível para iniciar"}</span></summary><p className="mt-3 whitespace-pre-wrap text-sm text-ink-soft">{content}</p></details>; })}<p className="text-xs text-ink-soft">Os procedimentos importados são planejamento. Resultados, conclusão e referências devem ser preenchidos a partir do trabalho efetivamente realizado.</p><button type="button" disabled={saving || !planSelection.some(key => !sections.find(section => section.section_key === key)?.content.trim())} onClick={() => { setSections(current => applyManuscriptPlan(current, plan, planSelection)); setDirty(true); setShowPlan(false); setMessage("Estrutura aplicada às seções vazias. Revise e desenvolva o texto; o salvamento automático está ativo."); }} className="bg-teal text-white rounded-card px-4 py-3 disabled:opacity-50">Aplicar às seções vazias</button></div>}</section>}
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : "Modo orientador"}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? "Você edita o texto e pode responder às observações da revisão." : "O texto está protegido. Selecione um trecho para comentá-lo e acompanhe as respostas do autor."}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? "pendência aberta" : "pendências abertas"}</p></section>
-    <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal">Estrutura</p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} seções iniciadas</p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString("pt-BR")} palavras</p><p className="mt-1">{message}</p></div></aside>
+    <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal">Estrutura</p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} seções iniciadas</p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString("pt-BR")} palavras</p><p className="mt-1">{message}{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline">Abrir a versão salva em outra aba para comparar</a>}</p></div></aside>
 
     <div className="min-w-0 space-y-5"><section className="bg-white border border-line rounded-2xl p-5 md:p-7"><div className="grid md:grid-cols-2 gap-4"><label className="md:col-span-2 text-sm font-medium">Título científico<input disabled={!canEdit} value={title} onChange={event => markMetadata(setTitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper text-lg disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium">Subtítulo — opcional<input disabled={!canEdit} value={subtitle} onChange={event => markMetadata(setSubtitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium">Autores — um por linha<textarea disabled={!canEdit} rows={3} value={authors} onChange={event => markMetadata(setAuthors, event.target.value)} placeholder="Nome completo de cada autor" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium">Afiliações — uma por linha<textarea disabled={!canEdit} rows={3} value={affiliations} onChange={event => markMetadata(setAffiliations, event.target.value)} placeholder="Instituição, cidade, país" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium">Palavras-chave — separadas por vírgula<input disabled={!canEdit} value={keywords} onChange={event => markMetadata(setKeywords, event.target.value)} placeholder="Ex.: residência médica, educação médica, qualidade de vida" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium">Tipo de manuscrito<select disabled={!canEdit} value={articleType} onChange={event => markMetadata(setArticleType, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70"><option value="original">Artigo original</option><option value="review">Revisão</option><option value="case-report">Relato de caso</option><option value="brief-report">Comunicação breve</option></select></label><label className="text-sm font-medium">Periódico pretendido<input disabled={!canEdit} value={targetJournal} onChange={event => markMetadata(setTargetJournal, event.target.value)} placeholder="Opcional nesta fase" className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label></div></section>
       {sections.map(section => {

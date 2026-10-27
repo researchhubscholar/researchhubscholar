@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type ProjectOption = { id: string; title: string | null; theme: string | null };
-export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty, onSelect, onSave }: {
+export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty, onSelect, onSave, emptyLabel }: {
   ownerId: string | null; projectId: string | null; title: string; busy: boolean; dirty: boolean;
+  emptyLabel?: string;
   onSelect: (id: string | null) => void; onSave: () => void;
 }) {
   const [projectList, setProjectList] = useState<{ ownerId: string | null; items: ProjectOption[] }>({ ownerId: null, items: [] });
@@ -40,7 +41,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
           const id = event.target.value;
           if (!busy && !isLoading && id !== projectId && projects.some(project => project.id === id)) onSelect(id);
         }} className="block mt-2 w-full min-w-0 max-w-full border border-line rounded-card p-3 bg-white text-sm font-normal disabled:opacity-60">
-          {!projectId && <option value="">{isLoading ? "Carregando projetos…" : "Rascunho atual · ainda não salvo"}</option>}
+          {!projectId && <option value="">{isLoading ? "Carregando projetos…" : emptyLabel || "Rascunho atual · ainda não salvo"}</option>}
           {projectId && !projects.some(project => project.id === projectId) && <option value={projectId}>{currentTitle}</option>}
           {projects.map(project => <option key={project.id} value={project.id}>{project.id === projectId ? currentTitle : project.title || project.theme || "Projeto sem título"}</option>)}
         </select>

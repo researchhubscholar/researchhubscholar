@@ -1,3 +1,5 @@
+import ProjectChoice from "@/components/projects/project-choice";
+import { selectedProject } from "@/lib/projects/selection";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import DocumentCenter from "@/components/documents/document-center";
@@ -20,8 +22,8 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     db.from("profiles").select("name,institution,specialty,training_stage").eq("id",user.id).maybeSingle(),
   ]);
   if(projectError||profileError) return <Message title="Não foi possível carregar os dados dos documentos." text="Atualize a página para tentar novamente." />;
-  const project=(projects||[]).find(item=>item.id===params.projeto)||(projects||[])[0];
-  if(!project) return <div className="scholar-workspace secondary-page documents-page max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/ideias" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
+  const project=selectedProject(projects || [], params.projeto);
+  if(!project) return <ProjectChoice projects={projects || []} requested={params.projeto} path="/documentos" label="Documentos"/>;
   const [articleResult,linkResult,noteResult,milestoneResult]=await Promise.all([
     db.from("library_articles").select("*").eq("owner_id",user.id),
     db.from("library_article_projects").select("article_id,project_id").eq("owner_id",user.id).eq("project_id",project.id),

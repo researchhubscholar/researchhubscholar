@@ -1,5 +1,8 @@
 # Roadmap oficial — ResearchHub Scholar
 
+**Prioridade vigente:** `consolidation-plan.md`. Novas funcionalidades suspensas
+até concluir as cinco etapas. O conteúdo abaixo é histórico.
+
 Decisão de produto: o Scholar será completado primeiro como uma jornada científica
 útil sem IA. A IA será uma camada contextual sobre dados organizados pelo usuário.
 Pagamentos reais serão ativados depois que produto-base e IA passarem pelos testes
