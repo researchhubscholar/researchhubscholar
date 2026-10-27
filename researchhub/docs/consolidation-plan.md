@@ -7,7 +7,7 @@ e monetização ficam fora deste ciclo. Nenhuma etapa está concluída ainda.
    navegação com salvar/continuar/descartar, conflito entre abas e transação do manuscrito.
 2. **Gestão dos dados — em implementação (primeira entrega: exportação).** Exportação completa e paginada, migrations
    rastreáveis e execução comprovada da exclusão de conta.
-3. **Jornada completa — pendente.** Ideia até exportação, persistência, contas
+3. **Jornada completa — iniciada em paralelo; validação real pendente.** Ideia até exportação, persistência, contas
    distintas, permissões, desktop e celular.
 4. **Consistência visual — pendente.** Cabeçalhos, seletores, salvamento,
    mensagens, acessibilidade e hierarquia nas telas reais.
@@ -78,3 +78,10 @@ estruturas/RLS por ambiente, que não presume histórico de migrations aplicado.
 Testes SQL, API e componentes usam dados sintéticos. Nenhuma conta real foi
 excluída. Instalação da nova migration, homologação com Auth/Storage reais e
 conferência do histórico por ambiente continuam pendentes antes de concluir a etapa 2.
+
+## Etapa 3 — início em 27/10/2026
+
+Teste integrado em banco sintético para ideia, origem, biblioteca/matriz, resultados,
+manuscrito e isolamento entre contas. Roteiro reproduzível e critérios de evidência
+em `journey-validation.md`. Não houve teste autenticado de ponta a ponta nem em
+celular nesta rodada. A etapa 2 continua aberta até instalação e validação pendentes.
