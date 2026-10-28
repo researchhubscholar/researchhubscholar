@@ -1,6 +1,10 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
+import { trackRadarAttempt } from "@/lib/telemetry/journey";
+import LoadingDialog from "@/components/ai/loading-dialog";
+import AssistantPanel from "@/components/ai/assistant-panel";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -72,11 +76,13 @@ export default function DiscoverPage() {
 function DiscoverContent() {
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
-  const [period, setPeriod] = useState("5");
-  const [studyType, setStudyType] = useState("all");
-  const [language, setLanguage] = useState("auto");
+  const [period, setPeriod] = useState(params.get("origem")==="assistente"?"all":"5");
+  const incomingStudy = params.get("desenho") || "";
+  const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
+  const [language, setLanguage] = useState(params.get("origem")==="assistente"?"en":"auto");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [termReview, setTermReview] = useState<TermReview | null>(null);
   const library = useLibrary();
@@ -91,8 +97,8 @@ function DiscoverContent() {
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [mesh, setMesh] = useState("");
-  const [populationTerm, setPopulationTerm] = useState("");
-  const [outcomeTerm, setOutcomeTerm] = useState("");
+  const [populationTerm, setPopulationTerm] = useState(params.get("populacao") || "");
+  const [outcomeTerm, setOutcomeTerm] = useState(params.get("desfecho") || "");
   const [operator, setOperator] = useState("AND");
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [sourceWarning, setSourceWarning] = useState<string | null>(null);
@@ -101,7 +107,7 @@ function DiscoverContent() {
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
   const accessArticles = useMemo(() => lookupArticle ? [...articles, lookupArticle] : articles, [articles, lookupArticle]);
   const openAccess = useOpenAccess(accessArticles);
-  const effectiveQuery = useMemo(() => result?.strategy.interpreted || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
+  const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
 
   async function recordSearch(data: Result) {
@@ -113,7 +119,9 @@ function DiscoverContent() {
   }
 
   async function runAnalysis(translations: Record<string, string> = {}) {
-    if (loading || browsing) return;
+    if (searchLock.current || loading || browsing) return;
+    searchLock.current = true;
+    const finishAttempt = trackRadarAttempt();
     setLoading(true);
     setError(null);
     setResult(null);
@@ -122,13 +130,16 @@ function DiscoverContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period, studyType, translations }),
+        signal: AbortSignal.timeout(180000),
       });
       const data = await response.json();
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
+        finishAttempt("review");
         setTermReview({ strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, ""])) });
         return;
       }
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
+      finishAttempt("completed");
       setTermReview(null);
       setResult(data);
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
@@ -137,8 +148,10 @@ function DiscoverContent() {
       setBrowseError(null);
       void recordSearch(data);
     } catch (err) {
+      finishAttempt("failed");
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
+      searchLock.current = false;
       setLoading(false);
     }
   }
@@ -157,7 +170,7 @@ function DiscoverContent() {
     setBrowsing(true); setBrowseError(null);
     try {
       const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }) });
+        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
       setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
@@ -171,7 +184,7 @@ function DiscoverContent() {
     e.preventDefault(); if (lookupLoading) return;
     setLookupLoading(true); setLookupError(null); setLookupArticle(null);
     try {
-      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }) });
+      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Artigo não encontrado.");
       setLookupArticle(data.article);
@@ -179,12 +192,10 @@ function DiscoverContent() {
     finally { setLookupLoading(false); }
   }
 
-  const refinements = result
-    ? [`${result.topic} AND young adults`, `${result.topic} AND clinical outcomes`, `${result.topic} AND systematic review`]
-    : [];
 
   return (
     <div className="scholar-workspace radar-page max-w-5xl mx-auto">
+      <LoadingDialog open={loading || browsing || lookupLoading} title={lookupLoading ? "Buscando o artigo" : browsing ? "Carregando artigos" : "Consultando a literatura científica"} description={lookupLoading ? "O Radar está consultando o identificador informado para recuperar os dados do artigo." : browsing ? "O Radar está recuperando os artigos da fonte e da ordenação escolhidas." : "O Radar consulta o PubMed e o Crossref, reúne os artigos e prepara as contagens e os indicadores da sua busca."} statusText="Aguardando a resposta das fontes científicas." />
       <div className="module-intro radar-intro max-w-3xl">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
         <h1 className="font-display text-4xl md:text-5xl mt-3">Seu tema tem espaço para investigação?</h1>
@@ -198,19 +209,27 @@ function DiscoverContent() {
         </div>
       </div>
 
+      {params.get("origem")==="assistente"&&<p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal">Busca recebida do assistente. Confira os conceitos em inglês e os filtros antes de clicar em Pesquisar artigos. Nenhuma consulta foi executada automaticamente.</p>}
+      {params.get("origem") === "ideias" && <p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal">Sua proposta foi salva no histórico de Ideias. Revise a busca inicial e os filtros antes de consultar os artigos. <Link href="/ideias" className="underline">Abrir Ideias</Link></p>}
+
+      {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal">Estratégia recebida do projeto</p><h2 className="font-display text-xl mt-2">Revise os conceitos antes de pesquisar.</h2><p className="text-sm text-ink-soft mt-2">O tema atual do projeto foi trazido para o Radar. Revise os conceitos e os filtros antes de consultar a literatura.</p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal">Voltar ao projeto →</Link>}</section>}
+
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: qualidade do sono em residentes de medicina" />
+        <input aria-label="Tema da busca" required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Qual pergunta ou tema você quer pesquisar?" />
         <label className="text-xs text-ink-soft">Idioma<select aria-label="Idioma da busca" disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt">Português</option><option value="en">Inglês</option></select></label>
         <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
         <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
-          {loading ? "Consultando PubMed..." : "Analisar tema"}
+          {loading ? "Consultando PubMed..." : "Pesquisar artigos"}
         </button>
-        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
+        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
       </form>
+      <div id="preparar-busca-ia" className="scroll-mt-24">
+      <AssistantPanel feature="radar" title="Prepare uma busca mais ampla com IA" actionLabel="Preparar busca com IA" disabled={loading || browsing || lookupLoading} description="A IA identifica os conceitos centrais, sugere sinônimos em inglês e monta buscas editáveis para o PubMed. Comece pela busca ampla; aplique uma sugestão ou combine conceitos e depois clique em Pesquisar artigos. A preparação com IA usa sua franquia." context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);window.scrollTo({top:0,behavior:"smooth"});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
+      </div>
       <p className="text-xs text-ink-soft/70 mt-2">Pesquise em português ou inglês. Em “Automático”, o Radar identifica o idioma, separa os conceitos e mostra a estratégia utilizada.</p>
-      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Pesquisa termos livres em título/resumo.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
-      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
+      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Usa título/resumo e MeSH na interpretação automática; estratégias explícitas preservam os campos escolhidos.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
+      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Pesquisar artigos para aplicar os campos atuais.</p>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
       {termReview && <form onSubmit={confirmTerms} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5" aria-label="Revisão de conceitos da busca">
         <p className="text-xs uppercase tracking-widest text-amber-800 font-semibold">Confirmação necessária</p>
@@ -221,16 +240,18 @@ function DiscoverContent() {
         <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? "Validando estratégia..." : "Confirmar e pesquisar"}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card">Editar pergunta</button></div>
         <p className="text-xs text-ink-soft mt-3">Essa confirmação vale apenas para esta busca. A futura integração ao DeCS fará essa equivalência automaticamente.</p>
       </form>}
+      <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Minhas buscas, histórico e alertas</summary>
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
+      </details>
 
       <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
         {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}
         {library.error && <p role="alert" className="text-sm text-red-700 mt-3">{library.error}</p>}
         {library.message && <p role="status" className="text-sm text-teal mt-3">{library.message}</p>}
       </section>
-      <section className="radar-lookup-card mt-6 bg-white border border-line rounded-2xl p-5">
-        <h2 className="font-display text-xl">Já encontrou um artigo em outro lugar?</h2>
+      <details className="radar-lookup-card radar-disclosure mt-4 bg-white border border-line rounded-2xl p-5">
+        <summary className="cursor-pointer text-sm font-medium text-teal">Adicionar um artigo por DOI, PMID ou link</summary>
         <p className="text-sm text-ink-soft mt-2">Busque pelo DOI, PMID ou link do PubMed/doi.org, independentemente dos resultados do Radar.</p>
         <form onSubmit={lookup} className="flex flex-wrap gap-3 mt-4">
           <input aria-label="DOI, PMID ou link do artigo" required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="DOI, PMID ou link" className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
@@ -244,7 +265,7 @@ function DiscoverContent() {
           <OpenAccessStatus result={openAccess.results[articleKey(lookupArticle)]} loading={openAccess.loading.has(articleKey(lookupArticle))} onCheck={() => void openAccess.retry(lookupArticle)} />
           <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
         </div>}
-      </section>
+      </details>
 
       {!result && !loading && (
         <div className="radar-examples mt-10 grid md:grid-cols-3 gap-4">
@@ -272,39 +293,6 @@ function DiscoverContent() {
             <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Publicados nos últimos 5 anos, dentro do recorte" />
             <Metric value={result.sources.pubmed.systematicReviews.toLocaleString("pt-BR")} label="Revisões sistemáticas" />
             <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString("pt-BR")} label="Ensaios clínicos" />
-          </section>
-
-          <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
-            <div className="radar-chart-card bg-white border border-line rounded-2xl p-6">
-              <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano completo</p><p className="text-xs text-ink-soft mt-2">O ano atual é excluído da tendência para evitar uma comparação incompleta.</p>
-              <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
-                {result.timeline.map((item) => (
-                  <div key={item.year} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
-                    <span className="text-[10px] text-ink-soft">{item.count}</span>
-                    <div className="w-full max-w-10 bg-teal rounded-t-sm" style={{ height: `${item.count === 0 ? 0 : Math.max(4, (item.count / maxTimeline) * 170)}px` }} />
-                    <span className="text-[10px] text-ink-soft">{item.year}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-teal">Leitura do tema</p>
-                <h2 className="font-display text-2xl mt-2">{breadthLabels[result.signals.breadth]}</h2>
-                <p className="text-sm text-ink-soft mt-2">
-                  Tendência: <strong className="text-ink">{trendLabels[result.signals.trend]}</strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}% do recorte selecionado foi publicado nos últimos cinco anos.
-                </p>
-                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? "Há bastante literatura neste recorte. Defina uma população, um contexto e um desfecho para tornar a pergunta mais precisa." : result.signals.breadth === "scarce" ? "Poucos registros foram encontrados. Teste sinônimos e termos em inglês, confira os filtros e leia os estudos antes de interpretar isso como oportunidade." : result.signals.breadth === "niche" ? "O recorte é específico. Confira se há estudos suficientes para o desenho que você pretende executar." : "O volume permite uma exploração inicial. Leia os estudos e identifique diferenças de população, método e desfechos."}</p>
-                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? "A produção aumentou nos anos completos analisados; isso não mede qualidade nem originalidade." : result.signals.trend === "insufficient" ? "A amostra anual é pequena para interpretar uma tendência." : "A tendência descreve volume de publicação, não relevância clínica."}</p>
-                <p className="text-xs text-ink-soft mt-3">A classificação de amplitude é baseada no número de resultados deste recorte; não comprova uma lacuna científica.</p>
-              </div>
-              <div className="bg-white border border-line rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-ink-soft">Cobertura complementar</p>
-                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString("pt-BR")}</p>
-                <p className="text-sm text-ink-soft mt-1">registros aproximados no Crossref, sem os filtros do PubMed. As contagens não são diretamente comparáveis.</p>
-              </div>
-            </div>
           </section>
 
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
@@ -384,21 +372,56 @@ function DiscoverContent() {
             </div>
           </section>
 
+<details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal">Volume, tendências e cobertura das bases</summary><div className="mt-5">          <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
+            <div className="radar-chart-card bg-white border border-line rounded-2xl p-6">
+              <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano completo</p><p className="text-xs text-ink-soft mt-2">O ano atual é excluído da tendência para evitar uma comparação incompleta.</p>
+              <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
+                {result.timeline.map((item) => (
+                  <div key={item.year} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
+                    <span className="text-[10px] text-ink-soft">{item.count}</span>
+                    <div className="w-full max-w-10 bg-teal rounded-t-sm" style={{ height: `${item.count === 0 ? 0 : Math.max(4, (item.count / maxTimeline) * 170)}px` }} />
+                    <span className="text-[10px] text-ink-soft">{item.year}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
+                <p className="text-xs uppercase tracking-wider text-teal">Leitura do tema</p>
+                <h2 className="font-display text-2xl mt-2">{breadthLabels[result.signals.breadth]}</h2>
+                <p className="text-sm text-ink-soft mt-2">
+                  Tendência: <strong className="text-ink">{trendLabels[result.signals.trend]}</strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}% do recorte selecionado foi publicado nos últimos cinco anos.
+                </p>
+                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? "Há bastante literatura neste recorte. Defina uma população, um contexto e um desfecho para tornar a pergunta mais precisa." : result.signals.breadth === "scarce" ? "Poucos registros foram encontrados. Teste sinônimos e termos em inglês, confira os filtros e leia os estudos antes de interpretar isso como oportunidade." : result.signals.breadth === "niche" ? "O recorte é específico. Confira se há estudos suficientes para o desenho que você pretende executar." : "O volume permite uma exploração inicial. Leia os estudos e identifique diferenças de população, método e desfechos."}</p>
+                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? "A produção aumentou nos anos completos analisados; isso não mede qualidade nem originalidade." : result.signals.trend === "insufficient" ? "A amostra anual é pequena para interpretar uma tendência." : "A tendência descreve volume de publicação, não relevância clínica."}</p>
+                <p className="text-xs text-ink-soft mt-3">A classificação de amplitude é baseada no número de resultados deste recorte; não comprova uma lacuna científica.</p>
+              </div>
+              <div className="bg-white border border-line rounded-2xl p-5">
+                <p className="text-xs uppercase tracking-wider text-ink-soft">Cobertura complementar</p>
+                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString("pt-BR")}</p>
+                <p className="text-sm text-ink-soft mt-1">registros aproximados no Crossref, sem os filtros do PubMed. As contagens não são diretamente comparáveis.</p>
+              </div>
+            </div>
+          </section>
+
+</div></details>
           <section className="radar-next-step bg-white border border-line rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-teal">Próxima decisão</p>
-                <h2 className="font-display text-2xl mt-2">Teste recortes mais específicos</h2>
+                <h2 className="font-display text-2xl mt-2">Ajuste a abrangência da busca</h2>
+                <p className="mt-2 text-sm text-ink-soft">Poucos resultados também podem indicar uma estratégia restrita. Amplie antes de concluir que há uma lacuna.</p>
               </div>
               <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">Explorar ideias com este tema →</Link>
             </div>
-            <div className="grid md:grid-cols-3 gap-3 mt-5">
-              {refinements.map((item) => (
-                <button key={item} onClick={() => { setTopic(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
-                  <p className="text-sm font-medium">{item}</p>
-                  <span className="text-xs text-teal mt-2 inline-block">Analisar este recorte →</span>
-                </button>
-              ))}
+            <div className="grid md:grid-cols-2 gap-3 mt-5">
+              <button type="button" onClick={() => { setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setStudyType("all"); setPeriod("all"); setTermReview(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium">Ampliar os filtros</p><span className="text-xs text-ink-soft mt-2 block">Todo o período, todos os tipos e sem campos adicionais. Revise e clique em Pesquisar artigos; os termos da busca serão mantidos.</span>
+              </button>
+              <a href="#preparar-busca-ia" className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium">Revisar os conceitos com IA</p><span className="text-xs text-ink-soft mt-2 block">Prepare uma alternativa com os conceitos centrais e mais sinônimos, sem exigir todos os detalhes da proposta.</span>
+              </a>
             </div>
           </section>
 

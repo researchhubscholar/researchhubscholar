@@ -1,12 +1,13 @@
 "use client";
 
+import { requestWorkspaceNavigation } from "@/lib/navigation/unsaved";
 import { signOutAction } from "@/lib/supabase/actions";
 
 export default function LogoutButton({ variant = "text" }: { variant?: "text" | "button" }) {
   return (
     <button
       type="button"
-      onClick={() => signOutAction()}
+      onClick={() => requestWorkspaceNavigation(() => { void signOutAction(); })}
       className={
         variant === "button"
           ? "text-sm font-medium text-white bg-teal px-4 py-2 rounded-card hover:bg-teal/90 transition-colors"

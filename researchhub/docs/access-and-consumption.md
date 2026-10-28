@@ -1,5 +1,9 @@
 # Licenças, residências e franquias
 
+> A implementação evoluiu desde este documento. Para IA conectada, seleção de
+> carteira e controles financeiros atuais, consulte docs/ai-readiness.md. As
+> referências abaixo a IA futura/desligada e modelos recomendados são históricas.
+
 ## Ativação da base
 
 Executar apenas supabase/scholar_access.sql em uma base Scholar já instalada.
@@ -114,3 +118,12 @@ compartilhamento, permissões, reservas, liquidação, falha e limite diário.
 Funções pgcrypto são substituídas somente nesse teste, pois a extensão não está
 no runtime WASM. O teste não comprova concorrência entre conexões nem substitui
 resgate real com duas contas no Supabase.
+
+
+## Conta de teste e gestão com franquia ilimitada
+
+`supabase/scholar_test_account_unlimited.sql` adiciona uma marca privada à carteira e libera exclusivamente a carteira pessoal de `anthonny1414@gmail.com`, mantendo consumo e reservas. Ativa a licença pessoal e estende a validade até 2099 para uso de teste/gestão. Não modifica o modo de IA nem concede privilégios administrativos. Carteiras institucionais e demais contas continuam limitadas.
+
+O script é transacional e reexecutável, falha sem alterar nada se conta/licença/carteira não forem encontradas e preserva o controle financeiro existente. Limite por operação, concorrência e limite diário de tentativas continuam ativos. Somente o administrador do banco/backend pode alterar a marca. Aplicação continua compatível com banco sem a coluna até a migração ser executada; sem ela a liberação ainda não está ativa.
+
+Nas contas limitadas, a admissão passa a informar o saldo disponível e a reserva mínima exigida, distinguindo licença inativa/fora da validade. A tela de licença mostra “Ilimitada” para a carteira liberada, com consumo real e reservas ainda visíveis.

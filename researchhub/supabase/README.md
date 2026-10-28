@@ -42,3 +42,25 @@ Não rode novamente a sequência inteira. Alguns arquivos usam `create table` e 
 - nunca exponha a chave `service_role` no navegador ou na Vercel como `NEXT_PUBLIC_*`;
 - toda tabela com dados de usuário deve ter RLS e políticas testadas;
 - mudanças futuras devem ser adicionadas em novos arquivos de migração, sem editar uma migração já aplicada em produção.
+
+## Consolidação — etapa 1
+
+Após manuscrito e resultados instalados, aplicar somente `scholar_safe_saves.sql`.
+É reexecutável e preserva os dados. Atualizar todas as abas após aplicar. Não
+reexecutar o instalador histórico. Até instalar, os novos salvamentos são bloqueados
+com explicação. Verificações: `../docs/consolidation-plan.md`.
+
+## Consolidação — exclusão administrativa
+
+Aplicar `scholar_account_deletion.sql` após os módulos de conta/suporte, operação,
+acesso, manuscrito e resultados. Reexecutável. Instalar não executa exclusões e
+não cria agendamento automático. As ações aparecem em Operação somente para
+o papel `owner` já existente; a migration não concede esse papel a ninguém.
+
+Antes de usar em conta real, homologar com conta descartável no Preview: prazo,
+cancelamento, confirmações, arquivos, vínculos e resultado do Auth. Referência:
+`../docs/account-data-operations.md`.
+
+`scholar_journey_metrics.sql`: indicador opcional das tentativas de busca no Radar;
+executar após `scholar_operations.sql`. Reexecutável, não remove dados e não impede
+buscas enquanto estiver ausente. Consultar limitações em `docs/assistant-evaluation.md`.

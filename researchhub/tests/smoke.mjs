@@ -86,6 +86,9 @@ try {
     "/biblioteca",
     "/meu-trabalho",
     "/documentos",
+    "/resultados",
+    "/manuscrito",
+    "/geracoes/11111111-1111-4111-8111-111111111111",
     "/licenca",
     "/orientacao",
     "/residencia",
@@ -113,6 +116,10 @@ try {
   });
   assert.equal(protectedApi.status, 401);
   assert.match(await protectedApi.text(), /Entre na sua conta/);
+
+  const privateResults = await request("/api/results?project=11111111-1111-4111-8111-111111111111");
+  assert.equal(privateResults.status, 401, "Resultados exigem uma sessão autenticada");
+  assert.match(await privateResults.text(), /Entre na sua conta/);
 
   for (const path of ["/robots.txt", "/sitemap.xml", "/manifest.webmanifest"]) {
     const response = await request(path);

@@ -50,15 +50,18 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
   async function save() {
     if (busy || !owner || name.trim().length < 2) return;
     setBusy(true); setMessage("");
+    const existing = items.find(item => item.name === name.trim());
+    const definitionChanged = existing && (existing.query !== query.trim() || existing.period !== period || existing.study_type !== studyType || existing.source !== source);
     const { error } = await supabaseBrowser().from("scholar_saved_searches").upsert({
       owner_id: owner, name: name.trim(), query: query.trim(), period,
       study_type: studyType, source, sort,
       last_run_at: resultCount === null ? null : new Date().toISOString(),
       last_result_count: resultCount,
+      ...(definitionChanged ? { alerts_enabled: false } : {}),
     }, { onConflict: "owner_id,name" });
     setBusy(false);
-    if (error) { setMessage(source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
-    setName(""); setMessage("Estratégia salva."); void load();
+    if (error) { setMessage(error.code === "23514" && query.length > 500 ? "Para salvar esta estratégia completa, execute scholar_search_query_limits.sql no Supabase." : source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
+    setName(""); setMessage(definitionChanged && existing.alerts_enabled ? "Estratégia atualizada e alerta pausado. Reative o alerta para criar uma linha de base com os novos critérios." : "Estratégia salva."); void load();
   }
 
   async function remove(id: string) {
@@ -115,6 +118,7 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
       <div className="flex gap-2"><input aria-label="Nome da estratégia" value={name} maxLength={120} onChange={e => setName(e.target.value)} placeholder="Ex.: Busca principal" className="border rounded-card px-3 py-2"/><button type="button" disabled={busy || name.trim().length < 2 || query.trim().length < 3} onClick={save} className="bg-teal text-white px-4 py-2 rounded-card disabled:opacity-40">Salvar busca</button></div>
     </div>
     <p className="text-xs text-ink-soft mt-3">Guarda consulta, período, tipo, fonte e ordenação. Ative o alerta para comparar as próximas verificações com a literatura disponível hoje.</p>
+    <p className="text-xs text-ink-soft mt-2">As novidades ficam disponíveis aqui no Radar. Cada verificação consulta até 20 publicações mais recentes por fonte, independentemente da ordenação salva. O envio por e-mail ainda não está disponível.</p>
     {message && <p role="status" className="text-sm mt-3 text-ink-soft">{message}</p>}
     <div className="grid md:grid-cols-2 gap-3 mt-4">
       {items.map(item => <article key={item.id} className="border border-line rounded-card p-4"><div className="flex justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.name}</h3>{item.alerts_enabled && <span className="text-[10px] uppercase tracking-wide bg-teal-soft text-teal px-2 py-1 rounded-full">Alerta ativo</span>}</div><p className="text-xs text-ink-soft mt-1 line-clamp-2">{item.query}</p><p className="text-[11px] text-ink-soft mt-2">{item.source} · {item.period === "all" ? "todo o período" : `${item.period} anos`} · {item.last_result_count === null ? "ainda não executada" : `${item.last_result_count.toLocaleString("pt-BR")} resultados`}</p></div><button type="button" disabled={busy} onClick={() => remove(item.id)} className="text-xs text-red-600">Remover</button></div><div className="flex flex-wrap gap-3 mt-3"><button type="button" onClick={() => onApply(item)} className="text-sm text-teal underline">Aplicar estratégia</button>{alertsReady && <button type="button" disabled={busy} onClick={() => toggleAlert(item)} className="text-sm text-teal underline disabled:opacity-40">{item.alerts_enabled ? "Pausar alerta" : "Ativar alerta"}</button>}{item.alerts_enabled && alertsReady && <button type="button" disabled={busy} onClick={() => checkNow(item)} className="text-sm text-teal underline disabled:opacity-40">Verificar agora</button>}</div></article>)}

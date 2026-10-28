@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const compile=f=>ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+require.extensions['.ts']=(m,f)=>m._compile(compile(f),f);
+const core=require('../lib/ai/evaluation/guide-cases.ts');
+assert.equal(new Set(core.guideCases.map(c=>c.id)).size,core.guideCases.length);
+let report=core.buildGuideReport({inicio:{status:'failed',note:'Falha sintética'}},' Preview ');
+assert.equal(report.environment,'Preview');assert.equal(report.cases.find(c=>c.id==='inicio').status,'failed');assert.equal(report.cases.find(c=>c.id==='clinico').status,'untested');
+const states=[];let cursor=0,downloads=0,blob;const jsx=(type,props)=>({type,props});
+const nodes=x=>!x||typeof x!=='object'?[]:Array.isArray(x)?x.flatMap(nodes):[x,...nodes(x.props?.children)];
+const react={useState(v){const i=cursor++;if(!(i in states))states[i]=v;return [states[i],value=>states[i]=typeof value==='function'?value(states[i]):value];}};
+const m={exports:{}};vm.runInNewContext(compile('components/ai/guide-evaluation.tsx'),{module:m,exports:m.exports,require:n=>n==='react'?react:n==='react/jsx-runtime'?{jsx,jsxs:jsx}:n==='@/lib/ai/evaluation/guide-cases'?core:(()=>{throw Error(n)})(),Blob:class{constructor(parts){blob=JSON.parse(parts[0]);}},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},document:{createElement:()=>({click(){downloads++;}})},setTimeout(){}});
+const render=()=>{cursor=0;return m.exports.default()};
+let tree=render(),all=nodes(tree);assert.equal(nodes(tree).find(n=>n.type==='p'&&n.props.role==='status').props.children[0],0);assert.equal(downloads,0);
+const first=all.find(n=>n.type==='details');nodes(first).find(n=>n.type==='select').props.onChange({target:{value:'failed'}});nodes(first).find(n=>n.type==='textarea').props.onChange({target:{value:'Observação fictícia'}});
+tree=render();assert(JSON.stringify(tree).includes('Falhou'));assert.equal(nodes(tree).find(n=>n.type==='p'&&n.props.role==='status').props.children[0],1);assert.equal(downloads,0);
+nodes(tree).find(n=>n.type==='button').props.onClick();assert.equal(downloads,1);assert.equal(blob.cases.find(c=>c.id==='inicio').note,'Observação fictícia');assert.equal(blob.cases.find(c=>c.id==='clinico').status,'untested');
+console.log('PASS: manual guide evaluations remain untested by default and export only when requested.');

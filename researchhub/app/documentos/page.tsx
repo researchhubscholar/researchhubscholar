@@ -1,3 +1,5 @@
+import ProjectChoice from "@/components/projects/project-choice";
+import { selectedProject } from "@/lib/projects/selection";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import DocumentCenter from "@/components/documents/document-center";
@@ -15,19 +17,21 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   const {data:{user}}=await db.auth.getUser();
   if(!user) redirect("/login");
   const params=await searchParams;
-  const [{data:projects,error:projectError},{data:profile}]=await Promise.all([
+  const [{data:projects,error:projectError},{data:profile,error:profileError}]=await Promise.all([
     db.from("research_projects").select(projectSelection).eq("owner_id",user.id).order("updated_at",{ascending:false}),
     db.from("profiles").select("name,institution,specialty,training_stage").eq("id",user.id).maybeSingle(),
   ]);
-  if(projectError) return <Message title="Não foi possível carregar seus projetos." text="Atualize a página para tentar novamente." />;
-  const project=(projects||[]).find(item=>item.id===params.projeto)||(projects||[])[0];
-  if(!project) return <div className="scholar-workspace secondary-page documents-page max-w-4xl mx-auto"><Link href="/dashboard" className="text-sm text-teal">← Meu espaço</Link><Message title="Crie um projeto antes de gerar documentos." text="A central usa os campos do construtor científico, a jornada e as leituras vinculadas."/><Link href="/meu-trabalho?novo=1" className="inline-block mt-5 bg-teal text-white rounded-card px-5 py-3">Criar projeto</Link></div>;
-  const [{data:articleRows},{data:linkRows},{data:noteRows},{data:milestoneRows}]=await Promise.all([
+  if(projectError||profileError) return <Message title="Não foi possível carregar os dados dos documentos." text="Atualize a página para tentar novamente." />;
+  const project=selectedProject(projects || [], params.projeto);
+  if(!project) return <ProjectChoice projects={projects || []} requested={params.projeto} path="/documentos" label="Documentos"/>;
+  const [articleResult,linkResult,noteResult,milestoneResult]=await Promise.all([
     db.from("library_articles").select("*").eq("owner_id",user.id),
     db.from("library_article_projects").select("article_id,project_id").eq("owner_id",user.id).eq("project_id",project.id),
     db.from("evidence_matrix").select("*").eq("owner_id",user.id),
     db.from("scholar_project_milestones").select("milestone_key,status,note,due_date,position").eq("owner_id",user.id).eq("project_id",project.id).order("position"),
   ]);
+  if([articleResult,linkResult,noteResult,milestoneResult].some(result=>result.error)) return <Message title="Não foi possível conferir todos os dados do projeto." text="As exportações aguardam o carregamento completo das referências, leituras e etapas. Atualize a página para tentar novamente." />;
+  const articleRows=articleResult.data,linkRows=linkResult.data,noteRows=noteResult.data,milestoneRows=milestoneResult.data;
   const linked=new Set((linkRows||[]).map(row=>row.article_id));
   const articles:LibraryArticle[]=(articleRows||[]).filter(row=>row.project_id===project.id||linked.has(row.id)).map(row=>({...fromArticleRow(row),projectIds:[project.id]}));
   const articleIds=new Set(articles.map(article=>article.id));
@@ -43,7 +47,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
     <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção científica</p><h1 className="font-display text-4xl md:text-5xl mt-3">Central de documentos</h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed">Transforme os registros do projeto, da jornada e da biblioteca em materiais organizados para revisar, discutir e exportar.</p></div>
-      <form method="get" className="documents-project-picker bg-white border border-line rounded-card p-4 min-w-[260px]"><label className="text-xs text-ink-soft">Projeto selecionado<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="text-sm text-teal mt-3">Abrir documentos deste projeto →</button></form>
+      <form method="get" className="workspace-project-picker documents-project-picker"><label>Projeto em uso<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="workspace-project-picker-action">Abrir documentos deste projeto →</button></form>
     </header>
     <DocumentCenter data={data}/>
   </div>;

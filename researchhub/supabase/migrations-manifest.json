@@ -1,0 +1,281 @@
+{
+  "format": "scholar-migration-inventory-v1",
+  "generatedAt": "2026-10-27",
+  "note": "Source inventory only, not database installation history. Never execute all files automatically.",
+  "files": [
+    {
+      "file": "scholar_install.sql",
+      "sha256": "85895b7152d4526f34167f097ea61426ff4b3b627965adfcfc2336a114261ae0",
+      "kind": "schema",
+      "dependsOn": [],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_access.sql",
+      "sha256": "fd79dd75e356fa59445d50d398ab3089273b702eec5d4648eae672f3ecbc8c10",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_install.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_productivity.sql",
+      "sha256": "1775a9ad8f8ca59ca2e36e4d0939e485ff567e331266c41c2f94fc1c1f7bc2e5",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_install.sql",
+        "scholar_access.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_phase1_journey.sql",
+      "sha256": "c8a0d4e67047589e45b1643e35ffcb38b2af1ae363a48e111f68c86239f81398",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_install.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_radar_upgrade.sql",
+      "sha256": "1d813826735cfd75bb9f2abfc73ad00037e51103541569d1bbce2e2245c0df53",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_library_upgrade.sql",
+      "sha256": "f8053727e7854b200c851f139b97691bc3f27db72b7eb32476722f5037fd120c",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_journey_checklist.sql",
+      "sha256": "c9b2f594377d9d79d237f58fbfcd81e0f2e5006836e5eed375923dea5e107fd0",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_advising.sql",
+      "sha256": "a3be0d93d458c3932b40aef93ddf81cfd564be912ddc447d893efcde7f65bdac",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql",
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_public.sql",
+      "sha256": "dc7ac263314e792d10183b413a27e88ee779f97a162e4fd303a3b22a253a6ffa",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_install.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_library_duplicates.sql",
+      "sha256": "655ab24c75f9fdcc0e1f44f72ed053129449283f0b2cd6fcd9878d1cc39398ee",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_library_upgrade.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_search_alerts.sql",
+      "sha256": "1810b4a06935313c66a2f238fe0bfc1526aeea2d2e7a50b14b526679162b5e6d",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_account_support.sql",
+      "sha256": "08c79cee5e40dcd926c0415bf5daf374292d5c7124402079945a9848a34dcec6",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_install.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_operations.sql",
+      "sha256": "b3887b223939d5c271012465bd7ae32a7fc18f122aa0276f14aff533057c58df",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_account_support.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_commerce.sql",
+      "sha256": "250ae563818bde26729332f8e85ccbebbf937034ee078a7135c7759043f8b80c",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql",
+        "scholar_operations.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_manuscript.sql",
+      "sha256": "8cd259abb1d2402e381565f951b142eae5ef5ed756df4b1afeb98b58f16a7453",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_manuscript_review.sql",
+      "sha256": "07f974a072c92dddbb8bdf7f9d05a5ba98e699c8e22a1d0ccb57d0f5315a75e4",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_advising.sql",
+        "scholar_manuscript.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_results.sql",
+      "sha256": "84f0b27c6c8346a14ca78c696921f83bf68319b83def575c58c584c762a8e4fb",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_institutional_roles.sql",
+      "sha256": "0df3957333d172f011ba51f1b43651eac1bc8cc512f5493198dbbfa575d31251",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_ai_evaluation.sql",
+      "sha256": "7a1fbdf2525c99a0b07d569668e7287e33a061b82c493c9769ec34aa7391368c",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_ai_budgets.sql",
+      "sha256": "de358a04962141fcf34c45b9733a5f471206202ac6edd0580ef1bd4e39b1cb95",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_project_delete.sql",
+      "sha256": "3066b41b979519183a176e878aab49d5c94c7c7da164f049e60a18cc62e57ea9",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql",
+        "scholar_manuscript.sql",
+        "scholar_results.sql",
+        "scholar_library_upgrade.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_search_query_limits.sql",
+      "sha256": "c2a8af6083d6d31b72368770f47e3f499a7418eb1901b140846722d8a142a74a",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_project_origins.sql",
+      "sha256": "3fd0aca93e747ccf1f5098f54e8db2bd8624ff7911ca92ba6161897b46359fc1",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review"
+    },
+    {
+      "file": "scholar_project_tasks.sql",
+      "sha256": "c689375275c282555f554b847066d1f7623444fe2361626001407399420b6690",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_productivity.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_safe_saves.sql",
+      "sha256": "7a0f8e78393bca56b338104c6143a4f7c6ffb2580f66bd1eeddbedc954affb2e",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_manuscript.sql",
+        "scholar_results.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_account_deletion.sql",
+      "sha256": "668f17046b9d3cee7dc7d47fe0c06ca81a7b93053878491389c6d863611c8ab7",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_account_support.sql",
+        "scholar_operations.sql",
+        "scholar_access.sql",
+        "scholar_manuscript.sql",
+        "scholar_results.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_journey_metrics.sql",
+      "sha256": "f2fed7f7dc9e0a490d27d1276b83afa4464817ede0476b443f4957b4f2f6a600",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_operations.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
+      "file": "scholar_idea_history.sql",
+      "sha256": "fa75c3e67832b357bb0306f0ccfe689ca78550fec75de06b18728e9a4d7b8f49",
+      "kind": "compatibility-only",
+      "dependsOn": [],
+      "repeatability": "not-a-general-install-step"
+    },
+    {
+      "file": "scholar_live_test_account.sql",
+      "sha256": "d66186fefa458b3b3e11883ee997c238e8a58ea15ce2a19bba4484d1a6b70a8c",
+      "kind": "manual-account-operation",
+      "dependsOn": [],
+      "repeatability": "not-a-general-install-step"
+    },
+    {
+      "file": "scholar_test_account_unlimited.sql",
+      "sha256": "1dc9b776e0cbe5c958cf1816e5bf6980e34415ee37c9e1fe806272e479f92114",
+      "kind": "manual-account-operation",
+      "dependsOn": [],
+      "repeatability": "not-a-general-install-step"
+    }
+  ]
+}

@@ -1,6 +1,10 @@
+import NavigationProtection from "@/components/projects/navigation-protection";
+import { Suspense } from "react";
+import GlobalGuide from "@/components/ai/global-guide";
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import "./workspace.css";
 import SiteShortcuts from "@/components/public/site-shortcuts";
 import SessionNavigation from "@/components/session-navigation";
 import ProductTelemetry from "@/components/product-telemetry";
@@ -29,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">
+        <NavigationProtection />
         <ProductTelemetry />
+        <Suspense fallback={null}><GlobalGuide /></Suspense>
         <header className="app-header">
           <div className="app-header-inner">
             <Link href="/" className="brand-lockup" aria-label="ResearchHub Scholar — página inicial">

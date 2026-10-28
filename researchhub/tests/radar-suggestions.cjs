@@ -1,0 +1,63 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript');
+const compile=file=>ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+require.extensions['.ts']=(module,file)=>module._compile(compile(file),file);
+const composer=require('../lib/literature/suggestion-query.ts'),limits=require('../lib/literature/search-limits.ts');
+const {buildSearchStrategy}=require('../lib/literature/query-strategy.ts');
+const content=['Burnout, Occupational; Stress, Psychological; Emotional Exhaustion','Health Personnel; Nurses; Physicians; Health Care Workers','Prevalence; Cross-Sectional Studies; Surveys and Questionnaires'];
+const recommendation=(text,index)=>({label:'Conceito '+(index+1),content:text,rationale:'Revisar o conceito',targetField:'pubmedQuery',confidence:'alta',source:'Contexto do usuário'});
+const recommendations=content.map(recommendation);
+const full='(Burnout, Occupational[MeSH Terms] OR "Burnout"[Title/Abstract]) AND ("Health Personnel"[MeSH Terms] OR Nurses[MeSH Terms])';
+const combined=composer.combineSuggestionQueries(content);
+assert(combined.includes("(Burnout, Occupational) OR (Stress, Psychological)"));
+assert(!combined.includes("[Title/Abstract]"), "untagged descriptors must retain PubMed mapping");
+assert(combined.includes(' AND '));assert(!combined.includes(';'));assert(!combined.includes('"Occupational"[Title/Abstract]'));
+assert.equal(buildSearchStrategy(limits.appliedPubmedStrategy(combined)).pubmedQuery,combined,'the query applied to Radar must reach the search builder unchanged');
+assert.equal(composer.combineSuggestionQueries([full]),full);
+for (const content of ['health personnel', 'Burnout, Occupational', '"sleep quality"']) {
+ const normalized = composer.normalizeSuggestionQuery(content);
+ assert.equal(buildSearchStrategy(limits.appliedPubmedStrategy(normalized)).pubmedQuery,normalized,'a single untagged suggestion must reach PubMed without added field restrictions');
+}
+const withExclusion=composer.combineSuggestionQueries([full,'"Humans"[MeSH Terms] NOT "Animals"[MeSH Terms]']);
+assert(withExclusion.includes('('+full+') AND ("Humans"[MeSH Terms] NOT "Animals"[MeSH Terms])'));
+assert.equal(composer.combineSuggestionQueries(['burnout','burnout']),'(burnout)');
+assert.equal(composer.normalizeSuggestionQuery('Nurses\nPhysicians'),'((Nurses) OR (Physicians))');
+assert.equal(composer.normalizeSuggestionQuery('Nurses[MeSH Terms]\nOR Physicians[MeSH Terms]'),'Nurses[MeSH Terms]\nOR Physicians[MeSH Terms]');
+assert.equal(composer.normalizeSuggestionQuery('“quality (clinical); assessment”'),'("quality (clinical); assessment")');
+assert.equal(composer.normalizeSuggestionQuery('"War and Peace"'),'("War and Peace")');
+for(const query of ['"unfinished','(burnout','burnout)','Nurses[MeSH Terms','Nurses]','Nurses[[tiab]]'])assert.throws(()=>composer.validateSuggestionQuery(query));
+assert.throws(()=>composer.validateSuggestionQuery('x'.repeat(10001)),/caracteres/);
+assert(composer.combineSuggestionQueries(['burnout','nurses'],'OR').includes(' OR '));
+const many=composer.combineSuggestionQueries(['"'+('a'.repeat(6000))+'"[tiab]','"'+('b'.repeat(6000))+'"[tiab]']);
+assert(many.length>10000);assert.throws(()=>composer.validateSuggestionQuery(many),/caracteres/);
+
+const jsx=(type,props)=>({type,props}),nodes=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
+function harness(items=recommendations){
+ const state=[],applied=[];let cursor=0;
+ const react={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return[state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];}};
+ const module={exports:{}};vm.runInNewContext(compile('components/radar/suggestion-composer.tsx'),{module,exports:module.exports,require(name){if(name==='react')return react;if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='@/lib/literature/suggestion-query')return composer;if(name==='@/lib/literature/search-limits')return limits;throw Error(name);}});
+ const render=()=>{cursor=0;return module.exports.default({recommendations:items,onApply:item=>applied.push(item)});};
+ return{render,applied,all:()=>nodes(render()),checks:()=>nodes(render()).filter(node=>node.type==='input'&&node.props.type==='checkbox'),button:label=>nodes(render()).find(node=>node.type==='button'&&node.props.children===label),preview:()=>nodes(render()).find(node=>node.type==='textarea')};
+}
+const ui=harness([...recommendations,{...recommendation(full,3),label:'Operadores Booleanos'}, {...recommendation('Somente uma nota',4),targetField:''}]);
+assert.equal(ui.checks().length,4);assert.equal(ui.preview(),undefined);
+const checks=ui.checks();checks[0].props.onChange();checks[1].props.onChange();
+assert.equal(ui.checks().filter(check=>check.props.checked).length,2,'consecutive toggles must retain both selections');
+assert.equal(ui.applied.length,0,'selection must not apply anything automatically');
+assert.equal(ui.preview().props.value,composer.combineSuggestionQueries(content.slice(0,2)));
+ui.button('Aplicar combinação').props.onClick();assert.equal(ui.applied.length,1);assert.equal(ui.applied[0].content,ui.preview().props.value);assert.equal(ui.applied[0].targetField,'pubmedQuery');
+assert.equal(buildSearchStrategy(limits.appliedPubmedStrategy(ui.applied[0].content)).pubmedQuery,ui.applied[0].content);
+ui.all().find(node=>node.type==='select').props.onChange({target:{value:'OR'}});
+assert.equal(ui.preview().props.value,composer.combineSuggestionQueries(content.slice(0,2),'OR'));
+ui.preview().props.onChange({target:{value:'"burnout"[tiab] AND nurses[MeSH Terms]'}});
+ui.button('Aplicar combinação').props.onClick();assert.equal(ui.applied[1].content,'"burnout"[tiab] AND nurses[MeSH Terms]');
+ui.preview().props.onChange({target:{value:'("broken'}});assert(ui.button('Aplicar combinação').props.disabled);assert(ui.all().some(node=>node.props?.role==='alert'));
+const appliedCount=ui.applied.length;ui.button('Aplicar combinação').props.onClick();assert.equal(ui.applied.length,appliedCount);
+ui.button('Restaurar combinação automática').props.onClick();assert.equal(ui.preview().props.value,composer.combineSuggestionQueries(content.slice(0,2),'OR'));
+ui.button('Limpar seleção').props.onClick();assert.equal(ui.preview(),undefined);assert.equal(ui.applied.length,appliedCount);
+ui.button('Selecionar todas').props.onClick();assert.equal(ui.checks().filter(check=>check.props.checked).length,4);
+ui.all().find(node=>node.type==='button'&&node.props.children==='Usar somente esta sugestão').props.onClick();assert.equal(ui.applied.at(-1).content,composer.normalizeSuggestionQuery(content[0]));
+const bad=harness([{...recommendations[0],content:'(burnout'}]);bad.checks()[0].props.onChange();assert(bad.preview().props.value.includes('(burnout'));assert(bad.button('Aplicar combinação').props.disabled);
+bad.preview().props.onChange({target:{value:'"burnout"[tiab]'}});bad.button('Aplicar combinação').props.onClick();assert.equal(bad.applied[0].content,'"burnout"[tiab]');
+const long=harness([recommendation('"'+('a'.repeat(6000))+'"[tiab]',0),recommendation('"'+('b'.repeat(6000))+'"[tiab]',1)]);long.button('Selecionar todas').props.onClick();assert(long.preview().props.value.length>10000);assert(long.button('Aplicar combinação').props.disabled);
+assert.equal(harness([{...recommendations[0],targetField:''}]).checks().length,0);
+console.log('PASS: Radar multi-selection, exact AND/OR grouping, descriptor commas, editable preview, validation, limits, clearing, single-use and unchanged search handoff without another AI request.');

@@ -1,0 +1,27 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript');
+const compile=f=>ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+require.extensions['.ts']=(m,f)=>m._compile(compile(f),f);const guards=require('../lib/navigation/unsaved.ts');
+const listeners=new Map(),state=[],effects=[];let cursor=0;
+const react={useState(v){const i=cursor++;if(!(i in state))state[i]=v;return[state[i],n=>state[i]=typeof n==='function'?n(state[i]):n];},useRef(v){const i=cursor++;return state[i]||={current:v};},useEffect(fn,deps){const i=cursor++,old=state[i];if(!old||deps.some((v,j)=>v!==old.deps[j]))effects.push(()=>{old?.cleanup?.();state[i]={deps,cleanup:fn()};});}};
+class Element{closest(){return this.anchor;}}class HTMLElement extends Element{focus(){}}class HTMLFormElement extends HTMLElement{};
+const emit=(type,event={})=>{event.preventDefault||=(function(){this.defaultPrevented=true});event.stopImmediatePropagation||=(function(){this.stopped=true});listeners.get(type)?.(event);return event;};
+const location={href:'https://local/current',origin:'https://local',pathname:'/current',search:'',assign(url){this.assigned=url;}};
+const entries=[{state:{__NA:true},url:'/first'}];let position=0;
+const history={get state(){return entries[position].state;},pushState(s,t,url){entries.splice(++position);entries.push({state:s,url});},replaceState(s,t,url){entries[position]={state:s,url:url||entries[position].url};},go(delta){position+=delta;emit('popstate',{state:this.state});}};
+const window={location,history,setTimeout(){},addEventListener:(t,fn)=>listeners.set(t,fn),removeEventListener:t=>listeners.delete(t)};
+const document={body:{},activeElement:new HTMLElement(),addEventListener:(t,fn)=>listeners.set(t,fn),removeEventListener:t=>listeners.delete(t)};
+const jsx=(type,props)=>({type,props}),mod={exports:{}};
+vm.runInNewContext(compile('components/projects/navigation-protection.tsx'),{module:mod,exports:mod.exports,window,document,location,history,URL,URLSearchParams,HTMLElement,Element,HTMLFormElement,FormData:class{constructor(form){this.rows=form.rows;}[Symbol.iterator](){return this.rows[Symbol.iterator]();}},require:n=>n==='react'?react:n==='react/jsx-runtime'?{jsx,jsxs:jsx}:n==='react-dom'?{createPortal:x=>x}:n==='@/lib/navigation/unsaved'?guards:(()=>{throw Error(n)})()});
+const nodes=t=>!t||typeof t!=='object'?[]:Array.isArray(t)?t.flatMap(nodes):[t,...nodes(t.props?.children)],text=t=>typeof t==='string'?t:!t?'':Array.isArray(t)?t.map(text).join(''):text(t.props?.children);
+let shown=false;const render=()=>{cursor=0;const tree=mod.exports.default();if(tree)tree.props.ref.current={get open(){return shown;},showModal(){shown=true;},close(){shown=false;}};while(effects.length)effects.shift()();return tree||render();};
+const press=label=>nodes(render()).find(n=>n.type==='button'&&text(n)===label).props.onClick();let dirty=true,busy=false,saved=0,discarded=0,fail=true;
+const remove=guards.registerUnsavedGuard({label:'Teste',dirty:()=>dirty,busy:()=>busy,save:async()=>{saved++;if(fail)return false;dirty=false;return true;},discard:()=>{discarded++;dirty=false;}});
+const click=()=>{const target=new Element();target.anchor={href:'https://local/next',target:'',hasAttribute:()=>false};return emit('click',{target,button:0});};const tick=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+ render();assert(click().defaultPrevented);render();assert(shown);press('Continuar editando');render();assert(!shown);assert(!location.assigned);assert(dirty);
+ click();render();press('Salvar e sair');await tick();render();assert(shown);assert(text(render()).includes('Não foi possível confirmar'));assert(!location.assigned);assert.equal(saved,1);press('Continuar editando');render();
+ history.pushState({__NA:true},'', '/second');assert.equal(position,1);history.go(-1);render();assert.equal(position,1);assert(shown);assert.equal(history.state.__NA,true);press('Continuar editando');render();assert.equal(position,1);assert(dirty);
+ const form=new HTMLFormElement();form.method='get';form.action='https://local/manuscrito';form.rows=[['projeto','B']];assert(emit('submit',{target:form}).defaultPrevented);render();assert(shown);busy=true;press('Descartar e sair');render();assert(!location.assigned);assert.equal(discarded,0);busy=false;
+ fail=false;press('Salvar e sair');await tick();render();assert.equal(location.assigned,'https://local/manuscrito?projeto=B');assert.equal(saved,2);assert(!dirty);remove();assert.equal(guards.pendingGuards().length,0);
+ console.log('PASS: actual dialog protects links, project GET forms, back/forward, failed saves and busy/discard guards; successful save leaves with Next state preserved.');
+})().catch(e=>{console.error(e);process.exit(1)});
