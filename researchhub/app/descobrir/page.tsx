@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useRef, useState } from "react";
 import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
+import { trackRadarAttempt } from "@/lib/telemetry/journey";
 import LoadingDialog from "@/components/ai/loading-dialog";
 import AssistantPanel from "@/components/ai/assistant-panel";
 import { useSearchParams } from "next/navigation";
@@ -120,6 +121,7 @@ function DiscoverContent() {
   async function runAnalysis(translations: Record<string, string> = {}) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
+    const finishAttempt = trackRadarAttempt();
     setLoading(true);
     setError(null);
     setResult(null);
@@ -132,10 +134,12 @@ function DiscoverContent() {
       });
       const data = await response.json();
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
+        finishAttempt("review");
         setTermReview({ strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, ""])) });
         return;
       }
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
+      finishAttempt("completed");
       setTermReview(null);
       setResult(data);
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
@@ -144,6 +148,7 @@ function DiscoverContent() {
       setBrowseError(null);
       void recordSearch(data);
     } catch (err) {
+      finishAttempt("failed");
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
       searchLock.current = false;

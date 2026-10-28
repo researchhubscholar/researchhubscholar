@@ -60,3 +60,7 @@ o papel `owner` já existente; a migration não concede esse papel a ninguém.
 Antes de usar em conta real, homologar com conta descartável no Preview: prazo,
 cancelamento, confirmações, arquivos, vínculos e resultado do Auth. Referência:
 `../docs/account-data-operations.md`.
+
+`scholar_journey_metrics.sql`: indicador opcional das tentativas de busca no Radar;
+executar após `scholar_operations.sql`. Reexecutável, não remove dados e não impede
+buscas enquanto estiver ausente. Consultar limitações em `docs/assistant-evaluation.md`.

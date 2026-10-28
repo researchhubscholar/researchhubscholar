@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import JourneyMetrics from "@/components/account/journey-metrics";
 import DeletionOperations from "@/components/account/deletion-operations";
 import { useEffect,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -69,6 +70,7 @@ export default function OperationPage(){
       {!activity.length&&<p className="text-sm text-ink-soft mt-4">Os indicadores começarão a aparecer conforme as páginas privadas forem utilizadas.</p>}
     </section>
 
+    <JourneyMetrics/>
     <section className="mt-7"><h2 className="font-display text-2xl">Atendimento</h2><div className="grid lg:grid-cols-2 gap-4 mt-4">{tickets.map(ticket=><article key={ticket.id} className="bg-white border border-line rounded-2xl p-5">
       <div className="flex justify-between gap-3"><div><p className="text-xs text-teal">{ticket.user_name||ticket.user_email||"Usuário"}</p><h3 className="font-medium mt-1">{ticket.subject}</h3></div><span className="text-xs bg-paper rounded-full px-2 py-1 self-start">{supportLabels[ticket.status]}</span></div>
       <p className="text-sm text-ink-soft mt-3">{ticket.last_message||"Sem mensagem."}</p><p className="text-[11px] text-ink-soft mt-2">{ticket.user_email} · {new Date(ticket.updated_at).toLocaleString("pt-BR")}</p>

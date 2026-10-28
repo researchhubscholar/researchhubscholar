@@ -73,3 +73,29 @@ nesta rodada. Nenhuma nova tabela, métrica de abandono ou chamada de IA foi cri
 4. Registrar falhas sem conteúdo científico/identificável, corrigir a causa e
    repetir o cenário afetado. Não presumir que eventos ausentes provam ausência
    de erros.
+
+## Tentativas no Radar — preparação de acompanhamento
+
+Instalar `supabase/scholar_journey_metrics.sql` após `scholar_operations.sql` no
+ambiente correspondente. A migration é reexecutável e não apaga dados. Sem ela,
+a busca continua funcionando, mas o indicador fica indisponível e a exportação
+pode indicar a seção de tentativas como indisponível. Não se deve interpretar isso
+como zero tentativas.
+
+Para cada clique de busca admitido pela interface, o sistema tenta registrar início
+e um único desfecho: concluída, falha ou revisão de termos. Apenas UUID aleatório,
+conta, tipo fixo, estado e horários são armazenados, sem consulta ou dados de
+projeto. A entrega é de melhor esforço e não bloqueia buscas; indisponibilidade,
+fechamento de aba e perda de rede podem impedir o registro. Nenhuma tentativa é
+reenviada automaticamente. No painel de Operação, membros autorizados veem
+somente totais dos últimos sete dias. Começos sem desfecho há até 30 minutos são
+recentes; os mais antigos são “sem resultado registrado”, não abandono provado.
+Revisão de termos é um resultado próprio e uma busca posterior é outra tentativa.
+A conta pode exportar seus registros; exclusão de conta os remove por cascata.
+Dados históricos permanecem no banco até exclusão da conta ou política operacional
+de retenção explicitamente estabelecida; a janela do painel não apaga registros.
+
+Este primeiro indicador cobre apenas buscas no Radar, não a jornada inteira. Não
+mede pessoas únicas, causa de saída ou conclusão do projeto. A instalação no banco,
+coleta real, acesso do painel e comportamento em rede instável ainda precisam de
+validação autenticada antes de usar números para decisões.

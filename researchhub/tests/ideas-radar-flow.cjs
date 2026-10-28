@@ -52,6 +52,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useSearchParams: () => new URLSearchParams(query) };
+  if (name === '@/lib/telemetry/journey') return { trackRadarAttempt: () => () => {} };
   if (name === '@/lib/literature/search-limits') return limits;
   if (name === '@/lib/literature/use-library') return { useLibrary: () => ({ userId: null, articles: [], projects: [] }) };
   if (name === '@/lib/literature/use-open-access') return { useOpenAccess: () => ({ results: {}, loading: new Set() }) };

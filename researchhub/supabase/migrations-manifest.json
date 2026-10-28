@@ -248,6 +248,15 @@
       "repeatability": "tested-repeatable"
     },
     {
+      "file": "scholar_journey_metrics.sql",
+      "sha256": "f2fed7f7dc9e0a490d27d1276b83afa4464817ede0476b443f4957b4f2f6a600",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_operations.sql"
+      ],
+      "repeatability": "tested-repeatable"
+    },
+    {
       "file": "scholar_idea_history.sql",
       "sha256": "fa75c3e67832b357bb0306f0ccfe689ca78550fec75de06b18728e9a4d7b8f49",
       "kind": "compatibility-only",

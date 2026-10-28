@@ -107,3 +107,9 @@ Etapa 5, implementação complementar: roteiro de avaliação manual disponível
 Operação → Qualidade, com relatório exportável e casos inicialmente não testados.
 A execução humana com IA real e a validação em ambiente autenticado permanecem
 pendentes; as cinco etapas serão validadas individualmente.
+
+Indicadores de jornada: primeira implementação para tentativas de busca no Radar,
+com início e desfecho correlacionados e painel agregado. Instalação de
+`scholar_journey_metrics.sql` e validação autenticada permanecem pendentes.
+Casos sem resultado registrado não comprovam abandono; outras etapas da jornada
+ainda não possuem a mesma instrumentação. Ver `assistant-evaluation.md`.
