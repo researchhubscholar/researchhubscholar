@@ -1,0 +1,17 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript');
+const compile=p=>ts.transpileModule(fs.readFileSync(p,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+require.extensions['.ts']=(m,f)=>m._compile(compile(f),f);
+const routes=require('../lib/telemetry/routes.ts');
+assert.deepEqual(routes.telemetryRoute('/resultados/private-id'),{route:'/resultados',module:'project'});
+assert.deepEqual(routes.telemetryRoute('/manuscrito'),{route:'/manuscrito',module:'project'});
+assert.deepEqual(routes.telemetryRoute('/unknown/private-id'),{route:'/',module:'other'});
+let calls=[],user={id:'test'};const db={auth:{getUser:async()=>({data:{user}})},rpc:async(name,args)=>{calls.push({name,args});return {error:null};}};
+const NextResponse={json:(body,init)=>({body,status:init?.status||200})};
+const mod={exports:{}};vm.runInNewContext(compile('app/api/telemetry/route.ts'),{module:mod,exports:mod.exports,require:n=>n==='next/server'?{NextResponse}:n==='@/lib/supabase/server'?{supabaseServer:async()=>db}:n==='@/lib/telemetry/routes'?routes:(()=>{throw Error(n)})(),console:{log(){},error(){}},Date,Set});
+(async()=>{const request=body=>({headers:{get:()=>null},json:async()=>body});
+ let res=await mod.exports.POST(request({kind:'error',route:'/resultados/private-patient',module:'radar',errorCode:'secret-code',message:'DADO SENSÍVEL'}));assert.equal(res.status,200);
+ assert.equal(calls[0].args.p_route,'/resultados');assert.equal(calls[0].args.p_module,'project');assert.equal(calls[0].args.p_error_code,'CLIENT_ERROR');assert(!JSON.stringify(calls).includes('SENSÍVEL'));assert(!JSON.stringify(calls).includes('private-patient'));
+ res=await mod.exports.POST(request({kind:'event',route:'/manuscrito?id=private'}));assert.equal(res.status,200);assert.equal(calls[1].args.p_route,'/');
+ res=await mod.exports.POST(request({route:'invalid'}));assert.equal(res.status,400);
+ console.log('PASS: telemetry stores canonical routes and fixed client-error details, including for legacy callers.');
+})().catch(e=>{console.error(e);process.exitCode=1});

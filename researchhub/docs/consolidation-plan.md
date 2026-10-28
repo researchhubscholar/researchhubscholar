@@ -11,7 +11,7 @@ e monetização ficam fora deste ciclo. Nenhuma etapa está concluída ainda.
    distintas, permissões, desktop e celular.
 4. **Consistência visual — iniciada em paralelo; validação real pendente.** Cabeçalhos, seletores, salvamento,
    mensagens, acessibilidade e hierarquia nas telas reais.
-5. **Qualidade e acompanhamento — pendente.** Avaliação humana de IA real,
+5. **Qualidade e acompanhamento — iniciada em paralelo; validação real pendente.** Avaliação humana de IA real,
    métricas dos pontos de falha/abandono e recuperação operacional.
 
 ## Etapa 1: instalação e validação necessárias
@@ -95,3 +95,10 @@ continuam abertas. Detalhes em `design-audit.md`.
 
 Continuidade da etapa 4: estados de carregamento/salvamento mais claros em
 Projeto, Resultados e Manuscrito; revisão autenticada e demais telas pendentes.
+
+## Etapa 5 — início em 28/10/2026
+
+Matriz para avaliação humana de IA e roteiro de recuperação; sanitização da
+telemetria de interface e cobertura das rotas de Resultados/Manuscrito. Sem
+geração real nesta entrega; avaliação humana, dados de campo e monitoramento
+de abandono continuam pendentes. Ver `assistant-evaluation.md`.

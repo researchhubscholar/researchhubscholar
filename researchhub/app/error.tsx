@@ -6,7 +6,7 @@ import { reportClientError } from "@/components/product-telemetry";
 
 export default function ErrorPage({error,reset}:{error:Error & {digest?:string};reset:()=>void}) {
   const pathname=usePathname();
-  useEffect(()=>{void reportClientError(pathname,error);},[error,pathname]);
+  useEffect(()=>{void reportClientError(pathname);},[error,pathname]);
   return <div className="max-w-xl mx-auto py-16 text-center">
     <p className="text-xs uppercase tracking-widest text-teal">Algo saiu do esperado</p>
     <h1 className="font-display text-4xl mt-3">Não foi possível concluir esta etapa.</h1>
