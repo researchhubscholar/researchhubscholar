@@ -6,6 +6,11 @@ com conta de teste, sem dados pessoais e com ciência de que envios consomem a
 franquia configurada. Não enviar mensagens automaticamente nem repetir chamadas
 pagas em falhas.
 
+A área Operação → Qualidade permite registrar manualmente cada caso como passou,
+falhou ou não testado e baixar um relatório JSON. Os registros ficam só na página
+até o download: sair ou atualizar os apaga. O relatório deve ser guardado pelo
+avaliador e não deve conter dados pessoais. Não executa IA automaticamente.
+
 ## Avaliação humana em ambiente real
 
 Registrar para cada caso: data, ambiente, versão da aplicação/política/modelo

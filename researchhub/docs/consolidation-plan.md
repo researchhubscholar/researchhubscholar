@@ -102,3 +102,8 @@ Matriz para avaliação humana de IA e roteiro de recuperação; sanitização d
 telemetria de interface e cobertura das rotas de Resultados/Manuscrito. Sem
 geração real nesta entrega; avaliação humana, dados de campo e monitoramento
 de abandono continuam pendentes. Ver `assistant-evaluation.md`.
+
+Etapa 5, implementação complementar: roteiro de avaliação manual disponível em
+Operação → Qualidade, com relatório exportável e casos inicialmente não testados.
+A execução humana com IA real e a validação em ambiente autenticado permanecem
+pendentes; as cinco etapas serão validadas individualmente.
