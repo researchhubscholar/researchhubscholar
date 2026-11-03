@@ -1,10 +1,12 @@
 const fs = require('node:fs'), assert = require('node:assert/strict'), vm = require('node:vm'), ts = require('typescript');
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-require.extensions['.ts'] = (module, file) => module._compile(compile(fs.readFileSync(file, 'utf8')), file);
+require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText, file);
 const generation = require('../lib/ideas/generate.ts'), radar = require('../lib/ideas/radar.ts');
 const limits = require('../lib/literature/search-limits.ts');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
+let presentation;
+const jsx = (type, props) => presentation.jsx(type, props);
+const copy = source => presentation.copy(source);
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)];
 const deferred = () => { let resolve, reject; const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; }); return { promise, resolve, reject }; };
 function hooks() {
@@ -24,7 +26,7 @@ function ideasHarness() {
   return { select() { return { eq() { return { maybeSingle: async () => ({ data: null }) }; } }; }, insert(payload) { assert.equal(table, 'idea_versions'); writes.push(payload); events.push('insert'); const work = deferred(); pending.push(work); return work.promise; } };
  } };
  const module = { exports: {} };
- vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { search: '' }, confirm: () => true }, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { search: '' }, confirm: () => true }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
@@ -48,7 +50,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const h = hooks(), requests = [];
  const module = { exports: {} };
  const source = fs.readFileSync('app/descobrir/page.tsx', 'utf8').replace('function DiscoverContent()', 'export function DiscoverContent()');
- vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useSearchParams: () => new URLSearchParams(query) };
@@ -66,6 +68,8 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  return { requests, render, all, dialog: () => all().find(n => n.type === '@/components/ai/loading-dialog'), assistant: () => all().find(n => n.type === '@/components/ai/assistant-panel'), search: () => all().find(n => n.type === 'form' && n.props.className.includes('radar-search-panel')).props.onSubmit({ preventDefault() {} }) };
 }
 (async () => {
+ for(const locale of ['pt-BR','es']) {
+ presentation=require('./i18n-test-support.cjs').forLocale(locale);
  const h = ideasHarness(); h.render(); await tick(); h.restore();
  const action = h.card().props.onRadar;
  action(); action(); await tick();
@@ -82,31 +86,33 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  h.card().props.onChange('title', 'Proposta editada'); h.card().props.onRadar(); await tick();
  assert.equal(h.writes[1].proposal.title, 'Proposta editada', 'automatic saves must contain edits');
  h.pending[1].resolve({ error: { code: 'UNAVAILABLE' } }); await tick();
- assert.equal(h.destinations.length, 1); assert(JSON.stringify(h.render()).includes('o Radar não foi aberto'));
+ assert.equal(h.destinations.length, 1); assert(JSON.stringify(h.render()).includes(copy('A proposta não foi salva e o Radar não foi aberto. Falha no salvamento.')));
  h.card().props.onRadar(); await tick(); h.pending[2].resolve({ error: null }); await tick(); assert.equal(h.destinations.length, 2, 'retry must recover after a save failure');
  const changed = ideasHarness(); changed.render(); await tick(); changed.restore(); changed.setAuth('owner-b'); changed.card().props.onRadar(); await tick(); assert.equal(changed.writes.length, 0); assert.equal(changed.destinations.length, 0);
- const stale = ideasHarness(); stale.render(); await tick(); stale.restore(); stale.all().find(n => typeof n.type === 'function' && n.props.label === 'Sua especialidade ou área').props.change('Outra área'); stale.card().props.onRadar(); await tick(); assert.equal(stale.writes.length, 0);
+ const stale = ideasHarness(); stale.render(); await tick(); stale.restore(); stale.all().find(n => typeof n.type === 'function' && n.props.label === copy('Sua especialidade ou área')).props.change('Outra área'); stale.card().props.onRadar(); await tick(); assert.equal(stale.writes.length, 0);
  const account = ideasHarness(); account.render(); await tick(); account.restore(); account.card().props.onRadar(); await tick(); account.library.userId = 'owner-b'; account.render(); account.pending[0].resolve({ error: null }); await tick(); assert.equal(account.destinations.length, 0, 'account switches must prevent stale navigation');
 
- const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']==='Tema da busca').props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']==='Idioma da busca').props.value,'en');
- const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, 'Preparar busca com IA');
+ const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Tema da busca')).props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Idioma da busca')).props.value,'en');
+ const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, copy('Preparar busca com IA'));
+ assert.equal(r.assistant().props.actionLabel,locale==='es'?'Preparar búsqueda con IA':'Preparar busca com IA');
  assert.equal(r.assistant().props.context.searchGoal, 'exploratory_broad');
  const search = r.search(); assert.equal(r.dialog().props.open, true); assert.equal(r.assistant().props.disabled, true); assert(!r.dialog().props.statusText.includes('modelo'));
  assert(r.requests[0].options.signal instanceof AbortSignal);
  r.requests[0].resolve({ ok: false, status: 500, json: async () => ({ error: 'Fonte indisponível' }) }); await search; assert.equal(r.dialog().props.open, false); assert(JSON.stringify(r.render()).includes('Fonte indisponível'));
  const retry = r.search(); r.requests[1].resolve({ ok: false, status: 422, json: async () => ({ code: 'TERMINOLOGY_REVIEW_REQUIRED', strategy: { unresolvedTerms: ['microplasticos'], concepts: [] } }) }); await retry;
- assert.equal(r.dialog().props.open, false); assert(r.all().some(n => n.props?.['aria-label'] === 'Revisão de conceitos da busca'));
+ assert.equal(r.dialog().props.open, false); assert(r.all().some(n => n.props?.['aria-label'] === copy('Revisão de conceitos da busca')));
  const timeout = r.search(); r.requests[2].reject(new DOMException('A consulta demorou', 'TimeoutError')); await timeout; assert.equal(r.dialog().props.open, false);
  const lookup = r.all().find(n => n.type === 'form' && !n.props.className?.includes('radar-search-panel') && n.props.className?.includes('flex flex-wrap')).props.onSubmit({ preventDefault() {} });
- assert.equal(r.dialog().props.open, true); assert.equal(r.dialog().props.title, 'Buscando o artigo');
+ assert.equal(r.dialog().props.open, true); assert.equal(r.dialog().props.title, copy('Buscando o artigo'));
  r.requests[3].resolve({ ok: false, json: async () => ({ error: 'Não encontrado' }) }); await lookup; assert.equal(r.dialog().props.open, false);
  const success = r.search(); const payload = JSON.parse(r.requests[4].options.body);
  const result = { topic: payload.topic, filters: { period: payload.period, studyType: payload.studyType, mesh: '', population: '', outcome: '', operator: 'AND', language: 'auto', searchTerm: 'burnout', crossrefQuery: 'burnout', endDate: '2026-10-19' }, strategy: { interpreted: 'burnout', pubmedQuery: '(burnout)', mode: 'advanced', language: 'advanced', warnings: [], concepts: [], manualTranslations: [] }, sources: { pubmed: { total: 0, recent: 0, systematicReviews: 0, clinicalTrials: 0 }, crossref: { total: 0 } }, articles: [], timeline: [], signals: { breadth: 'scarce', trend: 'insufficient', recentRatio: 0 }, methodology: 'Teste' };
  r.requests[4].resolve({ ok: true, json: async () => result }); await success; assert.equal(r.dialog().props.open, false); r.render();
- const broaden = r.all().find(n => n.type === 'button' && JSON.stringify(n.props.children).includes('Ampliar os filtros')); broaden.props.onClick();
+ const broaden = r.all().find(n => n.type === 'button' && JSON.stringify(n.props.children).includes(copy('Ampliar os filtros'))); broaden.props.onClick();
  const broadSearch = r.search(), broadPayload = JSON.parse(r.requests[5].options.body); assert.equal(broadPayload.period, 'all'); assert.equal(broadPayload.studyType, 'all'); assert.equal(broadPayload.topic, 'burnout');
  r.requests[5].resolve({ ok: false, json: async () => ({ error: 'Encerrar' }) }); await broadSearch;
  const page = fs.readFileSync('app/meu-trabalho/page.tsx', 'utf8'); assert.match(page, /window\.location\.assign\(id \?[^;]+: "\/ideias"/);
  for (const file of ['app/dashboard/page.tsx', 'app/documentos/page.tsx', 'app/resultados/page.tsx', 'app/manuscrito/page.tsx']) assert(!fs.readFileSync(file, 'utf8').includes('/meu-trabalho?novo=1'));
- console.log('PASS: idea autosave before Radar, edits, duplicate clicks, failure/retry, account changes, search/lookup loading dialogs, terminology/timeouts, visible AI preparation, broader filters and new-project routing.');
+ console.log(locale+' PASS: idea autosave before Radar, edits, duplicate clicks, failure/retry, account changes, search/lookup loading dialogs, terminology/timeouts, visible AI preparation, broader filters and new-project routing.');
+ }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -275,3 +275,13 @@ pela landing e troca de idioma, depois Ideias → Radar → Biblioteca → Proje
 Também faltam conferência visual dos arquivos e avaliação das respostas reais da
 IA/terminologia. Não há etapa 6 neste plano; depois da aprovação, retomar a
 consolidação anterior registrada em `docs/consolidation-plan.md`.
+
+## Etapa 5 — segundo bloco
+
+Regressões de navegação, Ideias → Radar e escolha de projeto agora usam os
+catálogos reais em PT e ES. Verificam salvamento/erro/nova tentativa, conteúdo
+original, carregamento, consultas canônicas e isolamento entre contas. Corrigidas
+a contagem singular/plural de projetos e a opção sem título no seletor espanhol.
+Detalhes e limites em `docs/i18n-validation.md`. Persistência, autenticação e busca
+nesses testes são simuladas; a etapa 5 continua aberta para validação visual,
+jornada completa autenticada, revisão dos arquivos e respostas reais da IA.

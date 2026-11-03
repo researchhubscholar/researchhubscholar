@@ -34,4 +34,27 @@ function sourceWithPortugueseLabels(source) {
   return source.replace(/<InterfaceText message="([^"]+)"\s*\/>/g,(_match,key)=>text(key))
     .replace(/\b(?:t|uiText)\("(screen\.[^"]+)"\)/g,(_match,key)=>JSON.stringify(text(key)));
 }
-module.exports = {jsx,dependency,sourceWithPortugueseLabels};
+// Opt-in bilingual fixtures use the production catalogs/copy rules.
+function forLocale(locale) {
+  const {translate}=require('../lib/i18n/locale.ts');
+  const {localizeInterfaceCopy}=require('../lib/i18n/interface-copy.ts');
+  const copy=source=>localizeInterfaceCopy(locale,source);
+  const t=key=>translate(locale,key);
+  return {
+    copy,
+    jsx(type,props){
+      if(type===Interface)return t(props.message);
+      if(type===Authored)return copy(props.text);
+      return {type,props};
+    },
+    dependency(name){
+      if(name==='@/components/i18n/use-interface-copy')return {useInterfaceCopy:()=>copy};
+      if(name==='@/components/i18n/language-provider')return {useLanguage:()=>({locale,t})};
+      if(name==='@/lib/i18n/interface-copy')return {localizeInterfaceCopy,dialogCopy:copy};
+      if(name==='@/lib/i18n/server')return {getRequestLocale:async()=>locale};
+      if(name==='@/lib/i18n/locale')return require('../lib/i18n/locale.ts');
+      return dependency(name);
+    },
+  };
+}
+module.exports = {jsx,dependency,sourceWithPortugueseLabels,forLocale};

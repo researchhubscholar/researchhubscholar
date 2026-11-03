@@ -67,6 +67,35 @@ Revisar especialmente desenlace, história clínica, fatores de confusão, inter
 confiança, medidas repetidas, associação e causalidade, preservando o significado
 e as limitações estatísticas. A revisão humana especializada ainda não ocorreu.
 
+## Segundo bloco — regressão dos fluxos
+
+Os componentes reais de navegação, Ideias, Radar e seletor de projeto agora são
+exercitados com os catálogos e as regras de cópia reais em PT e ES. Os serviços de
+autenticação, persistência e busca continuam simulados: não são testes visuais
+nem end-to-end do deployment.
+
+- Landing logada só oferece entrada para Meu espaço; retorno da Biblioteca não
+  deixa abas privadas na landing. Páginas públicas não expõem a navegação interna.
+  Ideias permanece antes de Radar nos dois idiomas.
+- Ideias salva antes de navegar; clique duplo não duplica versões, edição é
+  preservada, erro impede navegação e nova tentativa recupera o fluxo. Mudança
+  de conta descarta respostas antigas. Consultas e conteúdo autoral não mudam.
+- Radar mantém os estados de carregamento, revisão de terminologia, timeout,
+  busca direta e ampliação de filtros nos dois idiomas. Transferência do
+  assistente não dispara busca automática. Mensagens externas desconhecidas
+  permanecem literais.
+- Projeto mantém seleção, bloqueio durante salvamento, rascunho, ação de salvar
+  antes de trocar, falha/nova tentativa e isolamento entre contas. Alternar idioma
+  não recarrega dados nem seleciona outro projeto; o título autoral é preservado.
+- Detectada e corrigida a contagem de projetos que continuava em português no
+  espanhol. Singular/plural e o título padrão sem nome agora são localizados.
+  Um teste com dois projetos falhou em espanhol antes da correção e passou após.
+
+Próxima conferência: Biblioteca e a jornada completa no navegador, revisão móvel
+e arquivos abertos em leitor real. Login da Vercel ainda bloqueia o navegador
+de validação; o roteiro real acima permanece pendente. Não houve resposta real de
+IA, avaliação especializada da terminologia ou alteração de proteção de acesso.
+
 ## Critério de encerramento
 
 Aprovar todos os itens visuais/autenticados e os casos de IA real nos dois idiomas,

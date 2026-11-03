@@ -1,5 +1,6 @@
 "use client";
 import AuthoredText from "@/components/i18n/authored-text";
+import { useInterfaceCopy } from "@/components/i18n/use-interface-copy";
 
 import { useLanguage } from "@/components/i18n/language-provider";
 
@@ -16,6 +17,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
   onSelect: (id: string | null) => void; onSave: () => void;
 }) {
   const { t: uiText } = useLanguage();
+  const copy = useInterfaceCopy();
   const [projectList, setProjectList] = useState<{ ownerId: string | null; items: ProjectOption[] }>({ ownerId: null, items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,7 +41,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
   const projects = projectList.ownerId === ownerId ? projectList.items : [];
   const isLoading = loading || projectList.ownerId !== ownerId;
   const current = projects.find(project => project.id === projectId);
-  const currentTitle = title.trim() || current?.title || current?.theme || "Projeto sem título";
+  const currentTitle = title.trim() || current?.title || current?.theme || uiText("screen.53d02a124b87");
   return <section aria-label={uiText("screen.a522f5a6dd79")} className="project-picker-strip mb-6 bg-white border border-line rounded-2xl p-5">
     <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.cc11df91e214" /></p>
     <div className="grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-end mt-3">
@@ -56,7 +58,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
       <button type="button" disabled={busy || isLoading} onClick={() => { if (!busy && !isLoading) onSelect(null); }} className="border border-teal/30 text-teal rounded-card px-4 py-3 text-sm disabled:opacity-50"><InterfaceText message="screen.7983bf7895e9" /></button>
     </div>
     {error ? <p role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={error} /> <button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)} className="underline"><InterfaceText message="screen.b9e10688be01" /></button></p>
-      : !isLoading && <p className="mt-3 text-xs text-ink-soft">{projects.length ? `${projects.length} projeto${projects.length === 1 ? " salvo" : "s salvos"} na sua conta. Selecione o que deseja consultar ou editar.` : uiText("screen.2c536f7f9c87")}</p>}
+      : !isLoading && <p className="mt-3 text-xs text-ink-soft">{projects.length ? copy(`${projects.length} projeto${projects.length === 1 ? " salvo" : "s salvos"} na sua conta. Selecione o que deseja consultar ou editar.`) : uiText("screen.2c536f7f9c87")}</p>}
     {dirty && <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm"><p className="text-ink-soft"><InterfaceText message="screen.f1e8688b77de" /></p><button type="button" disabled={busy} onClick={onSave} className="text-teal underline disabled:opacity-50"><InterfaceText message="screen.a16e52b9cc6d" /></button></div>}
   </section>;
 }
