@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -34,6 +36,8 @@ type LicenseOption = {
 };
 
 export default function CommercePage() {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [kind, setKind] = useState<Exclude<CommerceKind, "recharge">>("individual");
@@ -204,7 +208,7 @@ export default function CommercePage() {
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
         <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString("pt-BR")}</p><p className="text-xs">tokens</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
       </div>
       <p className="mt-3 text-xs text-ink-soft"><InterfaceText message="screen.21003e165b48" /></p>
       <button type="button" disabled={busy || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="mt-5 rounded-card bg-teal px-5 py-3 text-white disabled:opacity-50">
@@ -225,7 +229,7 @@ export default function CommercePage() {
           <input type="number" min={1} max={100} value={rechargeQuantity} onChange={event => setRechargeQuantity(Number(event.target.value))} className="mt-2 block w-full rounded-card border p-3" />
         </label>
       </div>
-      <p className="mt-4 text-sm"><strong>{money(rechargeQuote.grossAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString("pt-BR")} tokens</p>
+      <p className="mt-4 text-sm"><strong>{money(rechargeQuote.grossAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString(intlLocale(formatLocale))} tokens</p>
       <button type="button" disabled={busy || !rechargeLicense} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50"><InterfaceText message="screen.cb0f2ff8c822" /></button>
     </section> : null}
 
@@ -235,7 +239,7 @@ export default function CommercePage() {
         <table className="w-full text-left text-sm">
           <thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Tipo</th><th className="p-2"><InterfaceText message="screen.5b41dbc68c28" /></th><th className="p-2"><InterfaceText message="screen.b2f530c46991" /></th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2"><InterfaceText message="screen.1dfbdde6410a" /></th></tr></thead>
           <tbody>{requests.map(item => <tr key={item.id} className="border-t">
-            <td className="p-2">{new Date(item.created_at).toLocaleDateString("pt-BR")}</td>
+            <td className="p-2">{new Date(item.created_at).toLocaleDateString(intlLocale(formatLocale))}</td>
             <td className="p-2">{item.kind === "individual" ? "Individual" : item.kind === "institutional" ? uiText("screen.418f4046fd07") : "Recarga"}</td>
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} pacote(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}</td>
             <td className="p-2">{money(item.total_amount_cents)}</td>

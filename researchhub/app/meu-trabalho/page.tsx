@@ -48,7 +48,7 @@ function fromRecord(record: Record<string, unknown>): Draft {
 }
 
 export default function MeuTrabalhoPage() {
-  const { t: uiText } = useLanguage();
+  const { t: uiText, locale } = useLanguage();
   const savingLock = useRef(false);
   const savedRevision = useRef<number|null>(null);
   const [loadBlocked,setLoadBlocked] = useState(false);
@@ -225,7 +225,7 @@ export default function MeuTrabalhoPage() {
   useUnsavedChanges({label:"Protocolo",dirty,busy:saveState==="loading",onSave:saveDraft,onDiscard:()=>{try{window.localStorage.removeItem(storageKey);}catch{}}});
   function exportProtocol() {
     const sections = groups.map(g => ({ title: g.title, fields: [...g.keys.map(k => ({ label: labels[k], value: draft[k] })), ...(g.id === "objetivos" ? [{ label: labels.hypothesis, value: draft.hypothesis }] : [])] }));
-    download(buildProtocolDoc(draft.theme, sections), "application/msword;charset=utf-8", "protocolo-scholar.doc");
+    download(buildProtocolDoc(draft.theme, sections, locale), "application/msword;charset=utf-8", "protocolo-scholar.doc");
   }
   const notes = [
     ...protocolChecks(draft),

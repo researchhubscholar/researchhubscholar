@@ -1,4 +1,5 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
 import { useLanguage } from "@/components/i18n/language-provider";
 import AuthoredText from "@/components/i18n/authored-text";
 
@@ -12,8 +13,9 @@ import type { ResultsWorkspace } from "@/lib/results/data";
 import { downloadBinary, workbook, wordDocument } from "@/lib/exports/ooxml";
 import { resultsWordBlocks } from "@/lib/results/word";
 const control = "block w-full min-w-0 rounded-card border p-3 mt-2";
-const fmt = (value: string | number) => typeof value === "number" ? value.toLocaleString("pt-BR", { maximumSignificantDigits: 6 }) : value;
 export default function ComparisonPanel({ workspace, onChange }: { workspace: ResultsWorkspace; onChange: (value: ResultsWorkspace) => void }) {
+ const {locale:formatLocale}=useLanguage();
+const fmt = (value: string | number) => typeof value === "number" ? value.toLocaleString(intlLocale(formatLocale), { maximumSignificantDigits: 6 }) : value;
   const { t: uiText } = useLanguage();
   const collection = workspace.collection, config = workspace.comparison;
   const [message, setMessage] = useState("");

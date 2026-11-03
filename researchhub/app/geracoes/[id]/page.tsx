@@ -1,3 +1,4 @@
+import { intlLocale } from "@/lib/i18n/format";
 import AuthoredText from "@/components/i18n/authored-text";
 import InterfaceText from "@/components/i18n/interface-text";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -14,6 +15,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export default async function GenerationPage({ params }: { params: Promise<{ id: string }> }) {
+ const formatLocale=await getRequestLocale();
+
   const requestLocale = await getRequestLocale();
   const uiText = (key: MessageKey) => translate(requestLocale, key);
   const { id } = await params;
@@ -40,10 +43,10 @@ export default async function GenerationPage({ params }: { params: Promise<{ id:
       <Metric label="Modo" value={usage.mode === "simulation" ? "Simulação sem custo" : "IA ativa"} />
       <Metric label={uiText("screen.6eb28a77b0b8")} value={String(usage.status === "completed" ? (usage.input_tokens || 0) + (usage.output_tokens || 0) : 0)} />
       <Metric label={uiText("screen.728f2d70f3c7")} value={`US$ ${Number(usage.cost_usd || 0).toFixed(4)}`} />
-      <Metric label={uiText("screen.8d5cfd42d8a4")} value={duration === null ? usage.status === "reserved" ? "Em andamento" : "Indisponível" : `${duration.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s`} />
+      <Metric label={uiText("screen.8d5cfd42d8a4")} value={duration === null ? usage.status === "reserved" ? "Em andamento" : "Indisponível" : `${duration.toLocaleString(intlLocale(formatLocale), { maximumFractionDigits: 1 })} s`} />
     </section>
     <section className="bg-white border border-line rounded-2xl p-5 mt-6 text-sm">
-      <dl className="grid md:grid-cols-2 gap-4"><Item label={uiText("screen.40e49271ddad")} value={usage.id} /><Item label={uiText("screen.8f1e11c5bb0f")} value={artifact?.prompt_version || "Indisponível"} /><Item label="Modelo" value={usage.model} /><Item label="Tokens de entrada" value={String(usage.input_tokens || 0)} /><Item label={uiText("screen.5e30402cfec0")} value={String(usage.output_tokens || 0)} /><Item label={uiText("screen.7d051f286fa4")} value={new Date(usage.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} /></dl>
+      <dl className="grid md:grid-cols-2 gap-4"><Item label={uiText("screen.40e49271ddad")} value={usage.id} /><Item label={uiText("screen.8f1e11c5bb0f")} value={artifact?.prompt_version || "Indisponível"} /><Item label="Modelo" value={usage.model} /><Item label="Tokens de entrada" value={String(usage.input_tokens || 0)} /><Item label={uiText("screen.5e30402cfec0")} value={String(usage.output_tokens || 0)} /><Item label={uiText("screen.7d051f286fa4")} value={new Date(usage.created_at).toLocaleString(intlLocale(formatLocale), { timeZone: "America/Sao_Paulo" })} /></dl>
       {artifact?.error_code && <p className="mt-5 text-red-700"><InterfaceText message="screen.3d82771b2b27" /> {artifact?.error_code}</p>}
       {!artifact && <p className="mt-5 text-ink-soft"><InterfaceText message="screen.d45cc0748f83" /></p>}
       {output?.caution && <p className="mt-5 bg-teal-soft rounded-card p-4">{output.caution}</p>}

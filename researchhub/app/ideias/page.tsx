@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import { dialogCopy } from "@/lib/i18n/interface-copy";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -405,10 +407,12 @@ function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving
 }
 
 function RefinementPanel({ result, apply }: { result: RefinementResult; apply: () => void }) {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const output = result.output;
   return <section className="mt-6 rounded-2xl border border-teal/30 bg-teal-soft/40 p-5" aria-label={uiText("screen.1318fbd854ef")}>
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest font-semibold text-teal"><InterfaceText message="screen.9933d8249fbb" /></p><h4 className="font-display text-2xl mt-2">{output.refinedProposal.title}</h4></div><span className="rounded-full bg-white px-3 py-1 text-xs text-teal">{result.pubmedTotal.toLocaleString("pt-BR")} resultados relacionados</span></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest font-semibold text-teal"><InterfaceText message="screen.9933d8249fbb" /></p><h4 className="font-display text-2xl mt-2">{output.refinedProposal.title}</h4></div><span className="rounded-full bg-white px-3 py-1 text-xs text-teal">{result.pubmedTotal.toLocaleString(intlLocale(formatLocale))} resultados relacionados</span></div>
     <p className="text-sm text-ink-soft mt-3 leading-relaxed">{output.refinementRationale}</p>
     <div className="grid md:grid-cols-2 gap-4 mt-5 text-sm"><Info label={`Estrutura ${output.framework}`} value={output.frameworkElements.map(item => `${item.label}: ${item.value}`).join(" · ")} /><Info label={uiText("screen.9d78db74732a")} value={`${output.literatureSignal}. ${output.gapAssessment}`} /><Info label={uiText("screen.cf61cfb4f282")} value={output.similarityRisk} /><Info label={uiText("screen.e8ba60cadf6d")} value={output.meshTerms.join(" · ")} /></div>
     <div className="mt-5"><p className="text-sm font-medium"><InterfaceText message="screen.fe001b7fea8e" /></p><ul className="mt-2 space-y-2 text-sm text-ink-soft list-disc pl-5">{output.alternativeTitles.map(title => <li key={title}>{title}</li>)}</ul></div>
@@ -421,8 +425,10 @@ function RefinementPanel({ result, apply }: { result: RefinementResult; apply: (
 }
 
 function UsageSummary({ usage }: { usage: AIUsage }) {
+ const {locale:formatLocale}=useLanguage();
+
   const total = usage.inputTokens + usage.outputTokens;
-  return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString("pt-BR")} tokens</strong> ({usage.inputTokens.toLocaleString("pt-BR")} de entrada + {usage.outputTokens.toLocaleString("pt-BR")} <InterfaceText message="screen.6922c72e93b2" /></p>;
+  return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString(intlLocale(formatLocale))} tokens</strong> ({usage.inputTokens.toLocaleString(intlLocale(formatLocale))} de entrada + {usage.outputTokens.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.6922c72e93b2" /></p>;
 }
 
 function GenerationFeedback({ operationId, userId, compact = false }: { operationId: string; userId: string | null; compact?: boolean }) {

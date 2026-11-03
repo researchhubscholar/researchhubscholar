@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -19,6 +21,8 @@ function freshItems(studyType: string): Item[] { return getJourneyTemplate(study
 
 type Props={projectId:string|null;ownerId:string|null;studyType:string;draft:ProjectFields;radarHref:string;reviewNotes:string[];disabled?:boolean};
 export default function ProjectJourney({projectId,ownerId,studyType,draft,radarHref,reviewNotes,disabled=false}:Props) {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const template=useMemo(()=>freshItems(studyType),[studyType]);
   const scope=`${ownerId||""}:${projectId||""}`;
@@ -66,7 +70,7 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
     }catch(error){if(currentScope.current===who)setMessage(error instanceof Error?error.message:"Não foi possível salvar.");}finally{lock.current=false;setBusy(false);}}
   const destination=next.destination==="radar"?radarHref:next.destination==="manuscript"?`/manuscrito?projeto=${projectId}`:next.destination==="documents"?`/documentos?projeto=${projectId}`:`#${next.anchor||"pergunta"}`;
   return <section className="mt-6" aria-label={uiText("screen.04be19f79e2e")}>
-    <div className="bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.8979984026f0" /></p><h3 className="font-display text-2xl mt-2">{disabled?uiText("screen.36a640af1cca"):next.title}</h3><p className="text-sm text-ink-soft mt-3 max-w-2xl">{disabled?uiText("screen.2da862aebf47"):next.description}</p><div className="flex flex-wrap gap-3 items-center mt-4">{!disabled&&(next.destination==="review"?<button type="button" onClick={()=>openReview(next.milestone)} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></button>:(!projectId&&["radar","manuscript","documents"].includes(next.destination))?<a href="#project-save" className="bg-teal text-white rounded-card px-4 py-2.5"><InterfaceText message="screen.e464408181fe" /></a>:<Link href={destination} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></Link>)}{due&&<p className="text-xs text-ink-soft"><InterfaceText message="screen.2e26f24d9de9" /> <AuthoredText text={due.label} /> · {new Date(`${due.dueDate}T12:00:00`).toLocaleDateString("pt-BR")}</p>}</div>
+    <div className="bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.8979984026f0" /></p><h3 className="font-display text-2xl mt-2">{disabled?uiText("screen.36a640af1cca"):next.title}</h3><p className="text-sm text-ink-soft mt-3 max-w-2xl">{disabled?uiText("screen.2da862aebf47"):next.description}</p><div className="flex flex-wrap gap-3 items-center mt-4">{!disabled&&(next.destination==="review"?<button type="button" onClick={()=>openReview(next.milestone)} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></button>:(!projectId&&["radar","manuscript","documents"].includes(next.destination))?<a href="#project-save" className="bg-teal text-white rounded-card px-4 py-2.5"><InterfaceText message="screen.e464408181fe" /></a>:<Link href={destination} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></Link>)}{due&&<p className="text-xs text-ink-soft"><InterfaceText message="screen.2e26f24d9de9" /> <AuthoredText text={due.label} /> · {new Date(`${due.dueDate}T12:00:00`).toLocaleDateString(intlLocale(formatLocale))}</p>}</div>
       {!disabled&&projectId&&<p className="text-xs text-ink-soft mt-4"><InterfaceText message="screen.4785d7b832f4" /> {observed.references??"a conferir"} <InterfaceText message="screen.3b93719e2ff8" /> {observed.searches??"a conferir"} · Manuscrito: {observed.manuscriptStarted===null?"a conferir":observed.manuscriptStarted?"texto iniciado":"a iniciar"}</p>}
     </div>
     <details ref={reviewRef} className="mt-4 bg-white border border-line rounded-2xl p-5 md:p-6"><summary className="cursor-pointer text-teal font-medium"><InterfaceText message="screen.97f9b8a74112" /></summary><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.1b7b6c0b9dea" /></p>

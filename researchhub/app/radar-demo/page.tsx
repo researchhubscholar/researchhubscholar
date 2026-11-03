@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -33,6 +35,8 @@ type Result = {
 type TermReview = { strategy: Strategy; translations: Record<string, string> };
 
 export default function Demo() {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const [topic, setTopic] = useState("qualidade do sono em residentes de medicina");
   const [language, setLanguage] = useState("auto");
@@ -101,10 +105,10 @@ export default function Demo() {
     {loading && <p role="status" className="mt-5 text-sm"><InterfaceText message="screen.7a11604677d3" /></p>}
     {result && <section className="mt-7">
       <h2 className="font-display text-3xl">{result.topic}</h2>
-      <p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.3c459fb25c4e" /> {new Date(result.generatedAt).toLocaleString("pt-BR")} · {result.remaining} <InterfaceText message="screen.1927150898a4" /></p>
+      <p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.3c459fb25c4e" /> {new Date(result.generatedAt).toLocaleString(intlLocale(formatLocale))} · {result.remaining} <InterfaceText message="screen.1927150898a4" /></p>
       <div className="bg-teal-soft border border-teal/20 rounded-2xl p-5 mt-5"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.99475d77a750" /></p><p className="font-medium mt-2">{result.strategy.interpreted}</p><p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? uiText("screen.e4bf48ea4a79") : result.strategy.language === "en" ? uiText("screen.85a560bc1af9") : uiText("screen.d623d8b94ce7")}</p><div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-white text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>{result.strategy.warnings.map(warning => <p key={warning} className="text-xs text-ink-soft mt-3"><AuthoredText text={warning} /></p>)}</div>
-      <div className="grid sm:grid-cols-3 gap-4 mt-5">{[["Publicações no recorte", result.sources.pubmed.total], ["Revisões sistemáticas", result.sources.pubmed.systematicReviews], ["Ensaios clínicos", result.sources.pubmed.clinicalTrials]].map(([label, count]) => <div key={label} className="bg-white border border-line rounded-card p-4"><p className="text-3xl">{Number(count).toLocaleString("pt-BR")}</p><p className="text-xs mt-2"><AuthoredText text={label} /></p></div>)}</div>
-      <div className="bg-white border border-line rounded-2xl p-5 mt-5"><h3 className="font-medium"><InterfaceText message="screen.356082b30eb2" /></h3><div className="mt-4 space-y-3">{result.timeline.map(point => <div key={point.year} className="grid grid-cols-[45px_1fr_70px] gap-3 items-center text-sm"><span>{point.year}</span><div className="bg-paper rounded-full h-3"><div className="bg-teal h-3 rounded-full" style={{ width: `${point.count / Math.max(1, ...result.timeline.map(item => item.count)) * 100}%` }} /></div><span>{point.count.toLocaleString("pt-BR")}</span></div>)}</div></div>
+      <div className="grid sm:grid-cols-3 gap-4 mt-5">{[["Publicações no recorte", result.sources.pubmed.total], ["Revisões sistemáticas", result.sources.pubmed.systematicReviews], ["Ensaios clínicos", result.sources.pubmed.clinicalTrials]].map(([label, count]) => <div key={label} className="bg-white border border-line rounded-card p-4"><p className="text-3xl">{Number(count).toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs mt-2"><AuthoredText text={label} /></p></div>)}</div>
+      <div className="bg-white border border-line rounded-2xl p-5 mt-5"><h3 className="font-medium"><InterfaceText message="screen.356082b30eb2" /></h3><div className="mt-4 space-y-3">{result.timeline.map(point => <div key={point.year} className="grid grid-cols-[45px_1fr_70px] gap-3 items-center text-sm"><span>{point.year}</span><div className="bg-paper rounded-full h-3"><div className="bg-teal h-3 rounded-full" style={{ width: `${point.count / Math.max(1, ...result.timeline.map(item => item.count)) * 100}%` }} /></div><span>{point.count.toLocaleString(intlLocale(formatLocale))}</span></div>)}</div></div>
       <h3 className="font-display text-2xl mt-7"><InterfaceText message="screen.4fc7d60aadc5" /></h3>
       {result.articles.map(article => <article key={article.pmid || article.doi || article.title} className="mt-4 border border-line bg-white rounded-2xl p-5"><p className="text-xs text-teal">{article.year || uiText("screen.0d116becb93b")} · {article.journal}</p><h4 className="font-display text-xl mt-2">{article.title}</h4><p className="text-xs text-ink-soft mt-2">{article.authors.slice(0, 5).join(", ")}</p>{article.abstract && <details className="mt-3 text-sm"><summary className="text-teal cursor-pointer"><InterfaceText message="screen.238300f5844a" /></summary><p className="leading-relaxed mt-3 text-ink-soft whitespace-pre-wrap">{article.abstract}</p></details>}{article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="inline-block mt-3 text-sm text-teal underline"><InterfaceText message="screen.c84298224bce" /></a>}</article>)}
       {!result.articles.length && <p className="text-sm mt-4"><InterfaceText message="screen.69a87f9c8fad" /></p>}

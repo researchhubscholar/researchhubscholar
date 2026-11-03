@@ -1,4 +1,5 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
 import { useLanguage } from "@/components/i18n/language-provider";
 import AuthoredText from "@/components/i18n/authored-text";
 
@@ -12,8 +13,8 @@ import { resultsWordBlocks } from "@/lib/results/word";
 import type { ResultsWorkspace } from "@/lib/results/data";
 const control = "block w-full min-w-0 border rounded-card p-3 mt-2";
 const button = "rounded-card border p-3 text-sm text-teal disabled:opacity-40";
-const fmt = (v: string | number) => typeof v === "number" ? v.toLocaleString("pt-BR", { maximumSignificantDigits: 6 }) : v;
-function Table({ rows, caption }: { rows: (string | number)[][]; caption: string }) { return <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="text-left font-medium mb-2">{caption}</caption><thead><tr>{rows[0].map((v,i)=><th scope="col" className="border p-2 text-left" key={i}>{v}</th>)}</tr></thead><tbody>{rows.slice(1).map((r,i)=><tr key={i}>{r.map((v,j)=>j===0?<th scope="row" className="border p-2 text-left font-normal" key={j}>{fmt(v)}</th>:<td className="border p-2" key={j}>{fmt(v)}</td>)}</tr>)}</tbody></table></div>; }
+function Table({ rows, caption }: { rows: (string | number)[][]; caption: string }) { const {locale:formatLocale}=useLanguage(); const fmt = (v: string | number) => typeof v === "number" ? v.toLocaleString(intlLocale(formatLocale), { maximumSignificantDigits: 6 }) : v;
+return <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="text-left font-medium mb-2">{caption}</caption><thead><tr>{rows[0].map((v,i)=><th scope="col" className="border p-2 text-left" key={i}>{v}</th>)}</tr></thead><tbody>{rows.slice(1).map((r,i)=><tr key={i}>{r.map((v,j)=>j===0?<th scope="row" className="border p-2 text-left font-normal" key={j}>{fmt(v)}</th>:<td className="border p-2" key={j}>{fmt(v)}</td>)}</tr>)}</tbody></table></div>; }
 export default function PairedPanel({ workspace, projectId, onChange }: { workspace: ResultsWorkspace; projectId: string; onChange: (next: ResultsWorkspace) => void }) {
   const { t: uiText } = useLanguage();
   const plan = workspace.followup, config = workspace.paired, collection = workspace.collection;

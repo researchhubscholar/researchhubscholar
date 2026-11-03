@@ -6,6 +6,8 @@ let locale='pt-BR',cursor=0;const state=[],effects=[];
 const react={useState(initial){const i=cursor++;if(!(i in state))state[i]=typeof initial==='function'?initial():initial;return[state[i],v=>state[i]=typeof v==='function'?v(state[i]):v];},useRef(initial){const i=cursor++;return state[i]||={current:initial};},useMemo:f=>f(),useCallback:f=>f,useEffect(fn,deps){const i=cursor++,old=state[i];if(!old||deps.some((v,j)=>v!==old.deps[j]))effects.push(()=>{old?.cleanup?.();state[i]={deps,cleanup:fn()};});}};
 const authored={},jsx=(type,props)=>type===authored?localizeInterfaceCopy(locale,props.text):{type,props};
 const dependencies={
+ "@/lib/i18n/format":require("../lib/i18n/format.ts"),
+ "@/components/i18n/language-provider":{useLanguage:()=>({locale})},
  react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-dom':{createPortal:tree=>tree},'next/link':{default:'link'},
  '@/components/i18n/use-interface-copy':{useInterfaceCopy:()=>s=>localizeInterfaceCopy(locale,s)},
  '@/components/i18n/authored-text':{default:authored},'@/lib/i18n/interface-copy':{dialogCopy:s=>localizeInterfaceCopy(locale,s)},

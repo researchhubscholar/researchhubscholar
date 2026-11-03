@@ -1,4 +1,7 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+import { useLanguage } from "@/components/i18n/language-provider";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import InterfaceText from "@/components/i18n/interface-text";
@@ -35,6 +38,8 @@ type RequestItem = {
 };
 
 export default function CommerceAdminPage() {
+ const {locale:formatLocale}=useLanguage();
+
   const [summary, setSummary] = useState<Summary | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [message, setMessage] = useState("");
@@ -140,9 +145,9 @@ export default function CommerceAdminPage() {
         <table className="w-full text-left text-sm">
           <thead><tr><th className="p-2"><InterfaceText message="screen.5a4cc65d866b" /></th><th className="p-2"><InterfaceText message="screen.9e9ea5774a2d" /></th><th className="p-2"><InterfaceText message="screen.b2f530c46991" /></th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2"><InterfaceText message="screen.7d3e4d6dc900" /></th></tr></thead>
           <tbody>{requests.map(item => <tr key={item.id} className="border-t align-top">
-            <td className="p-2">{item.user_email}<br/><span className="text-xs text-ink-soft">{new Date(item.created_at).toLocaleString("pt-BR")}</span></td>
+            <td className="p-2">{item.user_email}<br/><span className="text-xs text-ink-soft">{new Date(item.created_at).toLocaleString(intlLocale(formatLocale))}</span></td>
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} recarga(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}{item.organization_name ? <><br/><span className="text-xs">{item.organization_name}</span></> : null}</td>
-            <td className="p-2">{money(item.total_amount_cents)}<br/><span className="text-xs text-ink-soft">{item.token_allowance.toLocaleString("pt-BR")} tokens</span></td>
+            <td className="p-2">{money(item.total_amount_cents)}<br/><span className="text-xs text-ink-soft">{item.token_allowance.toLocaleString(intlLocale(formatLocale))} tokens</span></td>
             <td className="p-2">{requestStatus(item.status)}</td>
             <td className="p-2"><div className="flex min-w-44 flex-col items-start gap-2">
               {item.status === "requested" ? <button type="button" disabled={busy} onClick={() => setStatus(item.id, "approved")} className="text-teal underline"><InterfaceText message="screen.b122d6de137d" /></button> : null}

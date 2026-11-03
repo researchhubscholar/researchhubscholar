@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -21,6 +23,8 @@ const moduleLabels:Record<string,string>={dashboard:"Meu espaço",radar:"Radar",
 const supportLabels:Record<string,string>={open:"Aberto",in_progress:"Em atendimento",resolved:"Resolvido",closed:"Encerrado"};
 
 export default function OperationPage(){
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const [operatorRole,setOperatorRole]=useState("");
   const [summary,setSummary]=useState<Summary|null>(null);const [activity,setActivity]=useState<Activity[]>([]);
@@ -69,22 +73,22 @@ export default function OperationPage(){
     {summary&&<section className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-7">{[
       ["Contas",summary.users],["Ativos · 7 dias",summary.active7d],["Eventos · 7 dias",summary.events7d],
       ["Erros abertos",summary.openErrors],["Suportes abertos",summary.openSupport],["Exclusões",summary.pendingDeletions],
-    ].map(([label,value])=><article key={String(label)} className="bg-white border border-line rounded-card p-4"><p className="text-2xl font-display">{Number(value).toLocaleString("pt-BR")}</p><p className="text-xs text-ink-soft mt-2"><AuthoredText text={label} /></p></article>)}</section>}
+    ].map(([label,value])=><article key={String(label)} className="bg-white border border-line rounded-card p-4"><p className="text-2xl font-display">{Number(value).toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs text-ink-soft mt-2"><AuthoredText text={label} /></p></article>)}</section>}
 
     <section className="mt-7 bg-white border border-line rounded-2xl p-5 overflow-x-auto"><h2 className="font-display text-2xl"><InterfaceText message="screen.708c5f14d9b0" /></h2>
-      <table className="w-full text-sm text-left mt-4"><thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Módulo</th><th className="p-2">Evento</th><th className="p-2">Total</th></tr></thead><tbody>{activity.map((item,index)=><tr key={`${item.activity_day}-${item.module}-${item.event_name}-${index}`} className="border-t"><td className="p-2">{new Date(item.activity_day+"T12:00:00").toLocaleDateString("pt-BR")}</td><td className="p-2">{moduleLabels[item.module]||item.module}</td><td className="p-2">{item.event_name==="page_view"?uiText("screen.a691db0557a4"):uiText("screen.1dfbdde6410a")}</td><td className="p-2">{Number(item.total)}</td></tr>)}</tbody></table>
+      <table className="w-full text-sm text-left mt-4"><thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Módulo</th><th className="p-2">Evento</th><th className="p-2">Total</th></tr></thead><tbody>{activity.map((item,index)=><tr key={`${item.activity_day}-${item.module}-${item.event_name}-${index}`} className="border-t"><td className="p-2">{new Date(item.activity_day+"T12:00:00").toLocaleDateString(intlLocale(formatLocale))}</td><td className="p-2">{moduleLabels[item.module]||item.module}</td><td className="p-2">{item.event_name==="page_view"?uiText("screen.a691db0557a4"):uiText("screen.1dfbdde6410a")}</td><td className="p-2">{Number(item.total)}</td></tr>)}</tbody></table>
       {!activity.length&&<p className="text-sm text-ink-soft mt-4"><InterfaceText message="screen.7625d34937ea" /></p>}
     </section>
 
     <JourneyMetrics/>
     <section className="mt-7"><h2 className="font-display text-2xl"><InterfaceText message="screen.11191907c846" /></h2><div className="grid lg:grid-cols-2 gap-4 mt-4">{tickets.map(ticket=><article key={ticket.id} className="bg-white border border-line rounded-2xl p-5">
       <div className="flex justify-between gap-3"><div><p className="text-xs text-teal">{ticket.user_name||ticket.user_email||uiText("screen.f53bbaa05fae")}</p><h3 className="font-medium mt-1">{ticket.subject}</h3></div><span className="text-xs bg-paper rounded-full px-2 py-1 self-start"><AuthoredText text={supportLabels[ticket.status]} /></span></div>
-      <p className="text-sm text-ink-soft mt-3">{ticket.last_message||"Sem mensagem."}</p><p className="text-[11px] text-ink-soft mt-2">{ticket.user_email} · {new Date(ticket.updated_at).toLocaleString("pt-BR")}</p>
+      <p className="text-sm text-ink-soft mt-3">{ticket.last_message||"Sem mensagem."}</p><p className="text-[11px] text-ink-soft mt-2">{ticket.user_email} · {new Date(ticket.updated_at).toLocaleString(intlLocale(formatLocale))}</p>
       <form onSubmit={e=>reply(ticket.id,e)} className="flex gap-2 mt-4"><input name="reply" required minLength={2} maxLength={4000} placeholder={uiText("screen.264cea9c0e85")} className="flex-1 min-w-0 border rounded-card px-3 py-2"/><button disabled={busy} className="bg-teal text-white px-3 rounded-card">Enviar</button></form>
       <div className="flex flex-wrap gap-3 mt-3 text-xs">{ticket.status!=="resolved"&&<button type="button" onClick={()=>setStatus(ticket.id,"resolved")} className="text-teal underline"><InterfaceText message="screen.695e6bebcad5" /></button>}{ticket.status!=="closed"&&<button type="button" onClick={()=>setStatus(ticket.id,"closed")} className="text-teal underline"><InterfaceText message="screen.4d52b41ea63a" /></button>}</div>
     </article>)}{!tickets.length&&<p className="text-sm text-ink-soft"><InterfaceText message="screen.68842c1604b0" /></p>}</div></section>
 
-    <section className="mt-7"><h2 className="font-display text-2xl"><InterfaceText message="screen.1a326e217a8b" /></h2><div className="space-y-3 mt-4">{errors.map(item=><article key={item.id} className="bg-white border border-line rounded-card p-4 flex flex-wrap justify-between gap-4"><div><div className="flex gap-2 text-xs"><span className={item.status==="open"?"text-red-700":"text-teal"}>{item.status==="open"?uiText("screen.84276cb66432"):uiText("screen.dc4dbb82a797")}</span><span>{moduleLabels[item.module]||item.module}</span><span>{item.error_code}</span></div><p className="text-sm mt-2">{item.message}</p><p className="text-[11px] text-ink-soft mt-2">{item.route} · {item.user_email||"conta removida"} · {new Date(item.last_seen_at).toLocaleString("pt-BR")}</p></div>{item.status==="open"&&<button type="button" disabled={busy} onClick={()=>resolveError(item.id)} className="text-sm text-teal underline self-start"><InterfaceText message="screen.695e6bebcad5" /></button>}</article>)}{!errors.length&&<p className="text-sm text-ink-soft"><InterfaceText message="screen.5b47f14bf7a3" /></p>}</div></section>
+    <section className="mt-7"><h2 className="font-display text-2xl"><InterfaceText message="screen.1a326e217a8b" /></h2><div className="space-y-3 mt-4">{errors.map(item=><article key={item.id} className="bg-white border border-line rounded-card p-4 flex flex-wrap justify-between gap-4"><div><div className="flex gap-2 text-xs"><span className={item.status==="open"?"text-red-700":"text-teal"}>{item.status==="open"?uiText("screen.84276cb66432"):uiText("screen.dc4dbb82a797")}</span><span>{moduleLabels[item.module]||item.module}</span><span>{item.error_code}</span></div><p className="text-sm mt-2">{item.message}</p><p className="text-[11px] text-ink-soft mt-2">{item.route} · {item.user_email||"conta removida"} · {new Date(item.last_seen_at).toLocaleString(intlLocale(formatLocale))}</p></div>{item.status==="open"&&<button type="button" disabled={busy} onClick={()=>resolveError(item.id)} className="text-sm text-teal underline self-start"><InterfaceText message="screen.695e6bebcad5" /></button>}</article>)}{!errors.length&&<p className="text-sm text-ink-soft"><InterfaceText message="screen.5b47f14bf7a3" /></p>}</div></section>
 
     {operatorRole==="owner"?<DeletionOperations/>:<p className="mt-7 text-sm text-ink-soft">{deletions.length} <InterfaceText message="screen.27e04f1928a9" /></p>}
   </div>;

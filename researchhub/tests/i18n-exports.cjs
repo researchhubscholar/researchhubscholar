@@ -29,3 +29,16 @@ const before=JSON.stringify(input),doc=decode(manuscriptDocument(input,null,null
 for(const value of ['Palabras clave:','Referencias','Cabeçalho editado','Parágrafo original','Referência original'])assert(doc.includes(value));
 assert.equal(JSON.stringify(input),before);
 console.log('PASS: localized date/number formatting, safe Word language, Spanish CSV headings and manuscript labels preserve original research content.');
+
+const scientific=require('../lib/exports/scientific.ts');
+const data={project:{title:'Situação',theme:'Tema original',question:'Pergunta original?',objective:'Objetivo original',hypothesis:'',studyType:'Coorte',population:'População original',inclusion:'',exclusion:'',outcome:'Desfecho original',variables:'',methods:'Método original',analysis:'',ethics:'',manuscript:'',status:'planning',progress:75.5,updatedAt:'2026-11-03T12:00:00Z'},profile:{name:'Nome original',institution:'Hospital original'},articles:[article],notes:{'1':{generalNotes:'Nota original'}},milestones:[{label:'Etapa personalizada',status:'blocked',note:'Pendência original',dueDate:'2026-11-04'}],generatedAt:'2026-11-03T12:00:00Z'};
+const original=JSON.stringify(data);
+for(const fn of ['buildStructuredProtocol','buildProjectSummary','buildAdvisorReport']) {
+ const html=scientific[fn](data,'es');assert(html.includes('lang="es"'));assert(html.includes('<h1>Situação</h1>'));assert(html.includes('Pergunta original?'));assert(html.includes('Nome original'));assert(html.includes('documento de apoyo'));assert(!html.includes('${esc('));
+}
+assert(scientific.buildStructuredProtocol(data,'es').includes('Fundamentación y pregunta'));
+assert(scientific.buildProjectSummary(data,'es').includes('75.5%'));
+assert(scientific.buildAdvisorReport(data,'es').includes('Etapa personalizada'));
+const matrix=scientific.buildProjectMatrixRows(data,'es');assert.equal(matrix[0][0],'Proyecto');assert.equal(matrix[0][3],'Año');assert.equal(matrix[1][0],'Situação');assert.equal(matrix[1][8],'reviewed');
+assert.equal(JSON.stringify(data),original);
+console.log('PASS: Spanish protocol, summary, advisor report and matrix preserve user text, notes, reference data and enum values.');

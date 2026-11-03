@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -80,6 +82,8 @@ export default function DiscoverPage() {
 }
 
 function DiscoverContent() {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
@@ -296,10 +300,10 @@ function DiscoverContent() {
             {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={warning} /></p>)}
           </section>
           <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label={uiText("screen.fd259676797d")} />
-            <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label={uiText("screen.84fde1dbd550")} />
-            <Metric value={result.sources.pubmed.systematicReviews.toLocaleString("pt-BR")} label={uiText("screen.e834a6e2ae4a")} />
-            <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString("pt-BR")} label={uiText("screen.54a245bc407b")} />
+            <Metric value={result.sources.pubmed.total.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.fd259676797d")} />
+            <Metric value={result.sources.pubmed.recent.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.84fde1dbd550")} />
+            <Metric value={result.sources.pubmed.systematicReviews.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.e834a6e2ae4a")} />
+            <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.54a245bc407b")} />
           </section>
 
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
@@ -318,9 +322,9 @@ function DiscoverContent() {
               <div className="flex flex-wrap items-end gap-4">
                 <label className="text-xs text-ink-soft"><InterfaceText message="screen.1bdb4add5da2" /><select aria-label={uiText("screen.86844b68c2bf")} disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option><option value="both">PubMed + Crossref</option></select></label>
                 <label className="text-xs text-ink-soft"><InterfaceText message="screen.63fbb2cee8cd" /><select aria-label={uiText("screen.4499f9a5360c")} disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent"><InterfaceText message="screen.ade822bf50f9" /></option><option value="relevance"><InterfaceText message="screen.a415f1a5dcce" /></option></select></label>
-                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString("pt-BR")} registros em ${source === "pubmed" ? "PubMed" : source === "crossref" ? "Crossref" : "PubMed + Crossref"}`}</p>
+                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString(intlLocale(formatLocale))} registros em ${source === "pubmed" ? "PubMed" : source === "crossref" ? "Crossref" : "PubMed + Crossref"}`}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft"><InterfaceText message="screen.975761e691ed" /></span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
+              <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft"><InterfaceText message="screen.975761e691ed" /></span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles,formatLocale), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
               <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.943580f04e2a" /></p>
               {sourceWarning && <p role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={sourceWarning} /></p>}
               {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort, nextOffset ?? 0)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
@@ -406,7 +410,7 @@ function DiscoverContent() {
               </div>
               <div className="bg-white border border-line rounded-2xl p-5">
                 <p className="text-xs uppercase tracking-wider text-ink-soft"><InterfaceText message="screen.2fbeda492016" /></p>
-                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString("pt-BR")}</p>
+                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString(intlLocale(formatLocale))}</p>
                 <p className="text-sm text-ink-soft mt-1"><InterfaceText message="screen.3ee6f3589bb4" /></p>
               </div>
             </div>

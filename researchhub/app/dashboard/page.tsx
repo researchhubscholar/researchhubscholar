@@ -1,3 +1,4 @@
+import { intlLocale } from "@/lib/i18n/format";
 import AuthoredText from "@/components/i18n/authored-text";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { translate } from "@/lib/i18n/locale";
@@ -19,6 +20,8 @@ const tools = [
   { href: "/orientacao", tag: "05 · Revisar", title: "Trabalhe com o orientador", text: "Compartilhe um projeto, organize comentários, reuniões, pendências e versões." },
 ];
 export default async function DashboardPage() {
+ const formatLocale=await getRequestLocale();
+
   const requestLocale = await getRequestLocale();
   const uiText = (key: MessageKey) => translate(requestLocale, key);
   const db = await supabaseServer();
@@ -44,7 +47,7 @@ export default async function DashboardPage() {
   if (!diagnosisProfile?.onboarding_version || diagnosisProfile.onboarding_version < 2) pendencies.push({label:"Diagnóstico",text:"Complete contexto, prazo, acesso a dados e principal dificuldade para personalizar sua jornada.",href:"/scholar/onboarding",action:"Completar diagnóstico"});
   if (!latest) pendencies.push({label:"Primeiro projeto",text:"Registre uma ideia real para começar a transformar o tema em decisões de pesquisa.",href:"/ideias",action:"Explorar ideias"});
   if (latest && missingProjectFields) pendencies.push({label:"Estrutura científica",text:`${missingProjectFields} decisões centrais ainda estão sem registro no projeto mais recente.`,href:`/meu-trabalho?id=${latest.id}`,action:"Completar projeto"});
-  if (latest && nextMilestone) pendencies.push({label:milestoneLabels[nextMilestone.milestone_key] || "Próxima etapa",text:`${nextMilestone.note || "Defina a próxima ação concreta para avançar."}${nextMilestone.due_date ? ` Prazo: ${new Date(`${nextMilestone.due_date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })}.` : ""}`,href:`/meu-trabalho?id=${latest.id}`,action:"Abrir jornada"});
+  if (latest && nextMilestone) pendencies.push({label:milestoneLabels[nextMilestone.milestone_key] || "Próxima etapa",text:`${nextMilestone.note || "Defina a próxima ação concreta para avançar."}${nextMilestone.due_date ? ` Prazo: ${new Date(`${nextMilestone.due_date}T12:00:00Z`).toLocaleDateString(intlLocale(formatLocale), { timeZone: "UTC" })}.` : ""}`,href:`/meu-trabalho?id=${latest.id}`,action:"Abrir jornada"});
   if ((unreadResult.count || 0) > 0) pendencies.push({label:"Leitura pendente",text:`${unreadResult.count} artigo${unreadResult.count === 1 ? " aguarda" : "s aguardam"} leitura ou avaliação na biblioteca.`,href:latest?`/biblioteca?projeto=${latest.id}`:"/biblioteca",action:"Revisar artigos"});
   diagnosis.alerts.slice(0,2).forEach((text,index)=>pendencies.push({label:index===0?"Atenção de viabilidade":"Atenção de planejamento",text,href:"/scholar/onboarding",action:"Rever diagnóstico",tone:"alert"}));
   return <div className="scholar-workspace dashboard-page max-w-5xl mx-auto"><DemoResume />
@@ -66,7 +69,7 @@ export default async function DashboardPage() {
     <section className="workspace-projects mt-10"><div className="flex justify-between gap-4 items-center flex-wrap"><h2 className="font-display text-3xl"><InterfaceText message="screen.cda8f82beaff" /></h2><Link href="/ideias" className="text-sm font-medium text-teal"><InterfaceText message="screen.d0349e9f37ef" /></Link></div>
       {projectResult.error ? <p role="alert" className="mt-5 text-sm text-red-700 bg-red-50 rounded-card p-4"><InterfaceText message="screen.a98718a2cf34" /></p> : projects.length ? <div className="grid md:grid-cols-2 gap-4 mt-5">{projects.map(project => <article key={project.id} className="workspace-project-card bg-white border border-line rounded-2xl p-5 hover:border-teal transition-colors">
         <p className="text-xs text-teal uppercase tracking-wider">{project.status === "completed" ? uiText("screen.2801cb53f1fa") : uiText("screen.90e590455651")}</p><h3 className="font-display text-2xl mt-3 leading-snug"><Link href={`/meu-trabalho?id=${project.id}`}>{project.title || project.theme || uiText("screen.53d02a124b87")}</Link></h3><p className="text-sm text-ink-soft mt-2">{project.study_type || uiText("screen.ec3f971e3a83")}</p>
-        <div className="h-1.5 bg-line rounded-full overflow-hidden mt-5"><div className="h-full bg-teal" style={{ width: `${project.progress}%` }} /></div><div className="flex justify-between text-xs text-ink-soft mt-2"><span>{project.progress}<InterfaceText message="screen.aa45fbec40d5" /></span><span><InterfaceText message="screen.8df407f3980d" /> {new Date(project.updated_at).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span></div>
+        <div className="h-1.5 bg-line rounded-full overflow-hidden mt-5"><div className="h-full bg-teal" style={{ width: `${project.progress}%` }} /></div><div className="flex justify-between text-xs text-ink-soft mt-2"><span>{project.progress}<InterfaceText message="screen.aa45fbec40d5" /></span><span><InterfaceText message="screen.8df407f3980d" /> {new Date(project.updated_at).toLocaleDateString(intlLocale(formatLocale), { timeZone: "UTC" })}</span></div>
         <nav aria-label={`Ferramentas de ${project.title || project.theme || "projeto"}`} className="mt-5 flex flex-wrap gap-x-4 gap-y-3 border-t border-line pt-4 text-sm text-teal">{[["Projeto", `/meu-trabalho?id=${project.id}`], ["Radar", `/descobrir?${new URLSearchParams({projeto: project.id, tema: project.research_question || project.theme || project.title || "", origem: "projeto"})}`], ["Biblioteca", `/biblioteca?projeto=${project.id}`], ["Escrever artigo", `/manuscrito?projeto=${project.id}`], ["Orientação", `/orientacao?projeto=${project.id}`], ["Documentos", `/documentos?projeto=${project.id}`]].map(([label, href]) => <Link key={label} href={href} className="underline"><AuthoredText text={label} /></Link>)}</nav>
       <DeleteProject id={project.id} title={project.title || project.theme || uiText("screen.53d02a124b87")} ownerId={user.id} /></article>)}</div> : <div className="bg-white border border-dashed border-line rounded-2xl p-8 mt-5"><h3 className="font-display text-2xl"><InterfaceText message="screen.972d7db4eef9" /></h3><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.c1a58efff488" /></p><Link href="/ideias" className="inline-block mt-4 text-teal font-medium text-sm"><InterfaceText message="screen.20bc648052f8" /></Link></div>}
     </section>

@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import InterfaceText from "@/components/i18n/interface-text";
@@ -23,6 +25,8 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
   query: string; period: string; studyType: string; source: string; sort: string;
   resultCount: number | null; onApply: (item: SearchStrategy) => void;
 }) {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const [items, setItems] = useState<SearchStrategy[]>([]);
   const [owner, setOwner] = useState<string | null>(null);
@@ -126,7 +130,7 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
     <p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.871b178dd4b9" /></p>
     {message && <p role="status" className="text-sm mt-3 text-ink-soft"><AuthoredText text={message} /></p>}
     <div className="grid md:grid-cols-2 gap-3 mt-4">
-      {items.map(item => <article key={item.id} className="border border-line rounded-card p-4"><div className="flex justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.name}</h3>{item.alerts_enabled && <span className="text-[10px] uppercase tracking-wide bg-teal-soft text-teal px-2 py-1 rounded-full"><InterfaceText message="screen.5a8f669d1ec4" /></span>}</div><p className="text-xs text-ink-soft mt-1 line-clamp-2">{item.query}</p><p className="text-[11px] text-ink-soft mt-2">{item.source} · {item.period === "all" ? uiText("screen.82ad7fcc1330") : `${item.period} anos`} · {item.last_result_count === null ? uiText("screen.4875d79a0932") : `${item.last_result_count.toLocaleString("pt-BR")} resultados`}</p></div><button type="button" disabled={busy} onClick={() => remove(item.id)} className="text-xs text-red-600"><InterfaceText message="screen.a3037dc71a43" /></button></div><div className="flex flex-wrap gap-3 mt-3"><button type="button" onClick={() => onApply(item)} className="text-sm text-teal underline"><InterfaceText message="screen.22aab1d06be0" /></button>{alertsReady && <button type="button" disabled={busy} onClick={() => toggleAlert(item)} className="text-sm text-teal underline disabled:opacity-40">{item.alerts_enabled ? "Pausar alerta" : "Ativar alerta"}</button>}{item.alerts_enabled && alertsReady && <button type="button" disabled={busy} onClick={() => checkNow(item)} className="text-sm text-teal underline disabled:opacity-40"><InterfaceText message="screen.493a9e9d17f8" /></button>}</div></article>)}
+      {items.map(item => <article key={item.id} className="border border-line rounded-card p-4"><div className="flex justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.name}</h3>{item.alerts_enabled && <span className="text-[10px] uppercase tracking-wide bg-teal-soft text-teal px-2 py-1 rounded-full"><InterfaceText message="screen.5a8f669d1ec4" /></span>}</div><p className="text-xs text-ink-soft mt-1 line-clamp-2">{item.query}</p><p className="text-[11px] text-ink-soft mt-2">{item.source} · {item.period === "all" ? uiText("screen.82ad7fcc1330") : `${item.period} anos`} · {item.last_result_count === null ? uiText("screen.4875d79a0932") : `${item.last_result_count.toLocaleString(intlLocale(formatLocale))} resultados`}</p></div><button type="button" disabled={busy} onClick={() => remove(item.id)} className="text-xs text-red-600"><InterfaceText message="screen.a3037dc71a43" /></button></div><div className="flex flex-wrap gap-3 mt-3"><button type="button" onClick={() => onApply(item)} className="text-sm text-teal underline"><InterfaceText message="screen.22aab1d06be0" /></button>{alertsReady && <button type="button" disabled={busy} onClick={() => toggleAlert(item)} className="text-sm text-teal underline disabled:opacity-40">{item.alerts_enabled ? "Pausar alerta" : "Ativar alerta"}</button>}{item.alerts_enabled && alertsReady && <button type="button" disabled={busy} onClick={() => checkNow(item)} className="text-sm text-teal underline disabled:opacity-40"><InterfaceText message="screen.493a9e9d17f8" /></button>}</div></article>)}
       {!items.length && <p className="text-sm text-ink-soft"><InterfaceText message="screen.acb05ff6e20a" /></p>}
     </div>
     {!alertsReady && items.length > 0 && <p className="text-xs text-ink-soft mt-4 border-t border-line pt-4"><InterfaceText message="screen.0cf9f1f14dad" /> <code>scholar_search_alerts.sql</code>.</p>}

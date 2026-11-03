@@ -1,4 +1,5 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
 import { dialogCopy } from "@/lib/i18n/interface-copy";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -36,8 +37,9 @@ const questions = [
  {key:"repeated",title:"Acompanhar vários momentos",example:"Ex.: como a medida variou entre início, 30 e 90 dias?"},
  {key:"adjusted",title:"Considerar outras características",example:"Ex.: estudar pressão arterial considerando idade e grupo de tratamento."},
 ];
-const format = (n: number|null) => n===null?"—":n.toLocaleString("pt-BR",{maximumFractionDigits:3});
 export default function ResultsEditor({projectId,title,protocol}:{projectId:string;title:string;protocol?:CollectionProtocol}) {
+ const {locale:formatLocale}=useLanguage();
+const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(formatLocale),{maximumFractionDigits:3});
   const { t: uiText } = useLanguage();
   const [step,setStep]=useState(0),[question,setQuestion]=useState(""),[source,setSource]=useState("clinical"),[visits,setVisits]=useState(false);
   const stepHeading=useRef<HTMLHeadingElement>(null);

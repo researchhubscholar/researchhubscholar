@@ -50,7 +50,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     profile:{name:value(profile?.name)||value(user.user_metadata?.name)||value(user.email?.split("@")[0]),institution:value(profile?.institution),specialty:value(profile?.specialty),trainingStage:value(profile?.training_stage)},
     articles,notes,
     milestones:(milestoneRows||[]).map(row=>({key:row.milestone_key,label:milestoneLabels[row.milestone_key]||row.milestone_key,status:row.status,note:row.note||"",dueDate:row.due_date||""})),
-    generatedAt:new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),
+    generatedAt:new Date().toISOString(),
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
     <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.25609cbcecca" /></p><h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.f96d20bcedcc" /></h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.196f85329361" /></p></div>

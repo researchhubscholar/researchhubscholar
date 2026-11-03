@@ -9,7 +9,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
 | 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Implementada; verificações automatizadas aprovadas; validação real na etapa 5 |
-| 4 | Documentos gerados e formatos de datas/números | Iniciada: base de formatos, cabeçalhos CSV e idioma dos arquivos Word |
+| 4 | Documentos gerados e formatos de datas/números | Em implementação: modelos PT/ES e formatos de tela; saídas estatísticas pendentes |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
 
 ## Etapa 1
@@ -200,3 +200,30 @@ Ainda faltam nesta etapa: tradução dos modelos de protocolo/resumo/orientaçã
 matriz, integração dos formatadores nas telas e saídas estatísticas, revisão dos
 demais pontos de exportação e verificação visual dos arquivos em ambos os idiomas.
 Próxima após concluir a etapa 4: etapa 5, validação real de todos os fluxos.
+
+## Etapa 4 — modelos e apresentação
+
+Protocolo estruturado, resumo executivo, relatório para orientação, protocolo do
+editor e matriz passam a aceitar idioma explícito, com português como padrão.
+A central de documentos encaminha a preferência atual. Rótulos, seções, mensagens
+de ausência e cabeçalhos são traduzidos antes de compor o HTML/CSV; nunca se
+substituem palavras em documentos já montados. Conteúdo do pesquisador, nomes de
+etapas editadas, notas, metadados e enumerações dos artigos são preservados.
+
+Datas e números das telas com formatação explícita passaram a usar português
+brasileiro ou espanhol latino-americano. Isso inclui histórico, projetos, conta,
+licença, operação, orientação, assistente, editor e as tabelas numéricas simples
+de Resultados/comparação. A data de geração dos documentos viaja como ISO e é
+apresentada no fuso de São Paulo; prazos sem horário permanecem em UTC. O CSV
+do Radar recebe a preferência sem mudar os dados ou o formato RIS/BibTeX.
+
+Continuam pendentes nesta etapa os textos estatísticos calculados, suas tabelas
+e figuras exportadas, além da conferência dos últimos pontos de exportação.
+Nenhum cálculo, arredondamento estatístico de origem, dado ou permissão foi alterado.
+Após concluir essas pendências, a próxima etapa é a 5, validação real e visual
+dos fluxos e arquivos nos dois idiomas.
+
+Verificação desta continuação: 55 scripts funcionais aprovados (incluindo a
+correção da dependência de formatação no teste isolado do assistente), typecheck,
+lint, inventário de interface, build e smoke HTTP. Casos específicos verificam
+protocolo, resumo, relatório e matriz em espanhol sem modificar os dados de entrada.

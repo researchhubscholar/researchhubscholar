@@ -1,4 +1,6 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
 import AuthoredText from "@/components/i18n/authored-text";
 
 import InterfaceText from "@/components/i18n/interface-text";
@@ -12,6 +14,8 @@ import { searchLimits } from "@/lib/literature/search-limits";
 export default function SuggestionComposer({ recommendations, onApply }: {
   recommendations: AssistantRecommendation[]; onApply: (item: AssistantRecommendation) => void;
 }) {
+ const {locale:formatLocale}=useLanguage();
+
   const { t: uiText } = useLanguage();
   const [selected, setSelected] = useState<number[]>([]);
   const [operator, setOperator] = useState<SuggestionOperator>("AND");
@@ -55,7 +59,7 @@ export default function SuggestionComposer({ recommendations, onApply }: {
       <label className="block text-sm mt-3"><InterfaceText message="screen.6fa29fc1147b" /><select value={operator} onChange={event => { setOperator(event.target.value as SuggestionOperator); setEdited(null); setMessage(""); }} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND"><InterfaceText message="screen.253fd1f62ef3" /></option><option value="OR"><InterfaceText message="screen.3addaae633bd" /></option></select></label>
       <p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.965c6aecff54" /></p>
       <label className="block text-sm mt-4"><InterfaceText message="screen.af0752bbff05" /><textarea rows={6} value={query} onChange={event => { setEdited(event.target.value); setMessage(""); }} aria-invalid={Boolean(error)} className="block w-full resize-y border rounded-card p-3 mt-1 text-sm font-mono"/></label>
-      <p className="mt-1 text-xs text-ink-soft">{query.length.toLocaleString("pt-BR")} / {searchLimits.query.toLocaleString("pt-BR")} <InterfaceText message="screen.e4105ca523ad" /></p>
+      <p className="mt-1 text-xs text-ink-soft">{query.length.toLocaleString(intlLocale(formatLocale))} / {searchLimits.query.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.e4105ca523ad" /></p>
       {error && <p role="alert" className="text-sm text-red-700 mt-2"><AuthoredText text={error} /></p>}
       <div className="mt-3 flex flex-wrap gap-3"><button type="button" disabled={Boolean(error)} onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm disabled:opacity-40"><InterfaceText message="screen.13a11a03e1c5" /></button>{edited !== null && <button type="button" onClick={() => { setEdited(null); setMessage(""); }} className="text-sm text-teal underline"><InterfaceText message="screen.3be0d51fae49" /></button>}</div>
     </section>}
