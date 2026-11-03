@@ -1,3 +1,6 @@
+import type { Locale } from "../i18n/locale";
+import { statCopy, statText } from "../i18n/statistics-copy";
+import { intlLocale } from "../i18n/format";
 import { identifierHeader, identifierValue, normalize, recordIssues, schemaIssues, validCollection, type ClinicalCollection, type CollectionField } from "./collection";
 import { describe, type Dataset } from "../results/data";
 export type FollowupMoment = { key: string; label: string; day: number };
@@ -85,31 +88,34 @@ export function followupDataset(plan: ClinicalFollowup, collection: ClinicalColl
   const included = new Set(collection.records.filter(r => r.status === "included").map(r => r.code));
   return { columns: plan.fields.map(f => f.label), rows: plan.visits.filter(v => included.has(v.code) && v.momentKey === momentKey && v.status === "completed").map(v => plan.fields.map(f => Object.hasOwn(v.values, f.key) ? v.values[f.key] : "")) };
 }
-const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-export function followupSummary(plan: ClinicalFollowup, collection: ClinicalCollection) {
+export function followupSummary(plan: ClinicalFollowup, collection: ClinicalCollection, locale:Locale="pt-BR") {
+const copy=(source:string)=>statCopy(locale,source);
   const schedule = followupSchedule(plan, collection);
-  return [["Momento", "Dia previsto", "Participantes incluídos", "Realizadas e conferidas", "Em conferência", "Não realizadas", "Sem registro"], ...plan.moments.map(m => {
+  return [["Momento", copy("Dia previsto"), copy("Participantes incluídos"), copy("Realizadas e conferidas"), copy("Em conferência"), copy("Não realizadas"), copy("Sem registro")], ...plan.moments.map(m => {
     const rows = schedule.filter(r => r.moment.key === m.key);
     return [m.label, m.day, rows.length, rows.filter(r => r.visit?.status === "completed").length, rows.filter(r => r.visit?.status === "draft").length, rows.filter(r => r.visit?.status === "missed").length, rows.filter(r => !r.visit).length];
   })];
 }
-export function followupProfile(plan: ClinicalFollowup, collection: ClinicalCollection) {
+export function followupProfile(plan: ClinicalFollowup, collection: ClinicalCollection, locale:Locale="pt-BR") {
+const copy=(source:string)=>statCopy(locale,source);
+const fmt=(value:number|null)=>value===null?"—":value.toLocaleString(intlLocale(locale),{maximumFractionDigits:2});
   const datasets = plan.moments.map(m => followupDataset(plan, collection, m.key)), stats = datasets.map(d => describe(d));
-  const rows: (string | number)[][] = [["Variável / categoria", ...plan.moments.map(m => `${m.label} (dia ${m.day})`)]];
+  const rows: (string | number)[][] = [[copy("Variável / categoria"), ...plan.moments.map(m => statText(locale,"{0} (dia {1})",m.label,m.day))]];
   plan.fields.forEach((f, i) => {
-    rows.push([f.label + (f.unit ? ` (${f.unit})` : ""), ...stats.map(s => `${f.kind === "number" ? `Média ${fmt(s[i].mean)}; DP ${fmt(s[i].sd)}; mediana ${fmt(s[i].median)}` : f.kind === "date" ? "Datas informadas" : "n (% dos valores informados)"} · N válido ${s[i].n}; ausentes ${s[i].missing}`)]);
+    rows.push([f.label + (f.unit ? ` (${f.unit})` : ""), ...stats.map(s => statText(locale,"{0} · N válido {1}; ausentes {2}",f.kind === "number" ? statText(locale,"Média {0}; DP {1}; mediana {2}",fmt(s[i].mean),fmt(s[i].sd),fmt(s[i].median)) : f.kind === "date" ? copy("Datas informadas") : copy("n (% dos valores informados)"),s[i].n,s[i].missing))]);
     if (f.kind === "category") f.options.forEach(option => rows.push([`  ${option}`, ...datasets.map((d, j) => { const n = d.rows.filter(r => r[i] === option).length; return `${n} (${stats[j][i].n ? fmt(100 * n / stats[j][i].n) + "%" : "—"})`; })]));
   });
   return rows;
 }
 export const followupNote = "Resumo descritivo por momento, apenas de visitas realizadas e conferidas de participantes incluídos. Os participantes com dados podem mudar entre momentos; diferenças entre médias não são estimativas pareadas de mudança nem efeitos do tratamento. Células vazias são ausentes, sem imputação. Visitas em conferência, não realizadas ou sem registro não entram nas medidas. Atraso é relativo ao dia nominal do protocolo, sem janela de tolerância configurada. Esta tabela é descritiva; a comparação pareada de dois momentos, quando configurada, aparece em seção própria.";
-export function followupWorkbook(plan: ClinicalFollowup, collection: ClinicalCollection) {
+export function followupWorkbook(plan: ClinicalFollowup, collection: ClinicalCollection, locale:Locale="pt-BR") {
+const copy=(source:string)=>statCopy(locale,source);
   return [
-    { name: "Plano de visitas", rows: [["Momento", "Dias após início"], ...plan.moments.map(m => [m.label, m.day])] },
-    { name: "Ficha de visitas", rows: [["Variável", "Tipo", "Unidade", "Definição", "Categorias", "Obrigatória", "Mínimo", "Máximo"], ...plan.fields.map(f => [f.label, f.kind, f.unit, f.definition, f.options.join(" | "), f.required ? "Sim" : "Não", f.minimum ?? "", f.maximum ?? ""])] },
-    { name: "Visitas registradas", rows: [["codigo_pesquisa", "situação_participante", "momento", "data_início", "data_prevista", "data_visita", "situação_visita", "motivo", ...plan.fields.map(f => f.label)], ...plan.visits.map(v => { const m = plan.moments.find(m => m.key === v.momentKey)!; return [v.code, collection.records.find(r => r.code === v.code)?.status || "", m.label, Object.hasOwn(plan.anchors,v.code) ? plan.anchors[v.code] : "", expectedDate(plan,v.code,m.day), v.date, visitLabels[v.status], v.reason, ...plan.fields.map(f => v.values[f.key] || "")]; })] },
-    { name: "Agenda de acompanhamento", rows: [["codigo_pesquisa", "momento", "data_prevista", "situação"], ...followupSchedule(plan, collection).map(r => [r.code, r.moment.label, r.expected, r.state])] },
-    { name: "Seguimento por momento", rows: [...followupSummary(plan, collection), [followupNote]] },
-    { name: "Medidas por momento", rows: followupProfile(plan, collection) },
+    { name: copy("Plano de visitas"), rows: [["Momento", copy("Dias após início")], ...plan.moments.map(m => [m.label, m.day])] },
+    { name: copy("Ficha de visitas"), rows: [[copy("Variável"), "Tipo", copy("Unidade"), copy("Definição"), copy("Categorias"), copy("Obrigatória"), copy("Mínimo"), copy("Máximo")], ...plan.fields.map(f => [f.label, f.kind, f.unit, f.definition, f.options.join(" | "), f.required ? copy("Sim") : copy("Não"), f.minimum ?? "", f.maximum ?? ""])] },
+    { name: copy("Visitas registradas"), rows: [["codigo_pesquisa", "situação_participante", "momento", "data_início", "data_prevista", "data_visita", "situação_visita", "motivo", ...plan.fields.map(f => f.label)], ...plan.visits.map(v => { const m = plan.moments.find(m => m.key === v.momentKey)!; return [v.code, collection.records.find(r => r.code === v.code)?.status || "", m.label, Object.hasOwn(plan.anchors,v.code) ? plan.anchors[v.code] : "", expectedDate(plan,v.code,m.day), v.date, copy(visitLabels[v.status]), v.reason, ...plan.fields.map(f => v.values[f.key] || "")]; })] },
+    { name: copy("Agenda de acompanhamento"), rows: [["codigo_pesquisa", "momento", "data_prevista", "situação"], ...followupSchedule(plan, collection).map(r => [r.code, r.moment.label, r.expected, r.state])] },
+    { name: copy("Seguimento por momento"), rows: [...followupSummary(plan,collection,locale), [copy(followupNote)]] },
+    { name: copy("Medidas por momento"), rows: followupProfile(plan,collection,locale) },
   ];
 }

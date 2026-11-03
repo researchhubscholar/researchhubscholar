@@ -29,6 +29,8 @@ const csvCell = (value: string) => `"${(/^[=+@-]/.test(value) ? "'" + value : va
 export default function CollectionPanel({ workspace, protocol = {}, projectId, onChange, view = "all" }: {
   view?: "all" | "prepare" | "records" | "profile"; workspace: ResultsWorkspace; protocol?: CollectionProtocol; projectId: string; onChange: (value: ResultsWorkspace) => void;
 }) {
+ const {locale:resultsLocale}=useLanguage();
+
  const {locale:formatLocale}=useLanguage();
 
   const { t: uiText } = useLanguage();
@@ -47,7 +49,7 @@ export default function CollectionPanel({ workspace, protocol = {}, projectId, o
   const counts = collection ? selectionCounts(collection) : null;
   const issues = collection ? schemaIssues(collection) : [];
   const canEdit = Boolean(collection && schemaEditing);
-  const rows = useMemo(() => collection ? profileRows(collection) : [], [collection]);
+  const rows = useMemo(() => collection ? profileRows(collection, resultsLocale) : [], [collection, resultsLocale]);
   function commit(next: ClinicalCollection) {
     const updated = syncCollection(workspace, next);
     if (new TextEncoder().encode(JSON.stringify({ project: projectId, workspace: updated })).byteLength > 1_500_000) {
@@ -155,7 +157,7 @@ export default function CollectionPanel({ workspace, protocol = {}, projectId, o
         <p className="mt-2 text-xs text-ink-soft"><InterfaceText message="screen.3325b04628db" /> {collectionLimit.records.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.6e6b1af5dc1b" /> {collectionLimit.fields} <InterfaceText message="screen.97d5ceb4ae52" /></p>
         <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={canEdit || issues.length > 0 || reading} onClick={() => { setDraft(emptyRecord()); setEditingCode(undefined); setRecordOpen(true); }} className="rounded-card bg-teal px-4 py-2.5 text-sm text-white disabled:opacity-40"><InterfaceText message="screen.832043798083" /></button>
           <button type="button" disabled={issues.length > 0 || reading} className={actionClass} onClick={() => download(["codigo_pesquisa", ...collection.fields.map(field => field.label)].map(csvCell).join(";") + "\n", "text/csv;charset=utf-8", "ficha-coleta.csv")}><InterfaceText message="screen.1d2563b2669a" /></button>
-          <button type="button" onClick={() => downloadBinary(workbook(collectionWorkbook(collection, workspace.comparison, workspace.followup, workspace.paired, workspace.repeated, workspace.adjusted)), "coleta-e-perfil.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")} className={actionClass}><InterfaceText message="screen.9514cf16674d" /></button><button type="button" disabled={!counts!.included} onClick={() => downloadBinary(wordDocument([{text:"Perfil dos participantes",heading:true},...resultsWordBlocks(workspace)]), "perfil-participantes.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")} className={actionClass}>Exportar perfil · Word</button>
+          <button type="button" onClick={() => downloadBinary(workbook(collectionWorkbook(collection, workspace.comparison, workspace.followup, workspace.paired, workspace.repeated, workspace.adjusted, resultsLocale)), "coleta-e-perfil.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")} className={actionClass}><InterfaceText message="screen.9514cf16674d" /></button><button type="button" disabled={!counts!.included} onClick={() => downloadBinary(wordDocument([{text:"Perfil dos participantes",heading:true},...resultsWordBlocks(workspace, undefined, resultsLocale)], resultsLocale), "perfil-participantes.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")} className={actionClass}>Exportar perfil · Word</button>
         </div>
         <label className="mt-4 block text-sm font-medium"><InterfaceText message="screen.42911b7498d0" /><input type="file" accept=".csv,text/csv" disabled={canEdit || issues.length > 0 || reading} className="mt-2 block w-full text-sm" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void readFile(file); }}/></label>
         {reading && <p role="status" className="mt-3 text-sm"><InterfaceText message="screen.36bb0bdc7714" /></p>}

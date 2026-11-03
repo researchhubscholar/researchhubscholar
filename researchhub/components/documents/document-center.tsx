@@ -32,6 +32,8 @@ function filename(title:string,suffix:string,extension:string) {
 }
 
 export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
+ const {locale:resultsLocale}=useLanguage();
+
   const { t: uiText, locale } = useLanguage();
   const [last,setLast]=useState("");
   const [busy,setBusy]=useState(false);
@@ -50,9 +52,9 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
           import("@/lib/supabase/browser"),import("@/lib/projects/load-manuscript-export"),import("@/lib/projects/manuscript-export"),
         ]);
         const {input,results}=await loadManuscriptExport(supabaseBrowser(),p.id);
-        const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind).length?await figurePng(figureSvg(results)):null;
+        const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind, resultsLocale).length?await figurePng(figureSvg(results, undefined, resultsLocale)):null;
         downloadBinary(manuscriptDocument(input,results,image,locale),filename(input.title||title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      } else { const html=kind==="protocol"?buildStructuredProtocol(data,locale):kind==="summary"?buildProjectSummary(data,locale):buildAdvisorReport(data,locale);downloadBinary(htmlWord(html,locale),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
+      } else { const html=kind==="protocol"?buildStructuredProtocol(data,locale):kind==="summary"?buildProjectSummary(data,locale):buildAdvisorReport(data,locale);downloadBinary(htmlWord(html,resultsLocale),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
       setLast(cards.find(card=>card.kind===kind)?.title||"Documento");
     } catch(e){setError(e instanceof Error?e.message:"Falha na exportação.");} finally {generationLock.current=false;setBusy(false);}
   }

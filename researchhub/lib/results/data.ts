@@ -1,3 +1,5 @@
+import type { Locale } from "../i18n/locale";
+import { formatNumber } from "../i18n/format";
 import { validAdjusted, type AdjustedConfig } from "../clinical/adjusted";
 import { validRepeated, type RepeatedConfig } from "../clinical/repeated";
 import { validPaired, type PairedConfig } from "../clinical/paired";
@@ -47,7 +49,7 @@ export function describe(dataset: Dataset) {
     return { column, type: quantitative ? "Numérica" : "Categórica", n: values.length, missing: dataset.rows.length - values.length, unique: new Set(values).size, mean, median, sd, min: ns[0] ?? null, max: ns.at(-1) ?? null };
   });
 }
-export function chartData(dataset: Dataset, column: string, kind: Figure["kind"]) {
+export function chartData(dataset: Dataset, column: string, kind: Figure["kind"], locale?:Locale) {
   const index = dataset.columns.indexOf(column); if (index < 0) return [];
   const values = dataset.rows.map(row => row[index].trim()).filter(Boolean);
   if (kind === "histogram") {
@@ -55,7 +57,7 @@ export function chartData(dataset: Dataset, column: string, kind: Figure["kind"]
     const nums = ns as number[]; const min = Math.min(...nums), max = Math.max(...nums);
     if (min === max) return [{ label: String(min), count: nums.length }];
     const bins = Math.min(10, Math.max(2, Math.ceil(Math.sqrt(nums.length)))), step = (max - min) / bins;
-    const result = Array.from({ length: bins }, (_, i) => ({ label: `${(min + step * i).toFixed(2)}–${(min + step * (i + 1)).toFixed(2)}`, count: 0 }));
+    const result = Array.from({ length: bins }, (_, i) => ({ label: `${(locale?formatNumber(min+step*i,locale,{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false}):(min + step * i).toFixed(2))}–${(locale?formatNumber(min+step*(i+1),locale,{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false}):(min + step * (i + 1)).toFixed(2))}`, count: 0 }));
     nums.forEach(n => result[Math.min(bins - 1, Math.floor((n - min) / step))].count++); return result;
   }
   const counts = new Map<string, number>(); values.forEach(v => counts.set(v, (counts.get(v) || 0) + 1));

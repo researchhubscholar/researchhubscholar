@@ -72,6 +72,8 @@ function displayDate(value: string) { return new Intl.DateTimeFormat("pt-BR", { 
 function stringList(value: unknown) { return Array.isArray(value) ? value.filter(item => typeof item === "string") as string[] : []; }
 
 export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, project, initialManuscript, initialSections, initialVersions, initialComments, initialReplies, reviewAvailable, articles }: { currentUserId: string; ownerId: string; canEdit: boolean; project: Project; initialManuscript: Manuscript; initialSections: Section[]; initialVersions: Version[]; initialComments: ManuscriptComment[]; initialReplies: CommentReply[]; reviewAvailable: boolean; articles: Article[] }) {
+ const {locale:resultsLocale}=useLanguage();
+
  const {locale:formatLocale}=useLanguage();
 
   const { t: uiText, locale } = useLanguage();
@@ -280,7 +282,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, proj
         results = body.workspace;
       }
       const checks=resultsChecklist(results,dirty,lastResultsStamp(versions));if(checks.length&&!window.confirm(dialogCopy(`Antes de exportar:\n\n${checks.join("\n")}\n\nDeseja exportar mesmo assim para revisão?`)))return;
-      const image = results && chartData(results.dataset, results.figure.column, results.figure.kind).length ? await figurePng(figureSvg(results)) : null;
+      const image = results && chartData(results.dataset, results.figure.column, results.figure.kind, resultsLocale).length ? await figurePng(figureSvg(results, undefined, resultsLocale)) : null;
       const { manuscriptDocument } = await import("@/lib/projects/manuscript-export");
       downloadBinary(manuscriptDocument(input, results, image, locale), `${(input.title || "manuscrito").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.docx`, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
       setMessage(results ? "DOCX gerado com o manuscrito, as referências citadas e os resultados salvos do projeto." : "DOCX gerado com o manuscrito e as referências citadas. Não há resultados salvos disponíveis para incluir.");

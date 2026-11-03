@@ -1,3 +1,4 @@
+import { statCopy } from "./statistics-copy";
 import { portuguese, spanish, type MessageKey } from "./catalog";
 import templates from "./message-templates.json";
 import { aiSpanishCopy as aiCopy } from "./ai-copy";
@@ -19,6 +20,8 @@ const patterns = Object.entries(templates).map(([source, target]) => {
 export function localizeInterfaceCopy(locale: Locale, source: string): string {
   if (locale === "pt-BR") return source;
   if (Object.hasOwn(aiCopy, source)) return aiCopy[source as keyof typeof aiCopy];
+  const statistic = statCopy(locale, source);
+  if (statistic !== source) return statistic;
   const key = keys.get(source);
   if (key) return spanish[key];
   for (const { pattern, target, positions } of patterns) {

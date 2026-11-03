@@ -18,7 +18,7 @@ export function manuscriptWordBlocks(input: ManuscriptExport, results?: ResultsW
   let includedResults = false;
   for (const section of input.sections) {
     const text = section.section_key === "references" && input.references.length ? input.references.join("\n\n") : section.content;
-    const resultBlocks = section.section_key === "results" && results ? resultsWordBlocks(results, figure) : [];
+    const resultBlocks = section.section_key === "results" && results ? resultsWordBlocks(results, figure, locale) : [];
     if (!text.trim() && !resultBlocks.length) continue;
     blocks.push({ text: section.heading, heading: true });
     if (text.trim()) blocks.push({ text });
@@ -26,7 +26,7 @@ export function manuscriptWordBlocks(input: ManuscriptExport, results?: ResultsW
   }
   // Keep exports complete even when a custom section list omits a standard section.
   if (results && !includedResults) {
-    const resultBlocks = resultsWordBlocks(results, figure);
+    const resultBlocks = resultsWordBlocks(results, figure, locale);
     if (resultBlocks.length) blocks.push({ text: exportCopy(locale, "Resultados"), heading: true }, ...resultBlocks);
   }
   if (input.references.length && !input.sections.some(section => section.section_key === "references")) {

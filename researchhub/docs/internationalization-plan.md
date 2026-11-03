@@ -9,7 +9,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
 | 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Implementada; verificações automatizadas aprovadas; validação real na etapa 5 |
-| 4 | Documentos gerados e formatos de datas/números | Em implementação: modelos PT/ES e formatos de tela; saídas estatísticas pendentes |
+| 4 | Documentos gerados e formatos de datas/números | Implementada; verificações automatizadas aprovadas; validação real/visual na etapa 5 |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
 
 ## Etapa 1
@@ -227,3 +227,30 @@ Verificação desta continuação: 55 scripts funcionais aprovados (incluindo a
 correção da dependência de formatação no teste isolado do assistente), typecheck,
 lint, inventário de interface, build e smoke HTTP. Casos específicos verificam
 protocolo, resumo, relatório e matriz em espanhol sem modificar os dados de entrada.
+
+## Encerramento da implementação da etapa 4 — 03/11/2026
+
+Esta seção substitui as pendências de implementação registradas acima.
+
+- Leituras e textos calculados de comparação geral, antes/depois, vários momentos
+  e regressão ajustada recebem o idioma escolhido. Resumos, intervalos, valores p,
+  avisos de ausência e limitações usam modelos traduzidos com valores interpolados
+  literalmente. Não se traduzem documentos montados nem textos do pesquisador.
+- Tabelas e planilhas de perfil, acompanhamento, comparação, pares, medidas
+  repetidas e regressão seguem o idioma. Números de células continuam numéricos,
+  e campos técnicos de dados, códigos e enumerações persistidos não mudam.
+- SVG/PNG, histogramas e fluxos usam títulos/legendas do sistema e números no
+  idioma; títulos, categorias, unidades e rótulos editáveis continuam originais.
+  A geometria e as contagens são idênticas nos dois idiomas.
+- Os pontos de exportação de Resultados, módulos clínicos, Manuscrito e Central
+  de documentos encaminham a preferência até Word, Excel e figuras. O rascunho
+  factual do assistente de resultados também utiliza o idioma, preservando textos
+  já editados e exigindo revisão quando o contexto muda.
+- Os motores de cálculo permanecem iguais. Testes comparam estimativas, ICs, p,
+  dados de origem e geometria entre os idiomas e mantêm os bloqueios de análises
+  sem confirmação.
+
+Verificação: 56 scripts funcionais, tipos, lint, inventário de interface, build e
+smoke HTTP. Sem novo SQL, chamadas reais de IA ou alteração de permissões.
+Validação visual autenticada, revisão humana da terminologia e respostas reais
+continuam na etapa 5, que é a próxima e última etapa deste plano.

@@ -1,4 +1,5 @@
 "use client";
+import { statCopy } from "@/lib/i18n/statistics-copy";
 import { intlLocale } from "@/lib/i18n/format";
 import { useLanguage } from "@/components/i18n/language-provider";
 import AuthoredText from "@/components/i18n/authored-text";
@@ -14,6 +15,8 @@ import { downloadBinary, workbook, wordDocument } from "@/lib/exports/ooxml";
 import { resultsWordBlocks } from "@/lib/results/word";
 const control = "block w-full min-w-0 rounded-card border p-3 mt-2";
 export default function ComparisonPanel({ workspace, onChange }: { workspace: ResultsWorkspace; onChange: (value: ResultsWorkspace) => void }) {
+ const {locale:resultsLocale}=useLanguage();
+
  const {locale:formatLocale}=useLanguage();
 const fmt = (value: string | number) => typeof value === "number" ? value.toLocaleString(intlLocale(formatLocale), { maximumSignificantDigits: 6 }) : value;
   const { t: uiText } = useLanguage();
@@ -21,8 +24,8 @@ const fmt = (value: string | number) => typeof value === "number" ? value.toLoca
   const [message, setMessage] = useState("");
   const view = useMemo(() => {
     if (!collection || !config) return null;
-    try { return comparisonData(collection, config); } catch { return null; }
-  }, [collection, config]);
+    try { return comparisonData(collection, config, resultsLocale); } catch { return null; }
+  }, [collection, config, resultsLocale]);
   const test = useMemo(() => {
     if (!view || !config?.analysis) return null;
     try { return { result: analyze(view.dataset, config.analysis), error: "" }; }
@@ -36,8 +39,8 @@ const fmt = (value: string | number) => typeof value === "number" ? value.toLoca
   function exportFile(kind: "word" | "excel") {
     try {
       if (!view || !config || !validComparison(config, collection)) return;
-      if (kind === "word") downloadBinary(wordDocument([{ text: "Comparação entre grupos", style: "title" }, ...resultsWordBlocks({ ...workspace, analysis: undefined, notes: "", flow: [] })]), "comparacao-grupos.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      else downloadBinary(workbook(comparisonWorkbook(collection!, config)), "comparacao-grupos.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      if (kind === "word") downloadBinary(wordDocument([{ text: statCopy(resultsLocale,"Comparação entre grupos"), style: "title" }, ...resultsWordBlocks({ ...workspace, analysis: undefined, notes: "", flow: [] }, undefined, resultsLocale)], resultsLocale), "comparacao-grupos.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      else downloadBinary(workbook(comparisonWorkbook(collection!, config, resultsLocale)), "comparacao-grupos.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível exportar."); }
   }
   return <section id="comparacao" className="min-w-0 bg-white border rounded-2xl p-5 md:p-6 space-y-5">
@@ -50,7 +53,7 @@ const fmt = (value: string | number) => typeof value === "number" ? value.toLoca
       <div className="rounded-card border p-4 space-y-4"><h3 className="font-medium"><InterfaceText message="screen.bcefd8bed229" /></h3><p className="text-sm text-ink-soft"><InterfaceText message="screen.db07d3ad8b8d" /></p><label className="block text-sm"><InterfaceText message="screen.f8ade4691f6c" /><select className={control} value={config.analysis?.x || ""} onChange={e => { const outcome = collection.fields.find(f => f.label === e.target.value); update({ ...config, analysis: outcome && field ? { kind: outcome.kind === "number" ? "welch" : "chi2", x: outcome.label, y: field.label, independent: false } : undefined }); }}><option value=""><InterfaceText message="screen.987d5be9f4bf" /></option>{collection.fields.filter(f => f.key !== field?.key && f.kind !== "date").map(f => <option key={f.key} value={f.label}>{f.label} · {f.kind === "number" ? "numérica" : "categórica"}</option>)}</select></label>
       {config.analysis && <><p className="text-sm text-ink-soft">{config.analysis.kind === "welch" ? uiText("screen.e1676cf6f563") : uiText("screen.3a35e3ff5451")} <InterfaceText message="screen.1f45edc43940" /></p><ReviewGuide kind={config.analysis.kind} /><label className="flex gap-3 items-start text-sm"><input type="checkbox" checked={config.analysis.independent} onChange={e => update({ ...config, analysis: { ...config.analysis!, independent: e.target.checked } })}/><span><InterfaceText message="screen.2d9defbd9e19" /></span></label></>}
       {test?.error && <p role="status" className="text-sm bg-paper rounded-card p-3"><AuthoredText text={test.error} /></p>}
-      {test?.result && <><ResultReading reading={generalReading(test.result,config.analysis!.kind)}/><details className="border rounded-card p-4"><summary className="cursor-pointer text-sm text-teal"><InterfaceText message="screen.05725214a4b6" /></summary><div className="overflow-x-auto"><table className="text-sm w-full"><caption className="text-left font-medium mb-2">{test.result.method}</caption><tbody>{analysisRows(test.result).map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border p-2">{fmt(cell)}</td>)}</tr>)}</tbody></table></div></details><div className="bg-paper rounded-card p-4 text-sm"><h4 className="font-medium"><InterfaceText message="screen.42f197f5c1ee" /></h4><p className="mt-2">{comparisonNarrative(test.result)}</p></div><p className="text-sm text-ink-soft"><InterfaceText message="screen.d42eb87b47ff" /></p></>}
+      {test?.result && <><ResultReading reading={generalReading(test.result,config.analysis!.kind, resultsLocale)}/><details className="border rounded-card p-4"><summary className="cursor-pointer text-sm text-teal"><InterfaceText message="screen.05725214a4b6" /></summary><div className="overflow-x-auto"><table className="text-sm w-full"><caption className="text-left font-medium mb-2">{test.result.method}</caption><tbody>{analysisRows(test.result, resultsLocale).map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border p-2">{fmt(cell)}</td>)}</tr>)}</tbody></table></div></details><div className="bg-paper rounded-card p-4 text-sm"><h4 className="font-medium"><InterfaceText message="screen.42f197f5c1ee" /></h4><p className="mt-2">{comparisonNarrative(test.result, resultsLocale)}</p></div><p className="text-sm text-ink-soft"><InterfaceText message="screen.d42eb87b47ff" /></p></>}
       </div>
       <div className="flex flex-wrap gap-3"><button type="button" disabled={!view.selected} className="border rounded-card p-3 disabled:opacity-40" onClick={() => exportFile("excel")}><InterfaceText message="screen.5900b587dbb7" /></button><button type="button" disabled={!view.selected} className="border rounded-card p-3 disabled:opacity-40" onClick={() => exportFile("word")}><InterfaceText message="screen.50fe9e521b9e" /></button><button type="button" className="text-teal underline p-3" onClick={() => update(undefined)}><InterfaceText message="screen.0828e748e812" /></button></div>
     </>}

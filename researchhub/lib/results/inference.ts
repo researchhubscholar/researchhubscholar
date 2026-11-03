@@ -1,3 +1,6 @@
+import { formatNumber } from "../i18n/format";
+import type { Locale } from "../i18n/locale";
+import { statCopy, statText } from "../i18n/statistics-copy";
 import { jStat } from "../../vendor/jstat";
 import { numeric, type Dataset } from "./data";
 export type AnalysisConfig = { kind: "welch" | "pearson" | "chi2"; x: string; y: string; independent: boolean };
@@ -42,6 +45,26 @@ export function analyze(dataset: Dataset, config: AnalysisConfig): AnalysisResul
   const z=perfect?0:Math.atanh(r),margin=1.959963984540054/Math.sqrt(x.length-3);
   return {...base,method:"Correlação de Pearson · bilateral",statistic:r,df,p:perfect?0:probability(2*jStat.studentt.cdf(-Math.abs(statistic),df)),effect:"Coeficiente r de Pearson",estimate:r,ci:perfect?[r,r]:[Math.tanh(z-margin),Math.tanh(z+margin)],details:["IC de 95% pela transformação de Fisher (aproximado).","Pressupõe relação linear e observações independentes; a inferência pressupõe normalidade bivariada. Revise valores extremos. Correlação não demonstra causalidade."]};
 }
-export function analysisRows(result: AnalysisResult) {
-  return [["Motor","Scholar inference v1 · jStat 1.9.6"],["Método",result.method],["Variável 1",result.columns[0]],["Variável 2",result.columns[1]],["N completo",result.n],["Linhas excluídas por dados ausentes",result.excluded],["Estatística",result.statistic],["Graus de liberdade",result.df],[result.method.startsWith("Qui-quadrado")?"Valor de p de associação":"Valor de p bilateral",result.p],[result.effect,result.estimate],["IC95% inferior",result.ci?.[0]??"Não disponível"],["IC95% superior",result.ci?.[1]??"Não disponível"],...result.details.map(d=>["Observação",d])];
+export function analysisRows(result: AnalysisResult, locale:Locale="pt-BR") {
+const copy=(source:string)=>statCopy(locale,source);
+  return [["Motor",copy("Scholar inference v1 · jStat 1.9.6")],[copy("Método"),copy(result.method)],[copy("Variável 1"),result.columns[0]],[copy("Variável 2"),result.columns[1]],[copy("N completo"),result.n],[copy("Linhas excluídas por dados ausentes"),result.excluded],[copy("Estatística"),result.statistic],[copy("Graus de liberdade"),result.df],[result.method.startsWith("Qui-quadrado")?copy("Valor de p de associação"):copy("Valor de p bilateral"),result.p],[analysisEffect(result,locale),result.estimate],[copy("IC95% inferior"),result.ci?.[0]??copy("Não disponível")],[copy("IC95% superior"),result.ci?.[1]??copy("Não disponível")],...analysisDetails(result,locale).map(d=>[copy("Observação"),copy(d)])];
+}
+
+// Presentation views leave the numeric analysis and original category labels intact.
+export function analysisEffect(result:AnalysisResult,locale:Locale="pt-BR") {
+  return (result.method||"").startsWith("Teste t de Welch") && result.table
+    ? statText(locale,"Diferença de médias ({0} − {1})",result.table[1][0],result.table[2][0])
+    : statCopy(locale,result.effect);
+}
+export function analysisDetails(result:AnalysisResult,locale:Locale="pt-BR") {
+  return result.details.map((detail,index)=>{
+    if(index===0 && (result.method||"").startsWith("Teste t de Welch") && result.table) {
+      const [a,b]=result.table.slice(1);
+      return statText(locale,"{0}: n={1}, média={2}. {3}: n={4}, média={5}.",a[0],a[1],formatNumber(Number(a[2]),locale,{maximumSignificantDigits:6}),b[0],b[1],formatNumber(Number(b[2]),locale,{maximumSignificantDigits:6}));
+    }
+    return statCopy(locale,detail);
+  });
+}
+export function analysisTable(result:AnalysisResult,locale:Locale="pt-BR") {
+  return result.table?.map((row,index)=>index===0 && (result.method||"").startsWith("Teste t de Welch")?row.map(value=>typeof value==="string"?statCopy(locale,value):value):row.slice());
 }

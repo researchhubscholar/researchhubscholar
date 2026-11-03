@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
 import { useInterfaceCopy } from "@/components/i18n/use-interface-copy";
 import AuthoredText from "@/components/i18n/authored-text";
 import { useMemo } from "react";
@@ -6,9 +7,11 @@ import type { ResultsWorkspace } from "@/lib/results/data";
 import { workflowHelp } from "@/lib/ai/workflow-help";
 export type WorkflowDraft={text:string;basis:string;status:string};
 export default function WorkflowHelp({workspace,disabled,onNavigate,onQuestion,state,onState,onTransfer,transferBlocked=false}:{workspace:ResultsWorkspace;disabled:boolean;onNavigate:(id:"prepare"|"participants"|"visits")=>void;onQuestion:(id:string)=>void;state:WorkflowDraft;onState:(state:WorkflowDraft)=>void;onTransfer?:(text:string)=>void;transferBlocked?:boolean}){
+ const {locale:resultsLocale}=useLanguage();
+
  const copy=useInterfaceCopy();
 
- const help=useMemo(()=>workflowHelp(workspace),[workspace]);
+ const help=useMemo(()=>workflowHelp(workspace, resultsLocale),[workspace, resultsLocale]);
  const {text:draft,basis,status}=state;
  const stale=Boolean(draft&&basis!==help.draft);
  return <section className="space-y-3 text-sm" aria-label={copy("Ajuda prática do projeto")}><details className="border rounded-card p-3"><summary className="cursor-pointer font-medium"><AuthoredText text="1. Conferir minha coleta" /></summary><p className="mt-2"><AuthoredText text="Conferência automática dos dados atuais. Nenhum registro é alterado." /></p>{!workspace.collection?<p className="mt-2"><AuthoredText text="Na planilha avulsa, confira tipos de coluna, valores e dados ausentes antes de analisar." /></p>:<><ul className="my-2 space-y-1">{help.checks.map(c=><li key={c.label}><AuthoredText text={c.label} />: <strong>{c.count}</strong></li>)}</ul>{help.schema.length>0&&<><p><AuthoredText text="Ficha com" /> {help.schema.length} <AuthoredText text="pontos para revisar." /></p><button type="button" disabled={disabled} onClick={()=>onNavigate('prepare')} className="underline text-teal"><AuthoredText text="Revisar ficha" /></button></>}{help.missing.length>0&&<details className="mt-2"><summary><AuthoredText text="Dados ausentes entre os incluídos" /></summary><ul>{help.missing.map((f,i)=><li key={i}>{f.label}: {f.count}</li>)}</ul><p className="text-xs"><AuthoredText text="Ausência não significa erro nem autoriza excluir participantes. Confira o protocolo." /></p></details>}<div className="flex flex-wrap gap-3 mt-2"><button type="button" disabled={disabled} onClick={()=>onNavigate('participants')} className="underline text-teal"><AuthoredText text="Conferir participantes" /></button>{workspace.collection.records.some(r=>r.status==='included')&&<button type="button" disabled={disabled} onClick={()=>onNavigate('visits')} className="underline text-teal"><AuthoredText text="Conferir visitas" /></button>}</div></>}</details>
