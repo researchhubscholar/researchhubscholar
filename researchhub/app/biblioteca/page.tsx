@@ -50,6 +50,7 @@ function BibliotecaContent() {
   const [drafts, setDrafts] = useState<Record<string, EvidenceNote>>({});
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [folderFilter, setFolderFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
@@ -66,6 +67,7 @@ function BibliotecaContent() {
     (designFilter === "all" || resolvedStudyDesign(article) === designFilter) &&
     (yearFilter === "all" || String(article.year || "") === yearFilter) &&
     `${article.title} ${article.authors.join(" ")} ${article.doi || ""} ${article.pmid || ""}`.toLowerCase().includes(query.toLowerCase()));
+  const selectedArticle = articles.find(article => article.id === selectedArticleId) || articles[0];
   const notes = { ...library.notes, ...drafts };
   const duplicateGroups = useMemo(() => findDuplicateGroups(library.articles), [library.articles]);
   const [sourceError,setSourceError]=useState("");
@@ -78,7 +80,7 @@ function BibliotecaContent() {
   const openAccess = useOpenAccess();
 
   useEffect(() => {
-    setComparison([]); setDrafts({}); setDirty({}); setSuggestions({}); setErrors({}); setLoadingPmid(null);
+    setSelectedArticleId(null); setComparison([]); setDrafts({}); setDirty({}); setSuggestions({}); setErrors({}); setLoadingPmid(null);
   }, [library.userId]);
   const hasUnsaved = Object.values(dirty).some(Boolean);
   useEffect(() => {
@@ -155,8 +157,8 @@ function BibliotecaContent() {
       <header className="library-hero flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-teal font-semibold">Biblioteca científica</p>
-          <h1 className="font-display text-4xl md:text-5xl mt-3">Da leitura do abstract à matriz de evidências.</h1>
-          <p className="text-ink-soft mt-4 leading-relaxed">O Scholar pode pré-analisar o abstract e sugerir objetivo, população, método, principal achado e limitação. Nada entra automaticamente: você confirma cada campo antes de incorporar.</p>
+          <h1 className="font-display text-4xl md:text-5xl mt-3">Sua biblioteca de pesquisa.</h1>
+          <p className="text-ink-soft mt-4 leading-relaxed">Organize suas leituras, consulte os resumos e registre suas anotações. Na matriz, compare as evidências e revise sugestões de IA antes de incorporar.</p>
         </div>
         <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/descobrir?projeto=${encodeURIComponent(projectFilter)}` : "/descobrir"} className="bg-teal text-white px-5 py-3 rounded-card text-sm font-medium text-center">+ Buscar artigos</Link>
       </header>
@@ -173,24 +175,25 @@ function BibliotecaContent() {
         {library.userId && <div className="library-filter-grid mt-5">
           <label className="library-filter-project text-xs text-ink-soft">Projeto<select aria-label="Filtrar biblioteca por projeto" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os artigos</option><option value="none">Sem projeto associado</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>
           <label className="library-filter-search text-xs text-ink-soft">Buscar na biblioteca<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Título, autor, DOI ou PMID" className="block w-full border border-line px-3 py-2 rounded-card mt-1" /></label>
-          <label className="library-filter-status text-xs text-ink-soft">Leitura<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os status</option><option value="unread">Não lidos</option><option value="reading">Em leitura</option><option value="reviewed">Avaliados</option><option value="excluded">Excluídos</option><option value="favorite">Favoritos</option></select></label>
+          <details className="library-extra-filters"><summary className="cursor-pointer text-sm text-teal">Organizar e filtrar</summary><div className="library-extra-filter-grid mt-4"><label className="library-filter-status text-xs text-ink-soft">Leitura<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os status</option><option value="unread">Não lidos</option><option value="reading">Em leitura</option><option value="reviewed">Avaliados</option><option value="excluded">Excluídos</option><option value="favorite">Favoritos</option></select></label>
           <label className="text-xs text-ink-soft">Pasta<select value={folderFilter} onChange={e=>setFolderFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as pastas</option><option value="none">Sem pasta</option>{folders.map(folder=><option key={folder} value={folder}>{folder}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Etiqueta<select value={tagFilter} onChange={e=>setTagFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todas as etiquetas</option>{tags.map(tag=><option key={tag} value={tag}>{tag}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Desenho<select value={designFilter} onChange={e=>setDesignFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os desenhos</option>{studyDesignOptions.filter(([value])=>value!=="auto").map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
           <label className="text-xs text-ink-soft">Ano<select value={yearFilter} onChange={e=>setYearFilter(e.target.value)} className="block border border-line px-3 py-2 rounded-card mt-1"><option value="all">Todos os anos</option>{years.map(year=><option key={year} value={String(year)}>{year}</option>)}</select></label>
+          </div></details>
           <div className="library-filter-links flex flex-wrap gap-4"><Link href={projectFilter !== "all" && projectFilter !== "none" ? `/ideias?projeto=${projectFilter}` : "/ideias"} className="text-sm text-teal">Explorar ideias com estas leituras →</Link><Link href="/dashboard" className="text-sm text-teal">Meus projetos →</Link></div>
         </div>}
         {hasUnsaved && <p role="status" className="mt-4 text-sm text-amber">Você tem anotações não salvas. Use Salvar anotações em cada artigo antes de sair.</p>}
       </section>
 
-      {library.userId && <section className="rounded-card border border-teal/30 bg-teal-soft p-4 mt-5 space-y-2 text-sm" aria-label="Artigos para o assistente">
-        <h2 className="font-semibold">Conversar sobre artigos selecionados</h2>
+      {library.userId && <details className="library-source-tools text-sm mt-4" aria-label="Artigos para o assistente">
+        <summary className="cursor-pointer font-medium text-teal">Conversar sobre artigos selecionados ({comparison.length})</summary>
         <p>Marque até três artigos nas caixas de comparação abaixo. O assistente recebe somente os resumos disponíveis e suas anotações salvas, sem acessar o texto completo.</p>
         <button type="button" disabled={!comparison.length||comparison.length>3||hasUnsaved||library.loading||library.working} className="bg-teal text-white rounded-card px-3 py-2 disabled:opacity-50" onClick={()=>{try{sourceIds(comparison);setSourceError("");window.dispatchEvent(new CustomEvent("scholar-guide-sources",{detail:library.articles.filter(a=>comparison.includes(a.id)).map(a=>({id:a.id,title:a.title,abstractAvailable:Boolean(a.abstract),notesAvailable:Boolean(library.notes[a.id]&&Object.values(library.notes[a.id]).some(Boolean))}))}));}catch(e){setSourceError(e instanceof Error?e.message:"Confira a seleção.");}}}>Revisar {comparison.length} fontes no assistente</button>
         {comparison.length>3&&<p>Reduza a seleção para até três artigos para conversar com o assistente.</p>}
         {hasUnsaved&&<p>Salve suas anotações antes de preparar as fontes.</p>}
         {sourceError&&<p role="alert">{sourceError}</p>}
-      </section>}
+      </details>}
       {library.userId && <DuplicateReview groups={duplicateGroups} notes={library.notes} disabled={library.working || hasUnsaved} onMerge={library.mergeDuplicates} />}
 
       <section className="library-metrics grid sm:grid-cols-3 gap-3 mt-8">
@@ -222,9 +225,21 @@ function BibliotecaContent() {
           <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/descobrir?projeto=${encodeURIComponent(projectFilter)}` : "/descobrir"} className="inline-block mt-5 text-teal font-medium text-sm">Ir para o Radar Científico →</Link>
         </div>
       ) : view === "library" ? (
-        <div className="mt-6 space-y-4">
+        <div className="library-reading-layout mt-6">
+          <aside className="library-reading-list" aria-label="Lista de artigos">
+            <p className="text-sm text-ink-soft mb-3">{articles.length} {articles.length === 1 ? "artigo" : "artigos"} neste recorte</p>
+            {articles.map(article => <div key={article.id} className={`library-reading-row ${selectedArticle?.id === article.id ? "is-selected" : ""}`}>
+              <input type="checkbox" aria-label={`Comparar ${article.title}`} checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} />
+              <button type="button" aria-pressed={selectedArticle?.id === article.id} onClick={() => setSelectedArticleId(article.id)} className="library-reading-choice">
+                <span className="font-display library-reading-title">{article.title}</span>
+                <span className="text-xs text-ink-soft">{article.authors.slice(0, 1).join("")}{article.authors.length > 1 ? " et al." : ""} · {article.journal || "Periódico não informado"} · {article.year || "Sem ano"}</span>
+                <span className="library-reading-status">{{unread:"Não lido",reading:"Em leitura",reviewed:"Avaliado",excluded:"Excluído"}[article.readingStatus]}{dirty[article.id] ? " · Notas não salvas" : ""}</span>
+              </button>
+            </div>)}
+          </aside>
+          <div className="library-reading-detail" aria-label="Detalhes do artigo selecionado">
           {articles.map((article) => (
-            <article key={article.id} className="library-article-card bg-white border border-line rounded-2xl p-6">
+            <article key={article.id} hidden={selectedArticle?.id !== article.id} className="library-article-card bg-white border border-line rounded-2xl p-6">
               <div className="flex flex-col lg:flex-row lg:justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -236,7 +251,7 @@ function BibliotecaContent() {
                   <h2 className="font-display text-xl md:text-2xl mt-3 leading-snug">{article.title}</h2>
                   <p className="text-sm text-ink-soft mt-2">{article.authors?.slice(0, 6).join(", ")}{article.authors?.length > 6 ? " et al." : ""}</p>
                   <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
-                  {article.abstract && <details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-teal">Ler abstract</summary><p className="text-sm text-ink-soft leading-relaxed mt-3 max-w-4xl">{article.abstract}</p></details>}
+                  <section className="library-reading-abstract mt-6"><h3 className="font-display text-2xl">Resumo</h3><p className="text-sm text-ink-soft leading-relaxed mt-3 whitespace-pre-wrap">{article.abstract || "Este registro não tem resumo disponível. Consulte o artigo pelos links abaixo."}</p></section>
                   <div className="flex flex-wrap gap-4 mt-4 text-xs">
                     {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>}
                     {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">DOI ↗</a>}
@@ -250,9 +265,16 @@ function BibliotecaContent() {
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50">Remover</button>
                 </div>
               </div>
+              <section className="library-reading-notes mt-6 border-t border-line pt-5">
+                <label htmlFor={`reading-notes-${article.id}`} className="font-display text-2xl">Minhas notas</label>
+                <p className="text-xs text-ink-soft mt-2">Anotações da sua conta, também disponíveis na matriz de evidências.</p>
+                <textarea id={`reading-notes-${article.id}`} value={notes[article.id]?.generalNotes || ""} disabled={library.working} maxLength={20000} rows={5} onChange={event => updateNote(article.id, "generalNotes", event.target.value)} className="block w-full border border-line rounded-card p-3 mt-3 text-sm" placeholder="Registre os pontos principais e suas observações sobre esta leitura…" />
+                <div className="flex flex-wrap items-center justify-end gap-3 mt-3"><span role="status" className="text-xs text-ink-soft">{dirty[article.id] ? "Alterações não salvas" : "Nenhuma alteração pendente"}</span><button disabled={library.working || !dirty[article.id]} onClick={() => saveNotes(article.id)} className="bg-teal text-white px-4 py-2 rounded-card text-sm disabled:opacity-50">Salvar anotações</button></div>
+              </section>
               <ArticleOrganization article={article} projects={library.projects} disabled={library.working} save={metadata=>library.updateArticle(article.id,metadata)} addProject={projectId=>library.addProjectLink(article.id,projectId)} removeProject={projectId=>library.removeProjectLink(article.id,projectId)}/>
             </article>
           ))}
+          </div>
         </div>
       ) : (
         <div className="mt-6 space-y-5">
