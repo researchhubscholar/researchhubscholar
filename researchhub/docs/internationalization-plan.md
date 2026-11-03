@@ -10,7 +10,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Implementada; verificações automatizadas aprovadas; validação real na etapa 5 |
 | 4 | Documentos gerados e formatos de datas/números | Implementada; verificações automatizadas aprovadas; validação real/visual na etapa 5 |
-| 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
+| 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Em andamento; integridade dos arquivos verificada; validação visual/autenticada e IA real pendentes |
 
 ## Etapa 1
 
@@ -254,3 +254,24 @@ Verificação: 56 scripts funcionais, tipos, lint, inventário de interface, bui
 smoke HTTP. Sem novo SQL, chamadas reais de IA ou alteração de permissões.
 Validação visual autenticada, revisão humana da terminologia e respostas reais
 continuam na etapa 5, que é a próxima e última etapa deste plano.
+
+## Etapa 5 — primeiro bloco de validação — 03/11/2026
+
+Relatório e roteiro reproduzível em `docs/i18n-validation.md`. Foram gerados seis
+arquivos sintéticos (XLSX, DOCX e SVG nos dois idiomas) pelos exportadores reais e
+inspecionados independentemente com ZIP/XML do Python. CRC, XML, abas, idioma do
+Word, dados brutos, células numéricas e geometria passaram. Isso não comprova
+renderização no Office ou layout no navegador. Corrigido o cabeçalho “Data” do
+histórico em espanhol para “Fecha”, com regressão reproduzida antes da correção.
+
+Tipos, lint, auditoria estática e testes direcionados de documentos, coleta,
+navegação, idioma da IA e preservação de rascunhos passaram. O preview redirecionou
+este navegador para login da Vercel; sem sessão autenticada, não foram validados
+layout, respostas reais nem persistência real dos fluxos. A proteção não foi
+alterada e nenhum link de acesso ampliado foi criado. A etapa 5 permanece aberta.
+
+Próximo bloco: seguir o roteiro visual/autenticado nos dois idiomas, começando
+pela landing e troca de idioma, depois Ideias → Radar → Biblioteca → Projeto.
+Também faltam conferência visual dos arquivos e avaliação das respostas reais da
+IA/terminologia. Não há etapa 6 neste plano; depois da aprovação, retomar a
+consolidação anterior registrada em `docs/consolidation-plan.md`.

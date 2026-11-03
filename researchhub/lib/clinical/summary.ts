@@ -53,6 +53,6 @@ const copy=(source:string)=>statCopy(locale,source);
     ...(followup && paired ? pairedWorkbook(collection,followup,paired,locale) : []),
     ...(followup && repeated ? repeatedWorkbook(collection,followup,repeated,locale) : []),
     ...(adjusted ? adjustedWorkbook(collection,adjusted,locale) : []),
-    { name: copy("Histórico recente"), rows: [["Data", copy("Ação"), copy("Código de pesquisa")], ...collection.history.map(h => [h.at, h.action, h.code])] },
+    { name: copy("Histórico recente"), rows: [[copy("Data"), copy("Ação"), copy("Código de pesquisa")], ...collection.history.map(h => [h.at, h.action, h.code])] },
   ];
 }

@@ -36,6 +36,7 @@ const spanish:Record<string,string> = {
   "Obrigatória": "Obligatoria",
   "Não": "No",
   "Histórico recente": "Historial reciente",
+  "Data": "Fecha",
   "Ação": "Acción",
   "Código de pesquisa": "Código de investigación",
   "Revise a variável e as categorias da comparação.": "Revisa la variable y las categorías de comparación.",

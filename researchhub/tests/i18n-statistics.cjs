@@ -44,3 +44,16 @@ const {collectionWorkbook}=summary;
 const sheets=collectionWorkbook(c,undefined,plan,pConfig,mConfig,undefined,'es');assert(sheets.some(sheet=>sheet.name==='Prueba pareada'));
 const collectionSheet=sheets.find(sheet=>sheet.name==='Recolección');assert(collectionSheet);assert.equal(collectionSheet.rows[1][0],'P0');assert.equal(collectionSheet.rows[1][1],'included');
 console.log('PASS: unconfirmed analyses stay blocked in Spanish and raw-data exports retain research IDs and canonical statuses.');
+assert.equal(sheets.find(sheet=>sheet.name==='Historial reciente').rows[0][0],'Fecha');
+assert.equal(collectionWorkbook(c).find(sheet=>sheet.name==='Histórico recente').rows[0][0],'Data');
+// Optional disposable fixtures for independent ZIP/XML validation; never use patient data.
+if(process.env.SCHOLAR_I18N_QA_DIR){
+ const path=require('node:path'),{workbook,wordDocument}=require('../lib/exports/ooxml.ts');
+ fs.mkdirSync(process.env.SCHOLAR_I18N_QA_DIR,{recursive:true});
+ for(const locale of ['pt-BR','es']){
+  const save=(name,bytes)=>fs.writeFileSync(path.join(process.env.SCHOLAR_I18N_QA_DIR,locale+'-'+name),bytes);
+  save('collection.xlsx',workbook(collectionWorkbook(c,undefined,plan,pConfig,mConfig,undefined,locale)));
+  save('results.docx',wordDocument(word.resultsWordBlocks(w,null,locale),locale));
+  save('figure.svg',figure.figureSvg(w,false,locale));
+ }
+}
