@@ -60,6 +60,11 @@ try {
   await waitForServer();
 
   const home = await expectPage("/", /ResearchHub/);
+  for (const [cookie, language] of [[undefined, "pt-BR"], ["scholar_locale=es", "es"], ["scholar_locale=invalid", "pt-BR"], [undefined, "pt-BR"]]) {
+    const localized = await request("/", cookie ? {headers:{cookie}} : undefined);
+    assert.equal(localized.status, 200);
+    assert.ok((await localized.text()).includes(`<html lang="${language}">`), `Request locale should be ${language}`);
+  }
   const publicPages = [
     ["/login", /Entrar|Acessar/],
     ["/cadastro", /Criar|cadastro|conta/i],

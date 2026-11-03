@@ -1,0 +1,38 @@
+// Product interface text only. Scientific sources and user content are never translated here.
+export const portuguese = {
+  "language.label": "Idioma",
+  "language.portuguese": "Português",
+  "language.spanish": "Español",
+  "nav.workspace": "Meu espaço",
+  "nav.ideas": "Ideias",
+  "nav.radar": "Radar",
+  "nav.library": "Biblioteca",
+  "nav.project": "Meu projeto",
+  "nav.advising": "Orientação",
+  "nav.account": "Conta",
+  "nav.operations": "Operação",
+  "common.save": "Salvar",
+  "common.cancel": "Cancelar",
+  "common.close": "Fechar",
+  "common.loading": "Carregando…",
+  "common.retry": "Tentar novamente",
+} as const;
+export type MessageKey = keyof typeof portuguese;
+export const spanish: Record<MessageKey, string> = {
+  "language.label": "Idioma",
+  "language.portuguese": "Português",
+  "language.spanish": "Español",
+  "nav.workspace": "Mi espacio",
+  "nav.ideas": "Ideas",
+  "nav.radar": "Radar",
+  "nav.library": "Biblioteca",
+  "nav.project": "Mi proyecto",
+  "nav.advising": "Tutoría",
+  "nav.account": "Cuenta",
+  "nav.operations": "Operaciones",
+  "common.save": "Guardar",
+  "common.cancel": "Cancelar",
+  "common.close": "Cerrar",
+  "common.loading": "Cargando…",
+  "common.retry": "Intentar de nuevo",
+};

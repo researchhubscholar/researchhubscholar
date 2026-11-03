@@ -1,3 +1,5 @@
+import LanguageProvider from "@/components/i18n/language-provider";
+import { getRequestLocale } from "@/lib/i18n/server";
 import NavigationProtection from "@/components/projects/navigation-protection";
 import { Suspense } from "react";
 import GlobalGuide from "@/components/ai/global-guide";
@@ -30,10 +32,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getRequestLocale();
   return (
-    <html lang="pt-BR">
+    <html lang={locale}>
       <body className="font-sans antialiased">
+        <LanguageProvider initialLocale={locale}>
         <NavigationProtection />
         <ProductTelemetry />
         <Suspense fallback={null}><GlobalGuide /></Suspense>
@@ -58,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div className="border-t border-white/10"><div className="mx-auto max-w-[78rem] px-4 sm:px-6 py-6 text-xs text-white/50">Ferramenta de apoio acadêmico; não substitui orientação científica ou avaliação ética.</div></div>
         </footer>
+        </LanguageProvider>
       </body>
     </html>
   );
