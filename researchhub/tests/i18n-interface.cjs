@@ -13,5 +13,8 @@ assert.equal(context.t('nav.ideas'),'Ideas');assert.equal(doc.documentElement.la
 context.setLocale('pt-BR');tree=provider.default({initialLocale:'pt-BR',children:child});context=tree.props.value;assert.equal(context.t('nav.workspace'),'Meu espaço');assert.equal(child.notes,'Notas sem tradução');
 let selected,refreshes=0;
 const selector=load('components/i18n/language-selector.tsx',{'react':{startTransition:fn=>fn()},'next/navigation':{useRouter:()=>({refresh(){refreshes++;}})},'./language-provider':{useLanguage:()=>({locale:'pt-BR',setLocale:value=>selected=value,t:key=>catalog.portuguese[key]})},'@/lib/i18n/locale':core,'react/jsx-runtime':{jsx,jsxs:jsx}});
-const choice=selector.default().props.children.find(node=>node?.type==='select');choice.props.onChange({target:{value:'es'}});assert.equal(selected,'es');assert.equal(refreshes,1);choice.props.onChange({target:{value:'invalid'}});assert.equal(selected,'pt-BR');assert.equal(refreshes,2);
+const choices=selector.default().props.children.filter(node=>node?.type==='button');
+assert.equal(choices.length,2);assert.equal(choices[0].props['aria-pressed'],true);assert.equal(choices[1].props['aria-pressed'],false);
+choices[0].props.onClick();assert.equal(refreshes,0,'active language does not refresh');
+choices[1].props.onClick();assert.equal(selected,'es');assert.equal(refreshes,1);
 console.log('PASS: actual provider switches/restores locale and cookie without replacing child drafts; selector refreshes server UI without navigation/reload.');

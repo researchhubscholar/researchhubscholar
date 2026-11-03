@@ -92,3 +92,31 @@ for(const route of publicPages.filter(p=>p!=='/')) assert.equal(returnNavigation
 assert.equal(returnNavigation('/'),null);
 assert.equal(returnNavigation('/conta/').href,'/dashboard');
 console.log('PASS: internal return links stay in workspace, nested routes included; public return links keep homepage.');
+
+// Exercise the actual component while moving between public and workspace routes.
+const vm=require('node:vm');
+let pathname='/',session={authenticated:true,displayName:'Admin',isAdmin:true};
+const moduleFixture={exports:{}};
+const jsx=(type,props)=>({type,props});
+const dependency=name=>{
+ if(name==='react')return {useEffect(){},useState:()=>[session,()=>{}]};
+ if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};
+ if(name==='next/navigation')return {usePathname:()=>pathname};
+ if(name==='next/link')return {default:'link'};
+ if(name==='@/components/i18n/language-provider')return {useLanguage:()=>({t:key=>key})};
+ if(name==='@/components/i18n/language-selector')return {default:'language-selector'};
+ if(name==='@/components/LogoutButton')return {default:'logout'};
+ if(name==='@/lib/supabase/browser')return {supabaseBrowser:()=>{throw Error('No auth call during render');}};
+ throw Error(name);
+};
+vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{module:moduleFixture,exports:moduleFixture.exports,require:dependency});
+const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
+const render=()=>nodes(moduleFixture.exports.default());
+let rendered=render();assert.deepEqual(rendered.filter(n=>n.type==='link').map(n=>n.props.href),['/dashboard']);
+assert(!rendered.some(n=>n.props?.className==='mobile-nav'));
+assert(!rendered.some(n=>n.props?.['data-workspace']==='true'));
+pathname='/biblioteca';rendered=render();assert(rendered.some(n=>n.props?.['data-workspace']==='true'));assert(rendered.some(n=>n.props?.href==='/operacao'));
+pathname='/';rendered=render();assert.deepEqual(rendered.filter(n=>n.type==='link').map(n=>n.props.href),['/dashboard'],'return from workspace cannot leak private modules into landing');
+pathname='/planos';rendered=render();assert(!rendered.some(n=>n.props?.href==='/operacao'));assert(rendered.some(n=>n.props?.href==='/dashboard'));
+session={authenticated:false,displayName:null,isAdmin:false};pathname='/';rendered=render();assert(rendered.some(n=>n.props?.href==='/como-funciona'));assert(rendered.some(n=>n.props?.href==='/login'));assert(!rendered.some(n=>n.props?.href==='/biblioteca'));
+console.log('PASS: logged-in landing shows only workspace entry; public pages never render private/admin tabs, including after client navigation.');

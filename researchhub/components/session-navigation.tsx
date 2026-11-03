@@ -70,7 +70,8 @@ export default function SessionNavigation() {
   }, []);
 
   const isLandingPage = pathname === "/";
-  const links = session.authenticated && !isLandingPage ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])] : [...publicLinks];
+  const isWorkspace = ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
+  const links = session.authenticated && isWorkspace ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])] : session.authenticated && isLandingPage ? [] : [...publicLinks];
   const renderLink = ([href, label]: (typeof links)[number], mobile = false) => (
     <Link
       key={href}
@@ -81,19 +82,19 @@ export default function SessionNavigation() {
   );
 
   return <>
-    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href)) ? "true" : undefined}>
+    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && isWorkspace ? "true" : undefined}>
       <LanguageSelector />
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
-        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">{uiText("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
+        {!isWorkspace ? <Link href="/dashboard" className="primary-nav-link nav-signup">{uiText("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
         <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{uiText("nav.login")}</Link>
         <Link href="/cadastro" aria-current={pathname === "/cadastro" ? "page" : undefined} className="primary-nav-link nav-signup">{uiText("nav.signup")}</Link>
       </>}
     </nav>
-    <nav aria-label={uiText("nav.toolsLabel")} className="mobile-nav">
+    {links.length > 0 && <nav aria-label={uiText("nav.toolsLabel")} className="mobile-nav">
       {links.map(link => renderLink(link, true))}
-    </nav>
+    </nav>}
   </>;
 }
