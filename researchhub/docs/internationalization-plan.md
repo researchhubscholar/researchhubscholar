@@ -9,7 +9,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
 | 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Implementada; verificações automatizadas aprovadas; validação real na etapa 5 |
-| 4 | Documentos gerados e formatos de datas/números | Pendente |
+| 4 | Documentos gerados e formatos de datas/números | Iniciada: base de formatos, cabeçalhos CSV e idioma dos arquivos Word |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
 
 ## Etapa 1
@@ -183,3 +183,20 @@ essas verificações continuam previstas na etapa 5.
 
 Próxima: etapa 4 — documentos e formatos de datas/números. Depois, etapa 5 —
 validação real dos fluxos, respostas, terminologia e layout em português/espanhol.
+
+## Etapa 4 — base inicial
+
+Formatadores puros de datas ISO e números usam português brasileiro ou espanhol
+latino-americano. Datas sem horário são interpretadas em UTC, com rejeição de datas
+inexistentes. Nenhum valor de pesquisa é convertido ou salvo pelo formatador.
+
+A Biblioteca passa o idioma atual aos cabeçalhos CSV, preservando as linhas de
+artigos, enums, identificadores e notas. Word aceita idioma explícito com padrão
+português e validação estrita; o editor de manuscrito e a central de documentos
+encaminham a preferência atual. Rótulos automáticos do manuscrito são localizados;
+títulos, seções editadas, parágrafos e referências continuam originais.
+
+Ainda faltam nesta etapa: tradução dos modelos de protocolo/resumo/orientação e
+matriz, integração dos formatadores nas telas e saídas estatísticas, revisão dos
+demais pontos de exportação e verificação visual dos arquivos em ambos os idiomas.
+Próxima após concluir a etapa 4: etapa 5, validação real de todos os fluxos.

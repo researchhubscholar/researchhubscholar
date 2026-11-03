@@ -1,13 +1,15 @@
+import type { Locale } from "../i18n/locale";
+import { exportCopy } from "../i18n/export-copy";
 import type { LibraryArticle, EvidenceNote } from "@/lib/literature/library-store";
 
 const clean = (value: unknown) => String(value ?? "").replace(/\r?\n/g, " ").trim();
 const csv = (value: unknown) => `"${String(value ?? "").trim().replaceAll('"', '""')}"`;
 const esc = (value: unknown) => String(value ?? "").trim().replace(/[&<>]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
 
-export function buildCsv(articles: LibraryArticle[], notes: Record<string, EvidenceNote>) {
+export function buildCsv(articles: LibraryArticle[], notes: Record<string, EvidenceNote>, locale: Locale = "pt-BR") {
   const headings = ["Título","Autores","Ano","Periódico","PMID","DOI","Status","Pasta","Desenho","Tags","Objetivo","População","Método","Amostra","Intervenção","Comparador","Desfechos","Achado","Limitação","Nível de evidência","Risco de viés","Notas gerais"];
   const rows = articles.map(a => { const n=notes[a.id]||{}; return [a.title,a.authors.join("; "),a.year,a.journal,a.pmid,a.doi,a.readingStatus,a.folder,a.studyDesign,a.tags.join("; "),n.objective,n.population,n.method,n.sampleSize,n.intervention,n.comparator,n.outcomes,n.finding,n.limitation,n.evidenceLevel,n.riskOfBias,n.generalNotes].map(csv).join(","); });
-  return `\uFEFF${headings.map(csv).join(",")}\n${rows.join("\n")}`;
+  return `\uFEFF${headings.map(heading => csv(exportCopy(locale, heading))).join(",")}\n${rows.join("\n")}`;
 }
 export function buildRis(articles: LibraryArticle[]) { return articles.map(a => ["TY  - JOUR",`TI  - ${clean(a.title)}`,...a.authors.map(x=>`AU  - ${clean(x)}`),a.journal&&`JO  - ${clean(a.journal)}`,a.year&&`PY  - ${a.year}`,a.doi&&`DO  - ${clean(a.doi)}`,a.pmid&&`AN  - PMID:${clean(a.pmid)}`,a.abstract&&`AB  - ${clean(a.abstract)}`,"ER  - "].filter(Boolean).join("\n")).join("\n\n"); }
 export function buildBibtex(articles: LibraryArticle[]) { return articles.map((a,i)=>{const key=`scholar${a.year||"nd"}_${i+1}`;return `@article{${key},\n  title = {${clean(a.title)}},\n  author = {${a.authors.map(clean).join(" and ")}},\n  journal = {${clean(a.journal)}},\n  year = {${a.year||""}},\n  doi = {${clean(a.doi)}},\n  pmid = {${clean(a.pmid)}}\n}`;}).join("\n\n"); }

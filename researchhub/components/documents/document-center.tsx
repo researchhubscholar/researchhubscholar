@@ -32,7 +32,7 @@ function filename(title:string,suffix:string,extension:string) {
 }
 
 export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
-  const { t: uiText } = useLanguage();
+  const { t: uiText, locale } = useLanguage();
   const [last,setLast]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -51,8 +51,8 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
         ]);
         const {input,results}=await loadManuscriptExport(supabaseBrowser(),p.id);
         const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind).length?await figurePng(figureSvg(results)):null;
-        downloadBinary(manuscriptDocument(input,results,image),filename(input.title||title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      } else { const html=kind==="protocol"?buildStructuredProtocol(data):kind==="summary"?buildProjectSummary(data):buildAdvisorReport(data);downloadBinary(htmlWord(html),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
+        downloadBinary(manuscriptDocument(input,results,image,locale),filename(input.title||title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      } else { const html=kind==="protocol"?buildStructuredProtocol(data):kind==="summary"?buildProjectSummary(data):buildAdvisorReport(data);downloadBinary(htmlWord(html,locale),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
       setLast(cards.find(card=>card.kind===kind)?.title||"Documento");
     } catch(e){setError(e instanceof Error?e.message:"Falha na exportação.");} finally {generationLock.current=false;setBusy(false);}
   }
