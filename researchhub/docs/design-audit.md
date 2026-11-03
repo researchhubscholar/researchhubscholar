@@ -86,3 +86,30 @@ passa a ser identificado como projeto carregado, em vez de novo rascunho. No
 Manuscrito, a mensagem de estado é anunciada a tecnologias assistivas e o texto
 explica que o salvamento automático precisa ser conferido, sem prometer sucesso.
 A avaliação visual autenticada permanece pendente.
+
+## Auditoria de composição — 03/11/2026
+
+Escopo: leitura das páginas e componentes ativos, das regras globais, da camada
+workspace e da camada dos conceitos; captura enviada pelo usuário na Biblioteca.
+Esta é uma auditoria estática de composição, não uma inspeção autenticada completa
+no navegador. A prévia local gerenciada falhou anteriormente porque injeta opções
+`--host`/`--strictPort` incompatíveis com Next.js. Não foi usado acesso alternativo.
+
+| Área | Evidência e ação | Estado |
+| --- | --- | --- |
+| Biblioteca / indicadores | Pseudoelemento absoluto de 3px do layout antigo sobrepunha os valores com padding zero; removido. Margens dos textos, alinhamento pela linha de base e números tabulares definidos. | Corrigido no CSS; conferir na conta |
+| Biblioteca / filtros e seleção | Campos principais em duas colunas, adicionais recolhidos; lista e artigo com largura mínima zero. Rascunhos de notas no pai e organização dos artigos montada ao alternar a seleção. | Revisado no código; validar estados reais |
+| Biblioteca / textos longos | Títulos, metadados e links podem quebrar sem aumentar a coluna. Lista fixa tem deslocamento compatível com cabeçalho horizontal entre 1100–1279px. | Corrigido; conferir 1100/1279/1280px |
+| Meu espaço | Margem negativa das métricas já neutralizada na camada workspace; linhas decorativas desativadas, prioridades e projetos mantidos. | Revisado no código |
+| Ideias / Radar | Formulários e disclosures preservados; faixas antigas das métricas do Radar removidas e placeholder mais legível. | Corrigido no CSS |
+| Meu projeto | Conteúdo e ações já têm min-width zero, quebra e botões flexíveis; seletores e etapas preservados. | Revisado no código |
+| Manuscrito | Três colunas mantidas no desktop; painéis aderentes agora usam top 1.5rem com menu lateral, sem espaço reservado ao antigo cabeçalho. | Corrigido no CSS |
+| Orientação / Conta / Operação | Marcador de visual cobre áreas e subrotas; cabeçalhos, formulários e tabelas seguem camada verde/creme. | Revisado no código |
+| Resultados / Documentos / Residência / diagnóstico / gerações / licença | Rotas ainda ausentes do marcador visual; incluídas para evitar retorno ao cabeçalho antigo durante a jornada. Nenhuma alteração comercial. | Corrigido no marcador |
+| Assistente | Janela usa limites de viewport e safe area; controles de ampliar/fechar e estados mantidos. Botão flutuante pode cobrir conteúdo transitório, exigindo conferência real. | Validar em desktop/celular |
+| Páginas públicas | Camada dos conceitos depende de sessão e rota interna; landing continua pública e independente. | Preservado |
+
+Conferência visual pendente: 390px, 768px, 1100px, 1280px e 1440px; estados
+vazio, carregando, erro, listas extensas, títulos/DOIs longos, formulário em edição,
+seleção de artigo, filtros abertos, matriz, assistente aberto/ampliado, teclado e
+zoom 200%. Não marcar a etapa 4 como validada antes dessa conferência.

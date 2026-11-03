@@ -161,3 +161,27 @@ body:has(.primary-nav[data-workspace="true"]) .library-reading-detail .library-a
 body:has(.primary-nav[data-workspace="true"]) .library-reading-detail .library-article-card::before { content: none; }
 body:has(.primary-nav[data-workspace="true"]) .library-reading-detail .library-article-card > div:first-child > div:last-child { background: transparent; border: 0; padding: 0; }
 body:has(.primary-nav[data-workspace="true"]) .library-reading-detail .library-article-card[hidden] { display: none; }
+
+/* Audit fixes: legacy metric stripes must not overlap compact values. */
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(.library-metrics,.radar-metrics,.documents-metrics) > div::before { content: none; }
+body:has(.primary-nav[data-workspace="true"]) .library-metrics > div {
+  min-height: 0; overflow: visible; align-items: baseline; gap: .5rem;
+  padding: .5rem 0; flex: 0 1 auto; max-width: 100%;
+}
+body:has(.primary-nav[data-workspace="true"]) .library-metrics > div > p { margin: 0; line-height: 1.5; }
+body:has(.primary-nav[data-workspace="true"]) .library-metrics > div > p:first-child {
+  flex-shrink: 0; font-size: 1.25rem; font-variant-numeric: tabular-nums; letter-spacing: normal;
+}
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(h2,h3) { overflow-wrap: anywhere; }
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(input,textarea)::placeholder { color: #65746c; opacity: 1; }
+body:has(.primary-nav[data-workspace="true"]) .library-reading-detail :is(p,a) { overflow-wrap: anywhere; }
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace .documents-metrics > div { background: transparent; box-shadow: none; border-radius: 0; border-color: var(--workspace-line); }
+@media (min-width: 1100px) and (max-width: 1279px) {
+  .library-reading-list { top: 7rem; max-height: calc(100dvh - 8rem); }
+}
+@media (min-width: 1280px) {
+  body:has(.primary-nav[data-workspace="true"]) .manuscript-workspace > aside { top: 1.5rem; }
+}
+@media (max-width: 639px) {
+  body:has(.primary-nav[data-workspace="true"]) .library-page .library-metrics { gap: .25rem 1.25rem; }
+}
