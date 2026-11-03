@@ -17,8 +17,8 @@ const publicLinks = [
 
 const privateLinks = [
   ["/dashboard", "Meu espaço"],
-  ["/descobrir", "Radar"],
   ["/ideias", "Ideias"],
+  ["/descobrir", "Radar"],
   ["/biblioteca", "Biblioteca"],
   ["/meu-trabalho", "Meu projeto"],
   ["/orientacao", "Orientação"],
@@ -59,7 +59,8 @@ export default function SessionNavigation() {
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  const links = session.authenticated ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])] : [...publicLinks];
+  const isLandingPage = pathname === "/";
+  const links = session.authenticated && !isLandingPage ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])] : [...publicLinks];
   const renderLink = ([href, label]: (typeof links)[number], mobile = false) => (
     <Link
       key={href}
@@ -73,7 +74,7 @@ export default function SessionNavigation() {
     <nav aria-label="Navegação principal" className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito"].includes(pathname) ? "true" : undefined}>
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
-        {session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label="Abrir minha conta">{session.displayName.split(" ")[0]}</Link>}
+        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">Meu espaço</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label="Abrir minha conta">{session.displayName.split(" ")[0]}</Link>}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
         <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">Entrar</Link>
