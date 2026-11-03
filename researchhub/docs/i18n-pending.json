@@ -1,5 +1,5 @@
 {
-  "scope": "UI literals and attributes outside the assistant; reviewed identical Portuguese/Spanish terms are retained. Scientific content, user data and generated documents are separate scopes.",
+  "scope": "UI literals and attributes including the assistant; reviewed identical Portuguese/Spanish terms are retained. Scientific content, user data and generated documents are separate scopes.",
   "complete": true,
   "candidates": 0,
   "reviewedUnchanged": 207,

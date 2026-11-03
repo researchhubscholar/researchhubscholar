@@ -6,7 +6,7 @@ export type TransferOrigin = {
   ideaVersionId?: string;
   seriesId?: string;
   generationId?: string;
-  language?: "pt-BR" | "en";
+  language?: "pt-BR" | "en" | "es";
   radarQuery?: string;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,7 +37,7 @@ export function readIdeaTransfer(storage: Pick<Storage, "getItem">, ownerId: str
       ideaVersionId: typeof rawOrigin.ideaVersionId === "string" && uuid.test(rawOrigin.ideaVersionId) ? rawOrigin.ideaVersionId : undefined,
       seriesId: typeof rawOrigin.seriesId === "string" && uuid.test(rawOrigin.seriesId) ? rawOrigin.seriesId : undefined,
       generationId: typeof rawOrigin.generationId === "string" && uuid.test(rawOrigin.generationId) ? rawOrigin.generationId : undefined,
-      language: rawOrigin.language === "en" ? "en" : "pt-BR",
+      language: rawOrigin.language === "en" || rawOrigin.language === "es" ? rawOrigin.language : "pt-BR",
       radarQuery: typeof rawOrigin.radarQuery === "string" ? rawOrigin.radarQuery.slice(0, 2000) : undefined,
     };
   }

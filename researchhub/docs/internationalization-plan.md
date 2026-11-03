@@ -8,7 +8,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | --- | --- | --- |
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
 | 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
-| 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Pendente |
+| 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Implementada; verificações automatizadas aprovadas; validação real na etapa 5 |
 | 4 | Documentos gerados e formatos de datas/números | Pendente |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
 
@@ -133,3 +133,53 @@ Próxima: etapa 3, idioma do assistente e respostas de IA. Restam etapa 4,
 documentos e formatos; e etapa 5, validação humana, revisão terminológica e
 conferência visual autenticada nos dois idiomas em desktop/celular. A etapa 2
 está implementada e verificada automaticamente; validação real segue na etapa 5.
+
+## Etapa 3 — primeira implementação
+
+Preferência de idioma validada no servidor para assistente, ideias e refinamento.
+Espanhol passa a ser idioma de saída permitido, mantendo inglês quando escolhido
+explicitamente para geração científica. Prompts preservam chaves, identificadores,
+termos MeSH, consultas PubMed, citações e dados originais. Redirecionamentos de
+escopo e segurança possuem versão espanhola; a classificação e as ações permitidas
+continuam as mesmas. O atalho de início fixo em português não substitui uma resposta
+em espanhol. Provedor, limites financeiros e proteção de contexto não foram alterados.
+
+Ainda faltam nesta etapa: interface da janela, mensagens operacionais e simulações,
+atalhos didáticos em espanhol e revisão das escolhas explícitas de idioma nos formulários.
+Não houve chamada real ao modelo nem publicação deste incremento.
+
+Verificação deste incremento: testes de idioma/segurança, IA, conversa contextual,
+trechos e reserva financeira aprovados; typecheck e lint aprovados. Sem validação
+real de resposta do provedor nesta fase.
+
+## Encerramento da implementação da etapa 3 — 03/11/2026
+
+Esta seção substitui as pendências da primeira implementação acima.
+
+- Janela, controles acessíveis, carregamento, mensagens, ajuda por área, prévias de
+  busca/proposta, revisão de trechos, avaliação e atalhos usam o idioma da interface.
+- Assistente e ações de IA recebem a preferência validada no servidor. Ideias,
+  refinamento e escrita permitem seguir o idioma do sistema ou escolher português,
+  espanhol e inglês explicitamente. Português continua padrão.
+- Simulações, início didático, recusas de escopo e avisos de reserva têm versão
+  espanhola. Recusas mantêm ações bloqueadas e a política científica é a mesma.
+- Idioma da geração fica no registro da operação e acompanha novas propostas do
+  assistente no histórico e na transferência. Trocar a interface não traduz
+  respostas antigas, artigos, citações, nomes de projeto ou textos do pesquisador.
+- Termos PubMed/MeSH, chaves, enums e destinos continuam canônicos. Citações
+  verificáveis preservam título e trecho original, com rótulo de fonte localizado.
+- Identificadores de coluna em espanhol também são bloqueados na coleta. A
+  verificação de objetivo reconhece verbos científicos em português, espanhol e inglês.
+- Compatibilidade com banco existente: espanhol é preservado em
+  `scholar_project_origins.snapshot.language`; a coluna legada limitada a pt-BR/en
+  recebe null nesse caso. Não exige novo SQL nem altera permissões/RLS.
+
+Verificação: suíte funcional automatizada, casos de idioma/recusas/simulação,
+privacidade, citações literais, metadados de origem, preferências explícitas,
+typecheck, lint, inventário estático incluindo assistente, build e smoke HTTP.
+O inventário não mede textos dinâmicos nem garante a qualidade de uma resposta
+real do modelo. Sem chamadas reais ao provedor ou validação visual autenticada;
+essas verificações continuam previstas na etapa 5.
+
+Próxima: etapa 4 — documentos e formatos de datas/números. Depois, etapa 5 —
+validação real dos fluxos, respostas, terminologia e layout em português/espanhol.

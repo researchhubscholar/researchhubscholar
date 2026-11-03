@@ -1,5 +1,6 @@
 import { portuguese, spanish, type MessageKey } from "./catalog";
 import templates from "./message-templates.json";
+import { aiSpanishCopy as aiCopy } from "./ai-copy";
 import type { Locale } from "./locale";
 
 const keys = new Map<string, MessageKey>(Object.entries(portuguese).map(([key, value]) => [value, key as MessageKey]));
@@ -17,6 +18,7 @@ const patterns = Object.entries(templates).map(([source, target]) => {
 // Captured values (field names, numbers, dates) are copied verbatim, not translated.
 export function localizeInterfaceCopy(locale: Locale, source: string): string {
   if (locale === "pt-BR") return source;
+  if (Object.hasOwn(aiCopy, source)) return aiCopy[source as keyof typeof aiCopy];
   const key = keys.get(source);
   if (key) return spanish[key];
   for (const { pattern, target, positions } of patterns) {

@@ -68,5 +68,6 @@
   "Entre {0} e {1}, {2} {3}{4}. A comparação usa as mesmas pessoas nos dois momentos.": "Entre {0} y {1}, {2} {3}{4}. La comparación usa a las mismas personas en los dos momentos.",
   " em média {0}{1}": " en promedio {0}{1}",
   "A análise compara globalmente {0} entre {1}, usando as mesmas {2} pessoas em todos os momentos.": "El análisis compara globalmente {0} entre {1}, usando a las mismas {2} personas en todos los momentos.",
-  "Foram estimadas diferenças em {0}, considerando em conjunto {1}. Cada estimativa abaixo mantém constantes as demais características do modelo.": "Se estimaron diferencias en {0}, considerando conjuntamente {1}. Cada estimación de abajo mantiene constantes las demás características del modelo."
+  "Foram estimadas diferenças em {0}, considerando em conjunto {1}. Cada estimativa abaixo mantém constantes as demais características do modelo.": "Se estimaron diferencias en {0}, considerando conjuntamente {1}. Cada estimación de abajo mantiene constantes las demás características del modelo.",
+  "Há {0} registros pendentes. Confira os dados e a elegibilidade antes de incluir.": "Hay {0} registros pendientes. Revisa los datos y la elegibilidad antes de incluirlos."
 }

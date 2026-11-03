@@ -413,7 +413,7 @@ export function proposalQualityIssues(proposal: AIProposal, context: Context, pr
   if (titleWords.length < 7) issues.push("O título está curto ou genérico; delimite fenômeno, população e relação investigada.");
   if (titleWords.length > 30) issues.push("O título está longo demais; preserve o recorte científico com redação mais direta.");
   if (!proposal.question.trim().endsWith("?")) issues.push("A pergunta de pesquisa deve ser formulada como pergunta explícita.");
-  if (!/^(avaliar|analisar|comparar|descrever|estimar|identificar|investigar|examinar|verificar|sintetizar|determinar|explorar)\b/i.test(proposal.objective.trim())) issues.push("O objetivo deve começar com um verbo de pesquisa adequado.");
+  if (!/^(avaliar|analisar|comparar|descrever|estimar|identificar|investigar|examinar|verificar|sintetizar|determinar|explorar|evaluar|analizar|describir|assess|evaluate|analyze|analyse|compare|describe|estimate|identify|investigate|examine|verify|synthesize|determine|explore)\b/i.test(proposal.objective.trim())) issues.push("O objetivo deve começar com um verbo de pesquisa adequado.");
   const joinedInputs = [context.interest, context.population, context.setting].filter(Boolean).join(" ");
   if (similarity(proposal.title, joinedInputs) > 0.86) issues.push("O título apenas recompõe os campos informados; formule uma relação científica e um desfecho mensurável.");
   if (previous.some(item => similarity(item.title, proposal.title) > 0.68)) issues.push("Esta proposta está muito parecida com uma proposta anterior; mude o recorte, a pergunta ou o desenho.");

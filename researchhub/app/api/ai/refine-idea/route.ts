@@ -1,3 +1,5 @@
+import { localizeAIError } from "@/lib/ai/localized-output";
+import { requestOutputLanguage } from "@/lib/ai/language";
 import { settleFailedReservation, reservationNotice, providerMetering, type ProviderMetering } from "@/lib/ai/failed-reservation";
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
@@ -69,17 +71,20 @@ function validate(value: unknown) {
   return { idea: body.idea as AIProposal, projectId, language: outputLanguage(body.language) };
 }
 
+function reply(request:Request,payload:Record<string,unknown>,init?:ResponseInit){return NextResponse.json(typeof payload.error==="string"?{...payload,error:localizeAIError(request,payload.error)}:payload,init);}
 export async function POST(request: Request) {
-  if (!scholarAIReady) return NextResponse.json({ error: "A IA ainda não está ativada neste ambiente." }, { status: 503 });
+  if (!scholarAIReady) return reply(request,{ error: "A IA ainda não está ativada neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
   const { data: { user } } = await client.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Entre na sua conta para refinar a proposta." }, { status: 401 });
+  if (!user) return reply(request,{ error: "Entre na sua conta para refinar a proposta." }, { status: 401 });
 
   let operationId: string | null = null;
   let reserved = false;
   let metering: ProviderMetering | null = null;
   try {
-    const input = validate(await request.json());
+    const body = await request.json();
+    const input = validate(body);
+    input.language = requestOutputLanguage(request, body.language);
     const query = ideaRadarQuery(input.idea.radar);
     if (query.length < 5 || query.length > 1800) throw new Error("A estratégia bibliográfica desta proposta precisa ser revisada antes do refinamento.");
 
@@ -97,7 +102,7 @@ export async function POST(request: Request) {
     if (reserveError) throw reserveError;
     reserved = true;
     const articleContext = articles.slice(0, 5).map(article => ({ pmid: article.pmid || "", title: article.title, year: article.year, publicationTypes: article.publicationTypes, abstract: article.abstract }));
-    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v5-grounded-sources", input_snapshot: { idea: input.idea, language: input.language, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
+    const { error: artifactError } = await admin.from("scholar_generation_artifacts").insert({ usage_id: operationId, user_id: user.id, prompt_version: "refinement.v6-bilingual-sources", input_snapshot: { idea: input.idea, language: input.language, query, pubmedTotal: search.count, articles: articleContext.map(article => ({ pmid: article.pmid, title: article.title, year: article.year })) } });
     if (artifactError) throw artifactError;
     if (license.mode === "simulation") throw new Error("O refinamento com literatura exige uma licença de IA ao vivo.");
 
@@ -141,10 +146,10 @@ export async function POST(request: Request) {
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: result.response.id || null });
     if (settleError) throw settleError;
     reserved = false;
-    return NextResponse.json({ operationId, output, pubmedQuery: query, pubmedTotal: search.count, usage: { inputTokens, outputTokens, costUsd } });
+    return reply(request,{ operationId, language:input.language, output, pubmedQuery: query, pubmedTotal: search.count, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
     console.error("[scholar-ai:refine-idea] failed", { operationId, stage: operationId ? "generation-or-settlement" : "input-or-literature", error: error instanceof Error ? error.message : "unknown" });
     const reservation = operationId && reserved ? await settleFailedReservation(operationId, timedOut(error) ? "GENERATION_TIMEOUT" : "GENERATION_FAILED", metering || providerMetering(error)) : null;
-    return NextResponse.json({ error: reservation === "completed" ? reservationNotice(reservation) : [safeMessage(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut(error) ? 504 : 400 });
+    return reply(request,{ error: reservation === "completed" ? reservationNotice(reservation) : [safeMessage(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut(error) ? 504 : 400 });
   }
 }

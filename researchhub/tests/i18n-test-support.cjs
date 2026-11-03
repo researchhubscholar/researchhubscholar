@@ -17,6 +17,9 @@ function jsx(type, props) {
   return {type,props};
 }
 function dependency(name) {
+  if(name==='@/components/i18n/use-interface-copy') return {useInterfaceCopy:()=>source=>source};
+  if(name==='@/lib/ai/language') return require('../lib/ai/language.ts');
+  if(name==='@/lib/ai/localized-output') return require('../lib/ai/localized-output.ts');
   if(name==='@/components/i18n/interface-text') return {default:Interface};
   if(name==='@/components/i18n/authored-text') return {default:Authored};
   if(name==='@/components/i18n/language-provider') return {useLanguage:()=>({locale:'pt-BR',t:text})};

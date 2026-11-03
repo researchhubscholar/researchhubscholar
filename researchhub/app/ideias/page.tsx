@@ -27,8 +27,8 @@ type AIMode = "" | "simulation" | "live" | "saved" | "error";
 type CreationMode = "automatic" | "theme" | "guided";
 type AIUsage = { inputTokens: number; outputTokens: number; costUsd: number };
 type QualityCheck = { proposalIndex: number; issues: string[] };
-type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number; usage?: AIUsage };
-type IdeaOrigin = { generationId?: string; sourceKey: string };
+type RefinementResult = { output: IdeaRefinement; operationId: string; pubmedQuery: string; pubmedTotal: number; usage?: AIUsage; language?: OutputLanguage };
+type IdeaOrigin = { language?: OutputLanguage; generationId?: string; sourceKey: string };
 
 function proposalFingerprint(idea: Idea) {
   const input = `${idea.title}|${idea.question}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -49,7 +49,7 @@ const blankContext: Context = {
 };
 
 export default function IdeasPage() {
-  const { t: uiText } = useLanguage();
+  const { t: uiText, locale } = useLanguage();
   const library = useLibrary();
   const router = useRouter();
   const previousOwner = useRef<string | null>(null);
@@ -77,7 +77,8 @@ export default function IdeasPage() {
   const [aiMessage, setAiMessage] = useState("");
   const [aiOperation, setAiOperation] = useState("");
   const [aiMode, setAiMode] = useState<AIMode>("");
-  const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("pt-BR");
+  const [selectedLanguage, setOutputLanguage] = useState<OutputLanguage | "">("");
+  const outputLanguage: OutputLanguage = selectedLanguage || locale;
   const [lastUsage, setLastUsage] = useState<AIUsage | null>(null);
   const [qualityChecks, setQualityChecks] = useState<QualityCheck[]>([]);
   const [ideaOrigins, setIdeaOrigins] = useState<Record<string, IdeaOrigin>>({});
@@ -183,7 +184,7 @@ export default function IdeasPage() {
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setLastUsage(data.usage || null);
       setQualityChecks(data.qualityChecks || []);
-      setIdeaOrigins(Object.fromEntries(data.ideas.map(idea => [idea.id, { generationId: data.operationId, sourceKey: data.operationId ? `generation:${data.operationId}:${idea.id}` : `idea:${proposalFingerprint(idea)}` }] )));
+      setIdeaOrigins(Object.fromEntries(data.ideas.map(idea => [idea.id, { language: outputLanguage, generationId: data.operationId, sourceKey: data.operationId ? `generation:${data.operationId}:${idea.id}` : `idea:${proposalFingerprint(idea)}` }] )));
       setAiMessage(data.caution || "Três propostas foram criadas para você comparar e validar.");
       window.setTimeout(() => document.getElementById("propostas-geradas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (error) {
@@ -225,7 +226,7 @@ export default function IdeasPage() {
     try {
       const { data } = await postAI<{ output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage }>("/api/ai/refine-idea", { idea, projectId: projectId || null, language: outputLanguage });
       if (!data.output) throw new AIRequestError("A IA não retornou um refinamento válido. Confira o registro antes de tentar novamente.", data.operationId);
-      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage } }));
+      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage, language: outputLanguage } }));
     } catch (error) {
       setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? `${error.message}${error instanceof AIRequestError && error.operationId ? ` Código da operação: ${error.operationId}.` : ""}` : "Não foi possível refinar esta proposta." }));
     } finally { refinementInFlight.current = false; setRefiningId(""); }
@@ -235,7 +236,7 @@ export default function IdeasPage() {
     const refinement = refinements[id];
     if (!refinement) return;
     setIdeas(current => current.map(idea => idea.id === id ? { ...idea, ...refinement.output.refinedProposal, id: idea.id, references: idea.references } : idea));
-    if (refinement.operationId) setIdeaOrigins(current => ({ ...current, [id]: { generationId: refinement.operationId, sourceKey: `refinement:${refinement.operationId}:${id}` } }));
+    if (refinement.operationId) setIdeaOrigins(current => ({ ...current, [id]: { language: refinement.language, generationId: refinement.operationId, sourceKey: `refinement:${refinement.operationId}:${id}` } }));
     setRefinements(current => { const next = { ...current }; delete next[id]; return next; });
     setMessage("Refinamento baseado na literatura aplicado à proposta. Revise antes de salvar ou transformar em projeto.");
   }
@@ -254,7 +255,7 @@ export default function IdeasPage() {
       const token = crypto.randomUUID();
       const tracked = ideaOrigins[idea.id];
       const sourceKey = savedVersion ? `idea-version:${savedVersion.id}` : tracked?.sourceKey || `idea:${proposalFingerprint(idea)}`;
-      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: outputLanguage, radarQuery: ideaRadarQuery(idea.radar) } }));
+      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: tracked?.language, radarQuery: ideaRadarQuery(idea.radar) } }));
       router.push(`/meu-trabalho?origem=ideias&proposta=${encodeURIComponent(token)}`);
     } catch { setMessage("Não foi possível preparar a proposta. Tente novamente."); }
   }
@@ -290,8 +291,8 @@ export default function IdeasPage() {
     <p className="ideas-mode-description" aria-live="polite">{creationMode==="automatic"?uiText("screen.de43ab554b28"):creationMode==="theme"?"Transforme um interesse ou problema inicial em uma pergunta de pesquisa.":uiText("screen.8fd9b4925db0")}</p>
     <div className="ideas-language-row">
       <div><p className="text-sm font-medium"><InterfaceText message="screen.4ca38f95f292" /></p><p className="text-xs text-ink-soft mt-1"><InterfaceText message="screen.8dae2ea308f4" /></p></div>
-      <select aria-label={uiText("screen.4ca38f95f292")} value={outputLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
-        <option value="pt-BR"><InterfaceText message="screen.25c0623b1a61" /></option>
+      <select aria-label={uiText("screen.4ca38f95f292")} value={selectedLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
+        <option value=""><AuthoredText text="Idioma do sistema" /></option><option value="es" lang="es"><AuthoredText text="Español" /></option><option value="pt-BR"><InterfaceText message="screen.25c0623b1a61" /></option>
         <option value="en">English</option>
       </select>
     </div>

@@ -1,3 +1,6 @@
+import { localizeInterfaceCopy } from "@/lib/i18n/interface-copy";
+import { localizeAIError } from "@/lib/ai/localized-output";
+import { requestOutputLanguage } from "@/lib/ai/language";
 import { settleFailedReservation, reservationNotice, providerMetering, type ProviderMetering } from "@/lib/ai/failed-reservation";
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
@@ -102,17 +105,20 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
   throw lastError || new Error("Nenhum modelo de IA está disponível agora.");
 }
 
+function reply(request:Request,payload:Record<string,unknown>,init?:ResponseInit){return NextResponse.json(typeof payload.error==="string"?{...payload,error:localizeAIError(request,payload.error)}:payload,init);}
 export async function POST(request: Request) {
-  if (!scholarAIReady) return NextResponse.json({ error: "A IA de teste ainda não está conectada ao provedor de IA neste ambiente." }, { status: 503 });
+  if (!scholarAIReady) return reply(request,{ error: "A IA de teste ainda não está conectada ao provedor de IA neste ambiente." }, { status: 503 });
   const client = await supabaseServer();
   const { data: { user }, error: authError } = await client.auth.getUser();
-  if (authError || !user) return NextResponse.json({ error: "Entre na sua conta para usar a assistência." }, { status: 401 });
+  if (authError || !user) return reply(request,{ error: "Entre na sua conta para usar a assistência." }, { status: 401 });
 
   let operationId: string | null = null;
   let reserved = false;
   let metering: ProviderMetering | null = null;
   try {
-    const input = validateIdeasRequest(await request.json());
+    const body = await request.json();
+    const input = validateIdeasRequest(body);
+    input.language = requestOutputLanguage(request, body.language);
     const { wallet, license } = await activeWallet(user.id, requestedWallet(request, user.id));
     await verifyFinancialEnvelope(license.mode);
     const admin = supabaseAdmin();
@@ -126,13 +132,13 @@ export async function POST(request: Request) {
     if (artifactError) throw artifactError;
 
     if (license.mode === "simulation") {
-      const simulated = { proposals: input.ideas, caution: "Simulação concluída: o fluxo, a franquia e o histórico foram validados sem enviar dados a um modelo de IA." };
+      const simulated = { proposals: input.ideas, caution: localizeInterfaceCopy(input.language==="es"?"es":"pt-BR", "Simulação concluída: o fluxo, a franquia e o histórico foram validados sem enviar dados a um modelo de IA.") };
       const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: simulated }).eq("usage_id", operationId);
       if (updateError) throw updateError;
       const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: 0, p_output: 1, p_cost: 0, p_failed: false, p_provider_id: "simulation" });
       if (settleError) throw settleError;
       reserved = false;
-      return NextResponse.json({ operationId, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
+      return reply(request,{ operationId, language:input.language, mode: "simulation", ideas: input.ideas, caution: simulated.caution, usage: { inputTokens: 0, outputTokens: 1, costUsd: 0 } });
     }
 
     const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context, input.language), 4_300, isAIIdeasDraft, value => { metering = providerMetering(value) || metering; });
@@ -157,11 +163,11 @@ export async function POST(request: Request) {
     const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerResponseId });
     if (settleError) throw settleError;
     reserved = false;
-    return NextResponse.json({ operationId, mode: "live", ideas, caution: output.caution, qualityChecks, usage: { inputTokens, outputTokens, costUsd } });
+    return reply(request,{ operationId, language:input.language, mode: "live", ideas, caution: output.caution, qualityChecks, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
     const timedOut = generationTimedOut(error);
     console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: error instanceof Error ? error.message : "unknown" });
     const reservation = operationId && reserved ? await settleFailedReservation(operationId, timedOut ? "GENERATION_TIMEOUT" : "GENERATION_FAILED", metering || providerMetering(error)) : null;
-    return NextResponse.json({ error: reservation === "completed" ? reservationNotice(reservation) : [message(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut ? 504 : 400 });
+    return reply(request,{ error: reservation === "completed" ? reservationNotice(reservation) : [message(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut ? 504 : 400 });
   }
 }

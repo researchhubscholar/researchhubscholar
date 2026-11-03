@@ -4,7 +4,7 @@ require.extensions['.ts'] = (module, filename) => module._compile(compile(filena
 const compile = path => ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 function load(path, deps) {
   const module = { exports: {} };
-  vm.runInNewContext(compile(path), { module, exports: module.exports, console: { error() {} }, process, crypto, AbortSignal, Request, Response, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;  if (name === 'server-only') return {}; if (name in deps) return deps[name]; throw Error(name); } });
+  vm.runInNewContext(compile(path), { module, exports: module.exports, console: { error() {} }, process, crypto, AbortSignal, Request, Response, require(name) { if(name==="@/lib/ai/language")return require("../lib/ai/language.ts"); const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;  if (name === 'server-only') return {}; if (name in deps) return deps[name]; throw Error(name); } });
   return module.exports;
 }
 

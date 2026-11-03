@@ -1,4 +1,6 @@
 "use client";
+import { useInterfaceCopy } from "@/components/i18n/use-interface-copy";
+import AuthoredText from "@/components/i18n/authored-text";
 import { requestWorkspaceNavigation } from "@/lib/navigation/unsaved";
 import { useEffect,useState } from "react";
 import { usePathname,useSearchParams } from "next/navigation";
@@ -11,6 +13,8 @@ import dynamic from "next/dynamic";
 const ProjectGuide=dynamic(()=>import("./project-guide"),{ssr:false});
 type Project={id:string;title:string|null;theme:string|null};
 export default function GlobalGuide(){
+ const copy=useInterfaceCopy();
+
  const path=usePathname(),params=useSearchParams(),area=areaForPath(path);
  const [excerpt,setExcerpt]=useState<{path:string;request:ExcerptRequest}|null>(null);
  const [incoming,setIncoming]=useState<{key:string;choices:SourceChoice[]}|null>(null);
@@ -23,6 +27,6 @@ export default function GlobalGuide(){
  if(!area||area==='resultados'||!ready)return null;
  const scope=guideScope(area),routeId=scope==='general'?null:params.get(area==='protocolo'?'id':'projeto');
  const project=scope==='general'?undefined:projects.find(p=>p.id===(routeId||(scope==='optional'?selected[area]:null)));
- const picker=scope==='general'?<p className="text-xs mt-2">Conversa sem projeto · explore livremente suas ideias e dúvidas.</p>:<label className="block text-xs mt-2">{scope==='optional'?'Vincular a um projeto (opcional)':'Escolha o projeto aberto'}<select className="block w-full border rounded-card p-2 bg-white mt-1" value={project?.id||''} onChange={e=>{setSelected(s=>({...s,[area]:e.target.value}));if(routeId||scope==='project'){const next=new URLSearchParams(params.toString());const key=area==='protocolo'?'id':'projeto';if(e.target.value)next.set(key,e.target.value);else next.delete(key);requestWorkspaceNavigation(()=>window.location.assign(`${path}?${next}`));}}}><option value="">{scope==='optional'?'Conversa sem projeto':'Selecione um projeto'}</option>{projects.map(p=><option key={p.id} value={p.id}>{p.title||p.theme||'Sem título'}</option>)}</select>{routeId&&!project&&<span className="block mt-1">O projeto indicado não está disponível para esta conversa.</span>}</label>;
- return <ProjectGuide incomingExcerpt={excerpt?.path===path+params.toString()&&excerpt.request.projectId===project?.id?excerpt.request:undefined} incomingSources={incoming?.key===contextKey?incoming.choices:undefined} key={project?.id||`unlinked:${area}`} projectId={project?.id||null} title={project?.title||project?.theme||(scope==='project'?'Selecione o projeto aberto':'Conversa sem projeto')} workspace={emptyResults} stage={0} question="" dirty={false} disabled={scope==='project'&&!project} source="clinical" area={area} projectPicker={picker} onNavigate={()=>false} onQuestion={()=>false}/>;
+ const picker=scope==='general'?<p className="text-xs mt-2"><AuthoredText text="Conversa sem projeto · explore livremente suas ideias e dúvidas." /></p>:<label className="block text-xs mt-2">{scope==='optional'?copy("Vincular a um projeto (opcional)"):copy("Escolha o projeto aberto")}<select className="block w-full border rounded-card p-2 bg-white mt-1" value={project?.id||''} onChange={e=>{setSelected(s=>({...s,[area]:e.target.value}));if(routeId||scope==='project'){const next=new URLSearchParams(params.toString());const key=area==='protocolo'?'id':"projeto";if(e.target.value)next.set(key,e.target.value);else next.delete(key);requestWorkspaceNavigation(()=>window.location.assign(`${path}?${next}`));}}}><option value="">{scope==='optional'?copy("Conversa sem projeto"):copy("Selecione um projeto")}</option>{projects.map(p=><option key={p.id} value={p.id}>{p.title||p.theme||copy("Sem título")}</option>)}</select>{routeId&&!project&&<span className="block mt-1"><AuthoredText text="O projeto indicado não está disponível para esta conversa." /></span>}</label>;
+ return <ProjectGuide incomingExcerpt={excerpt?.path===path+params.toString()&&excerpt.request.projectId===project?.id?excerpt.request:undefined} incomingSources={incoming?.key===contextKey?incoming.choices:undefined} key={project?.id||`unlinked:${area}`} projectId={project?.id||null} title={project?.title||project?.theme||(scope==='project'?copy("Selecione o projeto aberto"):copy("Conversa sem projeto"))} workspace={emptyResults} stage={0} question="" dirty={false} disabled={scope==='project'&&!project} source="clinical" area={area} projectPicker={picker} onNavigate={()=>false} onQuestion={()=>false}/>;
 }

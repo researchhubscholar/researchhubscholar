@@ -25,7 +25,7 @@ const missingTokens = new Set(["", "na", "n/a", "nao informado", "nao registrado
 const bounded = (value: unknown, max: number) => typeof value === "string" && value.length <= max;
 const numberValue = (value: string) => { const input = value.trim().replace(",", "."); return input && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(input) && Number.isFinite(Number(input)) ? Number(input) : null; };
 export function identifierHeader(label: string) {
-  return /\b(nome|cpf|rg|cns|telefone|celular|whatsapp|email|e mail|endereco|prontuario|nascimento|name|phone|address|birth|medical record)\b/.test(normalize(label));
+  return /\b(nome|cpf|rg|cns|telefone|celular|whatsapp|email|e mail|endereco|prontuario|nascimento|name|phone|address|birth|medical record|nombre|apellido|apellidos|telefono|movil|correo|direccion|historia clinica|expediente|nacimiento|dni|nie|curp|cedula)\b/.test(normalize(label));
 }
 export function identifierValue(value: string) {
   return /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(value) || /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/.test(value) || /\(\d{2}\)\s*\d{4,5}[- ]?\d{4}/.test(value);

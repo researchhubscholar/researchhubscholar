@@ -9,7 +9,7 @@ export type ProjectDiagnosis = {
 };
 
 function unresolved(value = "") {
-  return !value.trim() || /a confirmar|a definir|não informado|nao informado/i.test(value);
+  return !value.trim() || /a confirmar|a definir|não informado|nao informado|por confirmar|por definir|no informado|to confirm|to be confirmed/i.test(value);
 }
 
 export function diagnoseProjectDraft(draft: TransferDraft): ProjectDiagnosis {
@@ -62,7 +62,9 @@ export function projectOriginRow(ownerId: string, projectId: string, origin: Tra
     idea_version_id: origin.ideaVersionId || null,
     idea_series_id: origin.seriesId || null,
     generation_id: origin.generationId || null,
-    language: origin.language || null,
-    snapshot: { draft, diagnosis, radarQuery: origin.radarQuery || diagnosis.radarQuery, referenceIds },
+    // Existing databases allow only pt-BR/en in this legacy column.
+    // Preserve Spanish in the JSON snapshot without requiring a database migration.
+    language: origin.language === "es" ? null : origin.language || null,
+    snapshot: { language: origin.language || null, draft, diagnosis, radarQuery: origin.radarQuery || diagnosis.radarQuery, referenceIds },
   };
 }

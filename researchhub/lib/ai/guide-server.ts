@@ -1,3 +1,4 @@
+import { outputLanguage, type OutputLanguage } from "./language";
 import { sourceManifest,type GuideSource,type SourceManifest } from "./guide-sources";
 import { guideAreas,guideScope,type GuideArea } from "./areas";
 import type { supabaseServer } from "../supabase/server";
@@ -5,7 +6,7 @@ import { validWorkspace } from "../results/data";
 import { guideSnapshot, guideStages, guideText, type GuideInput } from "./guide";
 import { isAssistantOutput, type AssistantOutput } from "./assist";
 type DB=Awaited<ReturnType<typeof supabaseServer>>;
-export type GuideTurn={id:string;message:string;output:AssistantOutput;at:string;mode:string;tokens:number;excerptToken?:string;sources?:SourceManifest[]};
+export type GuideTurn={language?:OutputLanguage;id:string;message:string;output:AssistantOutput;at:string;mode:string;tokens:number;excerptToken?:string;sources?:SourceManifest[]};
 export async function guideProject(db:DB,userId:string,projectId:string) {
  const {data,error}=await db.from("research_projects").select("id,title,research_question,study_type,population,primary_outcome,methods,objective,analysis_plan,inclusion_criteria,exclusion_criteria").eq("id",projectId).eq("owner_id",userId).maybeSingle();
  if(error)throw Error("Não foi possível verificar o projeto.");if(!data)throw Error("Projeto indisponível.");return data;
@@ -16,9 +17,9 @@ export async function guideHistory(db:DB,userId:string,projectId:string|null,are
  query=projectId?query.eq("scholar_usage.project_id",projectId):query.is("scholar_usage.project_id",null).eq("input_snapshot->context->>areaKey",area||"dashboard");
  const {data,error}=await query.order("created_at",{ascending:false}).limit(20);
  if(error)throw Error("Não foi possível carregar a conversa. Tente novamente antes de enviar outra mensagem.");
- return (data||[]).flatMap(row=>{const input=row.input_snapshot as {context?:{message?:unknown;sources?:GuideSource[]}};const usage=Array.isArray(row.scholar_usage)?row.scholar_usage[0]:row.scholar_usage;
+ return (data||[]).flatMap(row=>{const input=row.input_snapshot as {language?:unknown;context?:{message?:unknown;sources?:GuideSource[]}};const usage=Array.isArray(row.scholar_usage)?row.scholar_usage[0]:row.scholar_usage;
  if(!isAssistantOutput(row.output_snapshot)||typeof input?.context?.message!=="string"||!usage)return[];
- return[{sources:sourceManifest(input.context?.sources||[]),id:row.usage_id,message:input.context.message.slice(0,1200),output:row.output_snapshot,at:row.created_at,mode:usage.mode,tokens:(usage.input_tokens||0)+(usage.output_tokens||0)}];}).reverse();
+ return[{language:outputLanguage(input.language),sources:sourceManifest(input.context?.sources||[]),id:row.usage_id,message:input.context.message.slice(0,1200),output:row.output_snapshot,at:row.created_at,mode:usage.mode,tokens:(usage.input_tokens||0)+(usage.output_tokens||0)}];}).reverse();
 }
 export async function prepareGuideContext(db:DB,userId:string,projectId:string|null,input:GuideInput) {
  const area=input.area||"resultados";
