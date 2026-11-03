@@ -113,3 +113,17 @@ com início e desfecho correlacionados e painel agregado. Instalação de
 `scholar_journey_metrics.sql` e validação autenticada permanecem pendentes.
 Casos sem resultado registrado não comprovam abandono; outras etapas da jornada
 ainda não possuem a mesma instrumentação. Ver `assistant-evaluation.md`.
+
+## Etapa 4 — conceitos visuais em 03/11/2026
+
+Camada de apresentação nas seis áreas autenticadas: Meu espaço, Ideias, Radar,
+Biblioteca, Meu projeto e Manuscrito. Paleta creme/verde, menu lateral a partir
+de 1280px, superfícies mais leves, hierarquia de títulos e campos, artigos e
+projetos separados por linhas. Abaixo desse tamanho, mantém a navegação existente.
+Sem alteração de ações, dados, consultas, formulários, salvamento ou permissões;
+controles e dados fictícios dos conceitos não foram incorporados. Sem SQL novo.
+
+A prévia local gerenciada não iniciou porque acrescenta opções incompatíveis com
+Next.js (`--host`/`--strictPort`). A conferência visual autenticada nas seis telas
+e em celular permanece pendente, incluindo estados vazios, formulários abertos,
+assistente e edição do manuscrito. Implementação não equivale a validação visual.

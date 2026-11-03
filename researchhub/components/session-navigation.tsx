@@ -70,7 +70,7 @@ export default function SessionNavigation() {
   );
 
   return <>
-    <nav aria-label="Navegação principal" className="primary-nav">
+    <nav aria-label="Navegação principal" className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito"].includes(pathname) ? "true" : undefined}>
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
         {session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label="Abrir minha conta">{session.displayName.split(" ")[0]}</Link>}
