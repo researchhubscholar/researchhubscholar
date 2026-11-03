@@ -185,3 +185,16 @@ body:has(.primary-nav[data-workspace="true"]) .scholar-workspace .documents-metr
 @media (max-width: 639px) {
   body:has(.primary-nav[data-workspace="true"]) .library-page .library-metrics { gap: .25rem 1.25rem; }
 }
+/* Visible in public and private navigation, with the same keyboard/touch target. */
+.language-selector { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem; font-size: .75rem; color: #203b34; }
+.language-selector select { min-height: 44px; max-width: 8rem; padding: .4rem .5rem; background: #fff; border: 1px solid #cdd7ce; border-radius: .5rem; color: #203b34; }
+.language-selector select:focus-visible { outline: 2px solid #194d41; outline-offset: 2px; }
+@media (min-width:1280px) {
+  body:has(.primary-nav[data-workspace="true"]) .language-selector { flex-direction: column; align-items: stretch; margin-bottom: .75rem; }
+  body:has(.primary-nav[data-workspace="true"]) .language-selector select { max-width: 100%; }
+}
+@media (max-width:639px) { .language-selector > span { display: none; } }
+
+.language-progress { display: block; max-width: 12rem; font-size: .65rem; line-height: 1.4; color: #5c6862; }
+.language-selector { flex-wrap: wrap; }
+@media (max-width:1279px) { .language-progress { max-width: 7rem; } }

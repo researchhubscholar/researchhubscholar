@@ -1,11 +1,16 @@
 "use client";
 
+import { useLanguage } from "@/components/i18n/language-provider";
+import InterfaceText from "@/components/i18n/interface-text";
+
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function LoginPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,13 +27,13 @@ export default function LoginPage() {
     const supabase = supabaseBrowser();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
-      setError(signInError.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : signInError.message);
+      setError(signInError.message === "Invalid login credentials" ? t("auth.invalid") : signInError.message);
       setLoading(false);
       return;
     }
     const user = data.user;
     if (!user) {
-      setError("Não foi possível abrir sua conta.");
+      setError(t("auth.failed"));
       setLoading(false);
       return;
     }
@@ -42,26 +47,26 @@ export default function LoginPage() {
 
   return <div className="auth-shell">
     <section className="auth-intro">
-      <p className="auth-kicker">Seu espaço científico</p>
-      <h1 className="auth-title">Retome sua pesquisa de onde parou.</h1>
-      <p className="auth-description">Projetos, referências, matriz de evidências e decisões metodológicas permanecem organizados em uma única jornada.</p>
-      <ul className="auth-points"><li>Continue o projeto mais recente</li><li>Recupere biblioteca e histórico</li><li>Acompanhe pendências e próximos passos</li></ul>
+      <p className="auth-kicker"><InterfaceText message="auth.space" /></p>
+      <h1 className="auth-title"><InterfaceText message="auth.resume" /></h1>
+      <p className="auth-description"><InterfaceText message="auth.description" /></p>
+      <ul className="auth-points"><li><InterfaceText message="auth.latest" /></li><li><InterfaceText message="auth.history" /></li><li><InterfaceText message="auth.next" /></li></ul>
     </section>
     <section>
-      {confirmed && <div className="mb-4 bg-teal-soft border border-teal/20 text-teal rounded-card p-4 text-sm">E-mail confirmado. Agora entre para completar seu perfil Scholar.</div>}
+      {confirmed && <div className="mb-4 bg-teal-soft border border-teal/20 text-teal rounded-card p-4 text-sm"><InterfaceText message="auth.confirmed" /></div>}
       <form onSubmit={handleSubmit} className="auth-card space-y-5">
-        <div><p className="auth-kicker">Acesso à conta</p><h2 className="auth-card-title mt-2">Entrar</h2></div>
-        <label className="block auth-field-label" htmlFor="login-email">E-mail
+        <div><p className="auth-kicker"><InterfaceText message="auth.access" /></p><h2 className="auth-card-title mt-2"><InterfaceText message="nav.login" /></h2></div>
+        <label className="block auth-field-label" htmlFor="login-email"><InterfaceText message="auth.email" />
           <input id="login-email" name="email" autoComplete="email" required type="email" maxLength={320} value={email} onChange={e => setEmail(e.target.value)} className="w-full mt-2 border px-3 py-2.5" />
         </label>
-        <label className="block auth-field-label" htmlFor="login-password">Senha
+        <label className="block auth-field-label" htmlFor="login-password"><InterfaceText message="auth.password" />
           <input id="login-password" name="password" autoComplete="current-password" required type="password" maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="w-full mt-2 border px-3 py-2.5" />
-          <Link href="/esqueci-senha" className="text-xs text-teal hover:underline mt-2 inline-block">Esqueci minha senha</Link>
+          <Link href="/esqueci-senha" className="text-xs text-teal hover:underline mt-2 inline-block"><InterfaceText message="auth.forgot" /></Link>
         </label>
         {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-card p-3">{error}</p>}
-        <button type="submit" disabled={loading} className="auth-submit disabled:opacity-50">{loading ? "Entrando..." : "Entrar no Scholar"}</button>
+        <button type="submit" disabled={loading} className="auth-submit disabled:opacity-50">{loading ? t("auth.entering") : t("auth.enter")}</button>
       </form>
-      <p className="auth-switch">Ainda não tem conta? <Link href="/cadastro" className="text-teal font-medium hover:underline">Criar conta</Link></p>
+      <p className="auth-switch"><InterfaceText message="auth.noAccount" /> <Link href="/cadastro" className="text-teal font-medium hover:underline"><InterfaceText message="nav.signup" /></Link></p>
     </section>
   </div>;
 }

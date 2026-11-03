@@ -7,7 +7,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | Etapa | Entrega | Estado |
 | --- | --- | --- |
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
-| 2 | Seletor e tradução das telas, menus, mensagens e estados | Próxima |
+| 2 | Seletor e tradução das telas, menus, mensagens e estados | Em andamento: primeiro bloco implementado |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Pendente |
 | 4 | Documentos gerados e formatos de datas/números | Pendente |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
@@ -43,3 +43,30 @@ traduções e cookie sem injeção; smoke HTTP verifica pt-BR sem cookie, es exp
 fallback de cookie inválido e ausência de vazamento para requisição seguinte.
 Além de typecheck, lint, contrato de navegação e build. Validação visual dos dois
 idiomas pertence à etapa 5; ainda não foi realizada.
+
+## Etapa 2 — primeiro bloco
+
+Seletor português/espanhol na navegação pública e interna. Usa o cookie da etapa 1
+e atualiza o contexto no cliente; router.refresh atualiza o layout servidor sem
+reload completo. Não muda URL, chave de projeto, permissões, campos ou conteúdo.
+Textos estáticos podem usar InterfaceText com chave explícita; não há varredura
+nem tradução de DOM e nunca se passa título/resumo/nota do usuário ao catálogo.
+
+Entregue neste bloco: navegação pública/interna, sair, atalhos de retorno e planos,
+rodapé, login, textos principais do cadastro e Biblioteca (cabeçalho, filtros,
+abas, métricas, notas e ações principais). A preferência de espanhol mostra aviso
+de tradução em andamento, pois esta entrega ainda tem cobertura parcial.
+
+Falta na própria etapa 2: Meu espaço, Ideias, Radar, Projeto, Resultados, Manuscrito,
+Orientação, Conta, Operação, Documentos, Residência/diagnóstico, páginas públicas
+e recuperação de senha. Também completar Biblioteca (matriz, organização,
+comparação, diálogos, estados dinâmicos, rótulos acessíveis e desenhos de estudo),
+mensagens de validação/API e falhas do provedor de autenticação. Não declarar
+espanhol completo nem iniciar etapa 3 antes de concluir essa lista.
+
+Verificação: tipos, lint, testes existentes e catálogo; smoke HTTP português/espanhol
+no login e leitura de preferência, mantendo os nomes dos campos de autenticação.
+Build e smoke devem passar antes da publicação. Conferência visual autenticada,
+teclado, troca de idioma com rascunhos e ausência de remount em cada fluxo ainda
+precisam de validação real; preservar estrutura/chaves no código não comprova
+validação manual. Etapas 3, 4 e 5 permanecem pendentes.

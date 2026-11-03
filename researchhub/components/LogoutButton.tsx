@@ -1,9 +1,11 @@
 "use client";
 
+import { useLanguage } from "@/components/i18n/language-provider";
 import { requestWorkspaceNavigation } from "@/lib/navigation/unsaved";
 import { signOutAction } from "@/lib/supabase/actions";
 
 export default function LogoutButton({ variant = "text" }: { variant?: "text" | "button" }) {
+  const { t } = useLanguage();
   return (
     <button
       type="button"
@@ -14,7 +16,7 @@ export default function LogoutButton({ variant = "text" }: { variant?: "text" | 
           : "hover:text-teal transition-colors"
       }
     >
-      Sair
+      {t("nav.logout")}
     </button>
   );
 }

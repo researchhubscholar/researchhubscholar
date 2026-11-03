@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "@/components/i18n/language-provider";
+import LanguageSelector from "@/components/i18n/language-selector";
+import type { MessageKey } from "@/lib/i18n/catalog";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoutButton from "@/components/LogoutButton";
@@ -26,6 +29,12 @@ const privateLinks = [
 ] as const;
 
 const adminLinks = [["/operacao", "Operação"]] as const;
+const navigationMessages: Record<string, MessageKey> = {
+  "/dashboard":"nav.workspace", "/ideias":"nav.ideas", "/descobrir":"nav.radar",
+  "/biblioteca":"nav.library", "/meu-trabalho":"nav.project", "/orientacao":"nav.advising",
+  "/conta":"nav.account", "/operacao":"nav.operations", "/radar-demo":"nav.testRadar",
+  "/como-funciona":"nav.how", "/para-residencias":"nav.residencies", "/planos":"nav.plans",
+};
 
 function isCurrent(pathname: string, href: string) {
   return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
@@ -33,6 +42,7 @@ function isCurrent(pathname: string, href: string) {
 
 export default function SessionNavigation() {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [session, setSession] = useState<SessionState>({ authenticated: false, displayName: null, isAdmin: false });
 
   useEffect(() => {
@@ -67,21 +77,22 @@ export default function SessionNavigation() {
       href={href}
       aria-current={isCurrent(pathname, href) ? "page" : undefined}
       className={`primary-nav-link ${mobile ? "" : "desktop-only-link"}`}
-    >{label}</Link>
+    >{t(navigationMessages[href]) || label}</Link>
   );
 
   return <>
-    <nav aria-label="Navegação principal" className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href)) ? "true" : undefined}>
+    <nav aria-label={t("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href)) ? "true" : undefined}>
+      <LanguageSelector />
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
-        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">Meu espaço</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label="Abrir minha conta">{session.displayName.split(" ")[0]}</Link>}
+        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">{t("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={t("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
-        <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">Entrar</Link>
-        <Link href="/cadastro" aria-current={pathname === "/cadastro" ? "page" : undefined} className="primary-nav-link nav-signup">Criar conta</Link>
+        <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{t("nav.login")}</Link>
+        <Link href="/cadastro" aria-current={pathname === "/cadastro" ? "page" : undefined} className="primary-nav-link nav-signup">{t("nav.signup")}</Link>
       </>}
     </nav>
-    <nav aria-label="Navegação das ferramentas" className="mobile-nav">
+    <nav aria-label={t("nav.toolsLabel")} className="mobile-nav">
       {links.map(link => renderLink(link, true))}
     </nav>
   </>;

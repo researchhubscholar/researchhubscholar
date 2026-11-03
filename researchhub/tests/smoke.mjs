@@ -65,6 +65,13 @@ try {
     assert.equal(localized.status, 200);
     assert.ok((await localized.text()).includes(`<html lang="${language}">`), `Request locale should be ${language}`);
   }
+  for (const [cookie, heading] of [["scholar_locale=es", "Retoma tu investigación"], ["scholar_locale=pt-BR", "Retome sua pesquisa"]]) {
+    const response = await request("/login", {headers:{cookie}});
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(heading), "Login must use the explicitly selected language");
+    assert.ok(html.includes('name="email"') && html.includes('name="password"'), "Auth field names must remain unchanged");
+  }
   const publicPages = [
     ["/login", /Entrar|Acessar/],
     ["/cadastro", /Criar|cadastro|conta/i],
