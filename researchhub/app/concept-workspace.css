@@ -110,3 +110,17 @@ body:has(.primary-nav[data-workspace="true"]) .workspace-tool-card { background:
 @media (max-width: 639px) {
   body:has(.primary-nav[data-workspace="true"]) .workspace-summary > div { border-right: 0; border-bottom: 1px solid var(--workspace-line); }
 }
+
+/* Extend the same presentation to advising, account and operational subpages. */
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(.account-hero,.advising-hero,.documents-hero) {
+  background: transparent; border: 0; border-bottom: 1px solid var(--workspace-line);
+  border-radius: 0; padding: 0 0 1.75rem; box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.account-page,.advising-page,.admin-page,.documents-page) > section.border {
+  border-color: var(--workspace-line); border-radius: .75rem; box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.account-page,.advising-page,.admin-page) > section.bg-white {
+  background: #fdfdf9;
+}
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table th { color: var(--workspace-ink); }
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table :is(th,td) { padding-block: .8rem; }
