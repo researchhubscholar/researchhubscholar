@@ -1,4 +1,6 @@
 "use client";
+import AuthoredText from "@/components/i18n/authored-text";
+
 
 import { useLanguage } from "@/components/i18n/language-provider";
 import InterfaceText from "@/components/i18n/interface-text";
@@ -12,7 +14,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 type Persona = "student" | "resident" | "professor";
 
 export default function CadastroPage() {
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +45,7 @@ export default function CadastroPage() {
     }
 
     if (!signUpData.user) {
-      setError(t("auth.signupFailed"));
+      setError(uiText("auth.signupFailed"));
       setLoading(false);
       return;
     }
@@ -93,13 +95,13 @@ export default function CadastroPage() {
           <legend className="text-sm text-ink-soft"><InterfaceText message="auth.persona" /></legend>
           <div role="radiogroup" className="grid grid-cols-3 gap-2 mt-2">
             {([["student", "Aluno"],["resident", "Residente"],["professor", "Orientador"]] as const).map(([value, label]) => (
-              <button key={value} type="button" role="radio" aria-checked={persona === value} onClick={() => setPersona(value)} className={`border rounded-card px-2 py-3 text-sm font-medium transition-colors ${persona === value ? "border-teal bg-teal-soft text-teal" : "border-line text-ink-soft hover:border-teal/50"}`}>{t(value === "student" ? "auth.student" : value === "resident" ? "auth.resident" : "auth.advisor") || label}</button>
+              <button key={value} type="button" role="radio" aria-checked={persona === value} onClick={() => setPersona(value)} className={`border rounded-card px-2 py-3 text-sm font-medium transition-colors ${persona === value ? "border-teal bg-teal-soft text-teal" : "border-line text-ink-soft hover:border-teal/50"}`}>{uiText(value === "student" ? "auth.student" : value === "resident" ? "auth.resident" : "auth.advisor") || label}</button>
             ))}
           </div>
         </fieldset>
 
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-3 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? t("auth.creating") : t("auth.create")}</button>
+        {error && <p role="alert" className="text-sm text-red-600"><AuthoredText text={error} /></p>}
+        <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-3 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? uiText("auth.creating") : uiText("auth.create")}</button>
       </form>
 
       <p className="text-sm text-ink-soft mt-6 text-center"><InterfaceText message="auth.hasAccount" /> <a href="/login" className="text-teal font-medium hover:underline"><InterfaceText message="nav.login" /></a></p>

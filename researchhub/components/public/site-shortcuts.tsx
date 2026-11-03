@@ -11,15 +11,15 @@ const publicPages = new Set([
 ]);
 
 export default function SiteShortcuts() {
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   const pathname = usePathname();
   const back = returnNavigation(pathname);
   return <>
     {back && <div className="site-return">
-      <Link href={back.href} className="site-return-link"><span aria-hidden="true">←</span> {t(back.href === "/dashboard" ? "nav.backWorkspace" : "nav.backHome")}</Link>
+      <Link href={back.href} className="site-return-link"><span aria-hidden="true">←</span> {uiText(back.href === "/dashboard" ? "nav.backWorkspace" : "nav.backHome")}</Link>
     </div>}
     {publicPages.has(pathname) && <Link href="/planos" className="floating-plans">
-      {t("nav.viewPlans")} <span aria-hidden="true">↗</span>
+      {uiText("nav.viewPlans")} <span aria-hidden="true">↗</span>
     </Link>}
   </>;
 }

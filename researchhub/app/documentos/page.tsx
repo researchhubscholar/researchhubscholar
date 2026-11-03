@@ -1,3 +1,4 @@
+import AuthoredText from "@/components/i18n/authored-text";
 import InterfaceText from "@/components/i18n/interface-text";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { translate } from "@/lib/i18n/locale";
@@ -18,7 +19,7 @@ const milestoneLabels:Record<string,string>={theme:"Tema e recorte",question:"Pe
 
 export default async function DocumentsPage({searchParams}:{searchParams:Promise<{projeto?:string}>}) {
   const requestLocale = await getRequestLocale();
-  const t = (key: MessageKey) => translate(requestLocale, key);
+  const uiText = (key: MessageKey) => translate(requestLocale, key);
   const db=await supabaseServer();
   const {data:{user}}=await db.auth.getUser();
   if(!user) redirect("/login");
@@ -27,7 +28,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     db.from("research_projects").select(projectSelection).eq("owner_id",user.id).order("updated_at",{ascending:false}),
     db.from("profiles").select("name,institution,specialty,training_stage").eq("id",user.id).maybeSingle(),
   ]);
-  if(projectError||profileError) return <Message title="Não foi possível carregar os dados dos documentos." text="Atualize a página para tentar novamente." />;
+  if(projectError||profileError) return <Message title={uiText("screen.0eb8c8717326")} text="Atualize a página para tentar novamente." />;
   const project=selectedProject(projects || [], params.projeto);
   if(!project) return <ProjectChoice projects={projects || []} requested={params.projeto} path="/documentos" label="Documentos"/>;
   const [articleResult,linkResult,noteResult,milestoneResult]=await Promise.all([
@@ -36,7 +37,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     db.from("evidence_matrix").select("*").eq("owner_id",user.id),
     db.from("scholar_project_milestones").select("milestone_key,status,note,due_date,position").eq("owner_id",user.id).eq("project_id",project.id).order("position"),
   ]);
-  if([articleResult,linkResult,noteResult,milestoneResult].some(result=>result.error)) return <Message title="Não foi possível conferir todos os dados do projeto." text="As exportações aguardam o carregamento completo das referências, leituras e etapas. Atualize a página para tentar novamente." />;
+  if([articleResult,linkResult,noteResult,milestoneResult].some(result=>result.error)) return <Message title={uiText("screen.29b2efb5fbcc")} text="As exportações aguardam o carregamento completo das referências, leituras e etapas. Atualize a página para tentar novamente." />;
   const articleRows=articleResult.data,linkRows=linkResult.data,noteRows=noteResult.data,milestoneRows=milestoneResult.data;
   const linked=new Set((linkRows||[]).map(row=>row.article_id));
   const articles:LibraryArticle[]=(articleRows||[]).filter(row=>row.project_id===project.id||linked.has(row.id)).map(row=>({...fromArticleRow(row),projectIds:[project.id]}));
@@ -53,10 +54,10 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
     <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.25609cbcecca" /></p><h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.f96d20bcedcc" /></h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.196f85329361" /></p></div>
-      <form method="get" className="workspace-project-picker documents-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||t("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action"><InterfaceText message="screen.406b14931e48" /></button></form>
+      <form method="get" className="workspace-project-picker documents-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||uiText("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action"><InterfaceText message="screen.406b14931e48" /></button></form>
     </header>
     <DocumentCenter data={data}/>
   </div>;
 }
 
-function Message({title,text}:{title:string;text:string}) { return <section className="bg-white border border-line rounded-2xl p-7 mt-6"><h1 className="font-display text-3xl">{title}</h1><p className="text-sm text-ink-soft mt-3">{text}</p></section>; }
+function Message({title,text}:{title:string;text:string}) { return <section className="bg-white border border-line rounded-2xl p-7 mt-6"><h1 className="font-display text-3xl"><AuthoredText text={title} /></h1><p className="text-sm text-ink-soft mt-3"><AuthoredText text={text} /></p></section>; }

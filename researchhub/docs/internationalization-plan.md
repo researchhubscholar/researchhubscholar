@@ -7,7 +7,7 @@ A consolidação anterior permanece registrada e será retomada após esta prior
 | Etapa | Entrega | Estado |
 | --- | --- | --- |
 | 1 | Base central de traduções, tipos e preferência | Implementada; verificações locais abaixo |
-| 2 | Seletor e tradução das telas, menus, mensagens e estados | Em andamento: primeiro bloco implementado |
+| 2 | Seletor e tradução das telas, menus, mensagens e estados | Implementada; testes automatizados aprovados |
 | 3 | Idioma do assistente e dos textos de IA, com os mesmos limites | Pendente |
 | 4 | Documentos gerados e formatos de datas/números | Pendente |
 | 5 | Validação dos fluxos, terminologia científica e layout nos dois idiomas | Pendente |
@@ -96,3 +96,40 @@ cookie e identidade dos filhos com rascunhos; seletor verifica refresh sem
 navegação/reload. Mocks de apresentação dos testes existentes resolvem as chaves
 para português, preservando os handlers reais. Testes HTTP continuam verificando
 o HTML de login nos dois idiomas. A etapa 5 ainda exige teste visual autenticado.
+
+## Encerramento da implementação da etapa 2 — 03/11/2026
+
+Esta seção substitui o estado de cobertura parcial registrado acima. Português
+continua padrão. Espanhol cobre a navegação, páginas públicas e legais, acesso,
+Meu espaço, Ideias, Radar, Biblioteca, Projeto, Orientação, Conta, Operação,
+Residência, diagnóstico, controles de Resultados/coleta e Manuscrito. Foram
+incluídos rótulos acessíveis, placeholders, estados, confirmações destrutivas e
+explicações de interface dos módulos avançados. Nenhuma operação de banco, enum,
+valor de formulário, consulta científica ou cálculo estatístico foi traduzido.
+
+Textos constantes usam chaves explícitas. Configurações autorais e avisos são
+localizados apenas em limites de apresentação revisados, por AuthoredText.
+Mensagens com variáveis usam modelos explícitos e mantêm nomes, números e datas
+interpolados. Não há tradução de DOM, serviço de tradução externo ou envio
+adicional de dados. Diagnósticos externos desconhecidos mantêm o texto original.
+Artigos, nomes de projetos, conteúdo escrito pelo usuário, nomes de variáveis,
+categorias e texto científico gerado permanecem no idioma original. A geração
+com IA é etapa 3; documentos e formatos, etapa 4. Conteúdo científico em tabelas,
+figuras ou rascunhos usa os valores/originais; a revisão de saídas é etapa 4.
+
+O inventário estático audit:i18n registrou zero literal/atributo pendente fora do
+assistente. Termos que coincidem nos dois idiomas e identificadores técnicos
+foram revisados e mantidos; não contam como textos faltantes. O inventário não é
+uma prova visual nem substitui os testes de mensagens/configurações.
+
+Verificações: catálogo tipado com paridade português/espanhol; testes de troca de
+idioma e preservação de filhos/rascunhos; modelos com singulares/plurais, valores
+interpolados e confirmações; suíte funcional existente, tipos, lint, build e smoke
+HTTP. Os testes isolados de componentes receberam apenas mocks da apresentação
+localizada, sem remover verificações de salvamento, dados ou permissões. O
+componente de leitura de resultados continua síncrono e usa contexto no cliente.
+
+Próxima: etapa 3, idioma do assistente e respostas de IA. Restam etapa 4,
+documentos e formatos; e etapa 5, validação humana, revisão terminológica e
+conferência visual autenticada nos dois idiomas em desktop/celular. A etapa 2
+está implementada e verificada automaticamente; validação real segue na etapa 5.

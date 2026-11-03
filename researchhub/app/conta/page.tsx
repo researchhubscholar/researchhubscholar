@@ -1,4 +1,7 @@
 "use client";
+import AuthoredText from "@/components/i18n/authored-text";
+
+import { useLanguage } from "@/components/i18n/language-provider";
 import InterfaceText from "@/components/i18n/interface-text";
 
 
@@ -15,6 +18,7 @@ const categoryLabels: Record<string,string> = { technical:"Problema técnico", b
 const statusLabels: Record<string,string> = { open:"Aberto", in_progress:"Em atendimento", resolved:"Resolvido", closed:"Encerrado" };
 
 export default function AccountPage() {
+  const { t: uiText } = useLanguage();
   const [userId,setUserId]=useState<string|null>(null);
   const [email,setEmail]=useState("");
   const [profile,setProfile]=useState<Profile>({name:"",institution:"",specialty:""});
@@ -119,7 +123,7 @@ export default function AccountPage() {
     <p className="text-ink-soft mt-4 max-w-2xl"><InterfaceText message="screen.668df6e883f0" /></p>
     </header>
     {!moduleReady&&<p role="alert" className="mt-6 bg-amber-soft border border-line rounded-card p-4 text-sm"><InterfaceText message="screen.e3a67d9540e9" /> <code>scholar_account_support.sql</code> <InterfaceText message="screen.71e9fdd6da59" /></p>}
-    {message&&<p role="status" className="mt-5 bg-teal-soft rounded-card p-4 text-sm">{message}</p>}
+    {message&&<p role="status" className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><AuthoredText text={message} /></p>}
 
     <section className="mt-7 bg-white border border-line rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl">Perfil</h2>
@@ -135,29 +139,29 @@ export default function AccountPage() {
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl"><InterfaceText message="screen.ef46b6800c44" /></h2>
       <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.a2e2656b4595" /></p>
-      <button type="button" disabled={busy} onClick={exportData} className="mt-4 border border-teal text-teal px-5 py-3 rounded-card disabled:opacity-50">{busy?"Aguarde…":"Baixar meus dados"}</button>
-      {exportSummary&&<div className="mt-4 text-sm"><p role={exportSummary.status==="partial"?"alert":"status"} className={exportSummary.status==="partial"?"text-red-700":"text-teal"}>{accountExportMessage(exportSummary)}</p><details className="mt-3"><summary className="cursor-pointer text-teal"><InterfaceText message="screen.82e5aec0f8b8" /></summary><ul className="mt-3 space-y-1">{exportSummary.sections.map(section=><li key={section.key}>{section.label}: {section.rows} registros{section.status!=="complete"?" · incompleto ou indisponível":""}</li>)}</ul></details></div>}
+      <button type="button" disabled={busy} onClick={exportData} className="mt-4 border border-teal text-teal px-5 py-3 rounded-card disabled:opacity-50">{busy?"Aguarde…":uiText("screen.5c3ce731b0dc")}</button>
+      {exportSummary&&<div className="mt-4 text-sm"><p role={exportSummary.status==="partial"?"alert":"status"} className={exportSummary.status==="partial"?"text-red-700":"text-teal"}>{accountExportMessage(exportSummary)}</p><details className="mt-3"><summary className="cursor-pointer text-teal"><InterfaceText message="screen.82e5aec0f8b8" /></summary><ul className="mt-3 space-y-1">{exportSummary.sections.map(section=><li key={section.key}><AuthoredText text={section.label} />: {section.rows} registros{section.status!=="complete"?uiText("screen.e56bd17d4e7c"):""}</li>)}</ul></details></div>}
     </section>
 
     <section className="mt-6 bg-white border border-line rounded-2xl p-5 md:p-6">
       <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.fa438ea5f391" /></p><h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.ce5c25815edf" /></h2>
       <form onSubmit={createSupport} className="aligned-fields grid md:grid-cols-2 gap-4 mt-5">
-        <label className="text-sm"><InterfaceText message="screen.54276aa0307f" /><select name="category" className="block w-full border rounded-card p-3 mt-2">{Object.entries(categoryLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="text-sm"><InterfaceText message="screen.54276aa0307f" /><select name="category" className="block w-full border rounded-card p-3 mt-2">{Object.entries(categoryLabels).map(([value,label])=><option key={value} value={value}><AuthoredText text={label} /></option>)}</select></label>
         <label className="text-sm"><InterfaceText message="screen.72c1de5e2512" /><input name="subject" required minLength={3} maxLength={160} className="block w-full border rounded-card p-3 mt-2"/></label>
         <label className="md:col-span-2 text-sm"><InterfaceText message="screen.322085898310" /><textarea name="supportMessage" required minLength={10} maxLength={4000} rows={5} className="block w-full border rounded-card p-3 mt-2"/></label>
         <p className="md:col-span-2 text-xs text-ink-soft"><InterfaceText message="screen.2dff09b2e1e6" /></p>
         <button disabled={busy||!moduleReady} className="justify-self-start bg-teal text-white px-5 py-3 rounded-card disabled:opacity-50"><InterfaceText message="screen.6b75b906a980" /></button>
       </form>
       {requests.length>0&&<div className="mt-7 border-t border-line pt-5"><h3 className="font-display text-xl"><InterfaceText message="screen.a80de96d9716" /></h3><div className="space-y-4 mt-4">{requests.map(request=><article key={request.id} className="border border-line rounded-card p-4">
-        <div className="flex flex-wrap justify-between gap-3"><div><p className="text-xs text-teal">{categoryLabels[request.category]}</p><h4 className="font-medium mt-1">{request.subject}</h4></div><span className="text-xs bg-paper px-2 py-1 rounded-full self-start">{statusLabels[request.status]}</span></div>
-        <div className="space-y-2 mt-4">{(grouped[request.id]||[]).map(item=><div key={item.id} className={`text-sm rounded-card p-3 ${item.sender_type==="team"?"bg-teal-soft":"bg-paper"}`}><p>{item.message}</p><p className="text-[11px] text-ink-soft mt-2">{item.sender_type==="team"?"Equipe Scholar":"Você"} · {new Date(item.created_at).toLocaleString("pt-BR")}</p></div>)}</div>
-        {request.status!=="closed"&&<form onSubmit={e=>addMessage(request.id,e)} className="flex gap-2 mt-3"><input name="followup" required minLength={2} maxLength={4000} placeholder="Acrescentar informação" className="flex-1 min-w-0 border rounded-card px-3 py-2"/><button disabled={busy} className="text-sm text-teal border border-teal/30 px-3 rounded-card">Enviar</button></form>}
+        <div className="flex flex-wrap justify-between gap-3"><div><p className="text-xs text-teal"><AuthoredText text={categoryLabels[request.category]} /></p><h4 className="font-medium mt-1">{request.subject}</h4></div><span className="text-xs bg-paper px-2 py-1 rounded-full self-start"><AuthoredText text={statusLabels[request.status]} /></span></div>
+        <div className="space-y-2 mt-4">{(grouped[request.id]||[]).map(item=><div key={item.id} className={`text-sm rounded-card p-3 ${item.sender_type==="team"?"bg-teal-soft":"bg-paper"}`}><p>{item.message}</p><p className="text-[11px] text-ink-soft mt-2">{item.sender_type==="team"?"Equipe Scholar":uiText("screen.b21e91730d18")} · {new Date(item.created_at).toLocaleString("pt-BR")}</p></div>)}</div>
+        {request.status!=="closed"&&<form onSubmit={e=>addMessage(request.id,e)} className="flex gap-2 mt-3"><input name="followup" required minLength={2} maxLength={4000} placeholder={uiText("screen.87aebd06e85c")} className="flex-1 min-w-0 border rounded-card px-3 py-2"/><button disabled={busy} className="text-sm text-teal border border-teal/30 px-3 rounded-card">Enviar</button></form>}
       </article>)}</div></div>}
     </section>
 
     <section className="mt-6 border border-red-200 bg-red-50 rounded-2xl p-5 md:p-6">
       <h2 className="font-display text-2xl text-red-800"><InterfaceText message="screen.37642ff749e3" /></h2>
-      {deletion?<><p className="text-sm text-red-800 mt-3"><InterfaceText message="screen.83c8ca720944" /> {new Date(deletion.requested_at).toLocaleDateString("pt-BR")}<InterfaceText message="screen.cff4571ad61f" /> {new Date(deletion.scheduled_for).toLocaleDateString("pt-BR")}.</p><p className="text-xs text-red-700 mt-2">{deletion.status==="processing"?"A execução foi iniciada. O cancelamento não está mais disponível; a equipe está conferindo o resultado.":"Até o processamento, sua conta e seus dados continuam disponíveis."}</p><button type="button" disabled={busy||deletion.status==="processing"} onClick={cancelDeletion} className="mt-4 bg-white border border-red-300 text-red-800 px-4 py-2 rounded-card"><InterfaceText message="screen.bb3e2d70bae8" /></button></>:<>
+      {deletion?<><p className="text-sm text-red-800 mt-3"><InterfaceText message="screen.83c8ca720944" /> {new Date(deletion.requested_at).toLocaleDateString("pt-BR")}<InterfaceText message="screen.cff4571ad61f" /> {new Date(deletion.scheduled_for).toLocaleDateString("pt-BR")}.</p><p className="text-xs text-red-700 mt-2">{deletion.status==="processing"?uiText("screen.644ee30ec28f"):uiText("screen.a77ad857720d")}</p><button type="button" disabled={busy||deletion.status==="processing"} onClick={cancelDeletion} className="mt-4 bg-white border border-red-300 text-red-800 px-4 py-2 rounded-card"><InterfaceText message="screen.bb3e2d70bae8" /></button></>:<>
         <p className="text-sm text-red-800 mt-3"><InterfaceText message="screen.6a6f5afbef43" /></p>
         <label className="block text-sm text-red-900 mt-4"><InterfaceText message="screen.71a5083d9777" /> <strong>EXCLUIR</strong> para confirmar<input value={confirmText} onChange={e=>setConfirmText(e.target.value)} className="block w-full max-w-sm border border-red-300 rounded-card p-3 mt-2 bg-white"/></label>
         <button type="button" disabled={busy||confirmText!=="EXCLUIR"||!moduleReady} onClick={requestDeletion} className="mt-4 bg-red-700 text-white px-5 py-3 rounded-card disabled:opacity-40"><InterfaceText message="screen.5eb0d1baa492" /></button>

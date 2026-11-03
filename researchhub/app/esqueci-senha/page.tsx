@@ -1,4 +1,6 @@
 "use client";
+import AuthoredText from "@/components/i18n/authored-text";
+
 import { useLanguage } from "@/components/i18n/language-provider";
 
 import InterfaceText from "@/components/i18n/interface-text";
@@ -8,7 +10,7 @@ import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function EsqueciSenhaPage() {
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,14 +70,14 @@ export default function EsqueciSenhaPage() {
           />
         </div>
 
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-600"><AuthoredText text={error} /></p>}
 
         <button
           type="submit"
           disabled={loading}
           className="w-full bg-teal text-white font-medium py-2.5 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50"
         >
-          {loading ? "Enviando..." : t("screen.69abc6afa196")}
+          {loading ? "Enviando..." : uiText("screen.69abc6afa196")}
         </button>
       </form>
 

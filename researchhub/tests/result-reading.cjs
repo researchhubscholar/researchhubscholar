@@ -20,7 +20,7 @@ const constant=JSON.parse(JSON.stringify(w));constant.collection.records.forEach
 assert.deepEqual(review.workspaceReadings(data.emptyResults),[]);
 // Render the actual presentation components: glossary, accessible definition lists,
 // practical review guidance and no automatic confirmation or threshold verdict.
-const jsx=(type,props)=>({type,props}),ui={exports:{}};vm.runInNewContext(compile('components/results/result-reading.tsx'),{module:ui,exports:ui.exports,require(name){if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};throw Error(name);}});
+const jsx=(type,props)=>require('./i18n-test-support.cjs').jsx(type, props),ui={exports:{}};vm.runInNewContext(compile('components/results/result-reading.tsx'),{module:ui,exports:ui.exports,require(name){const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};throw Error(name);}});
 const nodes=t=>!t||typeof t!=='object'?[]:Array.isArray(t)?t.flatMap(nodes):[t,...nodes(t.props?.children)];const text=t=>typeof t==='string'||typeof t==='number'?String(t):!t?'':Array.isArray(t)?t.map(text).join(''):text(t.props?.children);
 const tree=ui.exports.ResultReading({reading});assert(nodes(tree).some(n=>n.type==='dl'));assert(nodes(tree).some(n=>n.type==='details'&&!n.props.open));assert(text(tree).includes('não mede importância clínica'));assert(text(tree).includes('Não é a probabilidade de a hipótese ser verdadeira'));
 for(const kind of ['welch','pearson','chi2','paired','repeated','adjusted']){const guide=ui.exports.ReviewGuide({kind});assert(text(guide).includes('mantenha a confirmação desmarcada'));assert(!nodes(guide).some(n=>n.type==='input'||n.props?.onClick));}

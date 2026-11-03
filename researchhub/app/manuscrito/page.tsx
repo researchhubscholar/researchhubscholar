@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ManuscriptPage({ searchParams }: { searchParams: Promise<{ projeto?: string }> }) {
   const requestLocale = await getRequestLocale();
-  const t = (key: MessageKey) => translate(requestLocale, key);
+  const uiText = (key: MessageKey) => translate(requestLocale, key);
   const db = await supabaseServer();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
@@ -52,7 +52,7 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
     : { data: [] };
 
   return <main className="scholar-workspace manuscript-page max-w-7xl mx-auto">
-    <header className="flex flex-wrap justify-between items-start gap-5 mb-7"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.85dd6475b1a8" /></p><h1 className="font-display text-4xl md:text-5xl mt-3">Editor de manuscrito</h1><p className="text-ink-soft mt-3 max-w-2xl"><InterfaceText message="screen.a24567ecb3ee" /></p></div><form method="get" className="workspace-project-picker manuscript-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects || []).map(item => <option key={item.id} value={item.id}>{item.title || item.theme || t("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action">Abrir manuscrito →</button></form></header>
+    <header className="flex flex-wrap justify-between items-start gap-5 mb-7"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.85dd6475b1a8" /></p><h1 className="font-display text-4xl md:text-5xl mt-3">Editor de manuscrito</h1><p className="text-ink-soft mt-3 max-w-2xl"><InterfaceText message="screen.a24567ecb3ee" /></p></div><form method="get" className="workspace-project-picker manuscript-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects || []).map(item => <option key={item.id} value={item.id}>{item.title || item.theme || uiText("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action">Abrir manuscrito →</button></form></header>
     <ManuscriptEditor currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
   </main>;
 }

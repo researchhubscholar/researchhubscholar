@@ -1,4 +1,7 @@
 "use client";
+import AuthoredText from "@/components/i18n/authored-text";
+
+import { useLanguage } from "@/components/i18n/language-provider";
 import InterfaceText from "@/components/i18n/interface-text";
 
 
@@ -31,6 +34,7 @@ type LicenseOption = {
 };
 
 export default function CommercePage() {
+  const { t: uiText } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [kind, setKind] = useState<Exclude<CommerceKind, "recharge">>("individual");
   const [plan, setPlan] = useState<PlanKey>("plus");
@@ -147,93 +151,92 @@ export default function CommercePage() {
     }
   }
 
-  if (loading) return <p role="status">Carregando opções de contratação...</p>;
+  if (loading) return <p role="status"><InterfaceText message="screen.2c1aafb83914" /></p>;
   if (!userId) return <div className="scholar-workspace secondary-page commerce-page max-w-3xl mx-auto">
-    <h1 className="font-display text-4xl">Entre para escolher sua licença.</h1>
-    <Link href="/login" className="inline-block mt-5 text-teal underline">Entrar na conta</Link>
+    <h1 className="font-display text-4xl"><InterfaceText message="screen.083cff630878" /></h1>
+    <Link href="/login" className="inline-block mt-5 text-teal underline"><InterfaceText message="screen.1fdff273ce1e" /></Link>
   </div>;
 
   return <div className="scholar-workspace secondary-page commerce-page max-w-5xl mx-auto">
-    <p className="text-xs uppercase tracking-widest text-teal">Contratação e recargas</p>
-    <h1 className="font-display text-4xl mt-3">Prepare sua licença anual.</h1>
+    <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.2ac304df498c" /></p>
+    <h1 className="font-display text-4xl mt-3"><InterfaceText message="screen.ad4371fc3ee5" /></h1>
     <p className="text-ink-soft mt-4 max-w-3xl">
-      Escolha o plano, a forma de pagamento desejada e, para residências, a quantidade exata de vagas.
-      Nesta fase a solicitação é registrada, mas não abre checkout nem gera cobrança.
+      <InterfaceText message="screen.833d0b11906a" />
     </p>
 
     <div className="mt-5 rounded-card border border-teal/20 bg-teal-soft p-4 text-sm">
-      <strong>{paymentsEnabled ? "Ambiente de pagamento em preparação." : "Cobrança desativada."}</strong>{" "}
-      Nenhum cartão será solicitado e nenhuma licença paga será ativada automaticamente.
+      <strong>{paymentsEnabled ? uiText("screen.96eafcca4663") : uiText("screen.3ac130bab6da")}</strong>{" "}
+      <InterfaceText message="screen.2ce2bd5e2c82" />
     </div>
-    {message ? <p role="status" className="mt-5 rounded-card border border-line bg-white p-4 text-sm">{message}</p> : null}
+    {message ? <p role="status" className="mt-5 rounded-card border border-line bg-white p-4 text-sm"><AuthoredText text={message} /></p> : null}
 
     <section className="mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl">Nova solicitação</h2>
+      <h2 className="font-display text-2xl"><InterfaceText message="screen.0ca6dc7b69d6" /></h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <label className="text-sm">Tipo de licença
+        <label className="text-sm"><InterfaceText message="screen.94f633413108" />
           <select value={kind} onChange={event => setKind(event.target.value as typeof kind)} className="mt-2 block w-full rounded-card border p-3">
             <option value="individual">Individual</option>
-            <option value="institutional">Programa de residência</option>
+            <option value="institutional"><InterfaceText message="screen.dc953d4ca934" /></option>
           </select>
         </label>
-        <label className="text-sm">Plano
+        <label className="text-sm"><InterfaceText message="screen.6c55806376ab" />
           <select value={plan} onChange={event => setPlan(event.target.value as PlanKey)} className="mt-2 block w-full rounded-card border p-3">
             {Object.entries(plans).map(([key, item]) => <option key={key} value={key}>{item.name}</option>)}
           </select>
         </label>
-        <label className="text-sm">Condição desejada
+        <label className="text-sm"><InterfaceText message="screen.957bc40226f7" />
           <select value={schedule} onChange={event => setSchedule(event.target.value as BillingSchedule)} className="mt-2 block w-full rounded-card border p-3">
-            <option value="annual">Pagamento anual</option>
-            <option value="12x">Licença anual em 12 parcelas</option>
+            <option value="annual"><InterfaceText message="screen.9d4f11e25866" /></option>
+            <option value="12x"><InterfaceText message="screen.4d43a6558c98" /></option>
           </select>
         </label>
-        {kind === "institutional" ? <label className="text-sm">Quantidade de vagas
+        {kind === "institutional" ? <label className="text-sm"><InterfaceText message="screen.33ad4aad4288" />
           <input type="number" min={1} max={10000} value={seats} onChange={event => setSeats(Number(event.target.value))} className="mt-2 block w-full rounded-card border p-3" />
         </label> : <div />}
-        {kind === "institutional" ? <label className="text-sm md:col-span-2">Nome do programa ou instituição
-          <input required minLength={2} maxLength={200} value={organizationName} onChange={event => setOrganizationName(event.target.value)} className="mt-2 block w-full rounded-card border p-3" placeholder="Ex.: Residência de Clínica Médica" />
+        {kind === "institutional" ? <label className="text-sm md:col-span-2"><InterfaceText message="screen.8f92935483c2" />
+          <input required minLength={2} maxLength={200} value={organizationName} onChange={event => setOrganizationName(event.target.value)} className="mt-2 block w-full rounded-card border p-3" placeholder={uiText("screen.f24b447bf58e")} />
         </label> : null}
-        <label className="text-sm md:col-span-2">Cupom de teste ou condição especial
+        <label className="text-sm md:col-span-2"><InterfaceText message="screen.0145d934eb76" />
           <input maxLength={40} value={coupon} onChange={event => setCoupon(event.target.value.toUpperCase())} className="mt-2 block w-full rounded-card border p-3 uppercase" placeholder="Opcional" />
         </label>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">Licença anual</p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? "Referência em 12x" : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">Franquia planejada</p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString("pt-BR")}</p><p className="text-xs">tokens</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString("pt-BR")}</p><p className="text-xs">tokens</p></div>
       </div>
-      <p className="mt-3 text-xs text-ink-soft">O valor final e eventual desconto são recalculados com segurança no servidor ao registrar a solicitação.</p>
+      <p className="mt-3 text-xs text-ink-soft"><InterfaceText message="screen.21003e165b48" /></p>
       <button type="button" disabled={busy || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="mt-5 rounded-card bg-teal px-5 py-3 text-white disabled:opacity-50">
-        {busy ? "Registrando..." : "Registrar solicitação sem cobrança"}
+        {busy ? "Registrando..." : uiText("screen.5d92b1945c45")}
       </button>
     </section>
 
     {licenses.length ? <section className="mt-7 rounded-2xl border border-line bg-white p-5">
       <h2 className="font-display text-2xl">Recarga opcional</h2>
-      <p className="mt-2 text-sm text-ink-soft">Cada pacote adicionará 1 milhão de tokens e será válido até o fim da licença escolhida.</p>
+      <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.b5cacf9e1de6" /></p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="text-sm">Licença
+        <label className="text-sm"><InterfaceText message="screen.70dfbb512f68" />
           <select value={rechargeLicense} onChange={event => setRechargeLicense(event.target.value)} className="mt-2 block w-full rounded-card border p-3">
             {licenses.map(item => <option key={item.id} value={item.id}>{item.organization_id ? "Institucional" : "Individual"} · {plans[item.plan].name}</option>)}
           </select>
         </label>
-        <label className="text-sm">Pacotes
+        <label className="text-sm"><InterfaceText message="screen.3cbfc4850066" />
           <input type="number" min={1} max={100} value={rechargeQuantity} onChange={event => setRechargeQuantity(Number(event.target.value))} className="mt-2 block w-full rounded-card border p-3" />
         </label>
       </div>
       <p className="mt-4 text-sm"><strong>{money(rechargeQuote.grossAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString("pt-BR")} tokens</p>
-      <button type="button" disabled={busy || !rechargeLicense} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50">Solicitar recarga sem cobrança</button>
+      <button type="button" disabled={busy || !rechargeLicense} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50"><InterfaceText message="screen.cb0f2ff8c822" /></button>
     </section> : null}
 
     <section className="mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl">Minhas solicitações</h2>
+      <h2 className="font-display text-2xl"><InterfaceText message="screen.609493ad3ecc" /></h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Tipo</th><th className="p-2">Plano/vagas</th><th className="p-2">Valor</th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2">Ação</th></tr></thead>
+          <thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Tipo</th><th className="p-2"><InterfaceText message="screen.5b41dbc68c28" /></th><th className="p-2"><InterfaceText message="screen.b2f530c46991" /></th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2"><InterfaceText message="screen.1dfbdde6410a" /></th></tr></thead>
           <tbody>{requests.map(item => <tr key={item.id} className="border-t">
             <td className="p-2">{new Date(item.created_at).toLocaleDateString("pt-BR")}</td>
-            <td className="p-2">{item.kind === "individual" ? "Individual" : item.kind === "institutional" ? "Residência" : "Recarga"}</td>
+            <td className="p-2">{item.kind === "individual" ? "Individual" : item.kind === "institutional" ? uiText("screen.418f4046fd07") : "Recarga"}</td>
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} pacote(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}</td>
             <td className="p-2">{money(item.total_amount_cents)}</td>
             <td className="p-2">{requestStatus(item.status)}</td>
@@ -241,12 +244,12 @@ export default function CommercePage() {
           </tr>)}</tbody>
         </table>
       </div>
-      {!requests.length ? <p className="mt-3 text-sm text-ink-soft">Nenhuma solicitação registrada.</p> : null}
+      {!requests.length ? <p className="mt-3 text-sm text-ink-soft"><InterfaceText message="screen.68842c1604b0" /></p> : null}
     </section>
 
     <div className="mt-6 flex flex-wrap gap-5 text-sm">
-      <Link href="/licenca" className="text-teal underline">Voltar para licença e consumo</Link>
-      <Link href="/planos" className="text-teal underline">Comparar planos</Link>
+      <Link href="/licenca" className="text-teal underline"><InterfaceText message="screen.1ee0fcabfabd" /></Link>
+      <Link href="/planos" className="text-teal underline"><InterfaceText message="screen.f273f15de044" /></Link>
     </div>
   </div>;
 }

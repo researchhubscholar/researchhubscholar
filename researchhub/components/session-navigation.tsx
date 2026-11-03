@@ -42,7 +42,7 @@ function isCurrent(pathname: string, href: string) {
 
 export default function SessionNavigation() {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   const [session, setSession] = useState<SessionState>({ authenticated: false, displayName: null, isAdmin: false });
 
   useEffect(() => {
@@ -77,22 +77,22 @@ export default function SessionNavigation() {
       href={href}
       aria-current={isCurrent(pathname, href) ? "page" : undefined}
       className={`primary-nav-link ${mobile ? "" : "desktop-only-link"}`}
-    >{t(navigationMessages[href]) || label}</Link>
+    >{uiText(navigationMessages[href]) || label}</Link>
   );
 
   return <>
-    <nav aria-label={t("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href)) ? "true" : undefined}>
+    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href)) ? "true" : undefined}>
       <LanguageSelector />
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
-        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">{t("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={t("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
+        {isLandingPage ? <Link href="/dashboard" className="primary-nav-link nav-signup">{uiText("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
-        <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{t("nav.login")}</Link>
-        <Link href="/cadastro" aria-current={pathname === "/cadastro" ? "page" : undefined} className="primary-nav-link nav-signup">{t("nav.signup")}</Link>
+        <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{uiText("nav.login")}</Link>
+        <Link href="/cadastro" aria-current={pathname === "/cadastro" ? "page" : undefined} className="primary-nav-link nav-signup">{uiText("nav.signup")}</Link>
       </>}
     </nav>
-    <nav aria-label={t("nav.toolsLabel")} className="mobile-nav">
+    <nav aria-label={uiText("nav.toolsLabel")} className="mobile-nav">
       {links.map(link => renderLink(link, true))}
     </nav>
   </>;

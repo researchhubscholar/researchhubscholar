@@ -1,4 +1,6 @@
 "use client";
+import AuthoredText from "@/components/i18n/authored-text";
+
 
 import { useLanguage } from "@/components/i18n/language-provider";
 import InterfaceText from "@/components/i18n/interface-text";
@@ -10,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function LoginPage() {
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,13 +29,13 @@ export default function LoginPage() {
     const supabase = supabaseBrowser();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
-      setError(signInError.message === "Invalid login credentials" ? t("auth.invalid") : signInError.message);
+      setError(signInError.message === "Invalid login credentials" ? uiText("auth.invalid") : signInError.message);
       setLoading(false);
       return;
     }
     const user = data.user;
     if (!user) {
-      setError(t("auth.failed"));
+      setError(uiText("auth.failed"));
       setLoading(false);
       return;
     }
@@ -63,8 +65,8 @@ export default function LoginPage() {
           <input id="login-password" name="password" autoComplete="current-password" required type="password" maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="w-full mt-2 border px-3 py-2.5" />
           <Link href="/esqueci-senha" className="text-xs text-teal hover:underline mt-2 inline-block"><InterfaceText message="auth.forgot" /></Link>
         </label>
-        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-card p-3">{error}</p>}
-        <button type="submit" disabled={loading} className="auth-submit disabled:opacity-50">{loading ? t("auth.entering") : t("auth.enter")}</button>
+        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-card p-3"><AuthoredText text={error} /></p>}
+        <button type="submit" disabled={loading} className="auth-submit disabled:opacity-50">{loading ? uiText("auth.entering") : uiText("auth.enter")}</button>
       </form>
       <p className="auth-switch"><InterfaceText message="auth.noAccount" /> <Link href="/cadastro" className="text-teal font-medium hover:underline"><InterfaceText message="nav.signup" /></Link></p>
     </section>

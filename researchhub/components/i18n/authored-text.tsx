@@ -1,10 +1,9 @@
 "use client";
 import { useLanguage } from "./language-provider";
-import { authoredScreenKeys } from "@/lib/i18n/screen-catalog";
+import { localizeInterfaceCopy } from "@/lib/i18n/interface-copy";
 
-// For explicit product-owned configuration only. Never pass user or source content.
-export default function AuthoredText({ text }: { text: string }) {
-  const { t } = useLanguage();
-  const key = Object.prototype.hasOwnProperty.call(authoredScreenKeys, text) ? authoredScreenKeys[text] : null;
-  return <>{key ? t(key) : text}</>;
+// Explicit product-owned configuration/messages only. Never pass research content.
+export default function AuthoredText({ text }: { text: string | number | undefined | null }) {
+  const { locale } = useLanguage();
+  return <>{typeof text === "string" ? localizeInterfaceCopy(locale, text) : text ?? null}</>;
 }

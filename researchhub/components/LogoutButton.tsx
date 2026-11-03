@@ -5,7 +5,7 @@ import { requestWorkspaceNavigation } from "@/lib/navigation/unsaved";
 import { signOutAction } from "@/lib/supabase/actions";
 
 export default function LogoutButton({ variant = "text" }: { variant?: "text" | "button" }) {
-  const { t } = useLanguage();
+  const { t: uiText } = useLanguage();
   return (
     <button
       type="button"
@@ -16,7 +16,7 @@ export default function LogoutButton({ variant = "text" }: { variant?: "text" | 
           : "hover:text-teal transition-colors"
       }
     >
-      {t("nav.logout")}
+      {uiText("nav.logout")}
     </button>
   );
 }

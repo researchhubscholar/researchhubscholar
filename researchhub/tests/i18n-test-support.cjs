@@ -20,12 +20,13 @@ function dependency(name) {
   if(name==='@/components/i18n/interface-text') return {default:Interface};
   if(name==='@/components/i18n/authored-text') return {default:Authored};
   if(name==='@/components/i18n/language-provider') return {useLanguage:()=>({locale:'pt-BR',t:text})};
+  if(name==='@/lib/i18n/interface-copy') return {dialogCopy:source=>source,localizeInterfaceCopy:(_locale,source)=>source};
   if(name==='@/lib/i18n/server') return {getRequestLocale:async()=>'pt-BR'};
   if(name==='@/lib/i18n/locale') return {translate:(_locale,key)=>text(key)};
   return null;
 }
 function sourceWithPortugueseLabels(source) {
   return source.replace(/<InterfaceText message="([^"]+)"\s*\/>/g,(_match,key)=>text(key))
-    .replace(/\bt\("(screen\.[^"]+)"\)/g,(_match,key)=>JSON.stringify(text(key)));
+    .replace(/\b(?:t|uiText)\("(screen\.[^"]+)"\)/g,(_match,key)=>JSON.stringify(text(key)));
 }
 module.exports = {jsx,dependency,sourceWithPortugueseLabels};

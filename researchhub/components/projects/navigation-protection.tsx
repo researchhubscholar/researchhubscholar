@@ -1,9 +1,14 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+import AuthoredText from "@/components/i18n/authored-text";
+
+import InterfaceText from "@/components/i18n/interface-text";
 import {useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 import {pendingGuards} from "@/lib/navigation/unsaved";
 const indexKey="__scholarHistoryIndex";
 export default function NavigationProtection(){
+  const { t: uiText } = useLanguage();
  const [mounted,setMounted]=useState(false);
  useEffect(()=>{setMounted(true);},[]);
  const [pending,setPending]=useState<{action:()=>void}|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
@@ -52,5 +57,5 @@ export default function NavigationProtection(){
   try{for(const guard of pendingGuards()){if(guard.busy())throw new Error("Aguarde o salvamento em andamento e tente novamente.");if(guard.dirty()&&!await guard.save())throw new Error("Não foi possível confirmar o salvamento. Continue editando para conferir a mensagem e preservar seu rascunho.");}leave();}
   catch(caught){setError(caught instanceof Error?caught.message:"Não foi possível salvar. Seu rascunho continua aqui.");}finally{locked.current=false;setSaving(false);}
  }
- return !mounted?null:createPortal(<dialog ref={dialog} aria-labelledby="unsaved-title" className="rounded-2xl p-6 w-[min(32rem,calc(100vw-2rem))] backdrop:bg-black/40" onCancel={event=>{event.preventDefault();if(!locked.current)setPending(null);}}><h2 id="unsaved-title" className="font-display text-2xl">Há alterações neste trabalho</h2><p className="mt-3 text-sm text-ink-soft">Salve antes de sair para manter as alterações na sua conta. Se descartar, somente a versão já salva continuará disponível.</p>{error&&<p role="alert" className="text-sm text-red-700 mt-3">{error}</p>}<div className="flex flex-wrap gap-3 mt-5"><button autoFocus type="button" disabled={saving} onClick={()=>setPending(null)} className="border rounded-card p-3">Continuar editando</button><button type="button" disabled={saving} onClick={()=>void saveAndLeave()} className="bg-teal text-white rounded-card p-3">{saving?"Salvando…":"Salvar e sair"}</button><button type="button" disabled={saving} onClick={()=>{if(pendingGuards().some(guard=>guard.busy())){setError("Aguarde a operação em andamento antes de sair.");return;}pendingGuards().forEach(guard=>guard.discard?.());leave();}} className="text-red-700 underline p-3">Descartar e sair</button></div></dialog>,document.body);
+ return !mounted?null:createPortal(<dialog ref={dialog} aria-labelledby="unsaved-title" className="rounded-2xl p-6 w-[min(32rem,calc(100vw-2rem))] backdrop:bg-black/40" onCancel={event=>{event.preventDefault();if(!locked.current)setPending(null);}}><h2 id="unsaved-title" className="font-display text-2xl"><InterfaceText message="screen.bdcf7b5d8ed7" /></h2><p className="mt-3 text-sm text-ink-soft"><InterfaceText message="screen.95d0635682a9" /></p>{error&&<p role="alert" className="text-sm text-red-700 mt-3"><AuthoredText text={error} /></p>}<div className="flex flex-wrap gap-3 mt-5"><button autoFocus type="button" disabled={saving} onClick={()=>setPending(null)} className="border rounded-card p-3">Continuar editando</button><button type="button" disabled={saving} onClick={()=>void saveAndLeave()} className="bg-teal text-white rounded-card p-3">{saving?"Salvando…":uiText("screen.0c08cfc40b2a")}</button><button type="button" disabled={saving} onClick={()=>{if(pendingGuards().some(guard=>guard.busy())){setError("Aguarde a operação em andamento antes de sair.");return;}pendingGuards().forEach(guard=>guard.discard?.());leave();}} className="text-red-700 underline p-3"><InterfaceText message="screen.a43f41017e74" /></button></div></dialog>,document.body);
 }

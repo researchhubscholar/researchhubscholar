@@ -30,11 +30,11 @@ assert(composer.combineSuggestionQueries(['burnout','nurses'],'OR').includes(' O
 const many=composer.combineSuggestionQueries(['"'+('a'.repeat(6000))+'"[tiab]','"'+('b'.repeat(6000))+'"[tiab]']);
 assert(many.length>10000);assert.throws(()=>composer.validateSuggestionQuery(many),/caracteres/);
 
-const jsx=(type,props)=>({type,props}),nodes=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
+const jsx=(type,props)=>require('./i18n-test-support.cjs').jsx(type, props),nodes=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
 function harness(items=recommendations){
  const state=[],applied=[];let cursor=0;
  const react={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return[state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];}};
- const module={exports:{}};vm.runInNewContext(compile('components/radar/suggestion-composer.tsx'),{module,exports:module.exports,require(name){if(name==='react')return react;if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='@/lib/literature/suggestion-query')return composer;if(name==='@/lib/literature/search-limits')return limits;throw Error(name);}});
+ const module={exports:{}};vm.runInNewContext(compile('components/radar/suggestion-composer.tsx'),{module,exports:module.exports,require(name){const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;if(name==='react')return react;if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='@/lib/literature/suggestion-query')return composer;if(name==='@/lib/literature/search-limits')return limits;throw Error(name);}});
  const render=()=>{cursor=0;return module.exports.default({recommendations:items,onApply:item=>applied.push(item)});};
  return{render,applied,all:()=>nodes(render()),checks:()=>nodes(render()).filter(node=>node.type==='input'&&node.props.type==='checkbox'),button:label=>nodes(render()).find(node=>node.type==='button'&&node.props.children===label),preview:()=>nodes(render()).find(node=>node.type==='textarea')};
 }
