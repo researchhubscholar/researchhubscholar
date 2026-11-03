@@ -4,7 +4,7 @@ require.extensions['.ts'] = (module, file) => module._compile(compile(fs.readFil
 const generation = require('../lib/ideas/generate.ts'), radar = require('../lib/ideas/radar.ts');
 const limits = require('../lib/literature/search-limits.ts');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)];
 const deferred = () => { let resolve, reject; const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; }); return { promise, resolve, reject }; };
 function hooks() {
@@ -24,7 +24,7 @@ function ideasHarness() {
   return { select() { return { eq() { return { maybeSingle: async () => ({ data: null }) }; } }; }, insert(payload) { assert.equal(table, 'idea_versions'); writes.push(payload); events.push('insert'); const work = deferred(); pending.push(work); return work.promise; } };
  } };
  const module = { exports: {} };
- vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { search: '' }, confirm: () => true }, require(name) {
+ vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { search: '' }, confirm: () => true }, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
@@ -48,7 +48,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const h = hooks(), requests = [];
  const module = { exports: {} };
  const source = fs.readFileSync('app/descobrir/page.tsx', 'utf8').replace('function DiscoverContent()', 'export function DiscoverContent()');
- vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) {
+ vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useSearchParams: () => new URLSearchParams(query) };

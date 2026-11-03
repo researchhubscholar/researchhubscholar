@@ -1,3 +1,7 @@
+import InterfaceText from "@/components/i18n/interface-text";
+import { getRequestLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n/locale";
+import type { MessageKey } from "@/lib/i18n/catalog";
 import ProjectChoice from "@/components/projects/project-choice";
 import { selectedProject } from "@/lib/projects/selection";
 import Link from "next/link";
@@ -13,6 +17,8 @@ const projectSelection="id,title,theme,research_question,objective,hypothesis,st
 const milestoneLabels:Record<string,string>={theme:"Tema e recorte",question:"Pergunta e objetivos",literature:"Revisão da literatura",design:"Desenho e métodos",ethics:"Ética e autorizações",collection:"Coleta ou seleção",analysis:"Análise",writing:"Escrita e revisão",submission:"Entrega ou submissão"};
 
 export default async function DocumentsPage({searchParams}:{searchParams:Promise<{projeto?:string}>}) {
+  const requestLocale = await getRequestLocale();
+  const t = (key: MessageKey) => translate(requestLocale, key);
   const db=await supabaseServer();
   const {data:{user}}=await db.auth.getUser();
   if(!user) redirect("/login");
@@ -46,8 +52,8 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     generatedAt:new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
-    <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal">← Voltar ao projeto</Link><p className="text-xs uppercase tracking-widest text-teal mt-5">Produção científica</p><h1 className="font-display text-4xl md:text-5xl mt-3">Central de documentos</h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed">Transforme os registros do projeto, da jornada e da biblioteca em materiais organizados para revisar, discutir e exportar.</p></div>
-      <form method="get" className="workspace-project-picker documents-project-picker"><label>Projeto em uso<select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||"Projeto sem título"}</option>)}</select></label><button className="workspace-project-picker-action">Abrir documentos deste projeto →</button></form>
+    <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.25609cbcecca" /></p><h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.f96d20bcedcc" /></h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.196f85329361" /></p></div>
+      <form method="get" className="workspace-project-picker documents-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||t("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action"><InterfaceText message="screen.406b14931e48" /></button></form>
     </header>
     <DocumentCenter data={data}/>
   </div>;

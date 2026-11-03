@@ -1,4 +1,6 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,6 +28,7 @@ type FormState = {
 const initial: FormState = { stage:"student",specialty:"",institution:"",goal:"article",experience:"",weeklyAvailability:"",deadline:"",advisorAccess:"",dataAccess:"",currentResearchStage:"idea",mainDifficulty:"" };
 
 export default function ScholarOnboardingPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initial);
   const [loading, setLoading] = useState(false);
@@ -101,7 +104,7 @@ export default function ScholarOnboardingPage() {
     <form onSubmit={save} className="mt-8 space-y-5">
       <Section number="01" title="Seu contexto" text="Formação e ambiente em que a pesquisa será desenvolvida.">
         <Choice label="Etapa de formação" value={form.stage} options={stages} onChange={value=>update("stage",value)} />
-        <div className="grid md:grid-cols-2 gap-5 mt-5"><Text label="Área ou especialidade" value={form.specialty} onChange={value=>update("specialty",value)} placeholder="Ex.: Cardiologia, Clínica Médica" /><Text label="Instituição ou serviço" value={form.institution} onChange={value=>update("institution",value)} placeholder="Hospital, faculdade ou serviço" /></div>
+        <div className="grid md:grid-cols-2 gap-5 mt-5"><Text label={t("screen.daf93d2ececc")} value={form.specialty} onChange={value=>update("specialty",value)} placeholder="Ex.: Cardiologia, Clínica Médica" /><Text label="Instituição ou serviço" value={form.institution} onChange={value=>update("institution",value)} placeholder="Hospital, faculdade ou serviço" /></div>
       </Section>
       <Section number="02" title="O trabalho que você quer construir" text="O formato define etapas e decisões diferentes.">
         <Choice label="Tipo principal" value={form.goal} options={goals} onChange={value=>update("goal",value)} />

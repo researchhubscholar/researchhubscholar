@@ -1,4 +1,6 @@
 "use client";
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -11,6 +13,6 @@ export default function ErrorPage({error,reset}:{error:Error & {digest?:string};
     <p className="text-xs uppercase tracking-widest text-teal">Algo saiu do esperado</p>
     <h1 className="font-display text-4xl mt-3">Não foi possível concluir esta etapa.</h1>
     <p className="text-ink-soft mt-4">Seus dados já salvos permanecem preservados. Tente novamente; se o problema continuar, abra uma solicitação em Conta.</p>
-    <div className="flex justify-center gap-3 mt-6"><button type="button" onClick={reset} className="bg-teal text-white px-5 py-3 rounded-card">Tentar novamente</button><a href="/conta" className="border border-line px-5 py-3 rounded-card">Ir para Conta</a></div>
+    <div className="flex justify-center gap-3 mt-6"><button type="button" onClick={reset} className="bg-teal text-white px-5 py-3 rounded-card"><InterfaceText message="screen.b9e10688be01" /></button><a href="/conta" className="border border-line px-5 py-3 rounded-card">Ir para Conta</a></div>
   </div>;
 }

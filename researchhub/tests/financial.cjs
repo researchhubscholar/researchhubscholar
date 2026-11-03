@@ -4,7 +4,7 @@ require.extensions['.ts'] = (module, filename) => module._compile(compile(filena
 const compile = path => ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 function load(path, deps) {
   const module = { exports: {} };
-  vm.runInNewContext(compile(path), { module, exports: module.exports, console: { error() {} }, process, crypto, AbortSignal, Request, Response, require(name) { if (name === 'server-only') return {}; if (name in deps) return deps[name]; throw Error(name); } });
+  vm.runInNewContext(compile(path), { module, exports: module.exports, console: { error() {} }, process, crypto, AbortSignal, Request, Response, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;  if (name === 'server-only') return {}; if (name in deps) return deps[name]; throw Error(name); } });
   return module.exports;
 }
 
@@ -94,7 +94,7 @@ function load(path, deps) {
   }
 
   const generationId = '11111111-1111-4111-8111-111111111111';
-  const jsx = (type, props) => ({ type, props });
+  const jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
   const generation = load('app/geracoes/[id]/page.tsx', {
     '@/components/ai/evaluation-form': { default: 'EvaluationForm' }, 'next/link': { default: 'Link' },
     'react/jsx-runtime': { jsx, jsxs: jsx },

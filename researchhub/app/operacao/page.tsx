@@ -1,4 +1,6 @@
 "use client";
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import Link from "next/link";
 import JourneyMetrics from "@/components/account/journey-metrics";
@@ -66,7 +68,7 @@ export default function OperationPage(){
     ].map(([label,value])=><article key={String(label)} className="bg-white border border-line rounded-card p-4"><p className="text-2xl font-display">{Number(value).toLocaleString("pt-BR")}</p><p className="text-xs text-ink-soft mt-2">{label}</p></article>)}</section>}
 
     <section className="mt-7 bg-white border border-line rounded-2xl p-5 overflow-x-auto"><h2 className="font-display text-2xl">Uso por módulo · 14 dias</h2>
-      <table className="w-full text-sm text-left mt-4"><thead><tr><th className="p-2">Data</th><th className="p-2">Módulo</th><th className="p-2">Evento</th><th className="p-2">Total</th></tr></thead><tbody>{activity.map((item,index)=><tr key={`${item.activity_day}-${item.module}-${item.event_name}-${index}`} className="border-t"><td className="p-2">{new Date(item.activity_day+"T12:00:00").toLocaleDateString("pt-BR")}</td><td className="p-2">{moduleLabels[item.module]||item.module}</td><td className="p-2">{item.event_name==="page_view"?"Visualização":"Ação"}</td><td className="p-2">{Number(item.total)}</td></tr>)}</tbody></table>
+      <table className="w-full text-sm text-left mt-4"><thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Módulo</th><th className="p-2">Evento</th><th className="p-2">Total</th></tr></thead><tbody>{activity.map((item,index)=><tr key={`${item.activity_day}-${item.module}-${item.event_name}-${index}`} className="border-t"><td className="p-2">{new Date(item.activity_day+"T12:00:00").toLocaleDateString("pt-BR")}</td><td className="p-2">{moduleLabels[item.module]||item.module}</td><td className="p-2">{item.event_name==="page_view"?"Visualização":"Ação"}</td><td className="p-2">{Number(item.total)}</td></tr>)}</tbody></table>
       {!activity.length&&<p className="text-sm text-ink-soft mt-4">Os indicadores começarão a aparecer conforme as páginas privadas forem utilizadas.</p>}
     </section>
 

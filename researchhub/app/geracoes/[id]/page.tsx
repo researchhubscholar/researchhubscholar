@@ -1,3 +1,6 @@
+import { getRequestLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n/locale";
+import type { MessageKey } from "@/lib/i18n/catalog";
 import EvaluationForm from "@/components/ai/evaluation-form";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -9,6 +12,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export default async function GenerationPage({ params }: { params: Promise<{ id: string }> }) {
+  const requestLocale = await getRequestLocale();
+  const t = (key: MessageKey) => translate(requestLocale, key);
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const client = await supabaseServer();
@@ -29,7 +34,7 @@ export default async function GenerationPage({ params }: { params: Promise<{ id:
     <h1 className="font-display text-4xl mt-3">Detalhes da geração</h1>
     <p className="text-ink-soft mt-3">Cada solicitação possui um identificador próprio, consumo registrado e versão do prompt usada.</p>
     <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-7" aria-label="Resumo da operação">
-      <Metric label="Status" value={generationStatus(usage.status)} />
+      <Metric label={t("screen.920e413c7d41")} value={generationStatus(usage.status)} />
       <Metric label="Modo" value={usage.mode === "simulation" ? "Simulação sem custo" : "IA ativa"} />
       <Metric label="Tokens debitados da franquia" value={String(usage.status === "completed" ? (usage.input_tokens || 0) + (usage.output_tokens || 0) : 0)} />
       <Metric label="Custo estimado" value={`US$ ${Number(usage.cost_usd || 0).toFixed(4)}`} />

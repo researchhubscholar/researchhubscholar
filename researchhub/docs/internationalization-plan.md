@@ -70,3 +70,29 @@ Build e smoke devem passar antes da publicação. Conferência visual autenticad
 teclado, troca de idioma com rascunhos e ausência de remount em cada fluxo ainda
 precisam de validação real; preservar estrutura/chaves no código não comprova
 validação manual. Etapas 3, 4 e 5 permanecem pendentes.
+
+## Etapa 2 — ampliação e limite de cobertura
+
+Migração explícita de cerca de 400 nós JSX e de botões/rótulos condicionais para
+um catálogo adicional tipado. Inclui textos fixos principais de Meu espaço,
+Ideias, Radar e recuperação de senha; amplia Biblioteca, Conta, Orientação,
+Documentos e Manuscrito, além de textos comuns em outras páginas. Configurações
+autorais das ferramentas do dashboard usam AuthoredText; títulos e textos de
+projetos/artigos continuam como dados originais. Os valores de enums, filtros,
+nomes de campos e operações de banco não foram traduzidos. EXCLUIR continua o
+texto literal exigido para confirmar a exclusão, conforme a regra existente.
+
+A etapa 2 NÃO está concluída. O inventário reproduzível em
+`scripts/audit-i18n.cjs --write` registra os candidatos literais restantes em
+`i18n-pending.json`. Inclui nomes neutros que podem permanecer iguais; não mede
+as mensagens dinâmicas, APIs ou constantes importadas. Não equivale a percentual
+de tradução. Ainda faltam módulos avançados de Projeto/Resultados/coleta,
+Operação, Residência/diagnóstico, páginas públicas, constantes e mensagens
+dinâmicas, além de acabamento nas telas já migradas. O aviso de tradução em
+andamento permanece visível no espanhol. Próxima ação continua sendo etapa 2.
+
+Testes: provider real exercitado com hooks isolados para alternar/restaurar idioma,
+cookie e identidade dos filhos com rascunhos; seletor verifica refresh sem
+navegação/reload. Mocks de apresentação dos testes existentes resolvem as chaves
+para português, preservando os handlers reais. Testes HTTP continuam verificando
+o HTML de login nos dois idiomas. A etapa 5 ainda exige teste visual autenticado.

@@ -1,4 +1,8 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,6 +45,7 @@ const blankContext: Context = {
 };
 
 export default function IdeasPage() {
+  const { t } = useLanguage();
   const library = useLibrary();
   const router = useRouter();
   const previousOwner = useRef<string | null>(null);
@@ -265,12 +270,12 @@ export default function IdeasPage() {
   return <div className="scholar-workspace ideas-page max-w-5xl mx-auto">
     <GenerationDialog open={aiLoading || Boolean(refiningId)} title={refiningId ? "Refinando sua ideia com literatura" : undefined} description={refiningId ? "O Scholar consulta o PubMed e envia a proposta e os artigos recuperados à IA para refinar o recorte científico." : undefined} />
     <header className="max-w-3xl">
-      <p className="text-xs uppercase tracking-widest text-teal font-semibold">Ideias de pesquisa com IA</p>
-      <h1 className="font-display text-4xl md:text-5xl mt-3">Da sua ideia à pergunta de pesquisa.</h1>
-      <p className="text-ink-soft mt-4 leading-relaxed">Escolha como começar. Depois compare as propostas e refine a pergunta com apoio da literatura.</p>
+      <p className="text-xs uppercase tracking-widest text-teal font-semibold"><InterfaceText message="screen.4754d54d485e" /></p>
+      <h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.21c470be2399" /></h1>
+      <p className="text-ink-soft mt-4 leading-relaxed"><InterfaceText message="screen.5d610f411f9d" /></p>
     </header>
 
-    <section className="ideas-mode-tabs" aria-label="Modo de criação da ideia">
+    <section className="ideas-mode-tabs" aria-label={t("screen.f4360f9a9f63")}>
       {([
         ["automatic", "Gerar para mim", "Use minha área, meu acesso e meu prazo para descobrir oportunidades."],
         ["theme", "Partir de um tema", "Expandir um interesse ou problema inicial em caminhos científicos."],
@@ -280,140 +285,143 @@ export default function IdeasPage() {
 
     <p className="ideas-mode-description" aria-live="polite">{creationMode==="automatic"?"Recomendado para começar: use sua área, acesso a dados e prazo.":creationMode==="theme"?"Transforme um interesse ou problema inicial em uma pergunta de pesquisa.":"Defina população, recursos e exigências do trabalho em detalhes."}</p>
     <div className="ideas-language-row">
-      <div><p className="text-sm font-medium">Idioma das propostas</p><p className="text-xs text-ink-soft mt-1">A escolha também será mantida ao refinar com literatura.</p></div>
-      <select aria-label="Idioma das propostas" value={outputLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
-        <option value="pt-BR">Português (Brasil)</option>
+      <div><p className="text-sm font-medium"><InterfaceText message="screen.4ca38f95f292" /></p><p className="text-xs text-ink-soft mt-1"><InterfaceText message="screen.8dae2ea308f4" /></p></div>
+      <select aria-label={t("screen.4ca38f95f292")} value={outputLanguage} onChange={event => setOutputLanguage(event.target.value as OutputLanguage)} disabled={aiLoading || Boolean(refiningId)} className="border border-line rounded-card px-3 py-2 bg-paper text-sm outline-none focus:border-teal disabled:opacity-50">
+        <option value="pt-BR"><InterfaceText message="screen.25c0623b1a61" /></option>
         <option value="en">English</option>
       </select>
     </div>
 
     {creationMode === "automatic" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="ideas-main-form mt-5 bg-white border border-line rounded-2xl p-5 md:p-7">
-      <div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal">Geração automática</p><h2 className="font-display text-2xl mt-2">Três informações para começar.</h2><p className="text-sm text-ink-soft mt-2 max-w-2xl">A IA primeiro explora oportunidades diferentes; depois seleciona as três com melhor equilíbrio entre relevância, viabilidade e execução.</p></div><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-2">1 operação · até 10.000 tokens</span></div>
+      <div className="flex flex-wrap justify-between gap-3 items-start"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.451af17a4ec1" /></p><h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.7bcaa2bfeae6" /></h2><p className="text-sm text-ink-soft mt-2 max-w-2xl"><InterfaceText message="screen.caf846ccf606" /></p></div><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-2"><InterfaceText message="screen.0bd292eef80b" /></span></div>
       <div className="grid md:grid-cols-2 gap-4 mt-6">
-        <Text required label="Sua especialidade ou área" value={context.specialty} change={value => update("specialty", value)} placeholder="Ex.: Clínica médica, pediatria, saúde mental" />
-        <Text required label="Sua realidade de acesso" value={context.setting} change={value => update("setting", value)} placeholder="Ex.: ambulatório com prontuários de adultos hipertensos" />
-        <Select label="Prazo disponível" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} />
-        <Select label="A que você tem acesso?" value={context.access} change={value => update("access", value)} options={[["literature", "Somente literatura"], ["records", "Prontuários ou registros"], ["patients", "Participantes ou pacientes"], ["both", "Registros e participantes"]]} />
+        <Text required label={t("screen.4bb93a21d5cb")} value={context.specialty} change={value => update("specialty", value)} placeholder="Ex.: Clínica médica, pediatria, saúde mental" />
+        <Text required label={t("screen.833f4ce00f83")} value={context.setting} change={value => update("setting", value)} placeholder="Ex.: ambulatório com prontuários de adultos hipertensos" />
+        <Select label={t("screen.a1f5024bf38a")} value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} />
+        <Select label={t("screen.9ce9e231e5bf")} value={context.access} change={value => update("access", value)} options={[["literature", "Somente literatura"], ["records", "Prontuários ou registros"], ["patients", "Participantes ou pacientes"], ["both", "Registros e participantes"]]} />
       </div>
-      <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal">Adicionar população ou exigência específica · opcional</summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label="População disponível" value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes do primeiro ano" /><Text label="Exigência do trabalho" value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: precisa ser revisão ou artigo original" /></div></details>
-      {!context.setting.trim() && <p className="mt-3 text-sm text-ink-soft">Preencha sua realidade de acesso para liberar a geração. Para revisão, informe “Somente literatura publicada”.</p>}
-      {aiLoading && <p role="status" className="mt-3 text-sm text-teal">A IA está preparando três propostas completas. A geração tem limite de aproximadamente dois minutos; aguarde sem recarregar.</p>}
-      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || profileLoading || library.loading || !aiEnabled || !context.specialty.trim() || !context.setting.trim()} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Explorando oportunidades científicas…" : aiEnabled ? "Gerar ideias automaticamente" : "IA ainda não ativada"}</button>{!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}</div>
+      <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-sm text-teal"><InterfaceText message="screen.692157779da5" /></summary><div className="grid md:grid-cols-2 gap-4 mt-4"><Text label={t("screen.f9034485d0b3")} value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes do primeiro ano" /><Text label={t("screen.e54ed4829896")} value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: precisa ser revisão ou artigo original" /></div></details>
+      {!context.setting.trim() && <p className="mt-3 text-sm text-ink-soft"><InterfaceText message="screen.ae2153be05ea" /></p>}
+      {aiLoading && <p role="status" className="mt-3 text-sm text-teal"><InterfaceText message="screen.b4f2c9a84e70" /></p>}
+      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || profileLoading || library.loading || !aiEnabled || !context.specialty.trim() || !context.setting.trim()} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Explorando oportunidades científicas…" : aiEnabled ? t("screen.04dd455c5dc2") : t("screen.deb28fbe49b5")}</button>{!library.userId && <Link href="/login" className="text-sm text-teal underline"><InterfaceText message="screen.2cca9d1a021e" /></Link>}</div>
     </form>}
 
     {creationMode === "theme" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="ideas-main-form mt-5 bg-white border border-line rounded-2xl p-5 md:p-7">
-      <p className="text-xs uppercase tracking-widest text-teal">A partir de um tema</p><h2 className="font-display text-2xl mt-2">Dê um ponto de partida, não um título pronto.</h2>
-      <label className="block text-base font-medium mt-5">Tema, problema ou pergunta inicial<textarea required minLength={10} maxLength={1500} rows={5} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Tenho observado dificuldade de sono entre residentes após plantões noturnos e quero explorar possibilidades de pesquisa." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" /></label>
-      <div className="grid md:grid-cols-3 gap-4 mt-5"><Text label="População — opcional" value={context.population} change={value => update("population", value)} /><Select label="Tipo de trabalho" value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Comparar possibilidades"], ["original", "Artigo original"], ["review", "Revisão"], ["case", "Relato de caso"], ["tcc", "TCC"]]} /><Select label="Prazo" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} /></div>
-      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || library.loading || !aiEnabled || context.interest.trim().length < 10} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Expandindo possibilidades…" : "Transformar tema em propostas"}</button><span className="text-xs text-ink-soft">A IA deve expandir o problema em direções diferentes, não apenas reescrever seu texto.</span></div>
+      <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.96012881a5bb" /></p><h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.6b061abda14a" /></h2>
+      <label className="block text-base font-medium mt-5"><InterfaceText message="screen.9f67823767bf" /><textarea required minLength={10} maxLength={1500} rows={5} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Tenho observado dificuldade de sono entre residentes após plantões noturnos e quero explorar possibilidades de pesquisa." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" /></label>
+      <div className="grid md:grid-cols-3 gap-4 mt-5"><Text label={t("screen.0d94b91a86e4")} value={context.population} change={value => update("population", value)} /><Select label={t("screen.b1c784986a24")} value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Comparar possibilidades"], ["original", "Artigo original"], ["review", "Revisão"], ["case", "Relato de caso"], ["tcc", "TCC"]]} /><Select label="Prazo" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} /></div>
+      <div className="mt-6 flex flex-wrap gap-3 items-center"><button disabled={aiLoading || library.loading || !aiEnabled || context.interest.trim().length < 10} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? t("screen.2741760a148a") : t("screen.43bb48b5ac6c")}</button><span className="text-xs text-ink-soft"><InterfaceText message="screen.e61d5648bde9" /></span></div>
     </form>}
 
     {creationMode === "guided" && <form onSubmit={event => { event.preventDefault(); void createIdeasWithAI(); }} className="mt-8 bg-white border border-line rounded-2xl p-5 md:p-7 shadow-sm">
-      <label className="block text-base font-medium">O que você gostaria de investigar?
+      <label className="block text-base font-medium"><InterfaceText message="screen.319bbf4328bd" />
         <textarea required maxLength={1500} rows={4} value={context.interest} onChange={event => update("interest", event.target.value)} placeholder="Ex.: Quero entender se a quantidade de plantões noturnos está relacionada à qualidade do sono dos residentes." className="block w-full mt-3 border border-line rounded-xl p-4 bg-paper text-base font-normal outline-none focus:border-teal" />
       </label>
       <div className="grid md:grid-cols-2 gap-4 mt-5">
-        <Text required label="Quem ou qual população está envolvida?" value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes de medicina" />
-        <Text label="Em qual contexto?" value={context.setting} change={value => update("setting", value)} placeholder="Ex.: programa de residência de um hospital" />
-        <Select label="Qual é o tipo de trabalho?" value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Quero comparar possibilidades"], ["tcc", "TCC ou trabalho de conclusão"], ["original", "Estudo ou artigo original"], ["review", "Revisão de literatura"], ["case", "Relato de caso"], ["residency", "Projeto da residência"]]} />
+        <Text required label={t("screen.44a9b43e844b")} value={context.population} change={value => update("population", value)} placeholder="Ex.: residentes de medicina" />
+        <Text label={t("screen.9ad310b3e4e2")} value={context.setting} change={value => update("setting", value)} placeholder="Ex.: programa de residência de um hospital" />
+        <Select label={t("screen.26a15c469a3d")} value={context.workType || "open"} change={value => update("workType", value)} options={[["open", "Quero comparar possibilidades"], ["tcc", "TCC ou trabalho de conclusão"], ["original", "Estudo ou artigo original"], ["review", "Revisão de literatura"], ["case", "Relato de caso"], ["residency", "Projeto da residência"]]} />
         <div className="grid grid-cols-2 gap-3"><Select label="Prazo" value={context.months} change={value => update("months", value)} options={[["3", "Até 3 meses"], ["6", "Até 6 meses"], ["12", "Até 12 meses"], ["18", "Mais de 12 meses"]]} /><Select label="Acesso" value={context.access} change={value => update("access", value)} options={[["literature", "Literatura"], ["records", "Registros"], ["patients", "Participantes"], ["both", "Registros e participantes"]]} /></div>
       </div>
 
       <details className="mt-6 border-t border-line pt-5">
-        <summary className="cursor-pointer text-sm font-medium text-teal">Adicionar detalhes para uma resposta mais precisa <span className="text-ink-soft font-normal">· opcional</span></summary>
+        <summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.5ce191c9973a" /> <span className="text-ink-soft font-normal">· opcional</span></summary>
         <div className="grid md:grid-cols-2 gap-4 mt-5">
-          <Text label="Especialidade ou área" value={context.specialty} change={value => update("specialty", value)} />
-          <Text label="Tema já definido" value={context.theme} change={value => update("theme", value)} placeholder="Se já houver um tema ou título provisório" />
-          <Text label="Exposição, intervenção ou comparação" value={context.exposure} change={value => update("exposure", value)} placeholder="Ex.: número de plantões noturnos" />
-          <Text label="Desfecho ou resultado de interesse" value={context.measure} change={value => update("measure", value)} placeholder="Ex.: qualidade do sono" />
-          <Text label="Instrumento conhecido" value={context.instrument || ""} change={value => update("instrument", value)} placeholder="Opcional; a IA pode sugerir o que confirmar" />
-          <Text label="Amostra ou dados acessíveis" value={context.availableSample || ""} change={value => update("availableSample", value)} placeholder="Ex.: aproximadamente 40 residentes" />
-          <Select label="Orientação disponível" value={context.support || "unknown"} change={value => update("support", value)} options={[["unknown", "Ainda não sei"], ["yes", "Tenho orientador"], ["no", "Ainda não tenho orientador"]]} />
-          <Select label="Autorização de acesso" value={context.authorization || "unknown"} change={value => update("authorization", value)} options={[["unknown", "Ainda não sei"], ["confirmed", "Acesso confirmado"], ["pending", "Depende de autorização"], ["na", "Não se aplica"]]} />
-          <Text label="Exigência do curso ou serviço" value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: artigo original; apresentação em dezembro" />
-          <Text label="Dúvida que mais preocupa você" value={context.uncertainty || ""} change={value => update("uncertainty", value)} placeholder="Ex.: não sei qual desenho cabe no prazo" />
+          <Text label={t("screen.be71fbb8613e")} value={context.specialty} change={value => update("specialty", value)} />
+          <Text label={t("screen.d373375f8977")} value={context.theme} change={value => update("theme", value)} placeholder={t("screen.0262c8c38ba6")} />
+          <Text label={t("screen.fc7e90bff322")} value={context.exposure} change={value => update("exposure", value)} placeholder="Ex.: número de plantões noturnos" />
+          <Text label={t("screen.5d5a445edab8")} value={context.measure} change={value => update("measure", value)} placeholder="Ex.: qualidade do sono" />
+          <Text label={t("screen.1afcf63f05e4")} value={context.instrument || ""} change={value => update("instrument", value)} placeholder={t("screen.21662eddee6d")} />
+          <Text label={t("screen.7ae45bb461d1")} value={context.availableSample || ""} change={value => update("availableSample", value)} placeholder="Ex.: aproximadamente 40 residentes" />
+          <Select label={t("screen.21b79ffb025d")} value={context.support || "unknown"} change={value => update("support", value)} options={[["unknown", "Ainda não sei"], ["yes", "Tenho orientador"], ["no", "Ainda não tenho orientador"]]} />
+          <Select label={t("screen.01c0b96f3264")} value={context.authorization || "unknown"} change={value => update("authorization", value)} options={[["unknown", "Ainda não sei"], ["confirmed", "Acesso confirmado"], ["pending", "Depende de autorização"], ["na", "Não se aplica"]]} />
+          <Text label={t("screen.dbc63c98b68a")} value={context.requirements || ""} change={value => update("requirements", value)} placeholder="Ex.: artigo original; apresentação em dezembro" />
+          <Text label={t("screen.d21951b58ec9")} value={context.uncertainty || ""} change={value => update("uncertainty", value)} placeholder="Ex.: não sei qual desenho cabe no prazo" />
         </div>
 
-        {library.userId && <div className="mt-6 border-t border-line pt-5"><p className="text-sm font-medium">Usar algo que já está na sua conta</p><div className="flex flex-wrap gap-3 items-end mt-3"><label className="text-sm flex-1">Projeto existente<select value={projectId} onChange={event => { setProjectId(event.target.value); setReferenceIds([]); }} className="block w-full border border-line rounded-card px-3 py-3 mt-2"><option value="">Nenhum projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label><button type="button" disabled={!projectId || projectLoading} onClick={applyProject} className="border border-teal/30 text-teal px-4 py-3 rounded-card text-sm disabled:opacity-50">{projectLoading ? "Carregando…" : "Usar contexto"}</button></div>{projectError && <p role="alert" className="text-sm text-red-700 mt-2">{projectError}</p>}
-          <details className="mt-4"><summary className="cursor-pointer text-sm text-teal">Selecionar referências da biblioteca · {referenceIds.length}/10</summary><input aria-label="Buscar referências" value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} placeholder="Buscar por título, autor, DOI ou PMID" className="w-full border border-line rounded-card px-3 py-2 mt-3" /><div className="max-h-72 overflow-y-auto space-y-2 mt-3">{referenceOptions.map(article => <label key={article.id} className="flex gap-3 border border-line rounded-card p-3 text-sm"><input type="checkbox" checked={referenceIds.includes(article.id)} disabled={!referenceIds.includes(article.id) && referenceIds.length >= 10} onChange={() => setReferenceIds(current => current.includes(article.id) ? current.filter(id => id !== article.id) : [...current, article.id])} className="mt-1" /><span>{article.title}<span className="block text-xs text-ink-soft mt-1">{article.year || "Ano não informado"} · {article.pmid ? `PMID ${article.pmid}` : `DOI ${article.doi}`}</span></span></label>)}</div></details>
+        {library.userId && <div className="mt-6 border-t border-line pt-5"><p className="text-sm font-medium"><InterfaceText message="screen.25443b1569bf" /></p><div className="flex flex-wrap gap-3 items-end mt-3"><label className="text-sm flex-1"><InterfaceText message="screen.04c074246ce3" /><select value={projectId} onChange={event => { setProjectId(event.target.value); setReferenceIds([]); }} className="block w-full border border-line rounded-card px-3 py-3 mt-2"><option value=""><InterfaceText message="screen.d54a46295ae2" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || t("screen.53d02a124b87")}</option>)}</select></label><button type="button" disabled={!projectId || projectLoading} onClick={applyProject} className="border border-teal/30 text-teal px-4 py-3 rounded-card text-sm disabled:opacity-50">{projectLoading ? "Carregando…" : "Usar contexto"}</button></div>{projectError && <p role="alert" className="text-sm text-red-700 mt-2">{projectError}</p>}
+          <details className="mt-4"><summary className="cursor-pointer text-sm text-teal"><InterfaceText message="screen.358e6a8cd136" /> {referenceIds.length}/10</summary><input aria-label={t("screen.a9d5ab3be31f")} value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} placeholder={t("screen.860b67f1daf1")} className="w-full border border-line rounded-card px-3 py-2 mt-3" /><div className="max-h-72 overflow-y-auto space-y-2 mt-3">{referenceOptions.map(article => <label key={article.id} className="flex gap-3 border border-line rounded-card p-3 text-sm"><input type="checkbox" checked={referenceIds.includes(article.id)} disabled={!referenceIds.includes(article.id) && referenceIds.length >= 10} onChange={() => setReferenceIds(current => current.includes(article.id) ? current.filter(id => id !== article.id) : [...current, article.id])} className="mt-1" /><span>{article.title}<span className="block text-xs text-ink-soft mt-1">{article.year || t("screen.0d116becb93b")} · {article.pmid ? `PMID ${article.pmid}` : `DOI ${article.doi}`}</span></span></label>)}</div></details>
         </div>}
       </details>
 
       <div className="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center">
-        <button disabled={aiLoading || profileLoading || library.loading || !aiEnabled} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? "Construindo propostas completas…" : aiEnabled ? "Criar 3 propostas com IA" : "IA ainda não ativada"}</button>
-        {!library.userId && <Link href="/login" className="text-sm text-teal underline">Entre para usar sua franquia de IA</Link>}
-        <span className="text-xs text-ink-soft">Uma geração usa até 10.000 tokens da sua franquia.</span>
+        <button disabled={aiLoading || profileLoading || library.loading || !aiEnabled} className="bg-teal text-white rounded-card px-6 py-3.5 font-medium disabled:opacity-50">{aiLoading ? t("screen.a1e1d000efcb") : aiEnabled ? t("screen.ca08d3e91058") : t("screen.deb28fbe49b5")}</button>
+        {!library.userId && <Link href="/login" className="text-sm text-teal underline"><InterfaceText message="screen.2cca9d1a021e" /></Link>}
+        <span className="text-xs text-ink-soft"><InterfaceText message="screen.2bd4075f3cb9" /></span>
       </div>
     </form>}
 
-    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{lastUsage && <UsageSummary usage={lastUsage} />}{aiOperation && <><p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline">Ver registro, consumo e versão desta geração</Link></p><GenerationFeedback operationId={aiOperation} userId={library.userId} /></>}</div>}
-    {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm">Você alterou as informações depois da geração. Gere novamente antes de salvar ou levar uma proposta para o projeto.</p>}
+    {aiMessage && <div role="status" className={`mt-5 rounded-card p-4 text-sm ${aiMode === "simulation" || aiMode === "error" ? "bg-amber-soft" : "bg-teal-soft"}`}><p>{aiMessage}</p>{lastUsage && <UsageSummary usage={lastUsage} />}{aiOperation && <><p className="text-xs mt-2"><Link href={`/geracoes/${aiOperation}`} className="text-teal underline"><InterfaceText message="screen.01938c107dd1" /></Link></p><GenerationFeedback operationId={aiOperation} userId={library.userId} /></>}</div>}
+    {stale && <p role="status" className="mt-4 bg-amber-soft rounded-card p-4 text-sm"><InterfaceText message="screen.19e295a807a0" /></p>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
 
-    {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label="Propostas geradas">
-      <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2">Três caminhos para comparar</h2><p className="text-sm text-ink-soft mt-2">Escolha pelo equilíbrio entre relevância e execução — não apenas pelo tema mais interessante.</p></div><span className="text-sm text-teal">{selected.length}/3 na comparação</span></div>
+    {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label={t("screen.527c4fcb7372")}>
+      <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.68ecf8d47262" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.ead99db1a928" /></p></div><span className="text-sm text-teal">{selected.length}<InterfaceText message="screen.a78859242313" /></span></div>
       <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
 
-    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium">Abrir histórico de propostas salvas</summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} createProject={row => transfer(row.proposal, row)} /></details>
+    <details className="mt-9"><summary className="cursor-pointer text-sm text-teal font-medium"><InterfaceText message="screen.9d88a8360e69" /></summary><IdeaHistory ownerId={library.userId} refresh={historyRefresh} restore={restoreVersion} createProject={row => transfer(row.proposal, row)} /></details>
   </div>;
 }
 
 function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+  const { t } = useLanguage();
   const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
   return <article className={`bg-white border rounded-2xl p-5 md:p-7 ${selected ? "border-teal shadow-sm" : "border-line"}`}>
     <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">{pathLabels[index] || `CAMINHO ${index + 1}`}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
     <h3 className="font-display text-2xl md:text-3xl mt-4 leading-snug">{idea.title}</h3>
-    <div className="grid md:grid-cols-2 gap-5 mt-6"><Info label="Pergunta de pesquisa" value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
-    <div className="grid md:grid-cols-3 gap-3 mt-5"><Badge label="Relevância" value={idea.evaluation?.relevance.label || "A confirmar"} /><Badge label="Viabilidade" value={idea.evaluation?.feasibility.label || "A confirmar"} /><Badge label="Execução" value={idea.evaluation?.execution.label || "A confirmar"} /></div>
-    <p className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><strong className="text-teal">Por que este caminho pode funcionar</strong><span className="block text-ink-soft mt-1 leading-relaxed">{idea.feasibility}</span></p>
-    <details className={`mt-4 rounded-card border p-4 ${qualityIssues.length ? "border-amber-300 bg-amber-soft" : "border-teal/20 bg-teal-soft/40"}`}><summary className="cursor-pointer text-sm font-medium">{qualityIssues.length ? `${qualityIssues.length} ponto${qualityIssues.length === 1 ? "" : "s"} para revisar` : "Verificação estrutural concluída"}</summary><p className="text-xs text-ink-soft mt-2">Esta checagem verifica coerência formal e não substitui validação bibliográfica, metodológica, ética ou do orientador.</p>{qualityIssues.length > 0 && <ul className="list-disc pl-5 mt-3 space-y-2 text-sm text-ink-soft">{qualityIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</details>
+    <div className="grid md:grid-cols-2 gap-5 mt-6"><Info label={t("screen.fdbf4a061cc6")} value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
+    <div className="grid md:grid-cols-3 gap-3 mt-5"><Badge label={t("screen.a415f1a5dcce")} value={idea.evaluation?.relevance.label || "A confirmar"} /><Badge label="Viabilidade" value={idea.evaluation?.feasibility.label || "A confirmar"} /><Badge label={t("screen.9e655bf84268")} value={idea.evaluation?.execution.label || "A confirmar"} /></div>
+    <p className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><strong className="text-teal"><InterfaceText message="screen.22455cd55e94" /></strong><span className="block text-ink-soft mt-1 leading-relaxed">{idea.feasibility}</span></p>
+    <details className={`mt-4 rounded-card border p-4 ${qualityIssues.length ? "border-amber-300 bg-amber-soft" : "border-teal/20 bg-teal-soft/40"}`}><summary className="cursor-pointer text-sm font-medium">{qualityIssues.length ? `${qualityIssues.length} ponto${qualityIssues.length === 1 ? "" : "s"} para revisar` : t("screen.f224be2592cc")}</summary><p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.ef741b52c599" /></p>{qualityIssues.length > 0 && <ul className="list-disc pl-5 mt-3 space-y-2 text-sm text-ink-soft">{qualityIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</details>
 
-    <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-teal font-medium">Ver proposta científica completa</summary><dl className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5 text-sm">
-      <Info label="Hipótese ou pressuposto" value={idea.hypothesis || "Definir com o orientador conforme o desenho escolhido."} />
-      <Info label="Desfecho principal" value={idea.outcome} />
-      <Info label="População e elegibilidade" value={idea.eligibility || idea.population} />
-      <Info label="Variáveis e medidas" value={idea.variables} />
+    <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-teal font-medium"><InterfaceText message="screen.3c589e0f1139" /></summary><dl className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5 text-sm">
+      <Info label={t("screen.0c3a06347847")} value={idea.hypothesis || "Definir com o orientador conforme o desenho escolhido."} />
+      <Info label={t("screen.be3b16f1e57d")} value={idea.outcome} />
+      <Info label={t("screen.0ab6aaac0a37")} value={idea.eligibility || idea.population} />
+      <Info label={t("screen.2e4f1eacff4d")} value={idea.variables} />
       <Info label="Método sugerido" value={idea.methods} />
-      <Info label="Plano de análise inicial" value={idea.analysis} />
-      <Info label="Cuidados éticos" value={idea.ethics || "Confirmar avaliação ética, consentimento e proteção dos dados aplicáveis."} />
-      <Info label="Limitações previsíveis" value={idea.limitations || idea.difficulty} />
-      <Info label="Como verificar a lacuna" value={idea.noveltyCheck || `Testar no Radar: ${idea.radar}`} />
-      <Info label="Recursos necessários" value={idea.resources} />
-    </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title="Decisões que ainda precisam ser tomadas" values={idea.unresolved} /><List title="Sequência recomendada" values={idea.plan} ordered /></div></details>
+      <Info label={t("screen.97fb364dbc13")} value={idea.analysis} />
+      <Info label={t("screen.30b7a7ba9b55")} value={idea.ethics || "Confirmar avaliação ética, consentimento e proteção dos dados aplicáveis."} />
+      <Info label={t("screen.4ac89e13f847")} value={idea.limitations || idea.difficulty} />
+      <Info label={t("screen.9eeb671b7b71")} value={idea.noveltyCheck || `Testar no Radar: ${idea.radar}`} />
+      <Info label={t("screen.9025c269561d")} value={idea.resources} />
+    </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title={t("screen.3c079482c65b")} values={idea.unresolved} /><List title={t("screen.9afdfa4b758f")} values={idea.plan} ordered /></div></details>
 
-    <button type="button" disabled={saving} onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? "Concluir ajustes" : "Editar esta proposta"}</button>
+    <button type="button" disabled={saving} onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? t("screen.e13f598b5a95") : t("screen.2e6acb733179")}</button>
     {editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium">{label}<textarea disabled={saving} maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
     {refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
     {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm">{refinementError}</p>}
-    <p className="mt-5 text-xs text-ink-soft">Ao validar no Radar, esta versão será salva automaticamente no seu histórico de propostas.</p>
-    <div className="mt-3 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? "Consultando PubMed e refinando…" : "Refinar com literatura e IA"}</button><button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando proposta…" : "Validar no Radar"}</button><button type="button" disabled={stale || saving} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">Transformar em projeto →</button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : "Salvar proposta"}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50">Baixar</button></div>
+    <p className="mt-5 text-xs text-ink-soft"><InterfaceText message="screen.71e292637da0" /></p>
+    <div className="mt-3 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? t("screen.363d5d503f2d") : t("screen.28dfad4eb9d8")}</button><button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? t("screen.6b5056724381") : t("screen.c2a0c49f638c")}</button><button type="button" disabled={stale || saving} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50"><InterfaceText message="screen.17d65baee7a0" /></button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : t("screen.784f681fadeb")}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50"><InterfaceText message="screen.b45ae836a031" /></button></div>
   </article>;
 }
 
 function RefinementPanel({ result, apply }: { result: RefinementResult; apply: () => void }) {
+  const { t } = useLanguage();
   const output = result.output;
-  return <section className="mt-6 rounded-2xl border border-teal/30 bg-teal-soft/40 p-5" aria-label="Refinamento com literatura">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest font-semibold text-teal">Refinamento baseado no PubMed</p><h4 className="font-display text-2xl mt-2">{output.refinedProposal.title}</h4></div><span className="rounded-full bg-white px-3 py-1 text-xs text-teal">{result.pubmedTotal.toLocaleString("pt-BR")} resultados relacionados</span></div>
+  return <section className="mt-6 rounded-2xl border border-teal/30 bg-teal-soft/40 p-5" aria-label={t("screen.1318fbd854ef")}>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest font-semibold text-teal"><InterfaceText message="screen.9933d8249fbb" /></p><h4 className="font-display text-2xl mt-2">{output.refinedProposal.title}</h4></div><span className="rounded-full bg-white px-3 py-1 text-xs text-teal">{result.pubmedTotal.toLocaleString("pt-BR")} resultados relacionados</span></div>
     <p className="text-sm text-ink-soft mt-3 leading-relaxed">{output.refinementRationale}</p>
-    <div className="grid md:grid-cols-2 gap-4 mt-5 text-sm"><Info label={`Estrutura ${output.framework}`} value={output.frameworkElements.map(item => `${item.label}: ${item.value}`).join(" · ")} /><Info label="Sinal da literatura" value={`${output.literatureSignal}. ${output.gapAssessment}`} /><Info label="Risco de semelhança" value={output.similarityRisk} /><Info label="Termos MeSH/candidatos" value={output.meshTerms.join(" · ")} /></div>
-    <div className="mt-5"><p className="text-sm font-medium">Outras formulações de título</p><ul className="mt-2 space-y-2 text-sm text-ink-soft list-disc pl-5">{output.alternativeTitles.map(title => <li key={title}>{title}</li>)}</ul></div>
-    <details className="mt-5"><summary className="cursor-pointer text-sm font-medium text-teal">Ver artigos que orientaram o refinamento</summary><ul className="mt-3 space-y-3">{output.sources.map(source => <li key={source.pmid} className="text-sm"><a href={`https://pubmed.ncbi.nlm.nih.gov/${source.pmid}/`} target="_blank" rel="noreferrer" className="font-medium text-teal underline">{source.title}</a><span className="block text-xs text-ink-soft mt-1">PMID {source.pmid} · {source.contribution}</span></li>)}</ul></details>
+    <div className="grid md:grid-cols-2 gap-4 mt-5 text-sm"><Info label={`Estrutura ${output.framework}`} value={output.frameworkElements.map(item => `${item.label}: ${item.value}`).join(" · ")} /><Info label={t("screen.9d78db74732a")} value={`${output.literatureSignal}. ${output.gapAssessment}`} /><Info label={t("screen.cf61cfb4f282")} value={output.similarityRisk} /><Info label={t("screen.e8ba60cadf6d")} value={output.meshTerms.join(" · ")} /></div>
+    <div className="mt-5"><p className="text-sm font-medium"><InterfaceText message="screen.fe001b7fea8e" /></p><ul className="mt-2 space-y-2 text-sm text-ink-soft list-disc pl-5">{output.alternativeTitles.map(title => <li key={title}>{title}</li>)}</ul></div>
+    <details className="mt-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.ea64c12e8687" /></summary><ul className="mt-3 space-y-3">{output.sources.map(source => <li key={source.pmid} className="text-sm"><a href={`https://pubmed.ncbi.nlm.nih.gov/${source.pmid}/`} target="_blank" rel="noreferrer" className="font-medium text-teal underline">{source.title}</a><span className="block text-xs text-ink-soft mt-1">PMID {source.pmid} · {source.contribution}</span></li>)}</ul></details>
     <p className="mt-4 text-xs text-ink-soft">{output.caution}</p>
     {result.usage && <UsageSummary usage={result.usage} />}
-    <div className="flex flex-wrap gap-3 mt-5"><button type="button" onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm">Aplicar refinamento à proposta</button>{result.operationId && <Link href={`/geracoes/${result.operationId}`} className="text-sm text-teal underline self-center">Ver consumo e registro</Link>}</div>
+    <div className="flex flex-wrap gap-3 mt-5"><button type="button" onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm"><InterfaceText message="screen.f9e6ad47be9a" /></button>{result.operationId && <Link href={`/geracoes/${result.operationId}`} className="text-sm text-teal underline self-center"><InterfaceText message="screen.3140f21921e3" /></Link>}</div>
     {result.operationId && <GenerationFeedback operationId={result.operationId} userId={null} compact />}
   </section>;
 }
 
 function UsageSummary({ usage }: { usage: AIUsage }) {
   const total = usage.inputTokens + usage.outputTokens;
-  return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString("pt-BR")} tokens</strong> ({usage.inputTokens.toLocaleString("pt-BR")} de entrada + {usage.outputTokens.toLocaleString("pt-BR")} de saída). A reserva máxima foi ajustada automaticamente ao uso real.</p>;
+  return <p className="text-xs text-ink-soft mt-2">Consumo real: <strong>{total.toLocaleString("pt-BR")} tokens</strong> ({usage.inputTokens.toLocaleString("pt-BR")} de entrada + {usage.outputTokens.toLocaleString("pt-BR")} <InterfaceText message="screen.6922c72e93b2" /></p>;
 }
 
 function GenerationFeedback({ operationId, userId, compact = false }: { operationId: string; userId: string | null; compact?: boolean }) {
+  const { t } = useLanguage();
   const [rating, setRating] = useState<"useful" | "partial" | "not_useful" | "">("");
   const [feedback, setFeedback] = useState("");
   const [message, setMessage] = useState("");
@@ -431,12 +439,13 @@ function GenerationFeedback({ operationId, userId, compact = false }: { operatio
     } catch { setMessage("Não foi possível registrar a avaliação agora."); }
     finally { setSaving(false); }
   }
-  return <div className={`${compact ? "mt-4 border-t border-teal/20 pt-4" : "mt-3"}`}><p className="text-xs font-medium">Esta resposta ajudou?</p><div className="flex flex-wrap gap-2 mt-2">{([ ["useful", "Útil"], ["partial", "Parcial"], ["not_useful", "Não útil"] ] as const).map(([value, label]) => <button key={value} type="button" disabled={saving} onClick={() => void save(value)} className={`rounded-full border px-3 py-1.5 text-xs disabled:opacity-50 ${rating === value ? "border-teal bg-teal text-white" : "border-teal/30 bg-white text-teal"}`}>{label}</button>)}</div>{(rating === "partial" || rating === "not_useful") && <div className="mt-3"><textarea value={feedback} onChange={event => setFeedback(event.target.value)} maxLength={2000} rows={2} placeholder="O que faltou ou deveria mudar?" className="w-full rounded-card border border-line bg-white p-3 text-xs"/><button type="button" disabled={saving} onClick={() => void save()} className="mt-2 text-xs text-teal underline disabled:opacity-50">Salvar comentário</button></div>}{message && <p role="status" className="text-xs text-ink-soft mt-2">{message}</p>}</div>;
+  return <div className={`${compact ? "mt-4 border-t border-teal/20 pt-4" : "mt-3"}`}><p className="text-xs font-medium"><InterfaceText message="screen.bc1cf2e0cb14" /></p><div className="flex flex-wrap gap-2 mt-2">{([ ["useful", "Útil"], ["partial", "Parcial"], ["not_useful", "Não útil"] ] as const).map(([value, label]) => <button key={value} type="button" disabled={saving} onClick={() => void save(value)} className={`rounded-full border px-3 py-1.5 text-xs disabled:opacity-50 ${rating === value ? "border-teal bg-teal text-white" : "border-teal/30 bg-white text-teal"}`}>{label}</button>)}</div>{(rating === "partial" || rating === "not_useful") && <div className="mt-3"><textarea value={feedback} onChange={event => setFeedback(event.target.value)} maxLength={2000} rows={2} placeholder={t("screen.4513163910b8")} className="w-full rounded-card border border-line bg-white p-3 text-xs"/><button type="button" disabled={saving} onClick={() => void save()} className="mt-2 text-xs text-teal underline disabled:opacity-50"><InterfaceText message="screen.22b8e9073221" /></button></div>}{message && <p role="status" className="text-xs text-ink-soft mt-2">{message}</p>}</div>;
 }
 
 function Comparison({ ideas }: { ideas: Idea[] }) {
+  const { t } = useLanguage();
   const rows = [["Desenho", "studyType"], ["Pergunta", "question"], ["Desfecho", "outcome"], ["Viabilidade", "feasibility"], ["Limitações", "limitations"]] as const;
-  return <section className="mt-8 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl">Comparação lado a lado</h2><div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr><th className="p-3">Critério</th>{ideas.map(idea => <th key={idea.id} className="p-3 min-w-64">{idea.title}</th>)}</tr></thead><tbody>{rows.map(([label, key]) => <tr key={key} className="border-t border-line"><th className="p-3 align-top">{label}</th>{ideas.map(idea => <td key={idea.id} className="p-3 align-top text-ink-soft">{idea[key] || "A confirmar"}</td>)}</tr>)}</tbody></table></div></section>;
+  return <section className="mt-8 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl"><InterfaceText message="screen.0b28badc0dde" /></h2><div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr><th className="p-3"><InterfaceText message="screen.dea35b6f64ad" /></th>{ideas.map(idea => <th key={idea.id} className="p-3 min-w-64">{idea.title}</th>)}</tr></thead><tbody>{rows.map(([label, key]) => <tr key={key} className="border-t border-line"><th className="p-3 align-top">{label}</th>{ideas.map(idea => <td key={idea.id} className="p-3 align-top text-ink-soft">{idea[key] || t("screen.27075d2834bc")}</td>)}</tr>)}</tbody></table></div></section>;
 }
 
 function Text({ label, value, change, placeholder, required }: { label: string; value: string; change: (value: string) => void; placeholder?: string; required?: boolean }) { return <label className="text-sm font-medium">{label}<input required={required} maxLength={300} value={value} onChange={event => change(event.target.value)} placeholder={placeholder} className="block w-full mt-2 border border-line rounded-card px-3 py-3 bg-paper outline-none focus:border-teal" /></label>; }

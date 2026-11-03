@@ -1,11 +1,11 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const page = fs.readFileSync('app/ideias/page.tsx', 'utf8');
+const page = require('./i18n-test-support.cjs').sourceWithPortugueseLabels(fs.readFileSync('app/ideias/page.tsx', 'utf8'));
 const generation = fs.readFileSync('app/api/ai/ideas/route.ts', 'utf8');
 const refinement = fs.readFileSync('app/api/ai/refine-idea/route.ts', 'utf8');
 const project = fs.readFileSync('app/meu-trabalho/page.tsx', 'utf8');
-const history = fs.readFileSync('components/ideas/history.tsx', 'utf8');
+const history = require('./i18n-test-support.cjs').sourceWithPortugueseLabels(fs.readFileSync('components/ideas/history.tsx', 'utf8'));
 
 assert.match(page, /postAI[\s\S]*?\("\/api\/ai\/ideas"/);
 assert.match(page, /postAI[\s\S]*?\("\/api\/ai\/refine-idea"/);

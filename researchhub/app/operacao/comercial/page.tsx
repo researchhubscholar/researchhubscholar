@@ -1,4 +1,6 @@
 "use client";
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -135,7 +137,7 @@ export default function CommerceAdminPage() {
       <h2 className="font-display text-2xl">Solicitações recentes</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead><tr><th className="p-2">Conta</th><th className="p-2">Pedido</th><th className="p-2">Valor</th><th className="p-2">Status</th><th className="p-2">Ações</th></tr></thead>
+          <thead><tr><th className="p-2">Conta</th><th className="p-2">Pedido</th><th className="p-2">Valor</th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2">Ações</th></tr></thead>
           <tbody>{requests.map(item => <tr key={item.id} className="border-t align-top">
             <td className="p-2">{item.user_email}<br/><span className="text-xs text-ink-soft">{new Date(item.created_at).toLocaleString("pt-BR")}</span></td>
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} recarga(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}{item.organization_name ? <><br/><span className="text-xs">{item.organization_name}</span></> : null}</td>

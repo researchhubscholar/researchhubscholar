@@ -4,7 +4,7 @@ require.extensions['.ts'] = (module, file) => module._compile(compile(file), fil
 const core = require('../lib/clinical/collection.ts'), summary = require('../lib/clinical/summary.ts'), data = require('../lib/results/data.ts');
 const word = require('../lib/results/word.ts');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)];
 const visibleText = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : !tree ? '' : Array.isArray(tree) ? tree.map(visibleText).join('') : visibleText(tree.props?.children);
 function hooks() {
@@ -18,7 +18,7 @@ function hooks() {
 }
 function load(file, react, dependencies, globals = {}) {
  const module = { exports: {} };
- vm.runInNewContext(compile(file), { module, exports: module.exports, crypto: require('node:crypto').webcrypto, AbortController, Date, Error, TextEncoder, requestAnimationFrame: fn => fn(), window: { confirm: () => true, addEventListener() {}, removeEventListener() {} }, ...globals, require(name) {
+ vm.runInNewContext(compile(file), { module, exports: module.exports, crypto: require('node:crypto').webcrypto, AbortController, Date, Error, TextEncoder, requestAnimationFrame: fn => fn(), window: { confirm: () => true, addEventListener() {}, removeEventListener() {} }, ...globals, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
   if (name === 'react') return react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name in dependencies) return dependencies[name]; throw Error(name);

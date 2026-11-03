@@ -17,9 +17,9 @@ function sectionHarness(content, panel = false) {
     useState(initial) { const index = cursor++; if (!(index in state)) state[index] = initial; return [state[index], value => { state[index] = typeof value === 'function' ? value(state[index]) : value; }]; },
     useRef(initial) { const index = cursor++; return state[index] ||= { current: initial }; },
   };
-  const module = { exports: {} }, jsx = (type, props) => ({ type, props });
+  const module = { exports: {} }, jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
   const source = ts.transpileModule(fs.readFileSync(panel ? 'components/ai/assistant-panel.tsx' : 'components/manuscript/section-assistant.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  vm.runInNewContext(source, { module, exports: module.exports, require(name) {
+  vm.runInNewContext(source, { module, exports: module.exports, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
     if (name === 'react') return react;
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (name === '@/lib/ai/client-request') return transport;

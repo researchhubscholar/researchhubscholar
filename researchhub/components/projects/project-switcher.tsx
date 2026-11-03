@@ -1,4 +1,8 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -9,6 +13,7 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
   emptyLabel?: string;
   onSelect: (id: string | null) => void; onSave: () => void;
 }) {
+  const { t } = useLanguage();
   const [projectList, setProjectList] = useState<{ ownerId: string | null; items: ProjectOption[] }>({ ownerId: null, items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,12 +48,12 @@ export default function ProjectSwitcher({ ownerId, projectId, title, busy, dirty
         }} className="block mt-2 w-full min-w-0 max-w-full border border-line rounded-card p-3 bg-white text-sm font-normal disabled:opacity-60">
           {!projectId && <option value="">{isLoading ? "Carregando projetos…" : emptyLabel || "Rascunho atual · ainda não salvo"}</option>}
           {projectId && !projects.some(project => project.id === projectId) && <option value={projectId}>{currentTitle}</option>}
-          {projects.map(project => <option key={project.id} value={project.id}>{project.id === projectId ? currentTitle : project.title || project.theme || "Projeto sem título"}</option>)}
+          {projects.map(project => <option key={project.id} value={project.id}>{project.id === projectId ? currentTitle : project.title || project.theme || t("screen.53d02a124b87")}</option>)}
         </select>
       </label>
       <button type="button" disabled={busy || isLoading} onClick={() => { if (!busy && !isLoading) onSelect(null); }} className="border border-teal/30 text-teal rounded-card px-4 py-3 text-sm disabled:opacity-50">+ Novo projeto</button>
     </div>
-    {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error} <button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)} className="underline">Tentar novamente</button></p>
+    {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error} <button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)} className="underline"><InterfaceText message="screen.b9e10688be01" /></button></p>
       : !isLoading && <p className="mt-3 text-xs text-ink-soft">{projects.length ? `${projects.length} projeto${projects.length === 1 ? " salvo" : "s salvos"} na sua conta. Selecione o que deseja consultar ou editar.` : "Você ainda não tem projetos salvos. Preencha o rascunho abaixo para começar."}</p>}
     {dirty && <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm"><p className="text-ink-soft">Há alterações não salvas neste projeto.</p><button type="button" disabled={busy} onClick={onSave} className="text-teal underline disabled:opacity-50">Salvar antes de trocar</button></div>}
   </section>;

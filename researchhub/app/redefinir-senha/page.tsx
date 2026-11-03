@@ -1,10 +1,15 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function RedefinirSenhaPage() {
+  const { t } = useLanguage();
   const [ready, setReady] = useState(false);
   const [invalidLink, setInvalidLink] = useState(false);
   const [password, setPassword] = useState("");
@@ -74,8 +79,8 @@ export default function RedefinirSenhaPage() {
   if (success) {
     return (
       <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink">Senha atualizada</h1>
-        <p className="text-ink-soft mt-4">Redirecionando para o login...</p>
+        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.631fe9075bc7" /></h1>
+        <p className="text-ink-soft mt-4"><InterfaceText message="screen.c16f205303bd" /></p>
       </div>
     );
   }
@@ -83,11 +88,11 @@ export default function RedefinirSenhaPage() {
   if (invalidLink) {
     return (
       <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink">Link inválido ou expirado</h1>
+        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.4c68fcc45175" /></h1>
         <p className="text-ink-soft mt-4">
-          Solicite um novo link em{" "}
+          <InterfaceText message="screen.a7259c9ed8be" />{" "}
           <a href="/esqueci-senha" className="text-teal font-medium hover:underline">
-            Esqueci minha senha
+            <InterfaceText message="screen.16696f2ed928" />
           </a>
           .
         </p>
@@ -98,18 +103,18 @@ export default function RedefinirSenhaPage() {
   if (!ready) {
     return (
       <div className="max-w-md">
-        <p className="text-ink-soft">Verificando link...</p>
+        <p className="text-ink-soft"><InterfaceText message="screen.b273139c8728" /></p>
       </div>
     );
   }
 
   return (
     <div className="max-w-md">
-      <h1 className="font-display text-2xl text-ink">Defina sua nova senha</h1>
+      <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.22de811813ef" /></h1>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
-          <label htmlFor="new-password" className="text-sm text-ink-soft">Nova senha</label>
+          <label htmlFor="new-password" className="text-sm text-ink-soft"><InterfaceText message="screen.ebc707b04697" /></label>
           <input
             id="new-password"
             name="password"
@@ -125,7 +130,7 @@ export default function RedefinirSenhaPage() {
         </div>
 
         <div>
-          <label htmlFor="confirm-password" className="text-sm text-ink-soft">Confirme a nova senha</label>
+          <label htmlFor="confirm-password" className="text-sm text-ink-soft"><InterfaceText message="screen.c5d74404993a" /></label>
           <input
             id="confirm-password"
             name="passwordConfirmation"
@@ -147,7 +152,7 @@ export default function RedefinirSenhaPage() {
           disabled={loading}
           className="w-full bg-teal text-white font-medium py-2.5 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50"
         >
-          {loading ? "Salvando..." : "Salvar nova senha"}
+          {loading ? "Salvando..." : t("screen.873b678ffcc5")}
         </button>
       </form>
     </div>

@@ -1,5 +1,7 @@
+import { screenPortuguese, screenSpanish } from "./screen-catalog";
 // Product interface text only. Scientific sources and user content are never translated here.
 export const portuguese = {
+  ...screenPortuguese,
   "language.partial": "Tradução da interface em andamento.",
   "auth.forgot": "Esqueci minha senha",
   "auth.entering": "Entrando...",
@@ -145,6 +147,7 @@ export const portuguese = {
 } as const;
 export type MessageKey = keyof typeof portuguese;
 export const spanish: Record<MessageKey, string> = {
+  ...screenSpanish,
   "language.partial": "Traducción de la interfaz en curso.",
   "auth.forgot": "Olvidé mi contraseña",
   "auth.entering": "Iniciando sesión...",

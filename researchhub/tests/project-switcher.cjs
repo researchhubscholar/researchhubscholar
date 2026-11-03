@@ -10,8 +10,8 @@ function harness() {
     useEffect(effect, deps) { const index = cursor++, old = state[index]; if (!old || deps.some((value, i) => value !== old.deps[i])) pending.push(() => { old?.cleanup?.(); state[index] = { deps, cleanup: effect() }; }); },
   };
   const client = { from(table) { assert.equal(table, 'research_projects'); return { select(fields) { assert.equal(fields, 'id,title,theme'); return { eq(column, ownerId) { assert.equal(column, 'owner_id'); return { order(column, options) { assert.equal(column, 'updated_at'); assert.equal(options.ascending, false); return new Promise(resolve => queries.push({ ownerId, resolve })); } }; } }; } }; } };
-  const module = { exports: {} }, jsx = (type, props) => ({ type, props });
-  vm.runInNewContext(source, { module, exports: module.exports, require(name) {
+  const module = { exports: {} }, jsx = (type, props) => require('./i18n-test-support.cjs').jsx(type, props);
+  vm.runInNewContext(source, { module, exports: module.exports, require(name) { const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;
     if (name === 'react') return react;
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => client };

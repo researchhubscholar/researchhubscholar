@@ -1,9 +1,14 @@
 "use client";
+import { useLanguage } from "@/components/i18n/language-provider";
+
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function EsqueciSenhaPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +37,9 @@ export default function EsqueciSenhaPage() {
   if (sent) {
     return (
       <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink">Verifique seu e-mail</h1>
+        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.3430568fb863" /></h1>
         <p className="text-ink-soft mt-4">
-          Se existir uma conta com o e-mail <strong>{email}</strong>, enviamos
-          um link para redefinir sua senha. Clique nele para continuar.
+          <InterfaceText message="screen.24970da9c592" /> <strong>{email}</strong><InterfaceText message="screen.e7f939cbc1f0" />
         </p>
       </div>
     );
@@ -43,14 +47,14 @@ export default function EsqueciSenhaPage() {
 
   return (
     <div className="max-w-md">
-      <h1 className="font-display text-2xl text-ink">Esqueci minha senha</h1>
+      <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.16696f2ed928" /></h1>
       <p className="text-ink-soft mt-2">
-        Digite seu e-mail e enviaremos um link para você redefinir a senha.
+        <InterfaceText message="screen.6e8b7ba41571" />
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
-          <label htmlFor="recovery-email" className="text-sm text-ink-soft">E-mail</label>
+          <label htmlFor="recovery-email" className="text-sm text-ink-soft"><InterfaceText message="screen.2550d962e536" /></label>
           <input
             id="recovery-email"
             name="email"
@@ -71,14 +75,14 @@ export default function EsqueciSenhaPage() {
           disabled={loading}
           className="w-full bg-teal text-white font-medium py-2.5 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50"
         >
-          {loading ? "Enviando..." : "Enviar link de redefinição"}
+          {loading ? "Enviando..." : t("screen.69abc6afa196")}
         </button>
       </form>
 
       <p className="text-sm text-ink-soft mt-6">
-        Lembrou a senha?{" "}
+        <InterfaceText message="screen.5ce9a70c9a7c" />{" "}
         <a href="/login" className="text-teal font-medium hover:underline">
-          Entrar
+          <InterfaceText message="screen.4105811890ae" />
         </a>
       </p>
     </div>

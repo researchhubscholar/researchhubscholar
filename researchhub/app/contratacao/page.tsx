@@ -1,4 +1,6 @@
 "use client";
+import InterfaceText from "@/components/i18n/interface-text";
+
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -228,7 +230,7 @@ export default function CommercePage() {
       <h2 className="font-display text-2xl">Minhas solicitações</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead><tr><th className="p-2">Data</th><th className="p-2">Tipo</th><th className="p-2">Plano/vagas</th><th className="p-2">Valor</th><th className="p-2">Status</th><th className="p-2">Ação</th></tr></thead>
+          <thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Tipo</th><th className="p-2">Plano/vagas</th><th className="p-2">Valor</th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2">Ação</th></tr></thead>
           <tbody>{requests.map(item => <tr key={item.id} className="border-t">
             <td className="p-2">{new Date(item.created_at).toLocaleDateString("pt-BR")}</td>
             <td className="p-2">{item.kind === "individual" ? "Individual" : item.kind === "institutional" ? "Residência" : "Recarga"}</td>

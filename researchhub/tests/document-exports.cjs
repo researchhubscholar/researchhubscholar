@@ -38,8 +38,8 @@ assert.equal(matrix[1][noteIndex],note);assert.equal(matrix[1][15],'0');
 const csv=parseCsv(scientific.buildProjectMatrixCsv(data));assert.equal(csv.rows[0][noteIndex],note);
 assert.equal(scientific.buildProjectMatrixRows({...data,articles:Array.from({length:5001},()=>article)}).length,5002);
 
-const jsx=(type,props)=>({type,props}),nodes=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
-function load(file,deps,globals={}){const module={exports:{}};vm.runInNewContext(compile(file),{module,exports:module.exports,...globals,require(name){assert(name in deps,name);return deps[name];}});return module.exports;}
+const jsx=(type, props) => require('./i18n-test-support.cjs').jsx(type, props),nodes=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
+function load(file,deps,globals={}){const module={exports:{}};vm.runInNewContext(compile(file),{module,exports:module.exports,...globals,require(name){ const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized; assert(name in deps,name);return deps[name];}});return module.exports;}
 function buttons(){
   const downloads=[],state=[];let cursor=0;
   const react={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return[state[i],value=>{state[i]=value;}];},useRef(initial){const i=cursor++;if(!(i in state))state[i]={current:initial};return state[i];}};
