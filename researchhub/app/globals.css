@@ -2830,6 +2830,25 @@ body {
   .project-guide-window { height: min(49rem, calc(100dvh - 6.5rem)); }
   .project-guide-window--expanded { width: min(50rem, 46vw); }
 }
+/* The expanded Ideas view keeps the workspace and chat side by side. */
+.project-guide-identity { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; min-width: 0; }
+.project-guide-identity .project-guide-context { margin-top: 0; }
+.project-guide-identity .project-guide-context span + span::before { content: "•"; margin-inline-end: .35rem; color: #6d8277; }
+.project-guide-heading { align-items: flex-start; }
+.project-guide-header { padding-block: .8rem; }
+.project-guide-recommendation > a { background: #e5eee4; color: #194d41; font-weight: 600; }
+.project-guide-compose { align-items: center; }
+.project-guide-compose textarea { min-height: 3.4rem; }
+.project-guide-compose:focus-within { border-color: #568474; }
+@media (min-width: 1280px) and (min-height: 680px) {
+  .project-guide-window--expanded { top: .9rem; height: auto; }
+  body:has(.primary-nav[data-workspace="true"]):has(.project-guide-window--expanded):has(.ideas-page) .app-content {
+    padding-right: calc(min(50rem, 46vw) + 2.5rem);
+  }
+  body:has(.project-guide-window--expanded) .ideas-page :is(.grid, .ideas-main-form) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 600px) {
   .project-guide-toggle { right: max(.75rem, env(safe-area-inset-right)); bottom: max(.75rem, env(safe-area-inset-bottom)); }
   .project-guide-window { right: .75rem; width: calc(100vw - 1.5rem); bottom: calc(4.8rem + env(safe-area-inset-bottom)); height: min(42rem, calc(100dvh - 6.5rem)); border-radius: 1rem; }
