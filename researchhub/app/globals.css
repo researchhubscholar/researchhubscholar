@@ -2857,7 +2857,7 @@ body {
   background: #f3f6ef;
 }
 .project-guide-window .project-guide-roadmap .project-guide-recommendation {
-  padding: .85rem 0 .85rem 2rem;
+  padding: 1rem 0 .85rem 2rem;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2865,7 +2865,7 @@ body {
 }
 .project-guide-window .project-guide-roadmap .project-guide-recommendation + .project-guide-recommendation { border-top: 1px solid #dce5d9; }
 .project-guide-roadmap .project-guide-recommendation-title { position: relative; display: block; font: 600 1.04rem/1.35 Georgia, serif; color: #194d41; }
-.project-guide-roadmap .project-guide-recommendation-title span { position: absolute; inset: 0 auto auto -2rem; width: 1.4rem; font: 600 .75rem/1 sans-serif; }
+.project-guide-roadmap .project-guide-recommendation-title span { position: absolute; inset: .15rem auto auto -2rem; width: 1.4rem; height: 1.4rem; font: 600 .75rem/1 sans-serif; }
 .project-guide-roadmap .project-guide-recommendation p { margin-top: .35rem; }
 .project-guide-window .project-guide-thread { background: #fcfbf8; }
 .project-guide-window .project-guide-question { width: fit-content; margin-inline-start: auto; border-radius: .75rem; background: #e8efe6; }
