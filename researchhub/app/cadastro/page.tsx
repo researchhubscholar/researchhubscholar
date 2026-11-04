@@ -63,7 +63,7 @@ export default function CadastroPage() {
   if (needsConfirmation) {
     return (
       <div className="max-w-lg mx-auto bg-white border border-line rounded-2xl p-8">
-        <p className="text-xs uppercase tracking-widest text-teal font-semibold">ResearchHub Scholar</p>
+        <p className="text-xs uppercase tracking-widest text-teal font-semibold">ResearchHub</p>
         <h1 className="font-display text-3xl text-ink mt-2"><InterfaceText message="auth.confirmTitle" /></h1>
         <p className="text-ink-soft mt-4"><InterfaceText message="auth.confirmPrefix" /> <strong>{email}</strong><InterfaceText message="auth.confirmSuffix" /></p>
       </div>

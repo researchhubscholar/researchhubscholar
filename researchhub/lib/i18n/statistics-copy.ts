@@ -260,7 +260,7 @@ const spanish:Record<string,string> = {
   "aumentou": "aumentó",
   "diminuiu": "disminuyó",
   "Sim": "Sí",
-  "Fonte: dados informados pelo pesquisador · ResearchHub Scholar": "Fuente: datos informados por el investigador · ResearchHub Scholar",
+  "Fonte: dados informados pelo pesquisador · ResearchHub": "Fuente: datos informados por el investigador · ResearchHub",
   "Resumo": "Resumen",
   "Termo": "Término",
   "Unidade": "Unidad",

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ResearchHub Scholar",
-    short_name: "Scholar",
+    name: "ResearchHub",
+    short_name: "ResearchHub",
     description: "Pesquisa científica guiada para estudantes de medicina e residentes.",
     start_url: "/",
     display: "standalone",

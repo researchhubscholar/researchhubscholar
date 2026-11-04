@@ -17,20 +17,20 @@ import ProductTelemetry from "@/components/product-telemetry";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://researchhubscholar.vercel.app"),
-  title: "ResearchHub Scholar — Pesquisa científica guiada",
+  title: "ResearchHub — Pesquisa científica guiada",
   description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
-  applicationName: "ResearchHub Scholar",
+  applicationName: "ResearchHub",
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    title: "ResearchHub Scholar — Pesquisa científica guiada",
+    title: "ResearchHub — Pesquisa científica guiada",
     description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
     url: "/",
-    siteName: "ResearchHub Scholar",
+    siteName: "ResearchHub",
   },
   twitter: {
     card: "summary",
-    title: "ResearchHub Scholar — Pesquisa científica guiada",
+    title: "ResearchHub — Pesquisa científica guiada",
     description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
   },
 };
@@ -52,7 +52,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="brand-symbol" aria-hidden="true">R</span>
               <span>
                 <span className="brand-name">Research<span className="brand-product">Hub</span></span>
-                <span className="brand-edition">Scholar</span>
               </span>
             </Link>
             <SessionNavigation />
@@ -61,7 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="app-content"><SiteShortcuts />{children}</main>
         <footer className="app-footer">
           <div className="app-footer-inner grid md:grid-cols-[1.3fr_1fr_1fr] gap-8">
-            <div><Link href="/" className="font-display text-2xl">ResearchHub <span className="text-teal-soft">Scholar</span></Link><p className="text-sm leading-relaxed text-white/60 mt-4 max-w-sm"><InterfaceText message="footer.intro" /></p><p className="text-xs text-white/50 mt-4"><InterfaceText message="footer.testing" /></p></div>
+            <div><Link href="/" className="font-display text-2xl">ResearchHub</Link><p className="text-sm leading-relaxed text-white/60 mt-4 max-w-sm"><InterfaceText message="footer.intro" /></p><p className="text-xs text-white/50 mt-4"><InterfaceText message="footer.testing" /></p></div>
             <nav aria-label={uiText("screen.da53c8aaf6fe")} className="flex flex-col gap-3 text-sm text-white/70"><p className="text-xs uppercase tracking-widest text-white mb-1"><InterfaceText message="footer.about" /></p><Link href="/como-funciona"><InterfaceText message="nav.how" /></Link><Link href="/para-residencias"><InterfaceText message="footer.residencies" /></Link><Link href="/planos"><InterfaceText message="footer.plans" /></Link><Link href="/radar-demo"><InterfaceText message="footer.tryRadar" /></Link></nav>
             <nav aria-label={uiText("screen.86202fa087ac")} className="flex flex-col gap-3 text-sm text-white/70"><p className="text-xs uppercase tracking-widest text-white mb-1"><InterfaceText message="footer.help" /></p><Link href="/contato"><InterfaceText message="footer.contact" /></Link><Link href="/termos"><InterfaceText message="footer.terms" /></Link><Link href="/privacidade"><InterfaceText message="footer.privacy" /></Link><Link href="/cancelamento"><InterfaceText message="footer.cancel" /></Link></nav>
           </div>
