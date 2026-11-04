@@ -93,8 +93,8 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const account = ideasHarness(); account.render(); await tick(); account.restore(); account.card().props.onRadar(); await tick(); account.library.userId = 'owner-b'; account.render(); account.pending[0].resolve({ error: null }); await tick(); assert.equal(account.destinations.length, 0, 'account switches must prevent stale navigation');
 
  const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Tema da busca')).props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Idioma da busca')).props.value,'en');
- const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, copy('Preparar busca com IA'));
- assert.equal(r.assistant().props.actionLabel,locale==='es'?'Preparar búsqueda con IA':'Preparar busca com IA');
+ const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, locale==='es'?'Preparar con IA':'Preparar com IA');
+ assert.equal(r.assistant().props.actionLabel,locale==='es'?'Preparar con IA':'Preparar com IA');
  assert.equal(r.assistant().props.context.searchGoal, 'exploratory_broad');
  const search = r.search(); assert.equal(r.dialog().props.open, true); assert.equal(r.assistant().props.disabled, true); assert(!r.dialog().props.statusText.includes('modelo'));
  assert(r.requests[0].options.signal instanceof AbortSignal);
