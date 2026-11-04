@@ -82,7 +82,7 @@ export default function SessionNavigation() {
   );
 
   return <>
-    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={session.authenticated && isWorkspace ? "true" : undefined}>
+    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={isWorkspace ? "true" : undefined}>
       <LanguageSelector />
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
