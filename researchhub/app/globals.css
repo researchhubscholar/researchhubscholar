@@ -2761,6 +2761,7 @@ body {
   bottom: calc(5.25rem + env(safe-area-inset-bottom));
   z-index: 91;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(30rem, calc(100vw - 2.5rem));
   height: min(42rem, calc(100vh - 9rem));
@@ -2781,7 +2782,9 @@ body {
 .project-guide-window p { margin: 0; overflow-wrap: anywhere; }
 .project-guide-header { padding: .9rem 1rem .7rem; border-bottom: 1px solid #e0e9e7; background: #fff; }
 .project-guide-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.project-guide-heading h2 { margin: 0; font-size: 1.05rem; font-weight: 650; line-height: 1.4; }
+.project-guide-window > * { min-width: 0; }
+.project-guide-header select { min-width: 0; max-width: 100%; }
+.project-guide-heading h2 { min-width: 0; overflow-wrap: anywhere; margin: 0; font-size: 1.05rem; font-weight: 650; line-height: 1.4; }
 .project-guide-header-actions { display: flex; flex-shrink: 0; gap: .2rem; }
 .project-guide-header-actions button { display: grid; place-items: center; width: 2rem; height: 2rem; min-height: 2rem; border-radius: .5rem; color: #236a64; }
 .project-guide-header-actions button:hover { background: #edf5f3; }
@@ -2799,7 +2802,7 @@ body {
 .project-guide-starter { display: block; max-width: 100%; margin-bottom: .5rem; padding: .3rem .55rem; border: 1px solid #d4e4df; border-radius: .6rem; background: #f5faf8; color: #236a64; font-size: .75rem; line-height: 1.4; text-align: left; cursor: pointer; }
 .project-guide-input-label { display: block; margin-bottom: .3rem; font-size: .75rem; font-weight: 600; }
 .project-guide-compose { display: flex; align-items: flex-end; gap: .5rem; }
-.project-guide-compose textarea { display: block; width: 100%; min-width: 0; min-height: 4rem; max-height: 7rem; resize: vertical; padding: .65rem .75rem; border: 1px solid #b9ceca; border-radius: .7rem; background: #fff; color: #14213d; font: inherit; font-size: .875rem; line-height: 1.5; }
+.project-guide-compose textarea { display: block; flex: 1 1 0%; width: 100%; min-width: 0; min-height: 4rem; max-height: 7rem; resize: vertical; padding: .65rem .75rem; border: 1px solid #b9ceca; border-radius: .7rem; background: #fff; color: #14213d; font: inherit; font-size: .875rem; line-height: 1.5; }
 .project-guide-compose button { display: grid; flex-shrink: 0; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .7rem; background: #236a64; color: #fff; cursor: pointer; }
 .project-guide-compose-meta { display: flex; justify-content: space-between; gap: .5rem; margin-top: .35rem; color: #667286; font-size: .65rem; }
 .project-guide-window button:disabled, .project-guide-window textarea:disabled { opacity: .45; cursor: default; }
