@@ -207,17 +207,13 @@ function DiscoverContent() {
   return (
     <div className="scholar-workspace radar-page max-w-5xl mx-auto">
       <LoadingDialog open={loading || browsing || lookupLoading} title={lookupLoading ? uiText("screen.d24b34adf103") : browsing ? uiText("screen.c231b9899ee8") : uiText("screen.aa188adca06b")} description={lookupLoading ? uiText("screen.dc05f1e50df1") : browsing ? uiText("screen.d33b70e4f5a7") : uiText("screen.b5e46b1f7ce3")} statusText="Aguardando a resposta das fontes científicas." />
-      <div className="module-intro radar-intro max-w-3xl">
+      <div className="module-intro radar-intro">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
-        <h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.fae2072de0f7" /></h1>
+        <h1 className="font-display text-4xl md:text-5xl mt-3">{formatLocale==="es"?"Encuentra la literatura sobre tu tema":"Encontre a literatura do seu tema"}</h1>
         <p className="text-ink-soft mt-4 leading-relaxed">
-          <InterfaceText message="screen.660824a466c5" />
+          {formatLocale==="es"?"Busca artículos en PubMed y Crossref y guarda las referencias útiles.":"Busque artigos no PubMed e no Crossref e salve as referências úteis."}
         </p>
-        <div className="radar-source-strip" aria-label={uiText("screen.0b5d2a033d7d")}>
-          <span><i aria-hidden="true" />PubMed</span>
-          <span><i aria-hidden="true" />Crossref</span>
-          <span><i aria-hidden="true" /><InterfaceText message="screen.ec4c162c9751" /></span>
-        </div>
+
       </div>
 
       {params.get("origem")==="assistente"&&<p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal"><InterfaceText message="screen.41f2f15677f8" /></p>}
@@ -226,13 +222,17 @@ function DiscoverContent() {
       {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c5971fc6df9e" /></p><h2 className="font-display text-xl mt-2"><InterfaceText message="screen.4504ece4c91e" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7b37c70f8eb" /></p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal"><InterfaceText message="screen.324fd80fa0d9" /></Link>}</section>}
 
       <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
-        <label className="text-xs text-ink-soft">Idioma<select aria-label={uiText("screen.3d5012173e48")} disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt"><InterfaceText message="screen.d4ada8ec2764" /></option><option value="en"><InterfaceText message="screen.85a560bc1af9" /></option></select></label>
-        <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.f70ad056ef46" /></option><option value="3"><InterfaceText message="screen.1028df7262f9" /></option><option value="5"><InterfaceText message="screen.ce0063e9851d" /></option><option value="10"><InterfaceText message="screen.275ab5f8225a" /></option></select></label>
-        <label className="text-xs text-ink-soft"><InterfaceText message="screen.d1703a5a5185" /><select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.88bfb93eb03e" /></option><option value="systematic"><InterfaceText message="screen.6e3232cec67c" /></option><option value="trial"><InterfaceText message="screen.774dd62a21e8" /></option><option value="observational"><InterfaceText message="screen.6529a74e7fb0" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case"><InterfaceText message="screen.60a84ae8356a" /></option></select></label>
+        <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
+</div>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : uiText("screen.96767be14e59")}
         </button>
+</div>
+        <div className="radar-query-filters">
+        <label className="text-xs text-ink-soft">Idioma<select aria-label={uiText("screen.3d5012173e48")} disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt"><InterfaceText message="screen.d4ada8ec2764" /></option><option value="en"><InterfaceText message="screen.85a560bc1af9" /></option></select></label>
+        <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.f70ad056ef46" /></option><option value="3"><InterfaceText message="screen.1028df7262f9" /></option><option value="5"><InterfaceText message="screen.ce0063e9851d" /></option><option value="10"><InterfaceText message="screen.275ab5f8225a" /></option></select></label>
+        <label className="text-xs text-ink-soft"><InterfaceText message="screen.d1703a5a5185" /><select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.88bfb93eb03e" /></option><option value="systematic"><InterfaceText message="screen.6e3232cec67c" /></option><option value="trial"><InterfaceText message="screen.774dd62a21e8" /></option><option value="observational"><InterfaceText message="screen.6529a74e7fb0" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case"><InterfaceText message="screen.60a84ae8356a" /></option></select></label>
+</div>
         <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer"><InterfaceText message="screen.cce79538ec44" /></summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft"><InterfaceText message="screen.a67ea4995792" /><input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder={uiText("screen.94f1f4e1eb9a")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.22b2ba5d4d18" /><input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder={uiText("screen.b91a4112cff5")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.3e31015169f5" /><input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder={uiText("screen.c2af7282316e")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.4ccc9e28b467" /><select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR"><InterfaceText message="screen.0969997e4309" /></option></select></label></div><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.9b189eb267d7" /></p></details>
       </form>
       <div id="preparar-busca-ia" className="scroll-mt-24">
@@ -251,16 +251,12 @@ function DiscoverContent() {
         <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? uiText("screen.c98dca97594e") : uiText("screen.bc5fc9a5ff6e")}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card"><InterfaceText message="screen.413bdc3133fb" /></button></div>
         <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.576b9df65d53" /></p>
       </form>}
+      <div className="radar-utility-bar">
       <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.b606b308b6fd" /></summary>
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
       </details>
 
-      <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
-        {library.loading ? <p role="status" className="text-sm"><InterfaceText message="screen.1a5c76655092" /></p> : !library.userId ? <p className="text-sm"><InterfaceText message="screen.a0e8789505e2" /> <Link href="/login" className="text-teal underline font-medium"><InterfaceText message="screen.84f05e0da1f9" /></Link> <InterfaceText message="screen.87f1b3b56d85" /></p> : <label className="text-sm font-medium"><InterfaceText message="screen.d7ea2d19483f" /><select aria-label={uiText("screen.5e2ff90305df")} value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value=""><InterfaceText message="screen.758dd50675ef" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>}
-        {library.error && <p role="alert" className="text-sm text-red-700 mt-3"><AuthoredText text={library.error} /></p>}
-        {library.message && <p role="status" className="text-sm text-teal mt-3"><AuthoredText text={library.message} /></p>}
-      </section>
       <details className="radar-lookup-card radar-disclosure mt-4 bg-white border border-line rounded-2xl p-5">
         <summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.9f55b6a35e27" /></summary>
         <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7672388197f" /></p>
@@ -278,15 +274,22 @@ function DiscoverContent() {
         </div>}
       </details>
 
+      <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
+        {library.loading ? <p role="status" className="text-sm"><InterfaceText message="screen.1a5c76655092" /></p> : !library.userId ? <p className="text-sm"><InterfaceText message="screen.a0e8789505e2" /> <Link href="/login" className="text-teal underline font-medium"><InterfaceText message="screen.84f05e0da1f9" /></Link> <InterfaceText message="screen.87f1b3b56d85" /></p> : <label className="text-sm font-medium"><InterfaceText message="screen.d7ea2d19483f" /><select aria-label={uiText("screen.5e2ff90305df")} value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value=""><InterfaceText message="screen.758dd50675ef" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>}
+        {library.error && <p role="alert" className="text-sm text-red-700 mt-3"><AuthoredText text={library.error} /></p>}
+        {library.message && <p role="status" className="text-sm text-teal mt-3"><AuthoredText text={library.message} /></p>}
+      </section>
+      </div>
+
       {!result && !loading && (
-        <div className="radar-examples mt-10 grid md:grid-cols-3 gap-4">
+        <section className="radar-examples mt-6"><h2 className="font-display text-xl">{formatLocale==="es"?"Prueba una búsqueda":"Experimente uma busca"}</h2><div className="radar-example-chips">
           {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina"].map((example) => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
-              <span className="text-xs text-teal uppercase tracking-wide"><InterfaceText message="screen.6af3ef6ba0a1" /></span>
+              <span aria-hidden="true">↗</span>
               <p className="mt-2 text-sm font-medium">{example}</p>
             </button>
           ))}
-        </div>
+        </div></section>
       )}
 
       {result && (

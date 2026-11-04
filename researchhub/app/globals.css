@@ -2892,3 +2892,30 @@ body {
 }
 
 .project-guide-next{padding:14px;border:1px solid #b9dcd5;border-radius:12px;background:#f0f8f5;font-size:13px;display:grid;gap:8px;margin-bottom:16px}.project-guide-next button{display:block;text-align:left;border-radius:8px;padding:9px 12px;background:#12756c;color:white;white-space:normal}.project-guide-next button:disabled{opacity:.5}.project-guide-next details button{margin-top:6px;background:white;color:#12685f;border:1px solid #b9dcd5}.project-guide-next summary{cursor:pointer}.project-guide-next small{color:#536b65}
+
+/* Radar: search first, supporting controls in a compact workspace. */
+.radar-page .radar-intro { padding-bottom: .5rem; border-bottom: 0; }
+.radar-page .radar-intro h1 { max-width: none; }
+.radar-page .radar-intro > p:last-child { margin-top: .55rem; }
+.radar-page .radar-search-panel { display: grid; margin-top: 1.2rem; gap: 1rem; box-shadow: none; }
+.radar-query-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: .75rem; }
+.radar-query-field { position: relative; display: flex; min-width: 0; }
+.radar-query-field svg { position: absolute; inset-inline-start: .85rem; top: 50%; transform: translateY(-50%); width: 1.3rem; color: #194d41; pointer-events: none; }
+.radar-query-field input { min-width: 0; padding-inline-start: 2.75rem; }
+.radar-query-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; max-width: 47rem; }
+.radar-query-filters select { width: 100%; }
+.radar-page #preparar-busca-ia .assistant-inline-panel { margin-top: 1rem; padding: .9rem 1rem; background: #e9eee6; }
+.radar-page #preparar-busca-ia .assistant-inline-panel > div:first-of-type { align-items: center; }
+.radar-page #preparar-busca-ia .assistant-inline-panel button.bg-teal { border: 1px solid #194d41; color: #194d41; background: transparent; }
+.radar-utility-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; margin-top: 1rem; border: 1px solid #dce2d9; border-radius: .85rem; background: #fff; }
+.radar-page .radar-utility-bar > :is(details, section) { min-width: 0; margin: 0; padding: .85rem 1rem; border: 0; border-radius: 0; background: transparent; }
+.radar-page .radar-utility-bar > details[open] { grid-column: 1 / -1; }
+.radar-utility-bar > :is(details, section) + :is(details, section) { border-inline-start: 1px solid #e3e8df; }
+.radar-example-chips { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .65rem; }
+.radar-example-chips button { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .45rem .75rem; background: transparent; }
+.radar-example-chips button p { margin: 0; }
+@media (max-width: 720px) {
+  .radar-query-row, .radar-utility-bar { grid-template-columns: minmax(0, 1fr); }
+  .radar-query-filters { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+  .radar-utility-bar > :is(details, section) + :is(details, section) { border-inline-start: 0; border-top: 1px solid #e3e8df; }
+}
