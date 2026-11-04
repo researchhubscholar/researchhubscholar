@@ -2914,8 +2914,41 @@ body {
 .radar-example-chips { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .65rem; }
 .radar-example-chips button { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .45rem .75rem; background: transparent; }
 .radar-example-chips button p { margin: 0; }
+.radar-page .radar-example-chips button {
+  min-height: 2.5rem;
+  height: auto;
+  padding: .45rem .85rem;
+  background: #fff;
+  box-shadow: none;
+}
+.radar-page .radar-example-chips button::after { content: none; }
+.radar-page .radar-example-chips button:hover { background: #e9eee6; box-shadow: none; }
+.scholar-workspace.radar-page .radar-utility-bar { align-items: stretch; }
+.scholar-workspace.radar-page .radar-utility-bar > :is(details, section) {
+  padding: .85rem 1rem;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.scholar-workspace.radar-page .radar-utility-bar > details:not([open]) {
+  display: grid;
+  align-content: center;
+}
+.scholar-workspace.radar-page .radar-utility-bar > .radar-library-target label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem .65rem;
+}
+.scholar-workspace.radar-page .radar-utility-bar > .radar-library-target select { margin: 0; min-width: 0; }
+@media (min-width: 721px) {
+  .scholar-workspace.radar-page .radar-utility-bar > :is(details, section) + :is(details, section):not([open]) { border-inline-start: 1px solid #e3e8df; }
+}
+.scholar-workspace.radar-page .radar-utility-bar > details[open] { border-block-end: 1px solid #e3e8df; }
 @media (max-width: 720px) {
   .radar-query-row, .radar-utility-bar { grid-template-columns: minmax(0, 1fr); }
   .radar-query-filters { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
-  .radar-utility-bar > :is(details, section) + :is(details, section) { border-inline-start: 0; border-top: 1px solid #e3e8df; }
+  .scholar-workspace.radar-page .radar-utility-bar > :is(details, section) + :is(details, section) { border-top: 1px solid #e3e8df; }
 }
