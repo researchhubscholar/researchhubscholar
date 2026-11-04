@@ -96,7 +96,7 @@ export function validateAssistRequest(value: unknown) {
   }
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
   if(body.feature === "guide"){const area=(context as GuideInput).area||"resultados";if(body.projectId!=null&&body.projectId!==""&&!projectId)throw new Error("Projeto inválido.");if(!projectId&&guideScope(area)==="project")throw new Error("Selecione um projeto para conversar.");if(projectId&&guideScope(area)==="general")throw new Error("Esta conversa deve continuar sem projeto.");}
-  return { feature: body.feature as AssistantFeature, context, projectId };
+  return { feature: body.feature as AssistantFeature, context, projectId, guideLanguage: body.feature === "guide" && (body.language === "es" || body.language === "pt-BR") ? body.language : undefined };
 }
 
 export function assistantPrompt(feature: AssistantFeature, context: unknown, selectedLanguage: OutputLanguage = "pt-BR") {
