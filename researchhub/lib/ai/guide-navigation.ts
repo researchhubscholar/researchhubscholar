@@ -21,7 +21,7 @@ export function ideasStarterOutput(message: string, area: unknown, language: Out
   summary: language === "es"
    ? "Describe a quién o qué quieres estudiar, a qué datos tienes acceso y cuánto tiempo tienes. Genera una propuesta en Ideas y revisa su pregunta de investigación. Después, usa Radar para comprobar qué literatura existe sobre el tema."
    : "Descreva quem ou o que você quer estudar, a quais dados tem acesso e quanto tempo tem. Gere uma proposta em Ideias e revise a pergunta de pesquisa. Depois, use o Radar para verificar a literatura disponível sobre o tema.",
-  recommendations: [], warnings: [],
+  recommendations: [{label: language === "es" ? "Comprobar la literatura en Radar" : "Verificar a literatura no Radar", content: "radar", rationale: language === "es" ? "Busca los conceptos principales de tu pregunta." : "Busque os conceitos principais da sua pergunta.", targetField: "guide_navigate", confidence: "alta", source: "ResearchHub Scholar"}], warnings: [],
   caution: language === "es" ? "Revisa la viabilidad de la propuesta antes de continuar." : "Revise a viabilidade da proposta antes de avançar.",
  };
 }
