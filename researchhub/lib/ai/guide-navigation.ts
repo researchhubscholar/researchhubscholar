@@ -11,3 +11,17 @@ export function startingResearch(message:string){const text=message.normalize('N
 export function startingResearchOutput(projectId:string|null, language:OutputLanguage="pt-BR"):AssistantOutput{
  return localizeAuthoredOutput({title:'Vamos começar seu trabalho',summary:projectId?'Para continuar o projeto aberto, comece conferindo sua pergunta de pesquisa. Se a intenção for iniciar outro tema, abra Ideias.\n\n1. No Protocolo, descreva quem ou o que quer estudar e o que deseja descobrir.\n2. No Radar, procure trabalhos próximos e salve os mais úteis na Biblioteca.\n3. Volte ao Protocolo para alinhar objetivo, desenho e acesso aos dados.\n\nVocê quer continuar este projeto ou começar um tema novo?':'Comece pela aba Ideias: você ainda não precisa ter um projeto pronto.\n\n1. Escreva um tema de interesse e quem ou o que gostaria de estudar. Se ainda não tiver tema, conte sua área e algo que desperta sua curiosidade.\n2. Converse sobre o recorte, o prazo e os dados aos quais pode ter acesso. Depois use o Radar para uma primeira busca de literatura.\n3. Quando a pergunta estiver mais clara, revise a proposta em Ideias e abra o rascunho do projeto.\n\nVocê já tem algum tema em mente?',recommendations:[{label:projectId?'Conferir a pergunta no Protocolo':'Começar pela escolha do tema',content:projectId?'protocolo':'ideias',rationale:projectId?'Revise a pergunta e o objetivo do projeto selecionado antes de avançar.':'Em Ideias, descreva seu interesse para definir uma pergunta viável. A tela abre sem criar ou salvar um projeto.',targetField:'guide_navigate',confidence:'alta',source:'Orientação de navegação do ResearchHub Scholar'}],warnings:[],caution:'Esses passos ajudam a organizar o início; desenho, viabilidade e ética precisam ser revisados conforme o estudo.'},language);
 }
+
+// This exact built-in starter needs no model-authored wording.
+export function ideasStarterOutput(message: string, area: unknown, language: OutputLanguage): AssistantOutput | null {
+ const normalized = message.trim().replace(/^¿/, "").replace(/\?$/, "").toLowerCase();
+ if (area !== "ideias" || !["cómo puedo avanzar en ideas", "como posso avançar em ideias"].includes(normalized) || language === "en") return null;
+ return {
+  title: language === "es" ? "Cómo avanzar en Ideas" : "Como avançar em Ideias",
+  summary: language === "es"
+   ? "Describe a quién o qué quieres estudiar, a qué datos tienes acceso y cuánto tiempo tienes. Genera una propuesta en Ideas y revisa su pregunta de investigación. Después, usa Radar para comprobar qué literatura existe sobre el tema."
+   : "Descreva quem ou o que você quer estudar, a quais dados tem acesso e quanto tempo tem. Gere uma proposta em Ideias e revise a pergunta de pesquisa. Depois, use o Radar para verificar a literatura disponível sobre o tema.",
+  recommendations: [], warnings: [],
+  caution: language === "es" ? "Revisa la viabilidad de la propuesta antes de continuar." : "Revise a viabilidade da proposta antes de avançar.",
+ };
+}
