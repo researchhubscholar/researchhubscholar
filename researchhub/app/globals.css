@@ -2807,6 +2807,29 @@ body {
 .project-guide-compose-meta { display: flex; justify-content: space-between; gap: .5rem; margin-top: .35rem; color: #667286; font-size: .65rem; }
 .project-guide-window button:disabled, .project-guide-window textarea:disabled { opacity: .45; cursor: default; }
 .project-guide-window :is(button,textarea,a,summary):focus-visible, .project-guide-toggle:focus-visible { outline: 2px solid #236a64; outline-offset: 3px; }
+/* Scholar assistant: a compact header, readable thread and anchored composer. */
+.project-guide-window { background: #fcfbf8; color: #18332d; border-color: #cdd9ce; }
+.project-guide-header { background: #fcfbf8; }
+.project-guide-heading h2 { display: flex; align-items: center; gap: .6rem; font-family: Georgia, serif; font-size: 1.22rem; }
+.project-guide-mark { display: grid; place-items: center; flex: 0 0 2rem; height: 2rem; border-radius: .6rem; background: #194d41; color: #fff; font: 1.05rem/1 sans-serif; }
+.project-guide-project { margin-top: .35rem !important; }
+.project-guide-context { align-items: center; }
+.project-guide-context span:first-child { border-radius: 999px; background: #e5eee4; padding: .16rem .5rem; color: #194d41; }
+.project-guide-thread { background: #fcfbf8; padding: 1rem 1.15rem; }
+.project-guide-question { width: fit-content; max-width: min(88%, 38rem); margin-left: auto; background: #e8efe6; }
+.project-guide-answer { padding: .55rem 0 .8rem; border: 0; background: transparent; }
+.project-guide-recommendation { padding: .75rem .9rem; border: 1px solid #dce5d9; border-radius: .75rem; background: #f3f6ef; }
+.project-guide-recommendation-title { display: flex; align-items: flex-start; gap: .5rem; overflow-wrap: anywhere; }
+.project-guide-recommendation-title span { display: grid; place-items: center; flex: 0 0 1.35rem; height: 1.35rem; border-radius: 50%; background: #245b4a; color: white; font-size: .7rem; }
+.project-guide-footer { background: #fcfbf8; }
+.project-guide-starter { border-radius: 999px; background: #eaf0e6; }
+.project-guide-compose { padding: .35rem; border: 1px solid #b9ceca; border-radius: .8rem; background: #fff; }
+.project-guide-compose textarea { border: 0; background: transparent; }
+.project-guide-compose button { background: #194d41; }
+@media (min-width: 1024px) and (min-height: 680px) {
+  .project-guide-window { height: min(49rem, calc(100dvh - 6.5rem)); }
+  .project-guide-window--expanded { width: min(50rem, 46vw); }
+}
 @media (max-width: 600px) {
   .project-guide-toggle { right: max(.75rem, env(safe-area-inset-right)); bottom: max(.75rem, env(safe-area-inset-bottom)); }
   .project-guide-window { right: .75rem; width: calc(100vw - 1.5rem); bottom: calc(4.8rem + env(safe-area-inset-bottom)); height: min(42rem, calc(100dvh - 6.5rem)); border-radius: 1rem; }
