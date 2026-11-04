@@ -1,5 +1,5 @@
 "use client";
-import { dialogCopy } from "@/lib/i18n/interface-copy";
+import { dialogCopy, localizeInterfaceCopy } from "@/lib/i18n/interface-copy";
 
 import AuthoredText from "@/components/i18n/authored-text";
 
@@ -268,7 +268,7 @@ function BibliotecaContent() {
                   <OpenAccessStatus existingUrl={article.fullTextUrl} result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => openAccess.results[articleKey(article)] ? void openAccess.retry(article) : void openAccess.lookup([article])} onSave={url => void library.setFullTextUrl(article.id, url)} disabled={library.working} />
                 </div>
                 <div className="flex lg:flex-col gap-2 self-start">
-                  <label className="text-xs text-ink-soft"><InterfaceText message="library.primaryProject" /><select aria-label={`Projeto do artigo ${article.title}`} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="block border border-line rounded-card px-2 py-2 mt-1 max-w-56"><option value=""><InterfaceText message="library.noPrimary" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>
+                  <label className="text-xs text-ink-soft"><InterfaceText message="library.primaryProject" /><select aria-label={localizeInterfaceCopy(locale, `Projeto do artigo ${article.title}`)} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="block border border-line rounded-card px-2 py-2 mt-1 max-w-56"><option value=""><InterfaceText message="library.noPrimary" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>
                   <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? uiText("library.analyzing") : uiText("library.analyze")}</button>
                   <button onClick={() => { setView("matrix"); if (!suggestions[article.id] && article.abstract) analyzeArticle(article); }} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card"><InterfaceText message="library.toMatrix" /></button>
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50"><InterfaceText message="library.remove" /></button>
@@ -304,13 +304,13 @@ function BibliotecaContent() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? uiText("library.analyzing") : set ? uiText("screen.3e0b9bad9adb") : "Sugerir campos"}</button>
+                    <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs bg-ink text-white px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? uiText("library.analyzing") : set ? uiText("screen.3e0b9bad9adb") : uiText("screen.407bcf3d6489")}</button>
                     {set && <button disabled={library.working} onClick={() => acceptAll(article.id)} className="text-xs border border-teal text-teal px-3 py-2 rounded-card"><InterfaceText message="screen.482f112dd391" /></button>}
                   </div>
                 </div>
 
                 {errors[article.id] && <div className="mx-5 mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-card p-3"><AuthoredText text={errors[article.id]} /></div>}
-                <div className="mx-5 mt-4 text-sm bg-paper border border-line rounded-card p-4"><strong><InterfaceText message="screen.5ec28452fe36" /></strong><span className="text-ink-soft"> {matrixGuidance(resolvedStudyDesign(article))}</span></div>
+                <div className="mx-5 mt-4 text-sm bg-paper border border-line rounded-card p-4"><strong><InterfaceText message="screen.5ec28452fe36" /></strong><span className="text-ink-soft"> <AuthoredText text={matrixGuidance(resolvedStudyDesign(article))} /></span></div>
 
                 {set && (
                   <div className="p-5 border-b border-line bg-teal-soft/50">

@@ -102,3 +102,10 @@ Aprovar todos os itens visuais/autenticados e os casos de IA real nos dois idiom
 corrigir as falhas encontradas e verificar os arquivos abertos em leitor real.
 Depois disso, encerrar a etapa 5 e retomar a consolidação anterior. Não há nova
 etapa de funcionalidades autorizada por este roteiro.
+
+## Terceiro bloco — Biblioteca
+
+Corrigidos o rótulo acessível de projeto associado, a ação de sugerir campos
+e a orientação da matriz para os oito desenhos de estudo. Títulos de artigos
+continuam literais. Verificações locais de tradução e persistência simulada
+da Biblioteca não substituem o teste visual e autenticado no preview.

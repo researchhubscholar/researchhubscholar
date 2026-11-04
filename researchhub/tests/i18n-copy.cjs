@@ -8,6 +8,13 @@ assert.equal(localizeInterfaceCopy('es','2 artigos aguardam leitura ou avaliaç�
 assert.equal(localizeInterfaceCopy('es','1 artigo aguarda leitura ou avaliação na biblioteca.'),'1 artículo pendiente de lectura o evaluación en la biblioteca.');
 const raw='Minha pergunta científica livre sobre População: <script>{0}$&';
 assert.equal(localizeInterfaceCopy('es',raw),raw);assert.equal(localizeInterfaceCopy('pt-BR','Salvar projeto'),'Salvar projeto');
+const articleTitle='População e desfechos {0}$&';
+assert.equal(localizeInterfaceCopy('es',`Projeto do artigo ${articleTitle}`),`Proyecto del artículo ${articleTitle}`);
+const {matrixGuidance}=require('../lib/literature/matrix-template.ts');
+for(const design of ['systematic-review','clinical-trial','cohort','case-control','cross-sectional','qualitative','case-report','other']){
+ const guidance=matrixGuidance(design);
+ assert.notEqual(localizeInterfaceCopy('es',guidance),guidance,design);
+}
 const injected='Peso <script>{0}$&';assert.equal(localizeInterfaceCopy('es',`Valor numérico inválido em ${injected}.`),`Valor numérico inválido en ${injected}.`);
 for(const [source,target] of Object.entries(templates)){const allowed=new Set(source.match(/\{\d+\}/g)||[]);for(const token of target.match(/\{\d+\}/g)||[])assert.ok(allowed.has(token),`Unexpected variable ${token}`);}
 global.document={documentElement:{lang:'es'}};assert.equal(dialogCopy('Remover este artigo e suas anotações da sua conta?'),'¿Eliminar este artículo y sus notas de tu cuenta?');document.documentElement.lang='pt-BR';assert.equal(dialogCopy('Remover este artigo e suas anotações da sua conta?'),'Remover este artigo e suas anotações da sua conta?');delete global.document;
