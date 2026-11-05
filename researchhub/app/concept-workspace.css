@@ -200,3 +200,37 @@ body:has(.primary-nav[data-workspace="true"]) .scholar-workspace .documents-metr
   .language-selector-icon { display: none; }
   .language-selector button { min-width: 2.25rem; min-height: 2.75rem; padding-inline: .45rem; }
 }
+
+/* Keep desktop destinations out of the compact header. The mobile touch-target
+   rule in globals.css must not override their visibility. */
+@media (max-width: 1090px) {
+  .app-header-inner .primary-nav .desktop-only-link { display: none; }
+}
+@media (max-width: 1279px) {
+  .app-header-inner .primary-nav .account-link { display: none; }
+  body:has(.primary-nav[data-workspace="true"]) .primary-nav .desktop-only-link { display: none; }
+  body:has(.primary-nav[data-workspace="true"]) .mobile-nav { display: flex; }
+}
+@media (max-width: 639px) {
+  .app-header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+  }
+  .app-header-inner .brand-lockup { flex: 0 0 auto; }
+  .app-header-inner .primary-nav {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    max-width: 100%;
+    gap: .25rem;
+  }
+  .app-header-inner .mobile-nav {
+    flex: 0 0 calc(100% + 1.5rem);
+    min-width: 0;
+    max-width: calc(100% + 1.5rem);
+    margin: 0 -.75rem -.8rem;
+    padding: .5rem .75rem;
+  }
+}
