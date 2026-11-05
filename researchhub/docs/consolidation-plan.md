@@ -146,3 +146,24 @@ novamente ao revisar/aplicar.
 Testes de componentes verificam prévia, confirmação positiva/negativa, ação após
 a segunda recomendação, correlação do trecho, duplicidade e bloqueio de edição
 obsoleta. Validação autenticada desse ajuste no Preview continua pendente.
+
+### Reteste de trechos — falha relatada e correção complementar, 05/11/2026
+
+Usuário relatou que o botão exibido ainda era “Adicionar ao plano do projeto”,
+sem substituir a seleção e com salto para as tarefas no topo. A correção anterior
+não resolveu esse caminho: o modelo ainda podia responder com orientações gerais.
+
+Para intent improve, a geração agora usa formato estruturado com uma única
+recommendation guide_excerpt. O servidor rejeita respostas científicas sem
+substituição válida em vez de tratá-las como revisão aplicável; esclarecimentos
+e recusas continuam sem ação. O histórico identifica respostas sobre trechos e
+não oferece inclusão no plano, inclusive após recarregar a conversa. O pedido
+preparado solicita explicitamente a reescrita. Rolagem de tarefas fica restrita
+ao histórico do assistente. Nada é salvo automaticamente.
+
+Testes cobrem o caminho do endpoint com provedor simulado até a resposta de
+substituição, a renderização do botão real de revisar, confirmação positiva e
+negativa, resposta inválida, histórico recarregado e recusas. Tipos, lint e build
+passaram. Ainda falta reteste com IA real e sessão autenticada no Preview; não
+registrar esse ajuste como validado pelo usuário antes desse retorno. As demais
+etapas ficam em espera enquanto este problema é corrigido e retestado.
