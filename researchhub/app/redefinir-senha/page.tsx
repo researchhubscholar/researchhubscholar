@@ -1,4 +1,5 @@
 "use client";
+import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -80,17 +81,17 @@ export default function RedefinirSenhaPage() {
 
   if (success) {
     return (
-      <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.631fe9075bc7" /></h1>
+      <AuthFrame variant="reset">
+        <h2 className="font-display text-2xl text-ink"><InterfaceText message="screen.631fe9075bc7" /></h2>
         <p className="text-ink-soft mt-4"><InterfaceText message="screen.c16f205303bd" /></p>
-      </div>
+      </AuthFrame>
     );
   }
 
   if (invalidLink) {
     return (
-      <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.4c68fcc45175" /></h1>
+      <AuthFrame variant="reset">
+        <h2 className="font-display text-2xl text-ink"><InterfaceText message="screen.4c68fcc45175" /></h2>
         <p className="text-ink-soft mt-4">
           <InterfaceText message="screen.a7259c9ed8be" />{" "}
           <a href="/esqueci-senha" className="text-teal font-medium hover:underline">
@@ -98,21 +99,21 @@ export default function RedefinirSenhaPage() {
           </a>
           .
         </p>
-      </div>
+      </AuthFrame>
     );
   }
 
   if (!ready) {
     return (
-      <div className="max-w-md">
+      <AuthFrame variant="reset">
         <p className="text-ink-soft"><InterfaceText message="screen.b273139c8728" /></p>
-      </div>
+      </AuthFrame>
     );
   }
 
   return (
-    <div className="max-w-md">
-      <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.22de811813ef" /></h1>
+    <AuthFrame variant="reset">
+      <h2 className="font-display text-2xl text-ink"><InterfaceText message="screen.22de811813ef" /></h2>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
@@ -157,6 +158,6 @@ export default function RedefinirSenhaPage() {
           {loading ? "Salvando..." : uiText("screen.873b678ffcc5")}
         </button>
       </form>
-    </div>
+    </AuthFrame>
   );
 }

@@ -1,4 +1,6 @@
 "use client";
+import { publicDesignCopy } from "@/lib/i18n/public-design-copy";
+import { advisorCopy } from "@/lib/i18n/advisor-copy";
 import { intlLocale } from "@/lib/i18n/format";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -37,6 +39,7 @@ type LicenseOption = {
 
 export default function CommercePage() {
  const {locale:formatLocale}=useLanguage();
+ const c=publicDesignCopy(formatLocale);const advisor=advisorCopy(formatLocale);
 
   const { t: uiText } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
@@ -155,15 +158,15 @@ export default function CommercePage() {
     }
   }
 
-  if (loading) return <p role="status"><InterfaceText message="screen.2c1aafb83914" /></p>;
-  if (!userId) return <div className="scholar-workspace secondary-page commerce-page max-w-3xl mx-auto">
+  if (loading) return <div className="marketing-page public-commerce"><p role="status"><InterfaceText message="screen.2c1aafb83914" /></p></div>;
+  if (!userId) return <div className="marketing-page public-commerce commerce-page">
     <h1 className="font-display text-4xl"><InterfaceText message="screen.083cff630878" /></h1>
     <Link href="/login" className="inline-block mt-5 text-teal underline"><InterfaceText message="screen.1fdff273ce1e" /></Link>
   </div>;
 
-  return <div className="scholar-workspace secondary-page commerce-page max-w-5xl mx-auto">
+  return <div className="marketing-page public-commerce commerce-page">
     <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.2ac304df498c" /></p>
-    <h1 className="font-display text-4xl mt-3"><InterfaceText message="screen.ad4371fc3ee5" /></h1>
+    <h1 className="font-display text-4xl mt-3">{c.purchaseTitle}</h1>
     <p className="text-ink-soft mt-4 max-w-3xl">
       <InterfaceText message="screen.833d0b11906a" />
     </p>
@@ -174,7 +177,7 @@ export default function CommercePage() {
     </div>
     {message ? <p role="status" className="mt-5 rounded-card border border-line bg-white p-4 text-sm"><AuthoredText text={message} /></p> : null}
 
-    <section className="mt-7 rounded-2xl border border-line bg-white p-5">
+    <div className="purchase-layout"><section className="purchase-main mt-7 rounded-2xl border border-line bg-white p-5">
       <h2 className="font-display text-2xl"><InterfaceText message="screen.0ca6dc7b69d6" /></h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <label className="text-sm"><InterfaceText message="screen.94f633413108" />
@@ -205,16 +208,16 @@ export default function CommercePage() {
         </label>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
-      </div>
       <p className="mt-3 text-xs text-ink-soft"><InterfaceText message="screen.21003e165b48" /></p>
       <button type="button" disabled={busy || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="mt-5 rounded-card bg-teal px-5 py-3 text-white disabled:opacity-50">
         {busy ? "Registrando..." : uiText("screen.5d92b1945c45")}
       </button>
-    </section>
+    </section><aside className="purchase-summary"><p className="public-eyebrow">{c.purchaseSummary}</p><h2>{plans[plan].name}</h2><p className="purchase-price">{money(quote.grossAmountCents)}</p><p>{c.annual}</p>      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
+      </div>
+{kind==="individual"?<p className="purchase-advisor">{advisor.benefit(plans[plan].advisorsPerProject)}</p>:null}</aside></div>
 
     {licenses.length ? <section className="mt-7 rounded-2xl border border-line bg-white p-5">
       <h2 className="font-display text-2xl">Recarga opcional</h2>

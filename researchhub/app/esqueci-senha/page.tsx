@@ -1,4 +1,5 @@
 "use client";
+import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -38,18 +39,18 @@ export default function EsqueciSenhaPage() {
 
   if (sent) {
     return (
-      <div className="max-w-md">
-        <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.3430568fb863" /></h1>
+      <AuthFrame variant="recovery">
+        <h2 className="font-display text-2xl text-ink"><InterfaceText message="screen.3430568fb863" /></h2>
         <p className="text-ink-soft mt-4">
           <InterfaceText message="screen.24970da9c592" /> <strong>{email}</strong><InterfaceText message="screen.e7f939cbc1f0" />
         </p>
-      </div>
+      </AuthFrame>
     );
   }
 
   return (
-    <div className="max-w-md">
-      <h1 className="font-display text-2xl text-ink"><InterfaceText message="screen.16696f2ed928" /></h1>
+    <AuthFrame variant="recovery">
+      <h2 className="font-display text-2xl text-ink"><InterfaceText message="screen.16696f2ed928" /></h2>
       <p className="text-ink-soft mt-2">
         <InterfaceText message="screen.6e8b7ba41571" />
       </p>
@@ -87,6 +88,6 @@ export default function EsqueciSenhaPage() {
           <InterfaceText message="screen.4105811890ae" />
         </a>
       </p>
-    </div>
+    </AuthFrame>
   );
 }

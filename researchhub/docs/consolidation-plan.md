@@ -177,3 +177,10 @@ Essencial: sem novos convites. Convidado usa conta gratuita para leitura/coment�
 Escopo e instalação pendente registrados em `advisor-plan-access.md`. Esta pausa
 não conclui as etapas da consolidação. Próximo passo: instalar a nova migração e
 validar com autor e convidado, depois retomar o checklist de orientação.
+
+### Visuais públicos autorizados — 05/11/2026
+
+Usuário solicitou incorporar os 14 conceitos à landing e páginas relacionadas.
+Apresentação documentada em `public-visual-refresh.md`; preservamos os fluxos,
+preços, permissões e conteúdo legal vigente. Homologação de orientação continua
+pendente do retorno do usuário. O Success do novo SQL foi informado por ele.

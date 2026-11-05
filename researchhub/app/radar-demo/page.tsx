@@ -1,4 +1,5 @@
 "use client";
+import { publicDesignCopy } from "@/lib/i18n/public-design-copy";
 import { intlLocale } from "@/lib/i18n/format";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -36,6 +37,7 @@ type TermReview = { strategy: Strategy; translations: Record<string, string> };
 
 export default function Demo() {
  const {locale:formatLocale}=useLanguage();
+ const c=publicDesignCopy(formatLocale);
 
   const { t: uiText } = useLanguage();
   const [topic, setTopic] = useState("qualidade do sono em residentes de medicina");
@@ -79,17 +81,17 @@ export default function Demo() {
   }
 
   return <div className="marketing-page public-demo">
-    <PageHeading eyebrow="Radar demonstrativo · sem cadastro · sem IA" title={uiText("screen.95ea9df103cf")} description={uiText("screen.7710de37ea9d")} />
-    <form onSubmit={event => { event.preventDefault(); void search(); }} className="mt-7 bg-white border border-line rounded-2xl p-5">
-      <label className="block text-sm font-medium"><InterfaceText message="screen.b4f5d5c89107" />
+    <PageHeading eyebrow="Radar demonstrativo · sem cadastro · sem IA" title={c.demoTitle} description={c.demoDescription} />
+    <form onSubmit={event => { event.preventDefault(); void search(); }} className="demo-search-form mt-7 bg-white border border-line rounded-2xl p-5">
+      <label className="demo-topic-field block text-sm font-medium"><InterfaceText message="screen.b4f5d5c89107" />
         <input required minLength={3} maxLength={300} value={topic} onChange={event => { setTopic(event.target.value); setTermReview(null); }} className="block w-full border rounded-card p-3 mt-2" />
       </label>
-      <label className="block text-xs text-ink-soft mt-3"><InterfaceText message="screen.3d5012173e48" />
+      <label className="demo-language-field block text-xs text-ink-soft mt-3"><InterfaceText message="screen.3d5012173e48" />
         <select value={language} onChange={event => { setLanguage(event.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt"><InterfaceText message="screen.d4ada8ec2764" /></option><option value="en"><InterfaceText message="screen.85a560bc1af9" /></option></select>
       </label>
-      <div className="flex flex-wrap gap-2 mt-3">{["qualidade do sono em residentes de medicina", "microplásticos em gestantes", "medical students burnout"].map(example => <button type="button" key={example} disabled={loading} onClick={() => { setTopic(example); setTermReview(null); }} className="text-xs text-teal border border-teal/20 rounded-full px-3 py-2">{example}</button>)}</div>
-      <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.a308f65e4139" /></p>
-      <button disabled={loading} className="public-button mt-4 disabled:opacity-50">{loading ? "Consultando a literatura..." : "Testar o Radar"}</button>
+      <div className="demo-examples flex flex-wrap gap-2 mt-3">{["qualidade do sono em residentes de medicina", "microplásticos em gestantes", "medical students burnout"].map(example => <button type="button" key={example} disabled={loading} onClick={() => { setTopic(example); setTermReview(null); }} className="text-xs text-teal border border-teal/20 rounded-full px-3 py-2">{example}</button>)}</div>
+      <p className="demo-quota-note text-xs text-ink-soft mt-3"><InterfaceText message="screen.a308f65e4139" /></p>
+      <button disabled={loading} className="demo-search-submit public-button mt-4 disabled:opacity-50">{loading ? "Consultando a literatura..." : "Testar o Radar"}</button>
     </form>
 
     {termReview && <form onSubmit={event => { event.preventDefault(); void search(termReview.translations); }} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5">

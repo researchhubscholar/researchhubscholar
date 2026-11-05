@@ -46,3 +46,7 @@ pré-requisitos `scholar_access.sql` e `scholar_advising.sql`. Testada em Postgr
 sintético com RLS; **execução no Supabase ResearchHub ainda pendente**.
 Não reexecutar os instaladores antigos. Ver `advisor-plan-access.md` para regras e
 checklist de homologação.
+
+Usuário informou **Success** de `scholar_advisor_plan_limits.sql` em 05/11/2026.
+Instalação reportada pelo operador; teste autenticado com convidado ainda pendente.
+A atualização dos visuais públicos não exige SQL adicional.

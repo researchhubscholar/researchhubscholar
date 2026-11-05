@@ -65,7 +65,7 @@ try {
     assert.equal(localized.status, 200);
     assert.ok((await localized.text()).includes(`<html lang="${language}">`), `Request locale should be ${language}`);
   }
-  for (const [cookie, heading] of [["scholar_locale=es", "Retoma tu investigación"], ["scholar_locale=pt-BR", "Retome sua pesquisa"]]) {
+  for (const [cookie, heading] of [["scholar_locale=es", "Tu investigación continúa aquí."], ["scholar_locale=pt-BR", "Sua pesquisa continua aqui."]]) {
     const response = await request("/login", {headers:{cookie}});
     assert.equal(response.status, 200);
     const html = await response.text();

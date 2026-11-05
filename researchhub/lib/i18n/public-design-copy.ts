@@ -1,0 +1,56 @@
+import type { Locale } from "./locale";
+export function publicDesignCopy(locale: Locale) {
+  const es=locale==="es";
+  return {
+    eyebrow: es?"INVESTIGA CON MÁS CLARIDAD":"PESQUISE COM MAIS CLAREZA",
+    homeTitle: es?"De la duda clínica al trabajo científico.":"Da dúvida clínica ao trabalho científico.",
+    homeDescription: es?"Organiza ideas, encuentra literatura y desarrolla tu proyecto en un solo lugar.":"Organize ideias, encontre literatura e desenvolva seu projeto em um só lugar.",
+    start: es?"Comenzar mi proyecto":"Começar meu projeto",
+    radar: es?"Conocer el Radar":"Conhecer o Radar",
+    next: es?"Tu próximo paso":"Seu próximo passo",
+    example: es?"Vista ilustrativa":"Prévia ilustrativa",
+    question: es?"Pregunta de investigación":"Pergunta de pesquisa",
+    questionExample: es?"¿Cómo se relaciona la calidad del sueño con el bienestar de los residentes?":"Como a qualidade do sono se relaciona ao bem-estar dos residentes?",
+    literature: es?"Literatura relacionada":"Literatura relacionada",
+    previewRows: es?["Artículos y referencias verificables","Lectura crítica y notas","Estructura del proyecto"]:["Artigos e referências verificáveis","Leitura crítica e anotações","Estrutura do projeto"],
+    steps: es?[
+      ["Encuentra tu pregunta","Transforma una duda en una pregunta de investigación clara y viable."],
+      ["Explora la literatura","Busca, selecciona y organiza las referencias que importan para tu proyecto."],
+      ["Estructura tu trabajo","Desarrolla tu proyecto paso a paso, del método a la escritura."]
+    ]:[
+      ["Encontre sua pergunta","Transforme uma dúvida em uma pergunta de pesquisa clara e viável."],
+      ["Explore a literatura","Busque, selecione e organize as referências que importam para seu projeto."],
+      ["Estruture seu trabalho","Desenvolva seu projeto passo a passo, do método à escrita."]
+    ],
+    timeTitle: es?"Más tiempo para investigar. Menos tiempo intentando organizarte.":"Mais tempo para pesquisar. Menos tempo tentando se organizar.",
+    timeDescription: es?"Un entorno que conecta ideas, literatura y escritura para acompañar tu rutina de investigación.":"Um ambiente que conecta ideias, literatura e escrita para acompanhar sua rotina de pesquisa.",
+    howTitle: es?"Un camino claro para llevar tu investigación al papel.":"Um caminho claro para tirar sua pesquisa do papel.",
+    howDescription: es?"Desde el primer tema hasta la organización del trabajo, avanza una etapa a la vez.":"Do primeiro tema à organização do trabalho, avance uma etapa de cada vez.",
+    residencyTitle: es?"La producción científica puede formar parte de la rutina.":"A produção científica pode fazer parte da rotina.",
+    residencyDescription: es?"Un recorrido más organizado para residentes, con espacio para acompañar proyectos y orientar su desarrollo.":"Um percurso mais organizado para residentes, com espaço para acompanhar projetos e orientar seu desenvolvimento.",
+    residencyBenefits: es?"Más claridad para quien investiga. Más contexto para quien orienta.":"Mais clareza para quem pesquisa. Mais contexto para quem orienta.",
+    contactTitle: es?"Hablemos de tu investigación.":"Vamos conversar sobre sua pesquisa.",
+    contactDescription: es?"¿Dudas sobre la plataforma, los planes o el uso en la residencia? Envía tu mensaje.":"Dúvidas sobre a plataforma, planos ou uso na residência? Envie sua mensagem.",
+    contactHelp: es?"¿Cómo podemos ayudar?":"Como podemos ajudar?",
+    contactTopics: es?[["Uso de la plataforma","Apoyo para utilizar las herramientas y organizar tu investigación."],["Planes y acceso","Información sobre planes y acceso a la plataforma."],["Residencias","Uso del ResearchHub en tu programa de residencia."]]:[["Uso da plataforma","Apoio para utilizar as ferramentas e organizar sua pesquisa."],["Planos e acesso","Informações sobre planos e acesso à plataforma."],["Residências","Uso do ResearchHub no seu programa de residência."]],
+    patientNote: es?"No incluyas datos identificables de pacientes.":"Não inclua dados identificáveis de pacientes.",
+    pricingTitle: es?"Elige el apoyo para tu recorrido científico.":"Escolha o apoio para a sua jornada científica.",
+    pricingDescription: es?"Planes individuales para organizar ideas, lecturas y proyectos durante 12 meses.":"Planos individuais para organizar ideias, leituras e projetos durante 12 meses.",
+    annual: es?"Acceso por 12 meses":"Acesso por 12 meses",
+    demoTitle: es?"Explora la literatura de tu tema.":"Explore a literatura do seu tema.",
+    demoDescription: es?"Conoce el Radar y prueba una búsqueda científica con artículos reales, sin registro y sin IA.":"Conheça o Radar e experimente uma busca científica com artigos reais, sem cadastro e sem IA.",
+    loginTitle: es?"Tu investigación continúa aquí.":"Sua pesquisa continua aqui.",
+    loginDescription: es?"Retoma tus ideas, lecturas y proyectos con más claridad.":"Retome suas ideias, leituras e projetos com mais clareza.",
+    signupTitle: es?"Da el primer paso en tu investigación.":"Dê o primeiro passo na sua pesquisa.",
+    signupDescription: es?"Un espacio para conectar tu pregunta, la literatura y el desarrollo de tu trabajo.":"Um espaço para conectar sua pergunta, a literatura e o desenvolvimento do seu trabalho.",
+    recoveryTitle: es?"Recuperemos tu acceso.":"Vamos recuperar seu acesso.",
+    recoveryDescription: es?"Indica el correo que usaste al registrarte para recibir las instrucciones.":"Informe o e-mail usado no cadastro para receber as instruções.",
+    resetTitle: es?"Un nuevo acceso a tu investigación.":"Um novo acesso à sua pesquisa.",
+    resetDescription: es?"Define una nueva contraseña para continuar.":"Defina uma nova senha para continuar.",
+    invited: es?"Los tutores invitados acceden con una cuenta gratuita.":"Orientadores convidados acessam com uma conta gratuita.",
+    backLogin: es?"Volver para entrar":"Voltar para entrar",
+    privacySummary: es?["Datos de la cuenta","Uso de la plataforma","Tus derechos"]:["Dados da conta","Uso da plataforma","Seus direitos"],
+    purchaseTitle: es?"Tu próximo paso comienza aquí.":"Seu próximo passo começa aqui.",
+    purchaseSummary: es?"Resumen de tu elección":"Resumo da sua escolha",
+  };
+}

@@ -1,4 +1,5 @@
 "use client";
+import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
 
@@ -62,21 +63,21 @@ export default function CadastroPage() {
 
   if (needsConfirmation) {
     return (
-      <div className="max-w-lg mx-auto bg-white border border-line rounded-2xl p-8">
+      <AuthFrame variant="signup"><div className="auth-card auth-state">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">ResearchHub</p>
-        <h1 className="font-display text-3xl text-ink mt-2"><InterfaceText message="auth.confirmTitle" /></h1>
+        <h2 className="font-display text-3xl text-ink mt-2"><InterfaceText message="auth.confirmTitle" /></h2>
         <p className="text-ink-soft mt-4"><InterfaceText message="auth.confirmPrefix" /> <strong>{email}</strong><InterfaceText message="auth.confirmSuffix" /></p>
-      </div>
+      </div></AuthFrame>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto">
+    <AuthFrame variant="signup">
       <p className="text-xs uppercase tracking-widest text-teal font-semibold"><InterfaceText message="auth.start" /></p>
-      <h1 className="font-display text-4xl text-ink mt-2"><InterfaceText message="nav.signup" /></h1>
+      <h2 className="auth-card-title"><InterfaceText message="nav.signup" /></h2>
       <p className="text-ink-soft mt-3"><InterfaceText message="auth.signupDescription" /></p>
 
-      <form onSubmit={handleSubmit} className="mt-8 bg-white border border-line rounded-2xl p-6 space-y-5"><label className="flex gap-3 text-sm text-ink-soft"><input name="termsAccepted" type="checkbox" required className="mt-1" /><span><InterfaceText message="auth.readTerms" /> <Link href="/termos" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.terms" /></Link> <InterfaceText message="auth.andPrivacy" /> <Link href="/privacidade" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.privacy" /></Link> <InterfaceText message="auth.testingSuffix" /></span></label>
+      <form onSubmit={handleSubmit} className="auth-card mt-6 space-y-5">
         <div>
           <label htmlFor="signup-name" className="text-sm text-ink-soft"><InterfaceText message="auth.fullName" /></label>
           <input id="signup-name" name="name" autoComplete="name" required maxLength={150} value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 border border-line rounded-card px-3 py-2.5 outline-none focus:border-teal bg-white" />
@@ -100,11 +101,13 @@ export default function CadastroPage() {
           </div>
         </fieldset>
 
+        <label className="flex gap-3 text-sm text-ink-soft"><input name="termsAccepted" type="checkbox" required className="mt-1" /><span><InterfaceText message="auth.readTerms" /> <Link href="/termos" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.terms" /></Link> <InterfaceText message="auth.andPrivacy" /> <Link href="/privacidade" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.privacy" /></Link> <InterfaceText message="auth.testingSuffix" /></span></label>
+
         {error && <p role="alert" className="text-sm text-red-600"><AuthoredText text={error} /></p>}
         <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-3 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? uiText("auth.creating") : uiText("auth.create")}</button>
       </form>
 
       <p className="text-sm text-ink-soft mt-6 text-center"><InterfaceText message="auth.hasAccount" /> <a href="/login" className="text-teal font-medium hover:underline"><InterfaceText message="nav.login" /></a></p>
-    </div>
+    </AuthFrame>
   );
 }

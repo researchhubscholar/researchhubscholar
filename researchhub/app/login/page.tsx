@@ -1,4 +1,5 @@
 "use client";
+import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
 
@@ -47,13 +48,7 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  return <div className="auth-shell">
-    <section className="auth-intro">
-      <p className="auth-kicker"><InterfaceText message="auth.space" /></p>
-      <h1 className="auth-title"><InterfaceText message="auth.resume" /></h1>
-      <p className="auth-description"><InterfaceText message="auth.description" /></p>
-      <ul className="auth-points"><li><InterfaceText message="auth.latest" /></li><li><InterfaceText message="auth.history" /></li><li><InterfaceText message="auth.next" /></li></ul>
-    </section>
+  return <AuthFrame variant="login">
     <section>
       {confirmed && <div className="mb-4 bg-teal-soft border border-teal/20 text-teal rounded-card p-4 text-sm"><InterfaceText message="auth.confirmed" /></div>}
       <form onSubmit={handleSubmit} className="auth-card space-y-5">
@@ -70,5 +65,5 @@ export default function LoginPage() {
       </form>
       <p className="auth-switch"><InterfaceText message="auth.noAccount" /> <Link href="/cadastro" className="text-teal font-medium hover:underline"><InterfaceText message="nav.signup" /></Link></p>
     </section>
-  </div>;
+  </AuthFrame>;
 }
