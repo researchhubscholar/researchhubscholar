@@ -285,6 +285,16 @@
         "scholar_commerce.sql"
       ],
       "repeatability": "idempotent"
+    },
+    {
+      "file": "scholar_advisor_plan_limits.sql",
+      "sha256": "3d42fbb8edf8bfb420381ec2e8f6cc986e5dcbd25e9cee6c07a031674ec0b9a0",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_access.sql",
+        "scholar_advising.sql"
+      ],
+      "repeatability": "safe-to-rerun"
     }
   ]
 }

@@ -38,3 +38,11 @@ retroativamente migrations como aplicadas. Instalação e homologação reais de
 O teste de exclusão instala os módulos de schema do inventário em PostgreSQL de
 teste, incluindo reexecução desta migration. Isso melhora a evidência de ordem,
 sem substituir a homologação em um Supabase descartável real.
+
+## Orientadores por plano — 05/11/2026
+
+`scholar_advisor_plan_limits.sql`: nova migração transacional/reexecutável,
+pré-requisitos `scholar_access.sql` e `scholar_advising.sql`. Testada em PostgreSQL
+sintético com RLS; **execução no Supabase ResearchHub ainda pendente**.
+Não reexecutar os instaladores antigos. Ver `advisor-plan-access.md` para regras e
+checklist de homologação.

@@ -167,3 +167,13 @@ negativa, resposta inválida, histórico recarregado e recusas. Tipos, lint e bu
 passaram. Ainda falta reteste com IA real e sessão autenticada no Preview; não
 registrar esse ajuste como validado pelo usuário antes desse retorno. As demais
 etapas ficam em espera enquanto este problema é corrigido e retestado.
+
+### Prioridade autorizada em 05/11/2026 — orientadores por plano
+
+Usuário confirmou substituição de trechos e preços; testes de conflito e falha de
+rede do manuscrito e fluxo mobile também receberam confirmação. Antes de retomar
+as revisões, autorizou o benefício Plus: 1 orientador/projeto; Premium: 3;
+Essencial: sem novos convites. Convidado usa conta gratuita para leitura/comentários.
+Escopo e instalação pendente registrados em `advisor-plan-access.md`. Esta pausa
+não conclui as etapas da consolidação. Próximo passo: instalar a nova migração e
+validar com autor e convidado, depois retomar o checklist de orientação.
