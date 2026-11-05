@@ -127,3 +127,22 @@ A prévia local gerenciada não iniciou porque acrescenta opções incompatívei
 Next.js (`--host`/`--strictPort`). A conferência visual autenticada nas seis telas
 e em celular permanece pendente, incluindo estados vazios, formulários abertos,
 assistente e edição do manuscrito. Implementação não equivale a validação visual.
+
+## Validação parcial da etapa 1 e correção de trechos — 05/11/2026
+
+Usuário informou que os testes 1 (seleção do projeto correto) e 2 (saída com
+edição pendente) funcionaram no Preview. Conflito entre abas, falha de rede,
+celular e conta leitora continuam pendentes. A etapa 1 não está encerrada.
+
+Na revisão de trechos, a prévia de substituição passa a ficar junto da resposta
+que a gerou, sem deslocar a conversa para o contexto no topo. A rolagem automática
+fica limitada ao histórico do assistente. Recomendações de substituição deixam
+de ser ocultadas pelo limite visual de duas recomendações e não oferecem a ação
+de adicionar ao plano. O assistente aguarda a confirmação do editor antes de
+fechar; em caso de texto alterado, mantém a prévia e informa o erro. Substituição
+continua limitada ao trecho original, sem salvar automaticamente nem chamar IA
+novamente ao revisar/aplicar.
+
+Testes de componentes verificam prévia, confirmação positiva/negativa, ação após
+a segunda recomendação, correlação do trecho, duplicidade e bloqueio de edição
+obsoleta. Validação autenticada desse ajuste no Preview continua pendente.
