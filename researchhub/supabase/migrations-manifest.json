@@ -1,6 +1,6 @@
 {
   "format": "scholar-migration-inventory-v1",
-  "generatedAt": "2026-10-27",
+  "generatedAt": "2026-11-05",
   "note": "Source inventory only, not database installation history. Never execute all files automatically.",
   "files": [
     {
@@ -276,6 +276,15 @@
       "kind": "manual-account-operation",
       "dependsOn": [],
       "repeatability": "not-a-general-install-step"
+    },
+    {
+      "file": "scholar_individual_prices_20261105.sql",
+      "sha256": "e506540dcc97b13a0c87546c91777cc406c3fa80406d25ba1f94e95c1f46e552",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_commerce.sql"
+      ],
+      "repeatability": "idempotent"
     }
   ]
 }
