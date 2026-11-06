@@ -334,27 +334,28 @@ body:has(.primary-nav[data-advisor-only="true"]) .site-return {
   .idea-proposal-metrics > div + div { border-top: 0; border-left: 1px solid var(--idea-line); }
 }
 
-/* Keep chat below the desktop notification control. On narrow screens the chat
-   takes priority, and the bell returns as soon as the chat closes. */
-@media (min-width: 1280px) {
-  body:has(.review-bell) .project-guide-window {
-    --guide-bell-clearance: calc(max(1.25rem, env(safe-area-inset-top)) + 4rem);
-    max-height: calc(100dvh - var(--guide-bell-clearance) - 5.25rem - env(safe-area-inset-bottom));
+/* Let the thread fill the available screen between the panel controls. */
+.project-guide-window {
+  top: max(.9rem, env(safe-area-inset-top));
+  height: auto;
+}
+@media (min-width: 601px) {
+  .project-guide-window:not(.project-guide-window--expanded) {
+    width: min(38rem, calc(100vw - 2.5rem));
   }
 }
-@media (min-width: 1280px) and (min-height: 680px) {
-  body:has(.review-bell) .project-guide-window--expanded {
-    top: var(--guide-bell-clearance);
-    max-height: none;
+@media (min-width: 1280px) {
+  body:has(.review-bell) .project-guide-window {
+    top: calc(max(1.25rem, env(safe-area-inset-top)) + 4rem);
   }
 }
 @media (max-width: 1279px) {
   body:has(.project-guide-window) .review-bell { display: none; }
 }
 .project-guide-window .project-guide-header {
-  max-height: min(34dvh, 15rem);
+  max-height: min(30dvh, 12rem);
   overflow-y: auto;
-  padding: .9rem 1.1rem;
+  padding: .7rem 1.1rem;
   background: #fff;
 }
 .project-guide-window .project-guide-context { margin-top: .15rem; }
