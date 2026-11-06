@@ -65,6 +65,7 @@ export default function IdeasPage() {
   const [creationMode, setCreationMode] = useState<CreationMode>("automatic");
   const [snapshot, setSnapshot] = useState<Context | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [expandedIdea, setExpandedIdea] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
@@ -104,7 +105,7 @@ export default function IdeasPage() {
 
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
-      setIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
+      setIdeas([]); setExpandedIdea(null); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
       setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setQualityChecks([]); setIdeaOrigins({}); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
@@ -181,7 +182,7 @@ export default function IdeasPage() {
       const startingIdeas = generate(requestContext, evidence);
       const { data } = await postAI<{ ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] }>("/api/ai/ideas", { context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }, 150_000);
       if (!Array.isArray(data.ideas) || !data.ideas.length) throw new AIRequestError("A IA não retornou propostas válidas. Confira o registro antes de tentar novamente.", data.operationId);
-      setContext(requestContext); setIdeas(data.ideas); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
+      setContext(requestContext); setIdeas(data.ideas); setExpandedIdea(null); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setLastUsage(data.usage || null);
@@ -245,7 +246,7 @@ export default function IdeasPage() {
 
   function restoreVersion(row: SavedIdea) {
     if (ideas.length && !window.confirm(dialogCopy("Retomar esta versão? As propostas atuais continuam disponíveis apenas se já foram salvas."))) return;
-    setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setSelected([]); setEditing(null);
+    setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setExpandedIdea(null); setSelected([]); setEditing(null);
     setReferenceIds(row.proposal.references.map(reference => reference.id)); setEvidenceSnapshot(row.evidence_signature);
     series.current = { [row.proposal.id]: row.series_id }; setAiMode("saved"); setMessage("Versão retomada do histórico.");
     setIdeaOrigins({ [row.proposal.id]: { sourceKey: `idea-version:${row.id}` } });
@@ -364,7 +365,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label={uiText("screen.527c4fcb7372")}>
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.68ecf8d47262" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.ead99db1a928" /></p></div><span className="text-sm text-teal">{selected.length}<InterfaceText message="screen.a78859242313" /></span></div>
-      <div className="space-y-5 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={(expandedIdea ?? ideas[0].id) === idea.id} onExpand={() => setExpandedIdea(idea.id)} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -373,18 +374,29 @@ export default function IdeasPage() {
   </div>;
 }
 
-function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
-  const { t: uiText } = useLanguage();
+function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; expanded: boolean; onExpand: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+  const { t: uiText, locale } = useLanguage();
   const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
-  return <article className={`bg-white border rounded-2xl p-5 md:p-7 ${selected ? "border-teal shadow-sm" : "border-line"}`}>
-    <div className="flex flex-wrap justify-between gap-3"><div><span className="text-xs text-teal font-semibold">{pathLabels[index] || `CAMINHO ${index + 1}`}</span><span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1 ml-3">{idea.studyType}</span></div><label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={selected} onChange={onCompare} />Comparar</label></div>
-    <h3 className="font-display text-2xl md:text-3xl mt-4 leading-snug">{idea.title}</h3>
-    <div className="grid md:grid-cols-2 gap-5 mt-6"><Info label={uiText("screen.fdbf4a061cc6")} value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
-    <div className="grid md:grid-cols-3 gap-3 mt-5"><Badge label={uiText("screen.a415f1a5dcce")} value={idea.evaluation?.relevance.label || "A confirmar"} /><Badge label={uiText("screen.f5babe93eed8")} value={idea.evaluation?.feasibility.label || "A confirmar"} /><Badge label={uiText("screen.9e655bf84268")} value={idea.evaluation?.execution.label || "A confirmar"} /></div>
+  const contentId = `idea-proposal-${index}`;
+  return <article className="idea-proposal" data-expanded={expanded} data-selected={selected}>
+    <header className="idea-proposal-header">
+      <h3 className="min-w-0">
+        <button type="button" className="idea-proposal-heading" aria-expanded={expanded} aria-disabled={expanded || undefined} aria-controls={contentId} onClick={() => { if (!expanded) onExpand(); }}>
+          <span className="idea-proposal-chevron" aria-hidden="true" />
+          <span className="idea-proposal-path"><AuthoredText text={pathLabels[index] || `CAMINHO ${index + 1}`} /></span>
+          {expanded && <span className="idea-proposal-study">{idea.studyType}</span>}
+          <span className="idea-proposal-title font-display">{idea.title}</span>
+        </button>
+      </h3>
+      <label className="idea-proposal-compare"><input type="checkbox" checked={selected} onChange={onCompare} /><InterfaceText message="screen.58d55554ece4" /></label>
+    </header>
+    <div id={contentId} hidden={!expanded} className="idea-proposal-content">
+    <div className="idea-proposal-overview"><Info label={uiText("screen.fdbf4a061cc6")} value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
+    <dl className="idea-proposal-metrics"><Badge label={uiText("screen.a415f1a5dcce")} value={idea.evaluation?.relevance.label || uiText("screen.27075d2834bc")} /><Badge label={uiText("screen.f5babe93eed8")} value={idea.evaluation?.feasibility.label || uiText("screen.27075d2834bc")} /><Badge label={uiText("screen.9e655bf84268")} value={idea.evaluation?.execution.label || uiText("screen.27075d2834bc")} /></dl>
     <p className="mt-5 bg-teal-soft rounded-card p-4 text-sm"><strong className="text-teal"><InterfaceText message="screen.22455cd55e94" /></strong><span className="block text-ink-soft mt-1 leading-relaxed">{idea.feasibility}</span></p>
-    <details className={`mt-4 rounded-card border p-4 ${qualityIssues.length ? "border-amber-300 bg-amber-soft" : "border-teal/20 bg-teal-soft/40"}`}><summary className="cursor-pointer text-sm font-medium">{qualityIssues.length ? `${qualityIssues.length} ponto${qualityIssues.length === 1 ? "" : "s"} para revisar` : uiText("screen.f224be2592cc")}</summary><p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.ef741b52c599" /></p>{qualityIssues.length > 0 && <ul className="list-disc pl-5 mt-3 space-y-2 text-sm text-ink-soft">{qualityIssues.map(issue => <li key={issue}><AuthoredText text={issue} /></li>)}</ul>}</details>
+    <details className={`idea-proposal-disclosure ${qualityIssues.length ? "idea-proposal-warning" : ""}`}><summary className="cursor-pointer text-sm font-medium">{qualityIssues.length ? `${qualityIssues.length} ponto${qualityIssues.length === 1 ? "" : "s"} para revisar` : uiText("screen.f224be2592cc")}</summary><p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.ef741b52c599" /></p>{qualityIssues.length > 0 && <ul className="list-disc pl-5 mt-3 space-y-2 text-sm text-ink-soft">{qualityIssues.map(issue => <li key={issue}><AuthoredText text={issue} /></li>)}</ul>}</details>
 
-    <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer text-teal font-medium"><InterfaceText message="screen.3c589e0f1139" /></summary><dl className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5 text-sm">
+    <details className="idea-proposal-disclosure"><summary className="cursor-pointer text-teal font-medium"><InterfaceText message="screen.3c589e0f1139" /></summary><dl className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5 text-sm">
       <Info label={uiText("screen.0c3a06347847")} value={idea.hypothesis || "Definir com o orientador conforme o desenho escolhido."} />
       <Info label={uiText("screen.be3b16f1e57d")} value={idea.outcome} />
       <Info label={uiText("screen.0ab6aaac0a37")} value={idea.eligibility || idea.population} />
@@ -397,12 +409,24 @@ function IdeaCard({ idea, index, qualityIssues, selected, editing, stale, saving
       <Info label={uiText("screen.9025c269561d")} value={idea.resources} />
     </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title={uiText("screen.3c079482c65b")} values={idea.unresolved} /><List title={uiText("screen.9afdfa4b758f")} values={idea.plan} ordered /></div></details>
 
-    <button type="button" disabled={saving} onClick={onEdit} className="text-sm text-teal mt-5 underline">{editing ? uiText("screen.e13f598b5a95") : uiText("screen.2e6acb733179")}</button>
+    <div className="idea-proposal-actions">
+      <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
+      <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
+      <details className="idea-proposal-more">
+        <summary>{locale === "es" ? "Más acciones" : "Mais ações"} <span aria-hidden="true">⋯</span></summary>
+        <div className="idea-proposal-more-options">
+          <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine}>{refining ? uiText("screen.363d5d503f2d") : uiText("screen.28dfad4eb9d8")}</button>
+          <button type="button" disabled={saving} onClick={onEdit} aria-expanded={editing}>{editing ? uiText("screen.e13f598b5a95") : uiText("screen.2e6acb733179")}</button>
+          <button type="button" disabled={stale || saving || !loggedIn} onClick={onSave}>{saving ? uiText("screen.6b5056724381") : uiText("screen.784f681fadeb")}</button>
+          <button type="button" disabled={stale} onClick={onDownload}><InterfaceText message="screen.b45ae836a031" /></button>
+        </div>
+      </details>
+    </div>
     {editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium"><AuthoredText text={label} /><textarea disabled={saving} maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
     {refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
     {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm"><AuthoredText text={refinementError} /></p>}
     <p className="mt-5 text-xs text-ink-soft"><InterfaceText message="screen.71e292637da0" /></p>
-    <div className="mt-3 flex gap-3 flex-wrap"><button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="bg-teal text-white text-sm rounded-card px-3 py-2 disabled:opacity-50">{refining ? uiText("screen.363d5d503f2d") : uiText("screen.28dfad4eb9d8")}</button><button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="text-teal text-sm border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button><button type="button" disabled={stale || saving} onClick={onTransfer} className="bg-ink text-white text-sm rounded-card px-3 py-2 disabled:opacity-50"><InterfaceText message="screen.17d65baee7a0" /></button><button type="button" disabled={stale || saving || !loggedIn} onClick={onSave} className="text-sm text-teal border border-teal/30 rounded-card px-3 py-2 disabled:opacity-50">{saving ? "Salvando…" : uiText("screen.784f681fadeb")}</button><button type="button" disabled={stale} onClick={onDownload} className="text-sm text-teal underline disabled:opacity-50"><InterfaceText message="screen.b45ae836a031" /></button></div>
+    </div>
   </article>;
 }
 
@@ -462,5 +486,5 @@ function Comparison({ ideas }: { ideas: Idea[] }) {
 function Text({ label, value, change, placeholder, required }: { label: string; value: string; change: (value: string) => void; placeholder?: string; required?: boolean }) { return <label className="text-sm font-medium"><AuthoredText text={label} /><input required={required} maxLength={300} value={value} onChange={event => change(event.target.value)} placeholder={placeholder} className="block w-full mt-2 border border-line rounded-card px-3 py-3 bg-paper outline-none focus:border-teal" /></label>; }
 function Select({ label, value, change, options }: { label: string; value: string; change: (value: string) => void; options: string[][] }) { return <label className="text-sm font-medium"><AuthoredText text={label} /><select value={value} onChange={event => change(event.target.value)} className="block w-full mt-2 border border-line rounded-card px-3 py-3 bg-paper outline-none focus:border-teal">{options.map(([option, title]) => <option key={option} value={option}>{title}</option>)}</select></label>; }
 function Info({ label, value }: { label: string; value: string }) { return <div><p className="font-medium"><AuthoredText text={label} /></p><p className="text-ink-soft mt-1 leading-relaxed">{value}</p></div>; }
-function Badge({ label, value }: { label: string; value: string }) { return <div className="border border-line rounded-card p-3"><span className="text-xs text-ink-soft"><AuthoredText text={label} /></span><strong className="block text-teal mt-1">{value}</strong></div>; }
+function Badge({ label, value }: { label: string; value: string }) { return <div><dt className="text-ink-soft">{label}</dt><dd className="font-semibold text-teal"><AuthoredText text={value} /></dd></div>; }
 function List({ title, values, ordered = false }: { title: string; values: string[]; ordered?: boolean }) { const Tag = ordered ? "ol" : "ul"; return <div><h4 className="font-medium">{title}</h4><Tag className={`${ordered ? "list-decimal" : "list-disc"} pl-5 space-y-2 mt-2 text-ink-soft`}>{values.map(value => <li key={value}>{value}</li>)}</Tag></div>; }
