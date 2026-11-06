@@ -410,12 +410,12 @@ function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, ed
     </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title={uiText("screen.3c079482c65b")} values={idea.unresolved} /><List title={uiText("screen.9afdfa4b758f")} values={idea.plan} ordered /></div></details>
 
     <div className="idea-proposal-actions">
+      <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : uiText("screen.28dfad4eb9d8")}</button>
       <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
       <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
       <details className="idea-proposal-more">
         <summary>{locale === "es" ? "Más acciones" : "Mais ações"} <span aria-hidden="true">⋯</span></summary>
         <div className="idea-proposal-more-options">
-          <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine}>{refining ? uiText("screen.363d5d503f2d") : uiText("screen.28dfad4eb9d8")}</button>
           <button type="button" disabled={saving} onClick={onEdit} aria-expanded={editing}>{editing ? uiText("screen.e13f598b5a95") : uiText("screen.2e6acb733179")}</button>
           <button type="button" disabled={stale || saving || !loggedIn} onClick={onSave}>{saving ? uiText("screen.6b5056724381") : uiText("screen.784f681fadeb")}</button>
           <button type="button" disabled={stale} onClick={onDownload}><InterfaceText message="screen.b45ae836a031" /></button>
