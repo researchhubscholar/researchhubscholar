@@ -333,3 +333,50 @@ body:has(.primary-nav[data-advisor-only="true"]) .site-return {
   .idea-proposal-metrics > div { justify-content: center; }
   .idea-proposal-metrics > div + div { border-top: 0; border-left: 1px solid var(--idea-line); }
 }
+
+/* Keep chat below the desktop notification control. On narrow screens the chat
+   takes priority, and the bell returns as soon as the chat closes. */
+@media (min-width: 1280px) {
+  body:has(.review-bell) .project-guide-window {
+    --guide-bell-clearance: calc(max(1.25rem, env(safe-area-inset-top)) + 4rem);
+    max-height: calc(100dvh - var(--guide-bell-clearance) - 5.25rem - env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 1280px) and (min-height: 680px) {
+  body:has(.review-bell) .project-guide-window--expanded {
+    top: var(--guide-bell-clearance);
+    max-height: none;
+  }
+}
+@media (max-width: 1279px) {
+  body:has(.project-guide-window) .review-bell { display: none; }
+}
+.project-guide-window .project-guide-header {
+  max-height: min(34dvh, 15rem);
+  overflow-y: auto;
+  padding: .9rem 1.1rem;
+  background: #fff;
+}
+.project-guide-window .project-guide-context { margin-top: .15rem; }
+.project-guide-window .project-guide-info { margin-top: .55rem; }
+.project-guide-window .project-guide-thread { background: #f5f7f3; }
+.project-guide-window .project-guide-welcome {
+  display: grid;
+  gap: .8rem;
+  padding: .9rem 0;
+  max-width: 34rem;
+}
+.project-guide-window .project-guide-starter { justify-self: start; margin: 0; }
+.project-guide-window .project-guide-tools { margin-bottom: .85rem; padding-bottom: .45rem; }
+.project-guide-window .project-guide-answer {
+  margin-top: .75rem;
+  padding: .85rem 1rem;
+  border: 1px solid #dce5d9;
+  border-radius: .8rem;
+  background: #fff;
+}
+.project-guide-window .project-guide-turn { margin-bottom: 1.55rem; }
+.project-guide-window .project-guide-footer { background: #fff; }
+@media (max-height: 520px) {
+  .project-guide-window .project-guide-header { padding-block: .45rem; }
+}
