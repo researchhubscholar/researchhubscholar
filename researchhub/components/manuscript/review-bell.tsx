@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -60,7 +61,8 @@ export default function ReviewBell({ userId }: { userId: string }) {
 
   const unread = items.filter(item => !read.includes(item.id)).length;
   const label = es ? "Notificaciones de revisión" : "Notificações de revisão";
-  return <details ref={panel} className="review-bell" onKeyDown={event => {
+  if (typeof document === "undefined") return null;
+  return createPortal(<details ref={panel} className="review-bell" onKeyDown={event => {
     if (event.key === "Escape" && panel.current?.open) {
       panel.current.open = false;
       summary.current?.focus();
@@ -80,5 +82,5 @@ export default function ReviewBell({ userId }: { userId: string }) {
         <span className="review-notice-preview">{item.body}</span>
       </Link></li>)}</ul>
     </section>
-  </details>;
+  </details>, document.body);
 }
