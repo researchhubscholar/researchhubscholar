@@ -344,13 +344,14 @@ body:has(.primary-nav[data-advisor-only="true"]) .site-return {
     width: min(38rem, calc(100vw - 2.5rem));
   }
 }
-@media (min-width: 1280px) {
-  body:has(.review-bell) .project-guide-window {
-    top: calc(max(1.25rem, env(safe-area-inset-top)) + 4rem);
-  }
+body:has(.project-guide-window--expanded) .review-bell { display: none; }
+body:has(.review-bell) .project-guide-window:not(.project-guide-window--expanded) {
+  top: calc(max(1.25rem, env(safe-area-inset-top)) + 4rem);
 }
 @media (max-width: 1279px) {
-  body:has(.project-guide-window) .review-bell { display: none; }
+  body:has(.project-guide-window:not(.project-guide-window--expanded)) .review-bell {
+    top: max(1.25rem, env(safe-area-inset-top));
+  }
 }
 .project-guide-window .project-guide-header {
   max-height: min(30dvh, 12rem);
