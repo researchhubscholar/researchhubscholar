@@ -23,7 +23,8 @@ import ProjectSharing from "@/components/access/project-sharing";
 import ProjectJourney from "@/components/projects/journey";
 import ProjectSwitcher from "@/components/projects/project-switcher";
 import AssistantPanel from "@/components/ai/assistant-panel";
-import { buildProtocolDoc, download } from "@/lib/exports/scientific";
+import { downloadBinary, htmlWord } from "@/lib/exports/ooxml";
+import { buildProtocolDoc } from "@/lib/exports/scientific";
 import { protocolChecks } from "@/lib/research/checks";
 import { diagnoseProjectDraft, initialProjectMilestones, projectOriginRow } from "@/lib/projects/creation";
 
@@ -241,7 +242,7 @@ export default function MeuTrabalhoPage() {
   useUnsavedChanges({label:"Protocolo",dirty,busy:saveState==="loading",onSave:saveDraft,onDiscard:()=>{try{window.localStorage.removeItem(storageKey);}catch{}}});
   function exportProtocol() {
     const sections = groups.map(g => ({ title: g.title, fields: [...g.keys.map(k => ({ label: labels[k], value: draft[k] })), ...(g.id === "objetivos" ? [{ label: labels.hypothesis, value: draft.hypothesis }] : [])] }));
-    download(buildProtocolDoc(draft.theme, sections, locale), "application/msword;charset=utf-8", "protocolo-scholar.doc");
+    downloadBinary(htmlWord(buildProtocolDoc(draft.theme, sections, locale), locale), "protocolo-researchhub.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
   }
   const notes = [
     ...protocolChecks(draft),
