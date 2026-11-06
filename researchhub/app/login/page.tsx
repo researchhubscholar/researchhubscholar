@@ -1,4 +1,5 @@
 "use client";
+import { isAdvisorOnly } from "@/lib/access/advisor-mode";
 import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
@@ -41,7 +42,9 @@ export default function LoginPage() {
       return;
     }
     const { data: profile } = await supabase.from("profiles").select("onboarding_completed, user_type").eq("id", user.id).maybeSingle();
-    if (!profile?.onboarding_completed) {
+    if (!profile?.onboarding_completed && await isAdvisorOnly(supabase, user.id)) {
+      router.push("/orientacao");
+    } else if (!profile?.onboarding_completed) {
       const profileParam = profile?.user_type === "resident" ? "resident" : user.user_metadata?.scholar_stage || "student";
       router.push(`/scholar/onboarding?perfil=${encodeURIComponent(profileParam)}`);
     } else router.push("/dashboard");

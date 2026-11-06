@@ -295,6 +295,16 @@
         "scholar_advising.sql"
       ],
       "repeatability": "safe-to-rerun"
+    },
+    {
+      "file": "scholar_advisor_review_roles.sql",
+      "sha256": "b43aa8c831e569fd4e59fa3c1fcde01f7e3b4dadcb1a944dbdb8ef88cf9ad25a",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_manuscript_review.sql",
+        "scholar_advisor_plan_limits.sql"
+      ],
+      "repeatability": "safe-to-rerun"
     }
   ]
 }

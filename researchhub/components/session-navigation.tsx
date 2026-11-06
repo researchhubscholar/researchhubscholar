@@ -1,5 +1,6 @@
 "use client";
 
+import { isAdvisorOnly } from "@/lib/access/advisor-mode";
 import Link from "next/link";
 import { useLanguage } from "@/components/i18n/language-provider";
 import LanguageSelector from "@/components/i18n/language-selector";
@@ -9,7 +10,7 @@ import { useEffect, useState } from "react";
 import LogoutButton from "@/components/LogoutButton";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean };
+type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean; advisorOnly?: boolean };
 
 const publicLinks = [
   ["/radar-demo", "Testar Radar"],
@@ -42,7 +43,7 @@ function isCurrent(pathname: string, href: string) {
 
 export default function SessionNavigation() {
   const pathname = usePathname();
-  const { t: uiText } = useLanguage();
+  const { t: uiText, locale } = useLanguage();
   const [session, setSession] = useState<SessionState>({ authenticated: false, displayName: null, isAdmin: false });
 
   useEffect(() => {
@@ -54,39 +55,43 @@ export default function SessionNavigation() {
         if (active) setSession({ authenticated: false, displayName: null, isAdmin: false });
         return;
       }
-      const [profileResult, adminResult] = await Promise.all([
+      const [profileResult, adminResult, advisorOnly] = await Promise.all([
         db.from("profiles").select("name").eq("id", user.id).maybeSingle(),
         db.from("scholar_platform_admins").select("role").eq("user_id", user.id).maybeSingle(),
+        isAdvisorOnly(db, user.id),
       ]);
       if (active) setSession({
         authenticated: true,
         displayName: profileResult.data?.name || user.user_metadata?.name || user.email?.split("@")[0] || null,
         isAdmin: Boolean(adminResult.data),
+        advisorOnly,
       });
     }
     void load();
     const { data: listener } = db.auth.onAuthStateChange(() => { void load(); });
-    return () => { active = false; listener.subscription.unsubscribe(); };
+    const refreshRole = () => { void load(); };
+    window.addEventListener("scholar-advisor-access", refreshRole);
+    return () => { active = false; listener.subscription.unsubscribe(); window.removeEventListener("scholar-advisor-access", refreshRole); };
   }, []);
 
   const isLandingPage = pathname === "/";
   const isWorkspace = ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
-  const links = session.authenticated && isWorkspace ? [...privateLinks, ...(session.isAdmin ? adminLinks : [])] : session.authenticated && isLandingPage ? [] : [...publicLinks];
+  const links = session.authenticated && isWorkspace ? [...privateLinks.filter(([href]) => !session.advisorOnly || href === "/orientacao" || href === "/conta"), ...(session.isAdmin ? adminLinks : [])] : session.authenticated && isLandingPage ? [] : [...publicLinks];
   const renderLink = ([href, label]: (typeof links)[number], mobile = false) => (
     <Link
       key={href}
       href={href}
       aria-current={isCurrent(pathname, href) ? "page" : undefined}
       className={`primary-nav-link ${mobile ? "" : "desktop-only-link"}`}
-    >{uiText(navigationMessages[href]) || label}</Link>
+    >{session.advisorOnly && href === "/orientacao" ? (locale === "es" ? "Proyectos compartidos" : "Projetos compartilhados") : uiText(navigationMessages[href]) || label}</Link>
   );
 
   return <>
-    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={isWorkspace ? "true" : undefined}>
+    <nav aria-label={uiText("nav.mainLabel")} className="primary-nav" data-workspace={isWorkspace ? "true" : undefined} data-advisor-only={session.advisorOnly && isWorkspace ? "true" : undefined}>
       <LanguageSelector />
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
-        {!isWorkspace ? <Link href="/dashboard" className="primary-nav-link nav-signup">{uiText("nav.workspace")}</Link> : session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
+        {!isWorkspace ? <Link href={session.advisorOnly ? "/orientacao" : "/dashboard"} className="primary-nav-link nav-signup">{session.advisorOnly ? uiText("nav.advising") : uiText("nav.workspace")}</Link> : !session.advisorOnly && session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
         <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{uiText("nav.login")}</Link>

@@ -101,6 +101,7 @@ let pathname='/',session={authenticated:true,displayName:'Admin',isAdmin:true};
 const moduleFixture={exports:{}};
 const jsx=(type,props)=>({type,props});
 const dependency=name=>{
+ if(name==='@/lib/access/advisor-mode')return {};
  if(name==='react')return {useEffect(){},useState:()=>[session,()=>{}]};
  if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};
  if(name==='next/navigation')return {usePathname:()=>pathname};
@@ -126,6 +127,7 @@ assert(workspaceLinks.indexOf('/ideias')<workspaceLinks.indexOf('/descobrir'));
 assert(rendered.some(n=>n.type==='link'&&n.props.children===(locale==='es'?'Ideas':'Ideias')));
 pathname='/';rendered=render();assert.deepEqual(rendered.filter(n=>n.type==='link').map(n=>n.props.href),['/dashboard'],'return from workspace cannot leak private modules into landing');
 pathname='/planos';rendered=render();assert(!rendered.some(n=>n.props?.href==='/operacao'));assert(rendered.some(n=>n.props?.href==='/dashboard'));
+session={authenticated:true,displayName:'Advisor',isAdmin:false,advisorOnly:true};pathname='/orientacao';rendered=render();assert.deepEqual([...new Set(rendered.filter(n=>n.type==='link').map(n=>n.props.href))],['/orientacao','/conta']);
 session={authenticated:false,displayName:null,isAdmin:false};pathname='/';rendered=render();assert(rendered.some(n=>n.props?.href==='/como-funciona'));assert(rendered.some(n=>n.props?.href==='/login'));assert(!rendered.some(n=>n.props?.href==='/biblioteca'));
 console.log(locale+' PASS: logged-in landing shows only workspace entry; public pages never render private/admin tabs, including after client navigation.');
 

@@ -69,3 +69,23 @@ orientação/leitura compartilhada. Não marcar todas as cinco etapas como concl
 Verificação local desta entrega: `npm run lint`, `npm run typecheck`, `npm test`,
 `npm run build` e `npm run test:smoke` passaram. O teste de contexto de páginas
 cobre também a entrada por convite com uma conta sem projeto próprio.
+
+## Ajuste após teste do usuário — 06/11/2026
+
+Usuário confirmou que o código e o acesso compartilhado funcionam. A navegação
+de uma conta só de orientação agora se limita a projetos compartilhados e Conta;
+autor com projeto próprio, licença, vínculo institucional ou administração mantém
+a navegação completa. O papel em cada trabalho continua a depender do vínculo
+e da propriedade do projeto, independentemente do menu da conta.
+
+No manuscrito, orientadores leem e criam comentários de revisão; autores editam,
+respondem e resolvem/reabrem pendências. Ninguém responde à própria publicação
+inicial. Em Orientação, o autor pode registrar notas e manter atas/versões; o
+convidado lê e comenta. O formulário de aceitar convite fica na seleção de
+projetos. O histórico existente é preservado.
+
+Executar `supabase/scholar_advisor_review_roles.sql` no Supabase do ResearchHub
+para aplicar a separação também no banco. Teste com as duas contas já usadas:
+convidado publica comentário e não vê Responder ou Resolver no próprio comentário;
+autor responde e resolve, e o convidado vê ambos ao atualizar. Reteste pendente
+no ambiente real.

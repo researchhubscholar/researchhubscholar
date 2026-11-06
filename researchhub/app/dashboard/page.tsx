@@ -1,3 +1,4 @@
+import { isAdvisorOnly } from "@/lib/access/advisor-mode";
 import { intlLocale } from "@/lib/i18n/format";
 import AuthoredText from "@/components/i18n/authored-text";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
   const db = await supabaseServer();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
+  if (await isAdvisorOnly(db, user.id)) redirect("/orientacao");
   const [profileResult, diagnosisResult, projectResult, unreadResult] = await Promise.all([
     db.from("profiles").select("name, specialty, training_stage, onboarding_completed").eq("id", user.id).maybeSingle(),
     db.from("profiles").select("main_goal,research_experience,weekly_availability,project_deadline,advisor_access,data_access,current_research_stage,main_difficulty,onboarding_version").eq("id", user.id).maybeSingle(),

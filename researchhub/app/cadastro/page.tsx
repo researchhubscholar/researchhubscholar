@@ -57,7 +57,7 @@ export default function CadastroPage() {
       return;
     }
 
-    router.push(`/scholar/onboarding?perfil=${persona}`);
+    router.push(persona === "professor" ? "/orientacao" : `/scholar/onboarding?perfil=${persona}`);
     router.refresh();
   }
 

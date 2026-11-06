@@ -234,3 +234,11 @@ body:has(.primary-nav[data-workspace="true"]) .scholar-workspace .documents-metr
     padding: .5rem .75rem;
   }
 }
+
+/* Shared review is a reading and discussion space, without author tools. */
+body:has(.primary-nav[data-advisor-only="true"],[data-advising-view="shared"]) :is(.project-guide-toggle,.project-guide-window) {
+  display: none;
+}
+body:has(.primary-nav[data-advisor-only="true"]) .site-return {
+  display: none;
+}
