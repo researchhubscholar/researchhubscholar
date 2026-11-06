@@ -42,3 +42,15 @@ assert(scientific.buildAdvisorReport(data,'es').includes('Etapa personalizada'))
 const matrix=scientific.buildProjectMatrixRows(data,'es');assert.equal(matrix[0][0],'Proyecto');assert.equal(matrix[0][3],'Año');assert.equal(matrix[1][0],'Situação');assert.equal(matrix[1][8],'reviewed');
 assert.equal(JSON.stringify(data),original);
 console.log('PASS: Spanish protocol, summary, advisor report and matrix preserve user text, notes, reference data and enum values.');
+
+const draftSections = [
+  { title: 'Tema e pergunta', fields: [{ label: 'Tema do trabalho', value: 'Original research title' }] },
+  { title: 'Objetivo e hipótese', fields: [{ label: 'Hipótese ou pressuposto (quando aplicável)', value: 'Texto original em português' }] },
+  { title: 'Desenho e população', fields: [] },
+  { title: 'Desfechos e variáveis', fields: [{ label: 'Variáveis e formas de medir', value: '' }] },
+  { title: 'Métodos, análise e ética', fields: [{ label: 'Procedimentos e coleta de dados', value: 'Original methods' }] },
+  { title: 'Planejamento do manuscrito', fields: [{ label: 'Plano e notas do manuscrito', value: '' }] },
+];
+const draft = decode(htmlWord(scientific.buildProtocolDoc('Título original', draftSections, 'es'), 'es'));
+for (const heading of ['Tema y pregunta','Objetivo e hipótesis','Diseño y población','Desenlaces y variables','Métodos, análisis y ética','Planificación del manuscrito']) assert(draft.includes(heading), heading);
+for (const text of ['Tema del trabajo: Original research title','Hipótesis o supuesto (cuando corresponda): Texto original em português','Variables y formas de medición: Por definir','Procedimientos y recolección de datos: Original methods','Plan y notas del manuscrito: Por definir']) assert(draft.includes(text), text);
