@@ -63,3 +63,8 @@ assert(!briefDoc.includes('PERGUNTA'));
 assert(scientific.buildStructuredProtocol({...data,project:{...data.project,manuscript:oldBrief}},'es').includes('PROPUESTA PARA DISCUTIR CON EL TUTOR'));
 assert(scientific.buildProtocolDoc('Original',briefSections,'pt-BR').includes('PERGUNTA'));
 assert(scientific.buildProtocolDoc('Original',[{title:'Planejamento do manuscrito',fields:[{label:'Plano e notas do manuscrito',value:'Nota livre\n\nPERGUNTA'}]}],'es').includes('PERGUNTA'));
+
+const guidanceBrief = oldBrief + '\n\nDECISÕES PENDENTES\n• Estime quantos participantes ou registros são acessíveis; isso ainda não é cálculo amostral.\n• Exigências informadas do curso ou serviço: Manter minha anotação em português.\n\nPLANO DE EXECUÇÃO\n1. Síntese: relacionar resultados, qualidade e limitações, redigir e revisar o manuscrito.\n2. Revisar meu texto original.';
+const guidanceDoc = decode(htmlWord(scientific.buildProtocolDoc('Original',[{title:'Planejamento do manuscrito',fields:[{label:'Plano e notas do manuscrito',value:guidanceBrief}]}],'es'),'es'));
+for (const phrase of ['Estima a cuántos participantes','Requisitos indicados por el curso o servicio: Manter minha anotação em português.','1. Síntesis: relacionar los resultados','2. Revisar meu texto original.']) assert(guidanceDoc.includes(phrase),phrase);
+assert(!guidanceDoc.includes('isso ainda não é cálculo amostral'));

@@ -199,20 +199,73 @@ const ideaBriefSpanish = {
   "Proposta preliminar para discussão. Não comprova originalidade, viabilidade, adequação ética ou validade final do método. Confirme referências, instrumentos e decisões com o orientador.": "Propuesta preliminar para discusión. No demuestra originalidad, viabilidad, adecuación ética ni validez final del método. Confirma las referencias, los instrumentos y las decisiones con el tutor."
 };
 
+const ideaGuidanceSpanish: Record<string, string> = {
+  "Defina a população ou o grupo de estudos elegíveis.": "Define la población o el grupo de estudios elegibles.",
+  "Escolha um desfecho específico: o que será medido ou extraído dos artigos?": "Elige un desenlace específico: ¿qué se medirá o se extraerá de los artículos?",
+  "Delimite o serviço, especialidade, país ou contexto ao qual a pergunta se aplica.": "Delimita el servicio, la especialidad, el país o el contexto al que se aplica la pregunta.",
+  "Informe como o desfecho será medido; na revisão, quais medidas serão aceitas.": "Indica cómo se medirá el desenlace o qué medidas se aceptarán en la revisión.",
+  "Estime quantos participantes ou registros são acessíveis; isso ainda não é cálculo amostral.": "Estima a cuántos participantes o registros puedes acceder; esto aún no es un cálculo del tamaño de la muestra.",
+  "Confirme o acesso ao serviço e planeje as autorizações e a avaliação ética aplicável.": "Confirma el acceso al servicio y planifica las autorizaciones y la evaluación ética aplicable.",
+  "Defina quem orientará o método e a análise antes de fechar o protocolo.": "Define quién orientará el método y el análisis antes de finalizar el protocolo.",
+  "Prazo curto: restrinja o recorte e verifique tempo para seleção, autorizações e execução.": "Plazo corto: acota el alcance y comprueba si hay tiempo para la selección, las autorizaciones y la ejecución.",
+  "Selecione e leia referências para verificar o que já foi estudado antes de defender a justificativa.": "Selecciona y lee las referencias para comprobar qué se ha estudiado antes de defender la justificación.",
+  "Delimite o contexto ou local ao qual a pergunta se aplica.": "Delimita el contexto o el lugar al que se aplica la pregunta.",
+  "Defina o desfecho e a forma de medida antes de fechar o protocolo.": "Define el desenlace y cómo se medirá antes de finalizar el protocolo.",
+  "Teste uma busca piloto, confirme acesso aos textos e escolha como avaliar criticamente os desenhos elegíveis.": "Prueba una búsqueda piloto, confirma el acceso a los textos y decide cómo evaluar críticamente los diseños elegibles.",
+  "Confirme consentimento, autorizações, completude dos dados e relevância educacional do caso.": "Confirma el consentimiento, las autorizaciones, la integridad de los datos y la relevancia educativa del caso.",
+  "Estime a amostra viável e confira autorizações, avaliação ética aplicável e disponibilidade de apoio para a análise.": "Estima la muestra viable y verifica las autorizaciones, la evaluación ética aplicable y la disponibilidad de apoyo para el análisis.",
+  "Não presuma que estudos suficientes ou comparáveis para metanálise serão encontrados.": "No des por hecho que encontrarás estudios suficientes o comparables para el metaanálisis.",
+  "Prazo curto: confirme se autorizações e recrutamento cabem no cronograma antes de escolher pesquisa de campo.": "Plazo corto: comprueba si las autorizaciones y el reclutamiento caben en el cronograma antes de elegir un estudio de campo.",
+  "Delimitação: ler as referências selecionadas, conferir revisões existentes e testar a pergunta numa busca piloto.": "Delimitación: leer las referencias seleccionadas, consultar las revisiones existentes y probar la pregunta con una búsqueda piloto.",
+  "Protocolo: definir critérios, bases, busca, seleção, extração e avaliação crítica com o orientador.": "Protocolo: definir los criterios, las bases de datos, la búsqueda, la selección, la extracción y la evaluación crítica con el tutor.",
+  "Execução: realizar e registrar as buscas e a seleção; extrair e conferir os dados elegíveis.": "Ejecución: realizar y registrar las búsquedas y la selección; extraer y verificar los datos elegibles.",
+  "Síntese: relacionar resultados, qualidade e limitações, redigir e revisar o manuscrito.": "Síntesis: relacionar los resultados, la calidad y las limitaciones; redactar y revisar el manuscrito.",
+  "Elegibilidade: confirmar a singularidade clínica, a qualidade dos registros e o aprendizado central.": "Elegibilidad: confirmar la singularidad clínica, la calidad de los registros y el aprendizaje principal.",
+  "Autorizações: obter consentimento e cumprir exigências institucionais e éticas aplicáveis.": "Autorizaciones: obtener el consentimiento y cumplir los requisitos institucionales y éticos aplicables.",
+  "Redação: organizar o caso em linha do tempo e relacioná-lo a uma revisão focal da literatura.": "Redacción: organizar el caso cronológicamente y relacionarlo con una revisión focalizada de la literatura.",
+  "Revisão: conferir anonimização, limites da discussão e diretriz de relato antes da submissão.": "Revisión: verificar la anonimización, los límites de la discusión y la guía de publicación antes del envío.",
+  "Viabilidade: conferir população acessível, variáveis, instrumentos ou qualidade dos registros.": "Viabilidad: comprobar la población accesible, las variables, los instrumentos o la calidad de los registros.",
+  "Protocolo: revisar objetivos, planejamento amostral e análise; obter as autorizações e avaliações aplicáveis.": "Protocolo: revisar los objetivos, el plan de muestreo y el análisis; obtener las autorizaciones y evaluaciones aplicables.",
+  "Execução: extrair os dados autorizados, conferir inconsistências e registrar ausências.": "Ejecución: extraer los datos autorizados, comprobar las inconsistencias y registrar los datos faltantes.",
+  "Execução: recrutar conforme critérios, aplicar os instrumentos e conferir a qualidade dos dados.": "Ejecución: reclutar según los criterios, aplicar los instrumentos y comprobar la calidad de los datos.",
+  "Análise e escrita: responder aos objetivos, discutir vieses e limitações e revisar com o orientador.": "Análisis y redacción: responder a los objetivos, discutir los sesgos y las limitaciones y revisar con el tutor."
+};
+
+function localizeIdeaGuidance(text: string): string {
+  if (Object.hasOwn(ideaGuidanceSpanish, text)) return ideaGuidanceSpanish[text];
+  const requirements = "Exigências informadas do curso ou serviço: ";
+  if (text.startsWith(requirements)) {
+    return "Requisitos indicados por el curso o servicio: " + text.slice(requirements.length).replaceAll(
+      "Geração automática: comparar direções científicas distintas e priorizar as que cabem no prazo e no acesso informados.",
+      "Generación automática: comparar distintas líneas de investigación y priorizar las que se ajusten al plazo y al acceso indicados.",
+    );
+  }
+  return text.replace(/^Dúvida que você deseja esclarecer: /, "Duda que deseas aclarar: ")
+    .replace(/^Verifique se as (\d+) referências selecionadas tratam da mesma população, pergunta e desfecho\. A seleção não comprova uma lacuna\.$/,
+      "Comprueba si las $1 referencias seleccionadas tratan sobre la misma población, pregunta y desenlace. La selección no demuestra que exista una brecha.");
+}
+
 // Existing projects may have the old Portuguese brief embedded in their notes.
 export function localizeStoredIdeaBrief(text: string, locale: "pt-BR" | "es"): string {
   if (locale !== "es" || !/^PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR\r?\n/.test(text)) return text;
+  let guidanceSection = "";
   return text.split(/(\r?\n)/).map((line, index, parts) => {
     if (index % 2) return line;
     const previousLine = parts[index - 2];
     const isHeading = index === 0 || previousLine === "" || line === "Pergunta do projeto usado como ponto de partida:";
-    if (isHeading && Object.hasOwn(ideaBriefSpanish, line)) return ideaBriefSpanish[line as keyof typeof ideaBriefSpanish];
+    if (isHeading && Object.hasOwn(ideaBriefSpanish, line)) {
+      guidanceSection = line;
+      return ideaBriefSpanish[line as keyof typeof ideaBriefSpanish];
+    }
+    if (guidanceSection === "DECISÕES PENDENTES") return line.replace(/^(• )(.+)$/, (_, prefix: string, guidance: string) => prefix + localizeIdeaGuidance(guidance));
+    if (guidanceSection === "PLANO DE EXECUÇÃO") return line.replace(/^(\d+\. )(.+)$/, (_, prefix: string, guidance: string) => prefix + localizeIdeaGuidance(guidance));
     return line.replace(/^(Pontuação geral|Relevância|Viabilidade|Execução)(: \d+\/100)/, (_, label: keyof typeof ideaBriefSpanish, suffix: string) => ideaBriefSpanish[label] + suffix);
   }).join("");
 }
 
 export function ideaBrief(idea: Idea, locale: "pt-BR" | "es" = "pt-BR"): string {
   const copy = (label: keyof typeof ideaBriefSpanish) => locale === "es" ? ideaBriefSpanish[label] : label;
+  const guidance = (value: string) => locale === "es" ? localizeIdeaGuidance(value) : value;
   return [copy("PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR"), idea.title, "", copy("CONTEXTO"), idea.contextSummary,
     ...(idea.startingQuestion ? [copy("Pergunta do projeto usado como ponto de partida:"), idea.startingQuestion] : []),
     "", copy("PERGUNTA"), idea.question, "", copy("OBJETIVO"), idea.objective, "", copy("DESENHO"), idea.studyType,
@@ -223,8 +276,8 @@ export function ideaBrief(idea: Idea, locale: "pt-BR" | "es" = "pt-BR"): string 
     ...(idea.limitations ? ["", copy("LIMITAÇÕES PREVISÍVEIS"), idea.limitations] : []),
     ...(idea.noveltyCheck ? ["", copy("COMO VERIFICAR A LACUNA"), idea.noveltyCheck] : []),
     "", copy("AVALIAÇÃO DO CAMINHO"), ...(idea.evaluation ? [`${copy("Pontuação geral")}: ${idea.evaluation.overall}/100`, `${copy("Relevância")}: ${idea.evaluation.relevance.score}/100 — ${idea.evaluation.relevance.reason}`, `${copy("Viabilidade")}: ${idea.evaluation.feasibility.score}/100 — ${idea.evaluation.feasibility.reason}`, `${copy("Execução")}: ${idea.evaluation.execution.score}/100 — ${idea.evaluation.execution.reason}`] : []),
-    "", copy("RECORTES SUGERIDOS"), ...(idea.refinements || []).map(value => `• ${value}`), "", copy("VIABILIDADE"), idea.feasibility, "", copy("RECURSOS NECESSÁRIOS"), idea.resources, "", copy("DIFICULDADES"), idea.difficulty, "", copy("DECISÕES PENDENTES"), ...idea.unresolved.map(value => `• ${value}`),
-    "", copy("PLANO DE EXECUÇÃO"), ...idea.plan.map((value, index) => `${index + 1}. ${value}`),
+    "", copy("RECORTES SUGERIDOS"), ...(idea.refinements || []).map(value => `• ${value}`), "", copy("VIABILIDADE"), idea.feasibility, "", copy("RECURSOS NECESSÁRIOS"), idea.resources, "", copy("DIFICULDADES"), idea.difficulty, "", copy("DECISÕES PENDENTES"), ...idea.unresolved.map(value => `• ${guidance(value)}`),
+    "", copy("PLANO DE EXECUÇÃO"), ...idea.plan.map((value, index) => `${index + 1}. ${guidance(value)}`),
     "", copy("REFERÊNCIAS SELECIONADAS PARA VERIFICAÇÃO"), ...(idea.references.length ? idea.references.flatMap(ref => [`${ref.label}. ${ref.title} (${ref.year || copy("ano não informado")}) · ${ref.identifier}`, ...ref.observations]) : [copy("Nenhuma referência selecionada.")]),
     "", copy("Proposta preliminar para discussão. Não comprova originalidade, viabilidade, adequação ética ou validade final do método. Confirme referências, instrumentos e decisões com o orientador."),
   ].join("\n");
