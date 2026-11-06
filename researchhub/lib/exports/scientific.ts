@@ -1,6 +1,7 @@
 import { formatDate, formatNumber } from "../i18n/format";
 import { resolveLocale } from "../i18n/locale";
 import type { Locale } from "../i18n/locale";
+import { localizeStoredIdeaBrief } from "../ideas/generate";
 import { exportCopy } from "../i18n/export-copy";
 import type { LibraryArticle, EvidenceNote } from "@/lib/literature/library-store";
 
@@ -15,7 +16,7 @@ export function buildCsv(articles: LibraryArticle[], notes: Record<string, Evide
 }
 export function buildRis(articles: LibraryArticle[]) { return articles.map(a => ["TY  - JOUR",`TI  - ${clean(a.title)}`,...a.authors.map(x=>`AU  - ${clean(x)}`),a.journal&&`JO  - ${clean(a.journal)}`,a.year&&`PY  - ${a.year}`,a.doi&&`DO  - ${clean(a.doi)}`,a.pmid&&`AN  - PMID:${clean(a.pmid)}`,a.abstract&&`AB  - ${clean(a.abstract)}`,"ER  - "].filter(Boolean).join("\n")).join("\n\n"); }
 export function buildBibtex(articles: LibraryArticle[]) { return articles.map((a,i)=>{const key=`scholar${a.year||"nd"}_${i+1}`;return `@article{${key},\n  title = {${clean(a.title)}},\n  author = {${a.authors.map(clean).join(" and ")}},\n  journal = {${clean(a.journal)}},\n  year = {${a.year||""}},\n  doi = {${clean(a.doi)}},\n  pmid = {${clean(a.pmid)}}\n}`;}).join("\n\n"); }
-export function buildProtocolDoc(title:string, sections:{title:string;fields:{label:string;value:string}[]}[], locale:Locale="pt-BR") { const copy=(text:string)=>exportCopy(locale,text); return `<!doctype html><html lang="${resolveLocale(locale)}"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.55;margin:48px;color:#14213d}h1,h2{font-family:Georgia,serif}h2{border-bottom:1px solid #ccc;padding-bottom:8px;margin-top:28px}.field{margin:14px 0}.label{font-weight:bold;font-size:12px;text-transform:uppercase;color:#0f6e66}</style></head><body><h1>${esc(title||copy("Projeto sem título"))}</h1><p>${esc(copy("Rascunho de protocolo · ResearchHub"))}</p>${sections.map(s=>`<h2>${esc(copy(s.title))}</h2>${s.fields.map(f=>`<div class="field"><div class="label">${esc(copy(f.label))}</div><div>${esc(f.value||copy("A definir"))}</div></div>`).join("")}`).join("")}<p><small>${esc(copy("Estrutura em desenvolvimento. Revise conteúdo, método e questões éticas com seu orientador."))}</small></p></body></html>`; }
+export function buildProtocolDoc(title:string, sections:{title:string;fields:{label:string;value:string}[]}[], locale:Locale="pt-BR") { const copy=(text:string)=>exportCopy(locale,text); return `<!doctype html><html lang="${resolveLocale(locale)}"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.55;margin:48px;color:#14213d}h1,h2{font-family:Georgia,serif}h2{border-bottom:1px solid #ccc;padding-bottom:8px;margin-top:28px}.field{margin:14px 0}.label{font-weight:bold;font-size:12px;text-transform:uppercase;color:#0f6e66}</style></head><body><h1>${esc(title||copy("Projeto sem título"))}</h1><p>${esc(copy("Rascunho de protocolo · ResearchHub"))}</p>${sections.map(s=>`<h2>${esc(copy(s.title))}</h2>${s.fields.map(f=>`<div class="field"><div class="label">${esc(copy(f.label))}</div><div>${esc((f.label === "Plano e notas do manuscrito" ? localizeStoredIdeaBrief(f.value, locale) : f.value)||copy("A definir"))}</div></div>`).join("")}`).join("")}<p><small>${esc(copy("Estrutura em desenvolvimento. Revise conteúdo, método e questões éticas com seu orientador."))}</small></p></body></html>`; }
 export function download(content:string,type:string,filename:string){const url=URL.createObjectURL(new Blob([content],{type}));const link=document.createElement("a");link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);}
 
 export type DocumentProject = {
@@ -62,7 +63,7 @@ export function buildStructuredProtocol(data:ProjectDocumentData, locale:Locale=
     ["Fundamentação e pergunta",[["Tema e recorte",p.theme],["Pergunta de pesquisa",p.question],["Hipótese ou pressuposto",p.hypothesis]]],
     ["Objetivos e desfechos",[["Objetivo geral",p.objective],["Desfecho principal",p.outcome],["Variáveis e mensuração",p.variables]]],
     ["Métodos",[["População",p.population],["Critérios de inclusão",p.inclusion],["Critérios de exclusão",p.exclusion],["Procedimentos e coleta",p.methods],["Plano de análise",p.analysis]]],
-    ["Ética e planejamento",[["Considerações éticas",p.ethics],["Planejamento do manuscrito",p.manuscript]]],
+    ["Ética e planejamento",[["Considerações éticas",p.ethics],["Planejamento do manuscrito",localizeStoredIdeaBrief(p.manuscript || "", locale)]]],
   ] as [string,[string,string][]][];
   const body=blocks.map(([title,fields])=>section(title,fields.map(([label,value])=>field(label,value)).join(""))).join("")+section("Referências vinculadas",references(data));
   return shell(p.title||p.theme||copy("Protocolo de pesquisa"),"Protocolo estruturado para revisão",body,data);

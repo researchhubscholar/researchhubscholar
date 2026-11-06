@@ -1,7 +1,755 @@
 {
-  "scope": "UI literals and attributes including the assistant; reviewed identical Portuguese/Spanish terms are retained. Scientific content, user data and generated documents are separate scopes.",
-  "complete": true,
-  "candidates": 0,
-  "reviewedUnchanged": 207,
-  "items": []
+  "scope": "UI literals, simple JSX expressions and attributes including the assistant; reviewed identical Portuguese/Spanish terms are retained. Scientific content, user data and generated documents are separate scopes.",
+  "complete": false,
+  "candidates": 105,
+  "reviewedUnchanged": 199,
+  "items": [
+    {
+      "kind": "expression",
+      "text": "Aguarde...",
+      "files": [
+        "app/biblioteca/page.tsx",
+        "app/descobrir/page.tsx",
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "artigo",
+      "files": [
+        "app/biblioteca/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "artigos",
+      "files": [
+        "app/biblioteca/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "et al.",
+      "files": [
+        "app/biblioteca/page.tsx",
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "· Crossref",
+      "files": [
+        "app/biblioteca/page.tsx",
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Continue de onde parou",
+      "files": [
+        "app/como-funciona/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Avance com clareza",
+      "files": [
+        "app/como-funciona/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Aguarde…",
+      "files": [
+        "app/conta/page.tsx",
+        "components/manuscript/section-assistant.tsx",
+        "components/results/editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Equipe Scholar",
+      "files": [
+        "app/conta/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Registrando...",
+      "files": [
+        "app/contato/page.tsx",
+        "app/contratacao/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Pagamento",
+      "files": [
+        "app/contratacao/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "1 parcela",
+      "files": [
+        "app/contratacao/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Institucional",
+      "files": [
+        "app/contratacao/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Recarga",
+      "files": [
+        "app/contratacao/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Consultando PubMed...",
+      "files": [
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Buscando...",
+      "files": [
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Recuperando artigos...",
+      "files": [
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "s",
+      "files": [
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Fim dos resultados desta fonte.",
+      "files": [
+        "app/descobrir/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Enviando...",
+      "files": [
+        "app/esqueci-senha/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Refinando sua ideia com literatura",
+      "files": [
+        "app/ideias/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Transforme um interesse ou problema inicial em uma pergunta de pesquisa.",
+      "files": [
+        "app/ideias/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Usar contexto",
+      "files": [
+        "app/ideias/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Atualizando…",
+      "files": [
+        "app/licenca/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Franquia",
+      "files": [
+        "app/licenca/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Uso real",
+      "files": [
+        "app/licenca/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Ativo",
+      "files": [
+        "app/operacao/qualidade/page.tsx",
+        "app/residencia/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Instalado, ainda desativado",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Execute scholar_ai_budgets.sql",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Configuradas",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sim",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Configurados",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Pendentes",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Segredo configurado",
+      "files": [
+        "app/operacao/qualidade/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Maior franquia de apoio",
+      "files": [
+        "app/planos/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Consultando a literatura...",
+      "files": [
+        "app/radar-demo/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Testar o Radar",
+      "files": [
+        "app/radar-demo/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Validando...",
+      "files": [
+        "app/radar-demo/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Salvando...",
+      "files": [
+        "app/redefinir-senha/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Desativado",
+      "files": [
+        "app/residencia/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Revogado",
+      "files": [
+        "app/residencia/page.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Salvando…",
+      "files": [
+        "app/scholar/onboarding/page.tsx",
+        "components/manuscript/manuscript-editor.tsx",
+        "components/projects/journey.tsx",
+        "components/projects/task-plan.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "estruturas verificadas",
+      "files": [
+        "components/account/deletion-operations.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Em processamento / resultado a conferir",
+      "files": [
+        "components/account/deletion-operations.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Processando…",
+      "files": [
+        "components/account/deletion-operations.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Excluir esta conta definitivamente",
+      "files": [
+        "components/account/deletion-operations.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Reabrir",
+      "files": [
+        "components/advising/advising-workspace.tsx",
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Marcar como resolvido",
+      "files": [
+        "components/advising/advising-workspace.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Respuesta original en español",
+      "files": [
+        "components/ai/project-guide.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Original answer in English",
+      "files": [
+        "components/ai/project-guide.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Resposta original em português",
+      "files": [
+        "components/ai/project-guide.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "AAAA-MM-DD ou deixe vazio",
+      "files": [
+        "components/clinical/collection-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Valor ou deixe vazio",
+      "files": [
+        "components/clinical/collection-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Revisar plano e ficha de visitas",
+      "files": [
+        "components/clinical/followup-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Preparar acompanhamento",
+      "files": [
+        "components/clinical/followup-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Conferir visita",
+      "files": [
+        "components/clinical/followup-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Registrar visita",
+      "files": [
+        "components/clinical/followup-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Preparando…",
+      "files": [
+        "components/documents/document-center.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "grupo precisa",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "grupos precisam",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Comparar registros",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sem PMID",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sem DOI",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Com abstract",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sem abstract",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Unir e manter o registro escolhido",
+      "files": [
+        "components/library/duplicate-review.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Abrir PDF",
+      "files": [
+        "components/library/open-access-status.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Abrir texto completo",
+      "files": [
+        "components/library/open-access-status.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Recuperando…",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "· texto existente preservado",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Modo autor",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Autor",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Resolver",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Preparando DOCX…",
+      "files": [
+        "components/manuscript/manuscript-editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Adicionando…",
+      "files": [
+        "components/manuscript/results-transfer.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Confirmar e acrescentar aos Resultados",
+      "files": [
+        "components/manuscript/results-transfer.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "No se pudieron actualizar los avisos.",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Não foi possível atualizar os avisos.",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Todavía no hay comentarios de revisión.",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Ainda não há comentários de revisão.",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sin leer",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Não lido",
+      "files": [
+        "components/manuscript/review-bell.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Sem resumo",
+      "files": [
+        "components/manuscript/section-assistant.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Consumo registrado",
+      "files": [
+        "components/manuscript/section-assistant.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Excluindo…",
+      "files": [
+        "components/projects/delete-project.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Excluir definitivamente",
+      "files": [
+        "components/projects/delete-project.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "a conferir",
+      "files": [
+        "components/projects/journey.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "texto iniciado",
+      "files": [
+        "components/projects/journey.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "a iniciar",
+      "files": [
+        "components/projects/journey.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "A preencher",
+      "files": [
+        "components/projects/journey.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "A conferir",
+      "files": [
+        "components/projects/journey.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Confirmar e salvar tarefa",
+      "files": [
+        "components/projects/task-plan.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Em aberto",
+      "files": [
+        "components/projects/task-plan.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Reabrir tarefa",
+      "files": [
+        "components/projects/task-plan.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Pausar alerta",
+      "files": [
+        "components/radar/saved-searches.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Ativar alerta",
+      "files": [
+        "components/radar/saved-searches.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "selecionada",
+      "files": [
+        "components/radar/suggestion-composer.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "s selecionadas",
+      "files": [
+        "components/radar/suggestion-composer.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Pronto para editar",
+      "files": [
+        "components/results/editor.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Primeira categoria",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Variável quantitativa",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Grupo · duas categorias",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Segunda categoria",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Segunda variável quantitativa",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    },
+    {
+      "kind": "expression",
+      "text": "Welch: compare grupos independentes e revise assimetria, valores extremos e normalidade aproximada em amostras pequenas.",
+      "files": [
+        "components/results/inference-panel.tsx"
+      ]
+    }
+  ]
 }

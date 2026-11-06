@@ -199,6 +199,18 @@ const ideaBriefSpanish = {
   "Proposta preliminar para discussão. Não comprova originalidade, viabilidade, adequação ética ou validade final do método. Confirme referências, instrumentos e decisões com o orientador.": "Propuesta preliminar para discusión. No demuestra originalidad, viabilidad, adecuación ética ni validez final del método. Confirma las referencias, los instrumentos y las decisiones con el tutor."
 };
 
+// Existing projects may have the old Portuguese brief embedded in their notes.
+export function localizeStoredIdeaBrief(text: string, locale: "pt-BR" | "es"): string {
+  if (locale !== "es" || !/^PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR\r?\n/.test(text)) return text;
+  return text.split(/(\r?\n)/).map((line, index, parts) => {
+    if (index % 2) return line;
+    const previousLine = parts[index - 2];
+    const isHeading = index === 0 || previousLine === "" || line === "Pergunta do projeto usado como ponto de partida:";
+    if (isHeading && Object.hasOwn(ideaBriefSpanish, line)) return ideaBriefSpanish[line as keyof typeof ideaBriefSpanish];
+    return line.replace(/^(Pontuação geral|Relevância|Viabilidade|Execução)(: \d+\/100)/, (_, label: keyof typeof ideaBriefSpanish, suffix: string) => ideaBriefSpanish[label] + suffix);
+  }).join("");
+}
+
 export function ideaBrief(idea: Idea, locale: "pt-BR" | "es" = "pt-BR"): string {
   const copy = (label: keyof typeof ideaBriefSpanish) => locale === "es" ? ideaBriefSpanish[label] : label;
   return [copy("PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR"), idea.title, "", copy("CONTEXTO"), idea.contextSummary,

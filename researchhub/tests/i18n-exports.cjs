@@ -54,3 +54,12 @@ const draftSections = [
 const draft = decode(htmlWord(scientific.buildProtocolDoc('Título original', draftSections, 'es'), 'es'));
 for (const heading of ['Tema y pregunta','Objetivo e hipótesis','Diseño y población','Desenlaces y variables','Métodos, análisis y ética','Planificación del manuscrito']) assert(draft.includes(heading), heading);
 for (const text of ['Tema del trabajo: Original research title','Hipótesis o supuesto (cuando corresponda): Texto original em português','Variables y formas de medición: Por definir','Procedimientos y recolección de datos: Original methods','Plan y notas del manuscrito: Por definir']) assert(draft.includes(text), text);
+
+const oldBrief = 'PROPOSTA PARA DISCUSSÃO COM O ORIENTADOR\nOriginal research title\n\nPERGUNTA\nOriginal research question\n\nDESENHO\nCross-sectional study';
+const briefSections = [{title:'Planejamento do manuscrito', fields:[{label:'Plano e notas do manuscrito',value:oldBrief}]}];
+const briefDoc = decode(htmlWord(scientific.buildProtocolDoc('Original',briefSections,'es'),'es'));
+for (const text of ['PROPUESTA PARA DISCUTIR CON EL TUTOR','PREGUNTA','DISEÑO','Original research question','Cross-sectional study']) assert(briefDoc.includes(text), text);
+assert(!briefDoc.includes('PERGUNTA'));
+assert(scientific.buildStructuredProtocol({...data,project:{...data.project,manuscript:oldBrief}},'es').includes('PROPUESTA PARA DISCUTIR CON EL TUTOR'));
+assert(scientific.buildProtocolDoc('Original',briefSections,'pt-BR').includes('PERGUNTA'));
+assert(scientific.buildProtocolDoc('Original',[{title:'Planejamento do manuscrito',fields:[{label:'Plano e notas do manuscrito',value:'Nota livre\n\nPERGUNTA'}]}],'es').includes('PERGUNTA'));
