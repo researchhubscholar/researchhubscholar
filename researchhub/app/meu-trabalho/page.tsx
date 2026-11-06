@@ -83,14 +83,30 @@ export default function MeuTrabalhoPage() {
         if (authError && authError.name !== "AuthSessionMissingError" && !auth.user) throw new Error("Não foi possível verificar sua sessão. Entre novamente ou tente atualizar a página.");
         if (!active) return;
         setLoggedIn(Boolean(auth.user)); setLoadedOwner(auth.user?.id || null);
-        if (isIdea && params.get("proposta")) {
-          try {
-            const transfer = readIdeaTransfer(window.sessionStorage, auth.user?.id || null, params.get("proposta")!);
-            setIncoming({ ...empty, ...transfer.draft }); setIncomingReferences(transfer.referenceIds); setIncomingOrigin(transfer.origin);
-          } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível recuperar a proposta."); }
-        }
         const key = auth.user ? `researchhub-scholar-draft:${auth.user.id}` : "researchhub-scholar-draft";
         setStorageKey(key);
+        const proposalToken = params.get("proposta");
+        if (isIdea && proposalToken && !params.has("id")) {
+          const transfer = readIdeaTransfer(window.sessionStorage, auth.user?.id || null, proposalToken);
+          if (transfer.origin && auth.user) {
+            const { data, error } = await db.from("scholar_project_origins").select("project_id").eq("owner_id", auth.user.id).eq("source_key", transfer.origin.sourceKey).maybeSingle();
+            if (!active) return;
+            if (!error && data?.project_id) {
+              window.location.replace(`/meu-trabalho?id=${encodeURIComponent(data.project_id)}`);
+              return;
+            }
+          }
+          // Treat the imported proposal as unsaved even before the first manual edit.
+          draftRevision.current += 1;
+          setDraft({ ...empty, ...transfer.draft });
+          setReferenceIds(transfer.referenceIds);
+          setIncomingOrigin(transfer.origin);
+          setIncoming(null);
+          setDirty(true);
+          setSaveState("idle");
+          setMessage("Proposta aplicada a um novo rascunho. Revise os campos antes de salvar.");
+          return;
+        }
         if(auth.user && !isNew && !params.has("id") && !isIdea && !theme){setNeedsSelection(true);setSaveState("idle");return;}
         if (auth.user && !isNew && params.has("id")) {
           if(params.has("id") && !params.get("id")) throw new Error("Projeto indisponível. Selecione um trabalho da sua conta.");
@@ -242,6 +258,15 @@ export default function MeuTrabalhoPage() {
       <nav aria-label={uiText("screen.8896ce31717e")} className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-1">{groups.map((g, i) => <a key={g.id} href={`#${g.id}`} className="text-sm rounded-card p-2 hover:bg-teal-soft"><span className="text-teal mr-2">{g.keys.every(k => draft[k].trim()) ? "✓" : String(i + 1).padStart(2, "0")}</span><AuthoredText text={g.title} /></a>)}</nav>{projectId && <Link href={radarHref} className="block text-sm text-teal mt-4"><InterfaceText message="screen.5f89d9da8dd0" /></Link>}<Link href="/biblioteca" className="block text-sm text-teal mt-3"><InterfaceText message="screen.238923bb78ef" /></Link>
     </aside>
     <div className="project-content">
+      {!projectId && dirty && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
+        <div className="min-w-0">
+          <p className="font-semibold text-teal">{locale === "es" ? "Nuevo proyecto sin guardar" : "Novo projeto não salvo"}</p>
+          <p className="mt-1 break-words text-sm text-ink-soft">{draft.theme}</p>
+        </div>
+        <button type="button" onClick={() => void saveDraft()} disabled={saveState === "loading" || !draft.theme.trim()} className="min-h-11 rounded-card bg-teal px-4 py-2 font-semibold text-white disabled:opacity-50">
+          {saveState === "loading" ? (locale === "es" ? "Guardando…" : "Salvando…") : uiText("screen.1fb717453062")}
+        </button>
+      </div>}
       <ProjectSwitcher ownerId={loadedOwner} projectId={projectId} title={draft.theme} busy={loadBlocked || saveState === "loading"} dirty={dirty} onSave={() => void saveDraft()} onSelect={id => {
         if (savingLock.current || saveState === "loading") return;
         // Ask before switching all project-scoped tools together.
