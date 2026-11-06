@@ -32,10 +32,9 @@ function filename(title:string,suffix:string,extension:string) {
 }
 
 export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
- const {locale:resultsLocale}=useLanguage();
-
   const { t: uiText, locale } = useLanguage();
-  const [last,setLast]=useState("");
+  const spanish = locale === "es";
+  const [last,setLast]=useState<DocumentKind | "">("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const generationLock=useRef(false);
@@ -52,11 +51,11 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
           import("@/lib/supabase/browser"),import("@/lib/projects/load-manuscript-export"),import("@/lib/projects/manuscript-export"),
         ]);
         const {input,results}=await loadManuscriptExport(supabaseBrowser(),p.id);
-        const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind, resultsLocale).length?await figurePng(figureSvg(results, undefined, resultsLocale)):null;
+        const image=results&&chartData(results.dataset,results.figure.column,results.figure.kind, locale).length?await figurePng(figureSvg(results, undefined, locale)):null;
         downloadBinary(manuscriptDocument(input,results,image,locale),filename(input.title||title,"manuscrito","docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      } else { const html=kind==="protocol"?buildStructuredProtocol(data,locale):kind==="summary"?buildProjectSummary(data,locale):buildAdvisorReport(data,locale);downloadBinary(htmlWord(html,resultsLocale),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
-      setLast(cards.find(card=>card.kind===kind)?.title||"Documento");
-    } catch(e){setError(e instanceof Error?e.message:"Falha na exportação.");} finally {generationLock.current=false;setBusy(false);}
+      } else { const html=kind==="protocol"?buildStructuredProtocol(data,locale):kind==="summary"?buildProjectSummary(data,locale):buildAdvisorReport(data,locale);downloadBinary(htmlWord(html,locale),filename(title,kind,"docx"),"application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
+      setLast(kind);
+    } catch(e){setError(e instanceof Error?e.message:(spanish ? "No se pudo exportar el archivo." : "Falha na exportação."));} finally {generationLock.current=false;setBusy(false);}
   }
   return <>
     <section className="documents-metrics grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6" aria-label={uiText("screen.1f6aedc9700a")}>
@@ -67,15 +66,15 @@ export default function DocumentCenter({data}:{data:ProjectDocumentData}) {
     </section>
     <section className="documents-grid grid md:grid-cols-2 gap-4 mt-7" aria-label={uiText("screen.6e86080c2bf2")}>
       {cards.map(card=><article key={card.kind} className={`document-card document-${card.kind} bg-white border border-line rounded-2xl p-5 md:p-6 flex flex-col`}>
-        <p className="text-xs uppercase tracking-widest text-teal"><AuthoredText text={card.eyebrow} /></p>
+        <p className="text-xs uppercase tracking-widest text-teal">{spanish ? {protocol:"Documento principal",summary:"Vista rápida",advisor:"Reunión productiva",manuscript:"Artículo completo",matrix:"Datos de lectura"}[card.kind] : card.eyebrow}</p>
         <h2 className="font-display text-2xl mt-3"><AuthoredText text={card.title} /></h2>
         <p className="text-sm text-ink-soft leading-relaxed mt-3 flex-1"><AuthoredText text={card.description} /></p>
         {card.kind==="manuscript"&&<p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.ae59853909dd" /></p>}
-        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-4 border-t border-line"><span className="text-xs text-ink-soft"><AuthoredText text={card.format} /></span><button type="button" onClick={()=>generate(card.kind)} disabled={busy||(card.kind==="matrix"&&!data.articles.length)} className="bg-ink text-white rounded-card px-4 py-2 text-sm disabled:opacity-40">{busy?"Preparando…":"Gerar documento"}</button></div>
+        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-4 border-t border-line"><span className="text-xs text-ink-soft"><AuthoredText text={card.format} /></span><button type="button" onClick={()=>generate(card.kind)} disabled={busy||(card.kind==="matrix"&&!data.articles.length)} className="bg-ink text-white rounded-card px-4 py-2 text-sm disabled:opacity-40">{busy ? "Preparando…" : (spanish ? "Generar documento" : "Gerar documento")}</button></div>
       </article>)}
     </section>
     {error&&<p role="alert" className="mt-4 border rounded-card p-4"><AuthoredText text={error} /></p>}
-    {last&&<p role="status" className="mt-4 text-sm bg-teal-soft border border-teal/20 rounded-card p-4"><strong>{last}</strong> <InterfaceText message="screen.ba8190e31d80" /></p>}
+    {last&&<p role="status" className="mt-4 text-sm bg-teal-soft border border-teal/20 rounded-card p-4"><strong><AuthoredText text={cards.find(card=>card.kind===last)?.title || "Documento"} /></strong> <InterfaceText message="screen.ba8190e31d80" /></p>}
     <AssistantPanel feature="writing" title={uiText("screen.fb172212ce56")} description={uiText("screen.838ae14bb7b2")} projectId={p.id} context={{project:p,milestones:data.milestones,articles:data.articles.map(a=>({id:a.id,title:a.title,doi:a.doi,pmid:a.pmid})),notes:data.notes}} />
     <section className="documents-checklist mt-7 bg-teal-soft border border-teal/20 rounded-2xl p-5"><h2 className="font-display text-xl"><InterfaceText message="screen.08d093259d9a" /></h2><ul className="text-sm text-ink-soft leading-relaxed mt-3 space-y-1"><li><InterfaceText message="screen.21d2199a047f" /></li><li><InterfaceText message="screen.0e95896b04a4" /></li><li><InterfaceText message="screen.3e932e20402a" /></li><li><InterfaceText message="screen.25aa85b66d61" /></li></ul></section>
   </>;

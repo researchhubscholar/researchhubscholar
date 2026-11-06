@@ -10,6 +10,11 @@ export type ManuscriptExport = {
   references: string[];
 };
 
+const standardHeadings: Record<string, string> = {
+  abstract: "Resumo", introduction: "Introdução", methods: "Métodos", results: "Resultados",
+  discussion: "Discussão", limitations: "Limitações", conclusion: "Conclusão", references: "Referências",
+};
+
 export function manuscriptWordBlocks(input: ManuscriptExport, results?: ResultsWorkspace | null, figure?: ExportFigure | null, locale: Locale = "pt-BR"): WordBlock[] {
   const blocks: WordBlock[] = [{ text: input.title || exportCopy(locale, "Manuscrito"), style: "title" }];
   if (input.subtitle.trim()) blocks.push({ text: input.subtitle, style: "subtitle" });
@@ -20,7 +25,7 @@ export function manuscriptWordBlocks(input: ManuscriptExport, results?: ResultsW
     const text = section.section_key === "references" && input.references.length ? input.references.join("\n\n") : section.content;
     const resultBlocks = section.section_key === "results" && results ? resultsWordBlocks(results, figure, locale) : [];
     if (!text.trim() && !resultBlocks.length) continue;
-    blocks.push({ text: section.heading, heading: true });
+    blocks.push({ text: section.heading === standardHeadings[section.section_key] ? exportCopy(locale, section.heading) : section.heading, heading: true });
     if (text.trim()) blocks.push({ text });
     if (resultBlocks.length) { blocks.push(...resultBlocks); includedResults = true; }
   }

@@ -2,6 +2,18 @@ import type { Locale } from "./locale";
 import { formatNumber } from "./format";
 // Only static product text/templates. Values are inserted literally, never translated.
 const spanish:Record<string,string> = {
+  "categórica": "categórica",
+  "numérica": "numérica",
+  "Valor": "Valor",
+  "Medida": "Medida",
+  "Etapa": "Etapa",
+  "Categoria ou intervalo": "Categoría o intervalo",
+  "Categorias distintas": "Categorías distintas",
+  "Ausentes": "Ausentes",
+  "Fluxo": "Flujo",
+  "Frequências": "Frecuencias",
+  "Descritiva": "Descriptiva",
+  "Dados": "Datos",
   "Intervalo de confiança de 95%": "Intervalo de confianza del 95%",
   "Intervalo de confiança do efeito": "Intervalo de confianza del efecto",
   "Não disponível nesta versão": "No disponible en esta versión",

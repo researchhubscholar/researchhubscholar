@@ -31,11 +31,21 @@ function fixture(scenario='ok') {
   return {client,fetcher,queries,requests};
 }
 const nodes = tree => !tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(nodes):[tree,...nodes(tree.props?.children)];
-function component(f, png) {
+function component(f, png, locale = "pt-BR") {
+  const support = require("./i18n-test-support.cjs");
+  const i18n = {
+    jsx: support.jsx,
+    dependency(name) {
+      const dep = support.dependency(name);
+      return name === "@/components/i18n/language-provider"
+        ? { useLanguage: () => ({ ...dep.useLanguage(), locale }) }
+        : dep;
+    },
+  };
   const state=[],downloads=[];let cursor=0;
   const react={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return[state[i],value=>{state[i]=value;}];},useRef(initial){const i=cursor++;if(!(i in state))state[i]={current:initial};return state[i];}};
   const deps={
-    react,'react/jsx-runtime':{jsx:(type,props)=>require('./i18n-test-support.cjs').jsx(type, props),jsxs:(type,props)=>require('./i18n-test-support.cjs').jsx(type, props)},
+    react,'react/jsx-runtime':{jsx:(type,props)=>i18n.jsx(type, props),jsxs:(type,props)=>i18n.jsx(type, props)},
     '@/lib/exports/ooxml':{...require('../lib/exports/ooxml.ts'),downloadBinary:(bytes,filename,mime)=>downloads.push({bytes,filename,mime})},
     '@/lib/results/data':require('../lib/results/data.ts'),
     '@/lib/results/figure':{...require('../lib/results/figure.ts'),figurePng:async()=>({bytes:png||Uint8Array.from([1,2,3]),width:900,height:260})},
@@ -44,10 +54,10 @@ function component(f, png) {
     '@/lib/projects/load-manuscript-export':{loadManuscriptExport:(db,id)=>loadManuscriptExport(db,id,f.fetcher)},
     '@/lib/projects/manuscript-export':{manuscriptDocument},
   };
-  const module={exports:{}};vm.runInNewContext(compile('components/documents/document-center.tsx'),{module,exports:module.exports,require(name){const localized = require('./i18n-test-support.cjs').dependency(name); if(localized) return localized;assert(name in deps,name);return deps[name];}});
+  const module={exports:{}};vm.runInNewContext(compile('components/documents/document-center.tsx'),{module,exports:module.exports,require(name){const localized = i18n.dependency(name); if(localized) return localized;assert(name in deps,name);return deps[name];}});
   const data={project:{id:'project',title:'Título do protocolo',progress:20},profile:{name:'PERFIL NAO E AUTOR',institution:'PERFIL NAO E AFILIACAO'},articles:sources,notes:{},milestones:[]};
   const render=()=>{cursor=0;return module.exports.default({data});};
-  const button=()=>{const card=nodes(render()).find(node=>node.type==='article'&&nodes(node).some(child=>child.type==='h2'&&child.props.children==='Manuscrito com resultados'));return nodes(card).find(node=>node.type==='button');};
+  const button=()=>{const card=nodes(render()).find(node=>node.type==='article'&&node.props.className.includes('document-manuscript'));return nodes(card).find(node=>node.type==='button');};
   return {button,downloads,render};
 }
 (async()=>{
@@ -81,6 +91,11 @@ function component(f, png) {
   assert(!xml.includes('PERFIL NAO'));assert(!xml.includes('NAO CITADO'));assert(xml.includes('word/media/image1.png'));
   assert(xml.indexOf('1. Autor B')<xml.indexOf('2. Autor A'));
   assert.equal(nodes(ui.render()).filter(node=>node.props?.role==='status').length,1);
+  const es = component(fixture(), png, "es");
+  assert.equal(es.button().props.children, "Generar documento");
+  await es.button().props.onClick();
+  const spanishXml = new TextDecoder().decode(es.downloads[0].bytes);
+  for (const text of ["es-ES", "Referencias", sections[0].content]) assert(spanishXml.includes(text), text);
   for(const scenario of ['missingref','badworkspace','results_error','network']){
     const bad=component(fixture(scenario));await bad.button().props.onClick();assert.equal(bad.downloads.length,0);assert(nodes(bad.render()).some(node=>node.props?.role==='alert'));assert(!nodes(bad.render()).some(node=>node.props?.role==='status'));
   }

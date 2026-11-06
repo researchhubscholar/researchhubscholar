@@ -264,8 +264,8 @@ export default function IdeasPage() {
   }
 
   function download(idea: Idea) {
-    const url = URL.createObjectURL(new Blob([ideaBrief(idea)], { type: "text/plain;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = "proposta-scholar.txt"; link.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(new Blob([ideaBrief(idea, locale)], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = locale === "es" ? "propuesta-researchhub.txt" : "proposta-researchhub.txt"; link.click(); URL.revokeObjectURL(url);
   }
 
   function toggleComparison(id: string) {

@@ -8,6 +8,7 @@ const spanish: Record<string, string> = {
   "Status de leitura":"Estado de lectura",
   "Resultado principal":"Resultado principal",
   "Limitações":"Limitaciones",
+  "Resumo":"Resumen", "Introdução":"Introducción", "Discussão":"Discusión", "Conclusão":"Conclusión",
   "Motivo de exclusão":"Motivo de exclusión",
   "Link para texto completo":"Enlace al texto completo",
   "Tema":"Tema",
