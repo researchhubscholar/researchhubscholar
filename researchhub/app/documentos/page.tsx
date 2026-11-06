@@ -1,3 +1,4 @@
+import ActiveProjectPicker from "@/components/projects/active-project-picker";
 import AuthoredText from "@/components/i18n/authored-text";
 import InterfaceText from "@/components/i18n/interface-text";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -54,7 +55,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
   };
   return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
     <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.25609cbcecca" /></p><h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.f96d20bcedcc" /></h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.196f85329361" /></p></div>
-      <form method="get" className="workspace-project-picker documents-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects||[]).map(item=><option key={item.id} value={item.id}>{item.title||item.theme||uiText("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action"><InterfaceText message="screen.406b14931e48" /></button></form>
+      <ActiveProjectPicker area="documentos" key={project.id} currentId={project.id} options={(projects || []).map(item => ({ id: item.id, label: item.title || item.theme || uiText("screen.53d02a124b87") }))} />
     </header>
     <DocumentCenter data={data}/>
   </div>;

@@ -4,16 +4,21 @@ import { useState } from "react";
 import InterfaceText from "@/components/i18n/interface-text";
 import { useLanguage } from "@/components/i18n/language-provider";
 
-export default function ManuscriptProjectPicker({ currentId, options }: {
+export default function ActiveProjectPicker({ currentId, options, area }: {
   currentId: string;
+  area: "manuscrito" | "documentos";
   options: { id: string; label: string }[];
 }) {
   const [selectedId, setSelectedId] = useState(currentId);
   const { locale } = useLanguage();
+  const isManuscript = area === "manuscrito";
+  const actionLabel = isManuscript
+    ? (locale === "es" ? "Cambiar de manuscrito" : "Trocar de manuscrito")
+    : (locale === "es" ? "Ver documentos del otro proyecto" : "Ver documentos do outro projeto");
   const changingProject = selectedId !== currentId;
 
   return (
-    <form action="/manuscrito" method="get" className="workspace-project-picker manuscript-project-picker"
+    <form action={`/${area}`} method="get" className={`workspace-project-picker ${isManuscript ? "manuscript" : "documents"}-project-picker`}
       onSubmit={event => { if (!changingProject) event.preventDefault(); }}>
       <label>
         <InterfaceText message="screen.91aec26f5cfe" />
@@ -23,7 +28,7 @@ export default function ManuscriptProjectPicker({ currentId, options }: {
         </select>
       </label>
       {changingProject && <button type="submit" className="workspace-project-picker-action">
-        {locale === "es" ? "Cambiar de manuscrito →" : "Trocar de manuscrito →"}
+        {actionLabel} →
       </button>}
     </form>
   );
