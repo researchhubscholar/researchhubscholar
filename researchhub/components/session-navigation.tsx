@@ -1,6 +1,7 @@
 "use client";
 
 import { isAdvisorOnly } from "@/lib/access/advisor-mode";
+import ReviewBell from "@/components/manuscript/review-bell";
 import Link from "next/link";
 import { useLanguage } from "@/components/i18n/language-provider";
 import LanguageSelector from "@/components/i18n/language-selector";
@@ -10,7 +11,7 @@ import { useEffect, useState } from "react";
 import LogoutButton from "@/components/LogoutButton";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean; advisorOnly?: boolean };
+type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean; advisorOnly?: boolean; userId?: string };
 
 const publicLinks = [
   ["/radar-demo", "Testar Radar"],
@@ -62,6 +63,7 @@ export default function SessionNavigation() {
       ]);
       if (active) setSession({
         authenticated: true,
+        userId: user.id,
         displayName: profileResult.data?.name || user.user_metadata?.name || user.email?.split("@")[0] || null,
         isAdmin: Boolean(adminResult.data),
         advisorOnly,
@@ -92,6 +94,7 @@ export default function SessionNavigation() {
       {links.map(link => renderLink(link))}
       {session.authenticated ? <>
         {!isWorkspace ? <Link href={session.advisorOnly ? "/orientacao" : "/dashboard"} className="primary-nav-link nav-signup">{session.advisorOnly ? uiText("nav.advising") : uiText("nav.workspace")}</Link> : !session.advisorOnly && session.displayName && <Link href="/conta" className="primary-nav-link account-link hidden xl:block" aria-label={uiText("nav.openAccount")}>{session.displayName.split(" ")[0]}</Link>}
+        {isWorkspace && !session.advisorOnly && session.userId && <ReviewBell key={session.userId} userId={session.userId} />}
         <span className="nav-signout"><LogoutButton /></span>
       </> : <>
         <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined} className="primary-nav-link">{uiText("nav.login")}</Link>

@@ -102,6 +102,7 @@ const moduleFixture={exports:{}};
 const jsx=(type,props)=>({type,props});
 const dependency=name=>{
  if(name==='@/lib/access/advisor-mode')return {};
+ if(name==='@/components/manuscript/review-bell')return {default:'review-bell'};
  if(name==='react')return {useEffect(){},useState:()=>[session,()=>{}]};
  if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};
  if(name==='next/navigation')return {usePathname:()=>pathname};

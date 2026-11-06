@@ -11,7 +11,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function ManuscriptPage({ searchParams }: { searchParams: Promise<{ projeto?: string }> }) {
+export default async function ManuscriptPage({ searchParams }: { searchParams: Promise<{ projeto?: string; comentario?: string }> }) {
   const requestLocale = await getRequestLocale();
   const uiText = (key: MessageKey) => translate(requestLocale, key);
   const db = await supabaseServer();
@@ -53,6 +53,6 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
 
   return <main className="scholar-workspace manuscript-page max-w-7xl mx-auto">
     <header className="flex flex-wrap justify-between items-start gap-5 mb-7"><div><Link href={isOwner ? `/meu-trabalho?id=${project.id}` : `/orientacao?projeto=${project.id}`} className="text-sm text-teal">{isOwner ? <InterfaceText message="screen.997879846ae5" /> : uiText("nav.advising")}</Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.85dd6475b1a8" /></p><h1 className="font-display text-4xl md:text-5xl mt-3">{isOwner ? "Editor de manuscrito" : (requestLocale==="es"?"Revisión del manuscrito":"Revisão do manuscrito")}</h1><p className="text-ink-soft mt-3 max-w-2xl">{isOwner ? <InterfaceText message="screen.a24567ecb3ee" /> : requestLocale==="es"?"Lee el texto y comenta por sección.":"Leia o texto e deixe comentários por seção."}</p></div><form method="get" className="workspace-project-picker manuscript-project-picker"><label><InterfaceText message="screen.91aec26f5cfe" /><select name="projeto" defaultValue={project.id} className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">{(projects || []).map(item => <option key={item.id} value={item.id}>{item.title || item.theme || uiText("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action">Abrir manuscrito →</button></form></header>
-    <ManuscriptEditor currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
+    <ManuscriptEditor key={project.id} commentTarget={isOwner && typeof params.comentario === "string" ? params.comentario : undefined} currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
   </main>;
 }
