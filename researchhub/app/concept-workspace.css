@@ -420,3 +420,28 @@ body:has(.review-bell) .project-guide-window:not(.project-guide-window--expanded
 @media (max-height: 520px) {
   .project-guide-window .project-guide-header { padding-block: .45rem; }
 }
+
+
+/* Radar: one search surface for the query, refinement, filters and help. */
+.radar-page .radar-search-panel::before { content: none; }
+.radar-query-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+.radar-query-field { grid-area: 1 / 1; }
+.radar-page .radar-query-row > button { grid-area: 1 / 3; }
+.radar-refinement { display: contents; }
+.radar-refinement-action { grid-area: 1 / 2; display: grid; }
+.radar-refinement-action button { justify-content: center; white-space: nowrap; padding-inline: 1rem; }
+.radar-query-hint, .radar-refinement-output { grid-column: 1 / -1; min-width: 0; }
+.radar-query-hint { grid-row: 2; }
+.radar-query-filters { max-width: none; }
+.radar-search-options { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem 1rem; border-top: 1px solid #dce2d9; padding-top: 1rem; }
+.radar-search-options:has(details[open]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .radar-query-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .radar-query-field { grid-area: 1 / 1 / 2 / -1; }
+  .radar-page .radar-query-row > button { grid-area: 3 / 2; }
+  .radar-refinement-action { grid-area: 3 / 1; }
+}
+@media (max-width: 480px) {
+  .radar-search-options { grid-template-columns: minmax(0, 1fr); }
+  .radar-page .radar-query-row > button, .radar-refinement-action button { padding-inline: .4rem; }
+}
