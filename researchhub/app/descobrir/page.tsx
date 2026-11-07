@@ -36,6 +36,7 @@ type Result = {
     warnings: string[];
     pubmedQuery: string;
     unresolvedTerms: string[];
+    suggestions?: Record<string, string[]>;
     manualTranslations: Array<{ source: string; target: string }>;
     requiresReview: boolean;
   };
@@ -128,7 +129,7 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}) {
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
     const finishAttempt = trackRadarAttempt();
@@ -139,7 +140,7 @@ function DiscoverContent() {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period, studyType, translations }),
+        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType, translations }),
         signal: AbortSignal.timeout(180000),
       });
       const data = await response.json();
@@ -244,7 +245,12 @@ function DiscoverContent() {
         <h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.a53d1b9ad9f1" /></h2>
         <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.34e5df9bc174" /></p>
         {!!termReview.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-4">{termReview.strategy.concepts.map(concept => <span key={concept} className="bg-white text-teal rounded-full px-3 py-1 text-xs">✓ {concept}</span>)}</div>}
-        <div className="grid sm:grid-cols-2 gap-3 mt-4">{termReview.strategy.unresolvedTerms.map(term => <label key={term} className="text-sm font-medium">{term}<input required minLength={2} maxLength={80} lang="en" value={termReview.translations[term] || ""} onChange={e => setTermReview(previous => previous ? {...previous, translations: {...previous.translations, [term]: e.target.value}} : previous)} placeholder={`Equivalente de “${term}” em inglês`} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1" /></label>)}</div>
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">{termReview.strategy.unresolvedTerms.map(term => {
+          const choices = termReview.strategy.suggestions?.[term];
+          const value = termReview.translations[term] || "";
+          const update = (value: string) => setTermReview(previous => previous ? {...previous, translations: {...previous.translations, [term]: value}} : previous);
+          return <label key={term} className="text-sm font-medium">{term}{choices?.length ? <select required value={value} onChange={e => update(e.target.value)} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1"><option value="">{formatLocale === "es" ? "¿Qué término quisiste decir?" : "Qual termo você quis dizer?"}</option>{choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}</select> : <input required minLength={2} maxLength={80} lang="en" value={value} onChange={e => update(e.target.value)} placeholder={formatLocale === "es" ? `Equivalente de “${term}” en inglés` : `Equivalente de “${term}” em inglês`} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1" />}</label>;
+        })}</div>
         <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? uiText("screen.c98dca97594e") : uiText("screen.bc5fc9a5ff6e")}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card"><InterfaceText message="screen.413bdc3133fb" /></button></div>
         <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.576b9df65d53" /></p>
       </form>}
@@ -390,7 +396,7 @@ function DiscoverContent() {
                   </article>
                 );
               })}
-              {articles.length === 0 && <p className="p-6 text-sm text-ink-soft"><InterfaceText message="screen.6985a714b0cb" /></p>}
+              {articles.length === 0 && <div className="p-6 text-sm text-ink-soft"><p><InterfaceText message="screen.6985a714b0cb" /></p>{source === "pubmed" && result.sources.pubmed.total === 0 && result.filters.period !== "all" && result.topic === topic.trim() && result.filters.period === period && result.filters.studyType === studyType && result.filters.mesh === mesh.trim() && result.filters.population === populationTerm.trim() && result.filters.outcome === outcomeTerm.trim() && result.filters.operator === operator && result.filters.language === language && <button type="button" disabled={loading || browsing} onClick={() => { setPeriod("all"); void runAnalysis(Object.fromEntries(result.strategy.manualTranslations.map(item => [item.source, item.target])), "all"); }} className="mt-2 text-teal underline">{formatLocale === "es" ? "Buscar en todos los períodos" : "Buscar em todos os períodos"}</button>}</div>}
             </div>
             <div className="p-6 border-t border-line text-center">
               <a href={`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(result.filters.searchTerm)}`} target="_blank" rel="noopener noreferrer" className="text-sm text-teal underline">{formatLocale === "es" ? "Abrir la búsqueda completa en PubMed" : "Abrir a busca completa no PubMed"}</a>

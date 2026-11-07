@@ -37,6 +37,15 @@ const serverMock={NextResponse:{json:(value,init)=>new Response(JSON.stringify(v
  const articles=loadHandler('app/api/literature/articles/route.ts',{'next/server':serverMock,'@/lib/literature/search-limits':limits,'@/lib/literature/types':{mergeArticles},'@/lib/literature/crossref':{},'@/lib/literature/pubmed':{pubmedSearch:async(term,max,sort,offset)=>{seen.push({term,max,offset});return{count:60,ids:['123']};},fetchArticleDetails:async()=>[pubmed]}});
  const page=await articles.POST(new Request('https://local/api/literature/articles',{method:'POST',body:JSON.stringify({source:'pubmed',sort:'relevance',period:'5',topic:result.topic,searchTerm:result.filters.searchTerm,crossrefQuery:result.filters.crossrefQuery,offset:0})}));assert.equal(page.status,200);assert.equal((await page.json()).nextOffset,null);assert.equal(seen[0].term,result.filters.searchTerm);assert.equal(seen[0].max,30);assert.equal(seen[0].offset,0);
  for(const topic of ["Kawasaki em crianças menores de 5 anos","Kawasaki en niños menores de 5 años","Kawasaki disease in children under 5"]) {const strategy=strategyBuilder.buildSearchStrategy(topic);assert.equal(strategy.requiresReview,false);assert.match(strategy.pubmedQuery,/Mucocutaneous Lymph Node Syndrome/);assert.match(strategy.pubmedQuery,/Child, Preschool/);assert.match(strategy.warnings.join(" "),/aproximado/); }
+ for (const topic of ["síndrome de Hashimoto em adolescentes", "síndrome de Hashimto em adolescentes", "Hashimtoo"]) {
+   const strategy=strategyBuilder.buildSearchStrategy(topic);
+   assert.equal(strategy.original,topic);
+   assert.equal(strategy.requiresReview,false);
+   assert.match(strategy.pubmedQuery,/"Hashimoto Disease"\[MeSH Terms\]/);
+   assert.match(strategy.warnings.join(" "),/Hashimoto/i);
+   if(topic.includes("adolescentes"))assert.match(strategy.pubmedQuery,/"Adolescent"\[MeSH Terms\]/);
+ }
+ assert.equal(strategyBuilder.buildSearchStrategy("Hashimto[Title/Abstract]").pubmedQuery,"Hashimto[Title/Abstract]");
  const invalid=await search.POST(new Request('https://local/api/literature/search',{method:'POST',body:JSON.stringify({topic:'x'.repeat(10001)})}));assert.equal(invalid.status,400);assert.match((await invalid.json()).error,/10000/);
  const transport=[];const native=loadHandler('lib/literature/pubmed.ts',{});
  const original=global.fetch;global.fetch=async(url,options)=>{transport.push({url,options});return new Response(JSON.stringify({esearchresult:{count:'1',idlist:['123']}}));};
