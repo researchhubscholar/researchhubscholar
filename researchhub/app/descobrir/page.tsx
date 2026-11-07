@@ -254,6 +254,23 @@ function DiscoverContent() {
         <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? uiText("screen.c98dca97594e") : uiText("screen.bc5fc9a5ff6e")}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card"><InterfaceText message="screen.413bdc3133fb" /></button></div>
         <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.576b9df65d53" /></p>
       </form>}
+      {termReview && <AssistantPanel
+        key={JSON.stringify([topic,mesh,populationTerm,outcomeTerm,operator,period,studyType,language,projectId])}
+        feature="radar" reviewQuery projectId={projectId || null} disabled={loading || browsing}
+        title={formatLocale === "es" ? "Ayuda para interpretar la pregunta" : "Ajuda para interpretar a pergunta"}
+        actionLabel={formatLocale === "es" ? "Interpretar esta pregunta con IA" : "Interpretar esta pergunta com IA"}
+        description={formatLocale === "es" ? "Revisa una propuesta que conserve los criterios de tu pregunta. Usa tu cuota de IA." : "Revise uma proposta que preserve os recortes da sua pergunta. Usa sua franquia de IA."}
+        context={{ searchGoal: "interpret_question", topic, mesh, population: populationTerm, outcome: outcomeTerm, operator, language, period, studyType, confirmedTerms: termReview.translations }}
+        onApply={item => {
+          if (item.targetField !== "pubmedQuery") return;
+          try {
+            const next = appliedPubmedStrategy(item.content);
+            setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm("");
+            setOperator("AND"); setLanguage(next.language); setTermReview(null); setResult(null); setError(null);
+            queryInput.current?.focus();
+          } catch (reason) { setError(reason instanceof Error ? reason.message : "Estratégia inválida."); }
+        }}
+      />}
       <div className="radar-utility-bar">
       <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{formatLocale==="es"?"Búsquedas y alertas":"Buscas e alertas"}</summary>
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>

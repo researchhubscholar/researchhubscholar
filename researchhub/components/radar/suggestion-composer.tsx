@@ -11,8 +11,8 @@ import type { AssistantRecommendation } from "@/lib/ai/assist";
 import { combineSuggestionQueries, normalizeSuggestionQuery, validateSuggestionQuery, type SuggestionOperator } from "@/lib/literature/suggestion-query";
 import { searchLimits } from "@/lib/literature/search-limits";
 
-export default function SuggestionComposer({ recommendations, onApply }: {
-  recommendations: AssistantRecommendation[]; onApply: (item: AssistantRecommendation) => void;
+export default function SuggestionComposer({ recommendations, onApply, showQuery = false }: {
+  showQuery?: boolean; recommendations: AssistantRecommendation[]; onApply: (item: AssistantRecommendation) => void;
 }) {
  const {locale:formatLocale}=useLanguage();
 
@@ -51,6 +51,7 @@ export default function SuggestionComposer({ recommendations, onApply }: {
     {recommended ? <section className="rounded-card border border-teal/20 bg-white p-4">
       <h3 className="font-medium">{spanish ? "Búsqueda recomendada" : "Busca recomendada"}</h3>
       {recommended.rationale && <p className="mt-2 text-sm text-ink-soft">{recommended.rationale}</p>}
+      {showQuery && <pre className="mt-3 whitespace-pre-wrap break-words rounded-card bg-paper p-3 text-xs">{recommended.content}</pre>}
       <button type="button" className="mt-3 rounded-card bg-teal px-4 py-2 text-sm text-white" onClick={() => {
         onApply(recommended);
         setMessage(spanish ? "Búsqueda preparada. Pulsa Buscar artículos para ver los resultados." : "Busca preparada. Clique em Pesquisar artigos para ver os resultados.");
