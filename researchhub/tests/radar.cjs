@@ -32,7 +32,7 @@ function loadHandler(file,dependencies){const module={exports:{}};new Function('
 const serverMock={NextResponse:{json:(value,init)=>new Response(JSON.stringify(value),{status:init?.status||200,headers:{'Content-Type':'application/json'}})}};
 (async()=>{
  let analyzed=null;const seen=[];
- const search=loadHandler('app/api/literature/search/route.ts',{'next/server':serverMock,'@/lib/literature/query-strategy':strategyBuilder,'@/lib/literature/search-limits':limits,'@/lib/literature/analyze':{analyzeLiterature:async(input)=>{analyzed=input;return{topic:input.topic,filters:{searchTerm:input.topic+' AND 2026[pdat]',crossrefQuery:'clinical factors'},articles:[]};}}});
+ const search=loadHandler('app/api/literature/search/route.ts',{'next/server':serverMock,'@/lib/literature/query-strategy':strategyBuilder,'@/lib/literature/search-limits':limits,'@/lib/literature/terminology':{officialTerminologySuggestions:async()=>({})},'@/lib/literature/analyze':{analyzeLiterature:async(input)=>{analyzed=input;return{topic:input.topic,filters:{searchTerm:input.topic+' AND 2026[pdat]',crossrefQuery:'clinical factors'},articles:[]};}}});
  const response=await search.POST(new Request('https://local/api/literature/search',{method:'POST',body:JSON.stringify({...applied,period:'5',studyType:'systematic'})}));assert.equal(response.status,200);assert.equal(analyzed.topic,longStrategy);const result=await response.json();
  const articles=loadHandler('app/api/literature/articles/route.ts',{'next/server':serverMock,'@/lib/literature/search-limits':limits,'@/lib/literature/types':{mergeArticles},'@/lib/literature/crossref':{},'@/lib/literature/pubmed':{pubmedSearch:async(term,max,sort,offset)=>{seen.push({term,max,offset});return{count:60,ids:['123']};},fetchArticleDetails:async()=>[pubmed]}});
  const page=await articles.POST(new Request('https://local/api/literature/articles',{method:'POST',body:JSON.stringify({source:'pubmed',sort:'relevance',period:'5',topic:result.topic,searchTerm:result.filters.searchTerm,crossrefQuery:result.filters.crossrefQuery,offset:0})}));assert.equal(page.status,200);assert.equal((await page.json()).nextOffset,null);assert.equal(seen[0].term,result.filters.searchTerm);assert.equal(seen[0].max,30);assert.equal(seen[0].offset,0);
@@ -47,6 +47,11 @@ const serverMock={NextResponse:{json:(value,init)=>new Response(JSON.stringify(v
  }
  assert.equal(strategyBuilder.buildSearchStrategy("Hashimto[Title/Abstract]").pubmedQuery,"Hashimto[Title/Abstract]");
  const invalid=await search.POST(new Request('https://local/api/literature/search',{method:'POST',body:JSON.stringify({topic:'x'.repeat(10001)})}));assert.equal(invalid.status,400);assert.match((await invalid.json()).error,/10000/);
+ const terms=loadHandler('lib/literature/terminology.ts',{'./pubmed':{suggestPubmedSpelling:async term=>term==='asthmaa'?'asthma':''}});
+ const realFetch=global.fetch;
+ global.fetch=async url=>new Response(JSON.stringify(url.searchParams.get('label')==='ofloxacin'?[{resource:'http://id.nlm.nih.gov/mesh/D015242',label:'Ofloxacin'}]:[]));
+ try {assert.deepEqual(await terms.officialTerminologySuggestions(['ofloxacin','asthmaa'],{}),{ofloxacin:['Ofloxacin'],asthmaa:['asthma']});}finally{global.fetch=realFetch;}
+ assert.match(strategyBuilder.buildSearchStrategy({topic:'asthmaa in children',language:'en',translations:{asthmaa:'asthma'}}).pubmedQuery,/"asthma"\[Title\/Abstract\]/);
  const transport=[];const native=loadHandler('lib/literature/pubmed.ts',{});
  const original=global.fetch;global.fetch=async(url,options)=>{transport.push({url,options});return new Response(JSON.stringify({esearchresult:{count:'1',idlist:['123']}}));};
  try {await native.pubmedSearch(longStrategy,20,'relevance',20);await native.pubmedSearch('sleep',20);assert.equal(transport[0].options.method,'POST');assert(!transport[0].url.includes('?'));const body=new URLSearchParams(transport[0].options.body);assert.equal(body.get('term'),longStrategy);assert.equal(body.get('retstart'),'20');assert(transport[1].url.includes('term=sleep'));}finally{global.fetch=original;}

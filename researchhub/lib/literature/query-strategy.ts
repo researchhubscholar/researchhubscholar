@@ -181,7 +181,11 @@ function conceptsFromNaturalLanguage(value: string, language: "pt" | "en", trans
       const confirmed = clean(translations[token] || "").replace(/[?!.;,()[\]{}]/g, " ").replace(/[^a-zA-Z0-9\s-]/g, "").trim();
       if (confirmed.length >= 2) concepts.push({ label: confirmed, terms: [confirmed] });
       else unknown.push(token);
-    } else concepts.push({ label: token, terms: [token] });
+    } else {
+      const confirmed = translations[token];
+      if (!confirmed) unknown.push(token);
+      concepts.push({ label: confirmed || token, terms: [confirmed || token] });
+    }
   }
 
   const unique = concepts.filter((concept, index, all) => all.findIndex(item => item.label === concept.label) === index);

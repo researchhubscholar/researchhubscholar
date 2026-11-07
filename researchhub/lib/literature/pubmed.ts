@@ -43,6 +43,17 @@ async function ncbiFetch(url: string, accept = "application/json", form?: URLSea
   throw new Error(`NCBI request failed (${lastStatus})`);
 }
 
+export async function suggestPubmedSpelling(term: string) {
+  const params = ncbiParams({ db: "pubmed", term });
+  const response = await fetch(`${PUBMED_BASE}/espell.fcgi?${params}`, {
+    headers: { Accept: "application/xml" },
+    signal: AbortSignal.timeout(2500),
+    cache: "no-store",
+  });
+  if (!response.ok) return "";
+  return (await response.text()).match(/<CorrectedQuery>([^<]+)<\/CorrectedQuery>/i)?.[1]?.trim() || "";
+}
+
 export async function pubmedSearch(term: string, retmax = 0, sort?: string, offset = 0): Promise<PubmedSearch> {
   const params = ncbiParams({ db: "pubmed", term, retmode: "json", retmax: String(retmax), retstart: String(offset) });
   if (sort) params.set("sort", sort);
