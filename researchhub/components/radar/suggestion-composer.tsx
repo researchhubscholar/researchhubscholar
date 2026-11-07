@@ -22,6 +22,12 @@ export default function SuggestionComposer({ recommendations, onApply }: {
   const [edited, setEdited] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const eligible = recommendations.map((item, index) => item.targetField === "pubmedQuery" && item.content.trim() ? index : -1).filter(index => index >= 0);
+  const spanish = formatLocale === "es";
+  const recommended = eligible.flatMap(index => {
+    const item = recommendations[index];
+    try { return [{ ...item, content: normalizeSuggestionQuery(item.content) }]; }
+    catch { return []; }
+  })[0];
   const chosen = recommendations.filter((_, index) => selected.includes(index));
   let query = edited ?? chosen.map(item => `(${item.content})`).join(` ${operator} `), error = "";
   try {
@@ -42,6 +48,16 @@ export default function SuggestionComposer({ recommendations, onApply }: {
   }
 
   return <div className="mt-3">
+    {recommended ? <section className="rounded-card border border-teal/20 bg-white p-4">
+      <h3 className="font-medium">{spanish ? "Búsqueda recomendada" : "Busca recomendada"}</h3>
+      {recommended.rationale && <p className="mt-2 text-sm text-ink-soft">{recommended.rationale}</p>}
+      <button type="button" className="mt-3 rounded-card bg-teal px-4 py-2 text-sm text-white" onClick={() => {
+        onApply(recommended);
+        setMessage(spanish ? "Búsqueda preparada. Pulsa Buscar artículos para ver los resultados." : "Busca preparada. Clique em Pesquisar artigos para ver os resultados.");
+      }}>{spanish ? "Usar esta búsqueda" : "Usar esta busca"}</button>
+    </section> : <p role="status" className="text-sm text-ink-soft">{spanish ? "La IA no devolvió una consulta lista para usar. Puedes revisarla abajo o buscar con tus propias palabras." : "A IA não retornou uma consulta pronta para uso. Você pode revisá-la abaixo ou pesquisar com suas próprias palavras."}</p>}
+    <details className="mt-3">
+      <summary className="cursor-pointer text-sm font-medium text-teal">{spanish ? "Ver opciones avanzadas" : "Ver opções avançadas"}</summary>
     {eligible.length > 0 && <div className="rounded-card border border-teal/20 bg-white p-4">
       <h3 className="font-medium"><InterfaceText message="screen.b75a7500f0c9" /></h3>
       <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.d05ba0827ccc" /></p>
@@ -63,6 +79,7 @@ export default function SuggestionComposer({ recommendations, onApply }: {
       {error && <p role="alert" className="text-sm text-red-700 mt-2"><AuthoredText text={error} /></p>}
       <div className="mt-3 flex flex-wrap gap-3"><button type="button" disabled={Boolean(error)} onClick={apply} className="bg-teal text-white rounded-card px-4 py-2 text-sm disabled:opacity-40"><InterfaceText message="screen.13a11a03e1c5" /></button>{edited !== null && <button type="button" onClick={() => { setEdited(null); setMessage(""); }} className="text-sm text-teal underline"><InterfaceText message="screen.3be0d51fae49" /></button>}</div>
     </section>}
+    </details>
     {message && <p role="status" className="mt-3 text-sm text-teal"><AuthoredText text={message} /></p>}
   </div>;
 }
