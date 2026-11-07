@@ -1,0 +1,21 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript'),{PGlite}=require('@electric-sql/pglite');
+const compile=f=>ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+(async()=>{
+ const db=new PGlite();await db.exec(`create role authenticated;create role anon;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select nullif(current_setting('test.user',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;create function public.scholar_require_platform_admin() returns void language plpgsql as $$begin if auth.uid() <> '${id(1)}'::uuid then raise exception 'Acesso restrito'; end if;end$$;`);
+ const sql=fs.readFileSync('supabase/scholar_journey_metrics.sql','utf8');await db.exec(sql);await db.exec(sql);
+ await db.query('insert into auth.users(id) values($1),($2),($3)',[id(1),id(2),id(3)]);
+ const as=async user=>{await db.exec('reset role');await db.query("select set_config('test.user',$1,false)",[user]);await db.exec('set role authenticated');};
+ const scalar=async(q,p=[])=>Object.values((await db.query(q,p)).rows[0])[0];
+ await as(id(2));for(let n=10;n<=14;n++)assert.equal(await scalar("select scholar_record_journey_attempt($1,'radar_search','started')",[id(n)]),true);
+ assert.equal(await scalar("select scholar_record_journey_attempt($1,'radar_search','completed')",[id(10)]),true);assert.equal(await scalar("select scholar_record_journey_attempt($1,'radar_search','failed')",[id(10)]),false);
+ await scalar("select scholar_record_journey_attempt($1,'radar_search','failed')",[id(11)]);await scalar("select scholar_record_journey_attempt($1,'radar_search','review')",[id(12)]);
+ await assert.rejects(db.query('select * from scholar_journey_summary()'),/Acesso restrito/);
+ await as(id(3));assert.equal((await db.query('select * from scholar_journey_attempts')).rows.length,0);assert.equal(await scalar("select scholar_record_journey_attempt($1,'radar_search','completed')",[id(13)]),false);
+ await db.exec('reset role');await db.query("update scholar_journey_attempts set started_at=now()-interval '31 minutes' where id=$1",[id(13)]);await as(id(1));const r=(await db.query('select * from scholar_journey_summary()')).rows[0];for(const [key,val] of Object.entries({started:5,completed:1,failed:1,review:1,pending:1,unresolved:1}))assert.equal(Number(r[key]),val,key);
+ await db.exec('reset role; set role anon');await assert.rejects(db.query('select * from scholar_journey_summary()'),/permission denied/);await db.close();
+ let resolveStart;const calls=[];const dbMock={rpc:(name,args)=>{calls.push(args.p_status);return args.p_status==='started'?new Promise(resolve=>resolveStart=resolve):Promise.resolve({data:true,error:null});}};const mod={exports:{}};
+ vm.runInNewContext(compile('lib/telemetry/journey.ts'),{module:mod,exports:mod.exports,require:n=>n==='@/lib/supabase/browser'?{supabaseBrowser:()=>dbMock}:(()=>{throw Error(n)})(),crypto:{randomUUID:()=>id(42)},Promise});
+ const finish=mod.exports.trackRadarAttempt();finish('completed');finish('failed');assert.deepEqual(calls,['started']);resolveStart({data:true,error:null});await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['started','completed']);
+ console.log('PASS: synthetic attempt correlation, access isolation, statuses, timing and best-effort ordered delivery.');
+})().catch(e=>{console.error(e);process.exitCode=1});

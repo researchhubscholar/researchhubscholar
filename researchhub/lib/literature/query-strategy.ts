@@ -18,6 +18,7 @@ export type SearchStrategy = {
   language: "pt" | "en" | "advanced";
   warnings: string[];
   unresolvedTerms: string[];
+  suggestions?: Record<string, string[]>;
   manualTranslations: Array<{ source: string; target: string }>;
   requiresReview: boolean;
 };
@@ -25,6 +26,8 @@ export type SearchStrategy = {
 type Concept = { label: string; terms: string[]; mesh?: string[] };
 
 const phraseConcepts: Array<{ aliases: string[]; concept: Concept }> = [
+  { aliases: ["sindrome de hashimoto", "doenca de hashimoto", "tireoidite de hashimoto", "tiroiditis de hashimoto", "enfermedad de hashimoto", "hashimoto thyroiditis", "hashimoto disease", "hashimoto"], concept: { label: "Hashimoto disease", terms: ["Hashimoto disease", "Hashimoto thyroiditis", "Hashimoto's thyroiditis"], mesh: ["Hashimoto Disease"] } },
+  { aliases: ["doenca de kawasaki", "enfermedad de kawasaki", "kawasaki disease", "kawasaki"], concept: { label: "Kawasaki disease", terms: ["Kawasaki disease", "Kawasaki syndrome"], mesh: ["Mucocutaneous Lymph Node Syndrome"] } },
   { aliases: ["cancer de mama"], concept: { label: "breast cancer", terms: ["breast cancer", "breast neoplasm"], mesh: ["Breast Neoplasms"] } },
   { aliases: ["cancer de prostata"], concept: { label: "prostate cancer", terms: ["prostate cancer", "prostatic neoplasm"], mesh: ["Prostatic Neoplasms"] } },
   { aliases: ["cancer de pulmao"], concept: { label: "lung cancer", terms: ["lung cancer", "lung neoplasm"], mesh: ["Lung Neoplasms"] } },
@@ -91,7 +94,7 @@ const wordConcepts: Record<string, Concept> = {
 
 const stopwords = new Set([
   "a", "as", "o", "os", "de", "da", "das", "do", "dos", "e", "em", "na", "nas", "no", "nos", "para", "por", "com", "sem",
-  "entre", "sobre", "qual", "quais", "como", "quanto", "uma", "um", "seu", "sua", "seus", "suas", "pode", "podem", "tem", "ter",
+  "en", "buscar", "entre", "sobre", "qual", "quais", "como", "quanto", "uma", "um", "seu", "sua", "seus", "suas", "pode", "podem", "tem", "ter",
   "avaliacao", "avaliar", "analise", "analisar", "estudo", "estudos", "pesquisa", "pesquisar", "impacto", "efeito", "efeitos", "relacao",
   "associacao", "influencia", "influenciar", "comparacao", "comparar",
 ]);
@@ -133,7 +136,7 @@ function conceptQuery(concept: Concept) {
 }
 
 function isAdvanced(value: string) {
-  return /\[[^\]]+\]|(?:^|\s)(?:AND|OR|NOT)(?:\s|$)/.test(value);
+  return /\[[^\]]+\]|(?:^|\s)(?:AND|OR|NOT)(?:\s|$)|^\([\s\S]*\)$|^"[^" ]+(?: [^" ]+)*"$/.test(value);
 }
 
 function plainAdvanced(value: string) {
@@ -145,12 +148,17 @@ function plainAdvanced(value: string) {
 
 function detectLanguage(value: string): "pt" | "en" {
   if (/[áàâãéêíóôõúç]/i.test(value)) return "pt";
-  return /\b(?:qual|quais|como|entre|sobre|com|sem|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
+  return /\b(?:qual|quais|como|entre|sobre|com|sem|ninos|menores de|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
 }
 
 function conceptsFromNaturalLanguage(value: string, language: "pt" | "en", translations: Record<string, string>) {
   let working = ` ${fold(value).replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ")} `;
   const concepts: Concept[] = [];
+  const underFive = /\b(?:(?:criancas|ninos) (?:com )?(?:menores de|menos de) 5 anos|(?:children (?:under|younger than) 5(?: years(?: old)?)?|(?:under|younger than) 5 years(?: old)?))\b/g;
+  working = working.replace(underFive, () => {
+    if (!concepts.length) concepts.push({ label: "children under 5 (approximate)", terms: ["under five", "under 5 years", "infant", "infants", "preschool children", "young children"], mesh: ["Infant", "Child, Preschool"] });
+    return " ";
+  });
 
   const phrases = [...phraseConcepts].sort((a, b) => Math.max(...b.aliases.map(x => x.length)) - Math.max(...a.aliases.map(x => x.length)));
   for (const entry of phrases) {
@@ -173,7 +181,11 @@ function conceptsFromNaturalLanguage(value: string, language: "pt" | "en", trans
       const confirmed = clean(translations[token] || "").replace(/[?!.;,()[\]{}]/g, " ").replace(/[^a-zA-Z0-9\s-]/g, "").trim();
       if (confirmed.length >= 2) concepts.push({ label: confirmed, terms: [confirmed] });
       else unknown.push(token);
-    } else concepts.push({ label: token, terms: [token] });
+    } else {
+      const confirmed = translations[token];
+      if (!confirmed) unknown.push(token);
+      concepts.push({ label: confirmed || token, terms: [confirmed || token] });
+    }
   }
 
   const unique = concepts.filter((concept, index, all) => all.findIndex(item => item.label === concept.label) === index);
@@ -199,6 +211,26 @@ function naturalPart(value: string, language: "pt" | "en", translations: Record<
   };
 }
 
+// One insertion, deletion, substitution or adjacent transposition.
+function oneEdit(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 1 || a === b) return false;
+  if (a.length > b.length) return oneEdit(b, a);
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  if (a.length < b.length) return a.slice(i) === b.slice(i + 1);
+  return a.slice(i + 1) === b.slice(i + 1)
+    || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+}
+
+const spellings = new Map<string, Concept>(Object.entries(wordConcepts));
+for (const { aliases, concept } of phraseConcepts) {
+  for (const alias of aliases) if (/^[a-z]+$/.test(alias)) spellings.set(alias, concept);
+}
+const knownWords = new Set([...spellings.keys(), ...stopwords, ...englishStopwords,
+  ...phraseConcepts.flatMap(({aliases}) => aliases.flatMap(alias => alias.split(" "))),
+  ...Array.from(spellings.values()).flatMap(concept => concept.terms.flatMap(term => fold(term).split(" "))),
+]);
+
 export function buildSearchStrategy(value: string | SearchInput): SearchStrategy {
   const input: SearchInput = typeof value === "string" ? { topic: value } : value;
   const topic = clean(input.topic);
@@ -223,7 +255,29 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
 
   const language = input.language && input.language !== "auto" ? input.language : detectLanguage(topic);
   const translations = Object.fromEntries(Object.entries(input.translations || {}).map(([source, target]) => [fold(source), clean(target)]));
-  const topicPart = naturalPart(topic, language, translations);
+  const suggestions: Record<string, string[]> = {};
+  const corrections = new Map<string, string>();
+  function normalize(text: string) {
+    return text.replace(/\p{L}+/gu, word => {
+      const token = fold(word);
+      if (token.length < 7 || knownWords.has(token)) return word;
+      const matches = Array.from(spellings).filter(([alias]) => alias.length >= 7 && oneEdit(token, alias));
+      const unique = Array.from(new Map(matches.map(([alias, concept]) => [concept.label, alias])));
+      if (unique.length === 1) {
+        const [label, alias] = unique[0];
+        corrections.set(word, label);
+        return alias;
+      }
+      if (unique.length > 1) {
+        const choices = unique.map(([label]) => label).slice(0, 2);
+        if (choices.includes(translations[token])) return unique.find(([label]) => label === translations[token])![1];
+        suggestions[token] = choices;
+      }
+      return word;
+    });
+  }
+  const normalizedTopic = isAdvanced(topic) ? topic : normalize(topic);
+  const topicPart = naturalPart(normalizedTopic, language, translations);
   const parts = [topicPart.pubmed];
   const plainParts = [topicPart.plain];
   const concepts = [...topicPart.concepts];
@@ -237,14 +291,14 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
   }
   for (const extra of [input.population, input.outcome]) {
     if (!extra?.trim()) continue;
-    const parsed = naturalPart(extra, language, translations);
+    const parsed = naturalPart(isAdvanced(extra) ? extra : normalize(extra), language, translations);
     parts.push(parsed.pubmed);
     plainParts.push(parsed.plain);
     concepts.push(...parsed.concepts);
     unknown.push(...parsed.unknown);
   }
 
-  const unresolvedTerms = Array.from(new Set(unknown));
+  const unresolvedTerms = Array.from(new Set([...unknown, ...Object.keys(suggestions)]));
   const manualTranslations = Object.entries(translations)
     .filter(([, target]) => target.length >= 2)
     .map(([source, target]) => ({ source, target }));
@@ -252,7 +306,10 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
     const terms = unresolvedTerms.map(term => `“${term}”`).join(", ");
     warnings.push(`Revise os conceitos ainda não reconhecidos: ${terms}. Nenhuma busca será enviada até a confirmação.`);
   }
+  for (const [original, corrected] of corrections) warnings.push(`Grafia ajustada na busca: “${original}” → “${corrected}”.`);
+  if (/\b(?:sindrome de hashimoto)\b/.test(fold(normalizedTopic))) warnings.push("Buscamos por doença de Hashimoto (tireoidite de Hashimoto).");
   if (manualTranslations.length) warnings.push(`Equivalências confirmadas nesta busca: ${manualTranslations.map(item => `“${item.source}” → “${item.target}”`).join(", ")}.`);
+  if (concepts.includes("children under 5 (approximate)")) warnings.push("O recorte de menores de 5 anos é aproximado. Confira a idade dos participantes em cada artigo.");
   if (topicPart.truncated) warnings.push("A pergunta tinha muitos conceitos; o Radar priorizou os seis primeiros para evitar uma busca excessivamente restrita.");
 
   return {
@@ -266,6 +323,7 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
     warnings,
     unresolvedTerms,
     manualTranslations,
-    requiresReview: language === "pt" && unresolvedTerms.length > 0,
+    suggestions,
+    requiresReview: Object.keys(suggestions).length > 0 || (language === "pt" && unresolvedTerms.length > 0),
   };
 }

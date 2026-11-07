@@ -1,6 +1,20 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
 
-import { Suspense, useMemo, useState } from "react";
+import AuthoredText from "@/components/i18n/authored-text";
+
+import { useLanguage } from "@/components/i18n/language-provider";
+
+import InterfaceText from "@/components/i18n/interface-text";
+
+
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
+import { postAI } from "@/lib/ai/client-request";
+import { normalizeSuggestionQuery } from "@/lib/literature/suggestion-query";
+import { trackRadarAttempt } from "@/lib/telemetry/journey";
+import LoadingDialog from "@/components/ai/loading-dialog";
+import AssistantPanel from "@/components/ai/assistant-panel";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -14,6 +28,7 @@ import { useOpenAccess } from "@/lib/literature/use-open-access";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
+  aiInterpretation?: { summary: string };
   topic: string;
   filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string; language: string };
   strategy: {
@@ -24,6 +39,7 @@ type Result = {
     warnings: string[];
     pubmedQuery: string;
     unresolvedTerms: string[];
+    suggestions?: Record<string, string[]>;
     manualTranslations: Array<{ source: string; target: string }>;
     requiresReview: boolean;
   };
@@ -60,7 +76,7 @@ export default function DiscoverPage() {
     <Suspense
       fallback={
         <p className="p-6 text-sm text-ink-soft" role="status">
-          Carregando o Radar...
+          <InterfaceText message="screen.ea07493de63e" />
         </p>
       }
     >
@@ -70,13 +86,23 @@ export default function DiscoverPage() {
 }
 
 function DiscoverContent() {
+ const {locale:formatLocale}=useLanguage();
+
+  const { t: uiText } = useLanguage();
   const params = useSearchParams();
   const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
-  const [period, setPeriod] = useState("5");
-  const [studyType, setStudyType] = useState("all");
-  const [language, setLanguage] = useState("auto");
+  const [period, setPeriod] = useState(params.get("origem")==="assistente"?"all":"5");
+  const incomingStudy = params.get("desenho") || "";
+  const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
+  const [language, setLanguage] = useState(params.get("origem")==="assistente"?"en":"auto");
   const [result, setResult] = useState<Result | null>(null);
+  const [interpreting, setInterpreting] = useState(false);
+  const [interpretationNotice, setInterpretationNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  const searchLock = useRef(false);
+  const firstArticle = useRef<HTMLElement>(null);
+  const scrollToArticles = useRef(false);
+  const queryInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [termReview, setTermReview] = useState<TermReview | null>(null);
   const library = useLibrary();
@@ -85,14 +111,12 @@ function DiscoverContent() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [source, setSource] = useState("pubmed");
   const [sort, setSort] = useState("recent");
-  const [nextOffset, setNextOffset] = useState<number | null>(null);
-  const [articleTotal, setArticleTotal] = useState(0);
   const [browsing, setBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [mesh, setMesh] = useState("");
-  const [populationTerm, setPopulationTerm] = useState("");
-  const [outcomeTerm, setOutcomeTerm] = useState("");
+  const [populationTerm, setPopulationTerm] = useState(params.get("populacao") || "");
+  const [outcomeTerm, setOutcomeTerm] = useState(params.get("desfecho") || "");
   const [operator, setOperator] = useState("AND");
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [sourceWarning, setSourceWarning] = useState<string | null>(null);
@@ -101,8 +125,17 @@ function DiscoverContent() {
   const [lookupArticle, setLookupArticle] = useState<Article | null>(null);
   const accessArticles = useMemo(() => lookupArticle ? [...articles, lookupArticle] : articles, [articles, lookupArticle]);
   const openAccess = useOpenAccess(accessArticles);
-  const effectiveQuery = useMemo(() => result?.strategy.interpreted || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
+  const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
+
+  useEffect(() => {
+    if (loading || !scrollToArticles.current) return;
+    scrollToArticles.current = false;
+    firstArticle.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  }, [loading]);
 
   async function recordSearch(data: Result) {
     try {
@@ -112,33 +145,74 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}) {
-    if (loading || browsing) return;
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period) {
+    if (searchLock.current || loading || browsing) return;
+    searchLock.current = true;
+    const finishAttempt = trackRadarAttempt();
     setLoading(true);
     setError(null);
     setResult(null);
-    try {
+    setInterpretationNotice("");
+    setTermReview(null);
+    const requestSearch = async (parameters: Record<string, unknown>) => {
       const response = await fetch("/api/literature/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, mesh, populationTerm, outcomeTerm, operator, language, period, studyType, translations }),
+        body: JSON.stringify(parameters),
+        signal: AbortSignal.timeout(180000),
       });
-      const data = await response.json();
+      return { response, data: await response.json() };
+    };
+    const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType, translations };
+    try {
+      let { response, data } = await requestSearch(original);
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
-        setTermReview({ strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, ""])) });
-        return;
+        const review = { strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, translations[term] ?? ""])) };
+        if (!Object.keys(translations).length && data.strategy.mode !== "advanced" && !/\[[^\]]+\]|\b(?:AND|OR|NOT)\b/.test(topic)) {
+          setInterpreting(true);
+          try {
+            const { data: interpretation } = await postAI<{ mode?: string; output?: { summary?: string; warnings?: string[]; recommendations?: Array<{ targetField: string; confidence: string; content: string; rationale: string }> } }>("/api/ai/assist", {
+              feature: "radar", projectId: projectId || null,
+              context: { searchGoal: "interpret_question", topic, mesh, population: populationTerm, outcome: outcomeTerm, operator, language, period: searchPeriod, studyType },
+            });
+            const output = interpretation.output;
+            const item = output?.recommendations?.length === 1 ? output.recommendations[0] : undefined;
+            if (interpretation.mode !== "simulation" && item?.targetField === "pubmedQuery" && item.confidence === "alta") {
+              const query = normalizeSuggestionQuery(item.content);
+              const tags = [...query.matchAll(/\[([^\]]+)\]/g)].map(match => match[1].toLowerCase());
+              if (!tags.length || tags.some(tag => tag !== "title/abstract")) throw new Error("Consulta inválida");
+              setInterpreting(false);
+              const retry = await requestSearch({ ...appliedPubmedStrategy(query), period: searchPeriod, studyType });
+              if (!retry.response.ok) throw new Error("Consulta interpretada indisponível");
+              response = retry.response;
+              data = { ...retry.data, topic: topic.trim(), filters: { ...retry.data.filters, mesh: mesh.trim(), population: populationTerm.trim(), outcome: outcomeTerm.trim(), operator, language },
+                aiInterpretation: { summary: output?.summary || "" } };
+            } else {
+              setInterpretationNotice(interpretation.mode !== "simulation" && output?.summary ? output.summary : (formatLocale === "es" ? "Revisa la pregunta para continuar." : "Revise a pergunta para continuar."));
+            }
+          } catch {
+            setInterpretationNotice(formatLocale === "es" ? "No se pudo interpretar automáticamente. Edita la pregunta o revisa los términos." : "Não foi possível interpretar automaticamente. Edite a pergunta ou revise os termos.");
+          } finally { setInterpreting(false); }
+        }
+        if (!response.ok) {
+          finishAttempt("review");
+          setTermReview(review);
+          return;
+        }
       }
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
+      finishAttempt("completed");
       setTermReview(null);
       setResult(data);
+      scrollToArticles.current = data.articles.length > 0;
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
-      setArticleTotal(data.sources.pubmed.total);
-      setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
       setBrowseError(null);
       void recordSearch(data);
     } catch (err) {
+      finishAttempt("failed");
       setError(err instanceof Error ? err.message : "Não foi possível analisar o tema.");
     } finally {
+      searchLock.current = false;
       setLoading(false);
     }
   }
@@ -152,17 +226,17 @@ function DiscoverContent() {
     await library.saveArticle({ ...article, fullTextUrl: access?.status === "open" ? access.url : article.fullTextUrl }, projectId || null);
   }
 
-  async function browse(nextSource: string, nextSort: string, offset = 0) {
+  async function browse(nextSource: string, nextSort: string) {
     if (!result || browsing || loading) return;
     setBrowsing(true); setBrowseError(null);
     try {
       const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }) });
+        body: JSON.stringify({ source: nextSource, sort: nextSort, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
-      setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
-      setSource(nextSource); setSort(nextSort); setNextOffset(data.nextOffset); setArticleTotal(data.total);
-      setDuplicateCount(previous => offset === 0 ? Number(data.duplicateCount || 0) : previous + Number(data.duplicateCount || 0));
+      setArticles(data.articles);
+      setSource(nextSource); setSort(nextSort);
+      setDuplicateCount(Number(data.duplicateCount || 0));
       setSourceWarning(data.warning || null);
     } catch (error) { setBrowseError(error instanceof Error ? error.message : "Falha na busca."); }
     finally { setBrowsing(false); }
@@ -171,7 +245,7 @@ function DiscoverContent() {
     e.preventDefault(); if (lookupLoading) return;
     setLookupLoading(true); setLookupError(null); setLookupArticle(null);
     try {
-      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }) });
+      const response = await fetch("/api/literature/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Artigo não encontrado.");
       setLookupArticle(data.article);
@@ -179,104 +253,234 @@ function DiscoverContent() {
     finally { setLookupLoading(false); }
   }
 
-  const refinements = result
-    ? [`${result.topic} AND young adults`, `${result.topic} AND clinical outcomes`, `${result.topic} AND systematic review`]
-    : [];
 
   return (
     <div className="scholar-workspace radar-page max-w-5xl mx-auto">
-      <div className="module-intro radar-intro max-w-3xl">
+      <LoadingDialog open={loading || browsing || lookupLoading} title={interpreting ? (formatLocale==="es"?"Interpretando tu pregunta…":"Interpretando sua pergunta…") : lookupLoading ? uiText("screen.d24b34adf103") : browsing ? uiText("screen.c231b9899ee8") : uiText("screen.aa188adca06b")} description={interpreting ? (formatLocale==="es"?"La IA está preparando una estrategia de búsqueda.":"A IA está preparando uma estratégia de busca.") : lookupLoading ? uiText("screen.dc05f1e50df1") : browsing ? uiText("screen.d33b70e4f5a7") : uiText("screen.b5e46b1f7ce3")} statusText="Aguardando a resposta das fontes científicas." />
+      <div className="module-intro radar-intro">
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Radar científico</p>
-        <h1 className="font-display text-4xl md:text-5xl mt-3">Seu tema tem espaço para investigação?</h1>
+        <h1 className="font-display text-4xl md:text-5xl mt-3">{formatLocale==="es"?"Encuentra la literatura sobre tu tema":"Encontre a literatura do seu tema"}</h1>
         <p className="text-ink-soft mt-4 leading-relaxed">
-          Digite um tema, hipótese ou combinação de termos. O ResearchHub consulta bases científicas em tempo real, mostra o comportamento da literatura e traz artigos reais para sua biblioteca.
+          {formatLocale==="es"?"Busca en PubMed y Crossref con tus propias palabras.":"Pesquise no PubMed e no Crossref com suas próprias palavras."}
         </p>
-        <div className="radar-source-strip" aria-label="Cobertura do Radar">
-          <span><i aria-hidden="true" />PubMed</span>
-          <span><i aria-hidden="true" />Crossref</span>
-          <span><i aria-hidden="true" />Resultados verificáveis</span>
-        </div>
+
       </div>
 
-      <form onSubmit={analyze} className="module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <input aria-label="Tema da busca" required minLength={3} maxLength={220} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder="Ex.: qualidade do sono em residentes de medicina" />
-        <label className="text-xs text-ink-soft">Idioma<select aria-label="Idioma da busca" disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt">Português</option><option value="en">Inglês</option></select></label>
-        <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todo o período</option><option value="3">Últimos 3 anos</option><option value="5">Últimos 5 anos</option><option value="10">Últimos 10 anos</option></select></label>
-        <label className="text-xs text-ink-soft">Tipo de estudo<select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all">Todos os tipos</option><option value="systematic">Revisão sistemática</option><option value="trial">Ensaio clínico</option><option value="observational">Estudo observacional</option><option value="review">Revisão</option><option value="case">Relato de caso</option></select></label>
+      {params.get("origem")==="assistente"&&<p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal"><InterfaceText message="screen.41f2f15677f8" /></p>}
+      {params.get("origem") === "ideias" && <p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal"><InterfaceText message="screen.063ed0cd5381" /> <Link href="/ideias" className="underline"><InterfaceText message="screen.d08eb8b43f90" /></Link></p>}
+
+      {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c5971fc6df9e" /></p><h2 className="font-display text-xl mt-2"><InterfaceText message="screen.4504ece4c91e" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7b37c70f8eb" /></p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal"><InterfaceText message="screen.324fd80fa0d9" /></Link>}</section>}
+
+      <form id="preparar-busca-ia" onSubmit={analyze} className="scroll-mt-24 module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
+        <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input ref={queryInput} aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
+</div>
+      <AssistantPanel feature="radar" compact title={formatLocale==="es"?"Prepara tu estrategia de búsqueda":"Prepare sua estratégia de busca"} actionLabel={formatLocale==="es"?"Refinar con IA":"Refinar com IA"} disabled={loading || browsing || lookupLoading || topic.trim().length < 3} description={formatLocale==="es"?"Sugiere términos y sinónimos. Usa tu cuota de IA.":"Sugere termos e sinônimos. Usa sua franquia de IA."} context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);queryInput.current?.focus({preventScroll:true});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
-          {loading ? "Consultando PubMed..." : "Analisar tema"}
+          {loading ? "Consultando PubMed..." : uiText("screen.96767be14e59")}
         </button>
-        <details className="basis-full border-t border-line pt-4"><summary className="text-sm text-teal cursor-pointer">Busca avançada · MeSH, população e desfecho</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft">Descritor MeSH<input value={mesh} maxLength={60} onChange={e=>setMesh(e.target.value)} placeholder="Ex.: Hypertension" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">População ou contexto<input value={populationTerm} maxLength={60} onChange={e=>setPopulationTerm(e.target.value)} placeholder="Ex.: medical residents" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Desfecho ou medida<input value={outcomeTerm} maxLength={60} onChange={e=>setOutcomeTerm(e.target.value)} placeholder="Ex.: sleep quality" className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft">Combinar campos com<select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR">OR · qualquer um</option></select></label></div><p className="text-xs text-ink-soft mt-3">Use AND para aumentar a precisão e OR para ampliar a recuperação. Você também pode usar NOT, aspas e campos do PubMed no tema principal.</p></details>
+        <p className="radar-query-hint text-sm text-ink-soft">{formatLocale==="es"?"Escribe tu pregunta con tus propias palabras. Si hace falta, el Radar usa tu cuota de IA para interpretarla.":"Escreva sua pergunta com suas próprias palavras. Se necessário, o Radar usa sua franquia de IA para interpretá-la."}</p>
+</div>
+        <div className="radar-query-filters">
+        <label className="text-xs text-ink-soft">Idioma<select aria-label={uiText("screen.3d5012173e48")} disabled={loading || browsing} value={language} onChange={e => { setLanguage(e.target.value); setTermReview(null); }} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="auto">Automático</option><option value="pt"><InterfaceText message="screen.d4ada8ec2764" /></option><option value="en"><InterfaceText message="screen.85a560bc1af9" /></option></select></label>
+        <label className="text-xs text-ink-soft">Período<select disabled={loading || browsing} value={period} onChange={e => setPeriod(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.f70ad056ef46" /></option><option value="3"><InterfaceText message="screen.1028df7262f9" /></option><option value="5"><InterfaceText message="screen.ce0063e9851d" /></option><option value="10"><InterfaceText message="screen.275ab5f8225a" /></option></select></label>
+        <label className="text-xs text-ink-soft"><InterfaceText message="screen.d1703a5a5185" /><select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.88bfb93eb03e" /></option><option value="systematic"><InterfaceText message="screen.6e3232cec67c" /></option><option value="trial"><InterfaceText message="screen.774dd62a21e8" /></option><option value="observational"><InterfaceText message="screen.6529a74e7fb0" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case"><InterfaceText message="screen.60a84ae8356a" /></option></select></label>
+</div>
+        <div className="radar-search-options">
+        <details><summary className="text-sm text-teal cursor-pointer">{formatLocale==="es"?"Búsqueda avanzada":"Busca avançada"}</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft"><InterfaceText message="screen.a67ea4995792" /><input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder={uiText("screen.94f1f4e1eb9a")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.22b2ba5d4d18" /><input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder={uiText("screen.b91a4112cff5")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.3e31015169f5" /><input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder={uiText("screen.c2af7282316e")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.4ccc9e28b467" /><select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR"><InterfaceText message="screen.0969997e4309" /></option></select></label></div><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.9b189eb267d7" /></p></details>
+        <details className="radar-search-help text-sm"><summary className="text-teal font-medium cursor-pointer">{formatLocale==="es"?"ⓘ Cómo funciona la búsqueda":"ⓘ Como a busca funciona"}</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li><InterfaceText message="screen.445351b59ad4" /></li><li><InterfaceText message="screen.847f1babeb29" /></li><li><InterfaceText message="screen.596a7d5cc5eb" /></li><li><InterfaceText message="screen.311ebca8bb47" /></li><li><InterfaceText message="screen.b29c68d5ecdf" /></li><li><InterfaceText message="screen.6f1c33e52dce" /></li></ol><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.825d3ed8f5c0" /></p></details>
+        </div>
       </form>
-      <p className="text-xs text-ink-soft/70 mt-2">Pesquise em português ou inglês. Em “Automático”, o Radar identifica o idioma, separa os conceitos e mostra a estratégia utilizada.</p>
-      <details className="mt-4 bg-white border border-line rounded-card p-4 text-sm"><summary className="text-teal font-medium cursor-pointer">Como o Radar aplica boas práticas do PubMed</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li>Separa a pergunta em blocos de conceitos.</li><li>Une sinônimos do mesmo conceito com OR.</li><li>Combina conceitos diferentes com AND.</li><li>Pesquisa termos livres em título/resumo.</li><li>Acrescenta descritores MeSH quando disponíveis.</li><li>Aplica período e desenho do estudo como filtros separados.</li></ol><p className="text-xs text-ink-soft mt-3">Na busca avançada, você continua podendo informar MeSH, população, desfecho e operadores manualmente.</p></details>
-      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4">Os resultados abaixo são da última análise. Clique em Analisar tema para aplicar os campos atuais.</p>}
-      {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm">{error}</div>}
-      {termReview && <form onSubmit={confirmTerms} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5" aria-label="Revisão de conceitos da busca">
-        <p className="text-xs uppercase tracking-widest text-amber-800 font-semibold">Confirmação necessária</p>
-        <h2 className="font-display text-2xl mt-2">Ajude o Radar a interpretar estes conceitos.</h2>
-        <p className="text-sm text-ink-soft mt-2">A busca ainda não foi enviada ao PubMed. Informe somente o equivalente biomédico em inglês; os demais conceitos já reconhecidos serão preservados.</p>
+      {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4"><InterfaceText message="screen.3a3817970c44" /></p>}
+      {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm"><AuthoredText text={error} /></div>}
+      {termReview && <form onSubmit={confirmTerms} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5" aria-label={uiText("screen.10167fd7288d")}>
+        <p className="text-xs uppercase tracking-widest text-amber-800 font-semibold"><InterfaceText message="screen.97efbb872032" /></p>
+        <h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.a53d1b9ad9f1" /></h2>
+        <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.34e5df9bc174" /></p>
+        {interpretationNotice && <div className="mt-3"><p role="status" className="text-sm font-medium">{interpretationNotice}</p><button type="button" className="mt-2 text-sm text-teal underline" onClick={() => { setTermReview(null); queryInput.current?.focus(); }}>{formatLocale === "es" ? "Editar pregunta" : "Editar pergunta"}</button></div>}
+        <details open={!interpretationNotice} className="mt-3">
+        <summary className="cursor-pointer text-sm text-teal">{formatLocale === "es" ? "Revisar términos manualmente" : "Revisar termos manualmente"}</summary>
         {!!termReview.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-4">{termReview.strategy.concepts.map(concept => <span key={concept} className="bg-white text-teal rounded-full px-3 py-1 text-xs">✓ {concept}</span>)}</div>}
-        <div className="grid sm:grid-cols-2 gap-3 mt-4">{termReview.strategy.unresolvedTerms.map(term => <label key={term} className="text-sm font-medium">{term}<input required minLength={2} maxLength={80} lang="en" value={termReview.translations[term] || ""} onChange={e => setTermReview(previous => previous ? {...previous, translations: {...previous.translations, [term]: e.target.value}} : previous)} placeholder={`Equivalente de “${term}” em inglês`} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1" /></label>)}</div>
-        <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? "Validando estratégia..." : "Confirmar e pesquisar"}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card">Editar pergunta</button></div>
-        <p className="text-xs text-ink-soft mt-3">Essa confirmação vale apenas para esta busca. A futura integração ao DeCS fará essa equivalência automaticamente.</p>
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">{termReview.strategy.unresolvedTerms.map(term => {
+          const choices = termReview.strategy.suggestions?.[term];
+          const value = termReview.translations[term] || "";
+          const update = (value: string) => setTermReview(previous => previous ? {...previous, translations: {...previous.translations, [term]: value}} : previous);
+          return <label key={term} className="text-sm font-medium">{term}{choices?.length ? <select required value={value} onChange={e => update(e.target.value)} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1"><option value="">{formatLocale === "es" ? "¿Qué término quisiste decir?" : "Qual termo você quis dizer?"}</option>{choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}</select> : <input required minLength={2} maxLength={80} lang="en" value={value} onChange={e => update(e.target.value)} placeholder={formatLocale === "es" ? `Equivalente de “${term}” en inglés` : `Equivalente de “${term}” em inglês`} className="block w-full border border-amber-300 bg-white rounded-card px-3 py-2 mt-1" />}</label>;
+        })}</div>
+        <div className="flex flex-wrap gap-3 mt-4"><button disabled={loading} className="bg-teal text-white px-5 py-3 rounded-card font-medium disabled:opacity-50">{loading ? uiText("screen.c98dca97594e") : uiText("screen.bc5fc9a5ff6e")}</button><button type="button" onClick={() => setTermReview(null)} className="border border-line bg-white px-4 py-3 rounded-card"><InterfaceText message="screen.413bdc3133fb" /></button></div>
+        <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.576b9df65d53" /></p>
+        </details>
       </form>}
+      {termReview && <AssistantPanel
+        key={JSON.stringify([topic,mesh,populationTerm,outcomeTerm,operator,period,studyType,language,projectId])}
+        feature="radar" reviewQuery projectId={projectId || null} disabled={loading || browsing}
+        title={formatLocale === "es" ? "Ayuda para interpretar la pregunta" : "Ajuda para interpretar a pergunta"}
+        actionLabel={formatLocale === "es" ? "Interpretar esta pregunta con IA" : "Interpretar esta pergunta com IA"}
+        description={formatLocale === "es" ? "Revisa una propuesta que conserve los criterios de tu pregunta. Usa tu cuota de IA." : "Revise uma proposta que preserve os recortes da sua pergunta. Usa sua franquia de IA."}
+        context={{ searchGoal: "interpret_question", topic, mesh, population: populationTerm, outcome: outcomeTerm, operator, language, period, studyType, confirmedTerms: termReview.translations }}
+        onApply={item => {
+          if (item.targetField !== "pubmedQuery") return;
+          try {
+            const next = appliedPubmedStrategy(item.content);
+            setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm("");
+            setOperator("AND"); setLanguage(next.language); setTermReview(null); setResult(null); setError(null);
+            queryInput.current?.focus();
+          } catch (reason) { setError(reason instanceof Error ? reason.message : "Estratégia inválida."); }
+        }}
+      />}
+      <div className="radar-utility-bar">
+      <details className="radar-disclosure mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{formatLocale==="es"?"Búsquedas y alertas":"Buscas e alertas"}</summary>
       <SavedSearches query={effectiveQuery} period={period} studyType={studyType} source={source} sort={sort} resultCount={result?.sources.pubmed.total ?? null} onApply={applyStrategy}/>
       <SearchHistory onApply={applyHistory} />
+      </details>
 
-      <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
-        {library.loading ? <p role="status" className="text-sm">Carregando sua biblioteca...</p> : !library.userId ? <p className="text-sm">Explore os artigos livremente. <Link href="/login" className="text-teal underline font-medium">Entre na sua conta</Link> para salvar artigos e acessar sua biblioteca em qualquer dispositivo.</p> : <label className="text-sm font-medium">Salvar novos artigos em<select aria-label="Projeto para novos artigos" value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">Biblioteca geral · sem projeto</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || "Projeto sem título"}</option>)}</select></label>}
-        {library.error && <p role="alert" className="text-sm text-red-700 mt-3">{library.error}</p>}
-        {library.message && <p role="status" className="text-sm text-teal mt-3">{library.message}</p>}
-      </section>
-      <section className="radar-lookup-card mt-6 bg-white border border-line rounded-2xl p-5">
-        <h2 className="font-display text-xl">Já encontrou um artigo em outro lugar?</h2>
-        <p className="text-sm text-ink-soft mt-2">Busque pelo DOI, PMID ou link do PubMed/doi.org, independentemente dos resultados do Radar.</p>
+      <details className="radar-lookup-card radar-disclosure mt-4 bg-white border border-line rounded-2xl p-5">
+        <summary className="cursor-pointer text-sm font-medium text-teal"><svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2m2 6a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></svg>{formatLocale==="es"?"Añadir artículo por enlace":"Adicionar artigo por link"}</summary>
+        <p className="text-sm text-ink-soft mt-2">{formatLocale==="es"?"Pega el enlace del artículo en PubMed o doi.org. También puedes pegar solo el DOI o el PMID.":"Cole o link do artigo no PubMed ou em doi.org. Você também pode colar só o DOI ou o PMID."}</p>
         <form onSubmit={lookup} className="flex flex-wrap gap-3 mt-4">
-          <input aria-label="DOI, PMID ou link do artigo" required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="DOI, PMID ou link" className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
-          <button disabled={lookupLoading} className="bg-ink text-white px-4 py-3 rounded-card disabled:opacity-50">{lookupLoading ? "Buscando..." : "Buscar artigo"}</button>
+          <input aria-label={formatLocale==="es"?"Enlace del artículo, DOI o PMID":"Link do artigo, DOI ou PMID"} required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder={formatLocale==="es"?"Pega el enlace del artículo, DOI o PMID":"Cole o link do artigo, DOI ou PMID"} className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
+          <button disabled={lookupLoading} className="bg-ink text-white px-4 py-3 rounded-card disabled:opacity-50">{lookupLoading ? "Buscando..." : uiText("screen.68cd1ec180da")}</button>
         </form>
-        {lookupError && <p role="alert" className="text-red-700 text-sm mt-3">{lookupError}</p>}
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-teal">{formatLocale==="es"?"¿Dónde encuentro el enlace, el DOI o el PMID?":"Onde encontro o link, o DOI ou o PMID?"}</summary>
+          <dl className="mt-3 grid gap-3 text-ink-soft md:grid-cols-3">
+            <div><dt className="font-medium text-teal">{formatLocale==="es"?"Enlace del artículo":"Link do artigo"}</dt><dd className="mt-1">{formatLocale==="es"?"Copia la dirección de la ficha en PubMed o el enlace que empieza con":"Copie o endereço da página do artigo no PubMed ou o link que começa com"} <code>https://doi.org/</code>.</dd></div>
+            <div><dt className="font-medium text-teal">DOI</dt><dd className="mt-1">{formatLocale==="es"?"Identificador del artículo. Suele aparecer junto a la cita en la revista o en la primera página del PDF. Empieza con":"Identificador do artigo. Costuma aparecer perto da referência no site da revista ou na primeira página do PDF. Começa com"} <code>10.</code></dd></div>
+            <div><dt className="font-medium text-teal">PMID</dt><dd className="mt-1">{formatLocale==="es"?"Número del artículo en PubMed. Aparece en la ficha con la etiqueta «PMID» y al final de su enlace.":"Número do artigo no PubMed. Aparece na página do artigo com o rótulo “PMID” e no fim do link."}</dd></div>
+          </dl>
+          <p className="mt-3 text-xs text-ink-soft">{formatLocale==="es"?"Si tienes el enlace de la revista, busca el DOI en esa página y pégalo aquí.":"Se você tem o link do site da revista, procure o DOI nessa página e cole aqui."}</p>
+        </details>
+        {lookupError && <p role="alert" className="text-red-700 text-sm mt-3"><AuthoredText text={lookupError} /></p>}
         {lookupArticle && <div className="mt-4 border-t border-line pt-4">
           <h3 className="font-medium">{lookupArticle.title}</h3>
           <p className="text-xs text-ink-soft mt-2">{lookupArticle.journal} · {lookupArticle.year} · {lookupArticle.pmid ? `PMID ${lookupArticle.pmid}` : `DOI ${lookupArticle.doi}`}</p>
-          {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer">Ver resumo</summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
+          {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer"><InterfaceText message="screen.e0ac436e7868" /></summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
           <OpenAccessStatus result={openAccess.results[articleKey(lookupArticle)]} loading={openAccess.loading.has(articleKey(lookupArticle))} onCheck={() => void openAccess.retry(lookupArticle)} />
-          <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? "✓ Na biblioteca" : "+ Adicionar à biblioteca"}</button>
+          <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? uiText("screen.ca1030e614c1") : uiText("screen.16caed53e0f7")}</button>
         </div>}
+      </details>
+
+      <section className="radar-library-target mt-5 bg-teal-soft border border-teal/20 rounded-card p-4">
+        {library.loading ? <p role="status" className="text-sm"><InterfaceText message="screen.1a5c76655092" /></p> : !library.userId ? <p className="text-sm"><InterfaceText message="screen.a0e8789505e2" /> <Link href="/login" className="text-teal underline font-medium"><InterfaceText message="screen.84f05e0da1f9" /></Link> <InterfaceText message="screen.87f1b3b56d85" /></p> : <label className="text-sm font-medium"><span>{formatLocale==="es"?"Guardar en:":"Salvar em:"}</span><select aria-label={uiText("screen.5e2ff90305df")} value={projectId} disabled={library.working} onChange={e => setProjectId(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-white mt-2 w-full sm:max-w-md"><option value="">{formatLocale==="es"?"Biblioteca general":"Biblioteca geral"}</option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>}
+        {library.error && <p role="alert" className="text-sm text-red-700 mt-3"><AuthoredText text={library.error} /></p>}
+        {library.message && <p role="status" className="text-sm text-teal mt-3"><AuthoredText text={library.message} /></p>}
       </section>
+      </div>
 
       {!result && !loading && (
-        <div className="radar-examples mt-10 grid md:grid-cols-3 gap-4">
-          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina"].map((example) => (
+        <section className="radar-examples mt-6"><h2 className="font-display text-xl">{formatLocale==="es"?"Prueba una búsqueda":"Experimente uma busca"}</h2><div className="radar-example-chips">
+          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina", formatLocale === "es" ? "Kawasaki en niños menores de 5 años" : "Kawasaki em crianças menores de 5 anos"].map((example, index) => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
-              <span className="text-xs text-teal uppercase tracking-wide">Exemplo</span>
-              <p className="mt-2 text-sm font-medium">{example}</p>
+              <svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>
+              <span>{(formatLocale==="es"?["Sueño en residentes","Adherencia en hipertensión","Burnout en estudiantes","Kawasaki en menores de 5 años"]:["Sono em residentes","Adesão na hipertensão","Burnout em estudantes","Kawasaki em menores de 5 anos"])[index]}</span>
             </button>
           ))}
-        </div>
+        </div></section>
       )}
 
       {result && (
         <div className="mt-10 space-y-6">
-          <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label="Interpretação da busca">
-            <p className="text-xs uppercase tracking-widest text-teal">Como o Radar entendeu sua pergunta</p>
-            <p className="font-medium mt-2">{result.strategy.interpreted}</p>
-            <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? "Português → termos biomédicos em inglês" : result.strategy.language === "en" ? "Inglês" : "Sintaxe avançada do PubMed"}</p>
+          <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label={uiText("screen.1552cf019613")}>
+            <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.aef37a1b68b9" /></p>
+            <p className="font-medium mt-2">{result.aiInterpretation ? `Buscamos por: ${result.aiInterpretation.summary || result.strategy.interpreted}` : result.strategy.interpreted}</p>
+            <details className="mt-3 text-sm">
+              <summary className="cursor-pointer text-teal">{formatLocale === "es" ? "Ver o editar la estrategia de PubMed" : "Ver ou editar a estratégia do PubMed"}</summary>
+              <code className="block mt-2 break-words">{result.filters.searchTerm}</code>
+              <button type="button" className="mt-2 text-teal underline" onClick={() => { const next = appliedPubmedStrategy(result.strategy.pubmedQuery); setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage(next.language); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{formatLocale === "es" ? "Editar en el formulario" : "Editar no formulário"}</button>
+            </details>
+            {!result.aiInterpretation && <>
+            <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? uiText("screen.e4bf48ea4a79") : result.strategy.language === "en" ? uiText("screen.85a560bc1af9") : uiText("screen.0fd98652103f")}</p>
             {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
-            <p className="text-xs text-ink-soft mt-3">Os artigos iniciais estão ordenados por relevância. Você ainda pode trocar para “mais recentes” abaixo.</p>
-            {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3">{warning}</p>)}
+            <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.0d3f5add6671" /></p>
+            {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={warning} /></p>)}
+            </>}
           </section>
           <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Metric value={result.sources.pubmed.total.toLocaleString("pt-BR")} label="Resultados com os filtros" />
-            <Metric value={result.sources.pubmed.recent.toLocaleString("pt-BR")} label="Publicados nos últimos 5 anos, dentro do recorte" />
-            <Metric value={result.sources.pubmed.systematicReviews.toLocaleString("pt-BR")} label="Revisões sistemáticas" />
-            <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString("pt-BR")} label="Ensaios clínicos" />
+            <Metric value={result.sources.pubmed.total.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.fd259676797d")} />
+            <Metric value={result.sources.pubmed.recent.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.84fde1dbd550")} />
+            <Metric value={result.sources.pubmed.systematicReviews.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.e834a6e2ae4a")} />
+            <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.54a245bc407b")} />
           </section>
 
-          <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
+          <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.0c8337c345e0" /></p>
+                <h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.0c43239822f7" /></h2>
+                <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.9883a14966c8" /></p>
+              </div>
+              <Link href="/biblioteca" className="border border-line px-4 py-2.5 rounded-card text-sm font-medium hover:border-teal hover:text-teal">
+                <InterfaceText message="screen.dc1e3cdad359" />{savedArticles.length})
+              </Link>
+            </div>
+
+            <div className="p-6 border-b border-line bg-paper">
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="text-xs text-ink-soft"><InterfaceText message="screen.1bdb4add5da2" /><select aria-label={uiText("screen.86844b68c2bf")} disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option><option value="both">PubMed + Crossref</option></select></label>
+                <label className="text-xs text-ink-soft"><InterfaceText message="screen.63fbb2cee8cd" /><select aria-label={uiText("screen.4499f9a5360c")} disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent"><InterfaceText message="screen.ade822bf50f9" /></option><option value="relevance"><InterfaceText message="screen.a415f1a5dcce" /></option></select></label>
+                <p role="status" className="text-sm text-ink-soft">{browsing ? (formatLocale === "es" ? "Recuperando artículos…" : "Recuperando artigos…") : `${articles.length}/30 · ${sort === "relevance" ? (formatLocale === "es" ? "Por relevancia" : "Por relevância") : (formatLocale === "es" ? "Más recientes" : "Mais recentes")}` }</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft"><InterfaceText message="screen.975761e691ed" /></span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles,formatLocale), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
+              <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.943580f04e2a" /></p>
+              {sourceWarning && <p role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={sourceWarning} /></p>}
+              {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
+            </div>
+            <div className="divide-y divide-line">
+              {articles.map((article, index) => {
+                const saved = savedArticles.some(a => sameArticle(a, article));
+                return (
+                  <article key={articleKey(article)} ref={index === 0 ? firstArticle : undefined} className="radar-article scroll-mt-24 p-6">
+                    <div className="flex flex-col md:flex-row md:justify-between gap-5">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                          {article.year && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">{article.year}</span>}
+                          {article.duplicateSources && article.duplicateSources.length > 1 && <span className="bg-amber-soft text-ink px-2 py-1 rounded-full"><InterfaceText message="screen.c7c6f861a0ff" /></span>}
+                          {openAccess.results[articleKey(article)]?.status === "open" && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full"><InterfaceText message="screen.332432094ef6" /></span>}
+                          {article.publicationTypes.slice(0, 2).map((type) => <span key={type}>{type}</span>)}
+                        </div>
+                        <h3 className="font-display text-xl mt-3 leading-snug">{article.title}</h3>
+                        <p className="text-sm text-ink-soft mt-2">
+                          {article.authors.slice(0, 5).join(", ")}{article.authors.length > 5 ? " et al." : ""}
+                        </p>
+                        <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
+
+                        {article.abstract ? (
+                          <details className="mt-4 group">
+                            <summary className="text-sm text-teal font-medium cursor-pointer"><InterfaceText message="screen.e0ac436e7868" /></summary>
+                            <p className="text-sm text-ink-soft leading-relaxed mt-3 max-w-3xl">{article.abstract}</p>
+                          </details>
+                        ) : (
+                          <p className="text-xs text-ink-soft/60 mt-4"><InterfaceText message="screen.0df1e45d2b7e" /></p>
+                        )}
+
+                        <div className="flex flex-wrap gap-4 mt-4 text-xs">
+                          {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline"><InterfaceText message="screen.995a21ad803a" /></a>}
+                          {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir DOI ↗</a>}
+                        </div>
+                        <OpenAccessStatus result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => void openAccess.retry(article)} />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={saved || library.loading || library.working || !library.userId}
+                        onClick={() => saveArticle(article)}
+                        className={`shrink-0 self-start px-4 py-2.5 rounded-card text-sm font-medium ${saved ? "bg-teal-soft text-teal" : "bg-ink text-white hover:bg-ink/90"}`}
+                      >
+                        {saved ? uiText("screen.ca1030e614c1") : library.working ? "Aguarde..." : uiText("screen.16caed53e0f7")}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+              {articles.length === 0 && <div className="p-6 text-sm text-ink-soft"><p><InterfaceText message="screen.6985a714b0cb" /></p>{source === "pubmed" && result.sources.pubmed.total === 0 && result.filters.period !== "all" && result.topic === topic.trim() && result.filters.period === period && result.filters.studyType === studyType && result.filters.mesh === mesh.trim() && result.filters.population === populationTerm.trim() && result.filters.outcome === outcomeTerm.trim() && result.filters.operator === operator && result.filters.language === language && <button type="button" disabled={loading || browsing} onClick={() => { setPeriod("all"); void runAnalysis(Object.fromEntries(result.strategy.manualTranslations.map(item => [item.source, item.target])), "all"); }} className="mt-2 text-teal underline">{formatLocale === "es" ? "Buscar en todos los períodos" : "Buscar em todos os períodos"}</button>}</div>}
+            </div>
+            <div className="p-6 border-t border-line text-center">
+              <a href={`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(result.filters.searchTerm)}`} target="_blank" rel="noopener noreferrer" className="text-sm text-teal underline">{formatLocale === "es" ? "Abrir la búsqueda completa en PubMed" : "Abrir a busca completa no PubMed"}</a>
+            </div>
+          </section>
+
+<details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.ece7f03facd1" /></summary><div className="mt-5">          <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
             <div className="radar-chart-card bg-white border border-line rounded-2xl p-6">
-              <p className="text-xs uppercase tracking-widest text-ink-soft">Evolução por ano completo</p><p className="text-xs text-ink-soft mt-2">O ano atual é excluído da tendência para evitar uma comparação incompleta.</p>
+              <p className="text-xs uppercase tracking-widest text-ink-soft"><InterfaceText message="screen.7d4c17db7f73" /></p><p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.8d6e4b9ed077" /></p>
               <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
                 {result.timeline.map((item) => (
                   <div key={item.year} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
@@ -290,119 +494,44 @@ function DiscoverContent() {
 
             <div className="space-y-4">
               <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-teal">Leitura do tema</p>
-                <h2 className="font-display text-2xl mt-2">{breadthLabels[result.signals.breadth]}</h2>
+                <p className="text-xs uppercase tracking-wider text-teal"><InterfaceText message="screen.eebc284fab77" /></p>
+                <h2 className="font-display text-2xl mt-2"><AuthoredText text={breadthLabels[result.signals.breadth]} /></h2>
                 <p className="text-sm text-ink-soft mt-2">
-                  Tendência: <strong className="text-ink">{trendLabels[result.signals.trend]}</strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}% do recorte selecionado foi publicado nos últimos cinco anos.
+                  <InterfaceText message="screen.513a550f3e5e" /> <strong className="text-ink"><AuthoredText text={trendLabels[result.signals.trend]} /></strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}<InterfaceText message="screen.b396429b152f" />
                 </p>
-                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? "Há bastante literatura neste recorte. Defina uma população, um contexto e um desfecho para tornar a pergunta mais precisa." : result.signals.breadth === "scarce" ? "Poucos registros foram encontrados. Teste sinônimos e termos em inglês, confira os filtros e leia os estudos antes de interpretar isso como oportunidade." : result.signals.breadth === "niche" ? "O recorte é específico. Confira se há estudos suficientes para o desenho que você pretende executar." : "O volume permite uma exploração inicial. Leia os estudos e identifique diferenças de população, método e desfechos."}</p>
-                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? "A produção aumentou nos anos completos analisados; isso não mede qualidade nem originalidade." : result.signals.trend === "insufficient" ? "A amostra anual é pequena para interpretar uma tendência." : "A tendência descreve volume de publicação, não relevância clínica."}</p>
-                <p className="text-xs text-ink-soft mt-3">A classificação de amplitude é baseada no número de resultados deste recorte; não comprova uma lacuna científica.</p>
+                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? uiText("screen.fa3c7627f6d5") : result.signals.breadth === "scarce" ? uiText("screen.f009350e978c") : result.signals.breadth === "niche" ? uiText("screen.db483239926a") : uiText("screen.2b15e79c8ed4")}</p>
+                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? uiText("screen.182ae69e7108") : result.signals.trend === "insufficient" ? uiText("screen.28eb7c0557ee") : uiText("screen.9269fca87236")}</p>
+                <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.1c38c864184e" /></p>
               </div>
               <div className="bg-white border border-line rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-ink-soft">Cobertura complementar</p>
-                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString("pt-BR")}</p>
-                <p className="text-sm text-ink-soft mt-1">registros aproximados no Crossref, sem os filtros do PubMed. As contagens não são diretamente comparáveis.</p>
+                <p className="text-xs uppercase tracking-wider text-ink-soft"><InterfaceText message="screen.2fbeda492016" /></p>
+                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString(intlLocale(formatLocale))}</p>
+                <p className="text-sm text-ink-soft mt-1"><InterfaceText message="screen.3ee6f3589bb4" /></p>
               </div>
             </div>
           </section>
 
-          <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
-            <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-teal">Artigos recuperados</p>
-                <h2 className="font-display text-3xl mt-2">Explore a literatura</h2>
-                <p className="text-sm text-ink-soft mt-2">Os primeiros resultados priorizam relevância. Carregue mais artigos, compare fontes e salve os trabalhos úteis.</p>
-              </div>
-              <Link href="/biblioteca" className="border border-line px-4 py-2.5 rounded-card text-sm font-medium hover:border-teal hover:text-teal">
-                Minha biblioteca ({savedArticles.length})
-              </Link>
-            </div>
-
-            <div className="p-6 border-b border-line bg-paper">
-              <div className="flex flex-wrap items-end gap-4">
-                <label className="text-xs text-ink-soft">Fonte<select aria-label="Fonte dos artigos" disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option><option value="both">PubMed + Crossref</option></select></label>
-                <label className="text-xs text-ink-soft">Ordenação<select aria-label="Ordenação dos artigos" disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent">Mais recentes</option><option value="relevance">Relevância</option></select></label>
-                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString("pt-BR")} registros em ${source === "pubmed" ? "PubMed" : source === "crossref" ? "Crossref" : "PubMed + Crossref"}`}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft">Exportar artigos exibidos:</span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
-              <p className="text-xs text-ink-soft mt-3">As métricas e o gráfico acima são do PubMed. Crossref reúne metadados de artigos com DOI; respeita o período, mas não aplica o filtro por desenho clínico. Na visão combinada, registros com o mesmo DOI ou PMID são unidos. Nem todos os registros têm resumo.</p>
-              {sourceWarning && <p role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3">{sourceWarning}</p>}
-              {browseError && <div role="alert" className="mt-3 text-sm text-red-700">{browseError}<button className="ml-3 underline" onClick={() => browse(source, sort, nextOffset ?? 0)}>Tentar novamente</button></div>}
-            </div>
-            <div className="divide-y divide-line">
-              {articles.map((article) => {
-                const saved = savedArticles.some(a => sameArticle(a, article));
-                return (
-                  <article key={articleKey(article)} className="radar-article p-6">
-                    <div className="flex flex-col md:flex-row md:justify-between gap-5">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
-                          {article.year && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">{article.year}</span>}
-                          {article.duplicateSources && article.duplicateSources.length > 1 && <span className="bg-amber-soft text-ink px-2 py-1 rounded-full">Encontrado em PubMed + Crossref</span>}
-                          {openAccess.results[articleKey(article)]?.status === "open" && <span className="bg-teal-soft text-teal px-2 py-1 rounded-full">Texto completo aberto</span>}
-                          {article.publicationTypes.slice(0, 2).map((type) => <span key={type}>{type}</span>)}
-                        </div>
-                        <h3 className="font-display text-xl mt-3 leading-snug">{article.title}</h3>
-                        <p className="text-sm text-ink-soft mt-2">
-                          {article.authors.slice(0, 5).join(", ")}{article.authors.length > 5 ? " et al." : ""}
-                        </p>
-                        <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
-
-                        {article.abstract ? (
-                          <details className="mt-4 group">
-                            <summary className="text-sm text-teal font-medium cursor-pointer">Ver resumo</summary>
-                            <p className="text-sm text-ink-soft leading-relaxed mt-3 max-w-3xl">{article.abstract}</p>
-                          </details>
-                        ) : (
-                          <p className="text-xs text-ink-soft/60 mt-4">Resumo não disponível no registro recuperado.</p>
-                        )}
-
-                        <div className="flex flex-wrap gap-4 mt-4 text-xs">
-                          {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir no PubMed ↗</a>}
-                          {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">Abrir DOI ↗</a>}
-                        </div>
-                        <OpenAccessStatus result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => void openAccess.retry(article)} />
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={saved || library.loading || library.working || !library.userId}
-                        onClick={() => saveArticle(article)}
-                        className={`shrink-0 self-start px-4 py-2.5 rounded-card text-sm font-medium ${saved ? "bg-teal-soft text-teal" : "bg-ink text-white hover:bg-ink/90"}`}
-                      >
-                        {saved ? "✓ Na biblioteca" : library.working ? "Aguarde..." : "+ Adicionar à biblioteca"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-              {articles.length === 0 && <p className="p-6 text-sm text-ink-soft">Nenhum artigo detalhado foi recuperado para esta busca.</p>}
-            </div>
-            <div className="p-6 border-t border-line text-center">
-              {nextOffset !== null ? <button disabled={browsing || loading} onClick={() => browse(source, sort, nextOffset)} className="bg-teal text-white rounded-card px-6 py-3 text-sm disabled:opacity-50">{browsing ? "Carregando..." : "Carregar mais 20 artigos"}</button> : <p className="text-sm text-ink-soft">{articleTotal > 10000 ? "Limite de navegação atingido. Refine o tema para explorar outros resultados." : "Fim dos resultados desta fonte."}</p>}
-            </div>
-          </section>
-
+</div></details>
           <section className="radar-next-step bg-white border border-line rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-widest text-teal">Próxima decisão</p>
-                <h2 className="font-display text-2xl mt-2">Teste recortes mais específicos</h2>
+                <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.5017b27efe6a" /></p>
+                <h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.6a3b044dbc56" /></h2>
+                <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.8bdd389e9ef0" /></p>
               </div>
-              <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">Explorar ideias com este tema →</Link>
+              <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center"><InterfaceText message="screen.591825296b17" /></Link>
             </div>
-            <div className="grid md:grid-cols-3 gap-3 mt-5">
-              {refinements.map((item) => (
-                <button key={item} onClick={() => { setTopic(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
-                  <p className="text-sm font-medium">{item}</p>
-                  <span className="text-xs text-teal mt-2 inline-block">Analisar este recorte →</span>
-                </button>
-              ))}
+            <div className="grid md:grid-cols-2 gap-3 mt-5">
+              <button type="button" onClick={() => { setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setStudyType("all"); setPeriod("all"); setTermReview(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium"><InterfaceText message="screen.bed353d5328a" /></p><span className="text-xs text-ink-soft mt-2 block"><InterfaceText message="screen.55272f5717d0" /></span>
+              </button>
+              <a href="#preparar-busca-ia" className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
+                <p className="text-sm font-medium"><InterfaceText message="screen.31f21a53dd53" /></p><span className="text-xs text-ink-soft mt-2 block"><InterfaceText message="screen.1eeaa8b58621" /></span>
+              </a>
             </div>
           </section>
 
-          <details className="bg-white border border-line rounded-card p-4 text-xs text-ink-soft"><summary className="cursor-pointer font-medium">Como interpretar esta busca</summary><p className="mt-3">{result.methodology}</p><p className="mt-2 break-words">Consulta PubMed: {result.filters.searchTerm}</p><p className="mt-2 break-words">Consulta textual Crossref: {result.filters.crossrefQuery}</p><p className="mt-2">Consultado até {result.filters.endDate}. Os filtros por tipo dependem da indexação dos artigos.</p></details>
+          <details className="bg-white border border-line rounded-card p-4 text-xs text-ink-soft"><summary className="cursor-pointer font-medium"><InterfaceText message="screen.d9fec506d835" /></summary><p className="mt-3"><AuthoredText text={result.methodology} /></p><p className="mt-2 break-words">Consulta PubMed: {result.filters.searchTerm}</p><p className="mt-2 break-words"><InterfaceText message="screen.88634532ec93" /> {result.filters.crossrefQuery}</p><p className="mt-2"><InterfaceText message="screen.3ffac94c0512" /> {result.filters.endDate}<InterfaceText message="screen.11cb6c2901da" /></p></details>
         </div>
       )}
     </div>
@@ -413,7 +542,7 @@ function Metric({ value, label }: { value: string; label: string }) {
   return (
     <div className="bg-white border border-line rounded-card p-4">
       <p className="text-2xl md:text-3xl font-semibold tracking-tight">{value}</p>
-      <p className="text-xs text-ink-soft mt-1">{label}</p>
+      <p className="text-xs text-ink-soft mt-1"><AuthoredText text={label} /></p>
     </div>
   );
 }

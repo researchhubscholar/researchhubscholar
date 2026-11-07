@@ -1,0 +1,4 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const manifest=JSON.parse(fs.readFileSync('supabase/migrations-manifest.json','utf8')),files=fs.readdirSync('supabase').filter(f=>/^scholar_.*\.sql$/.test(f)),seen=new Set();
+for(const entry of manifest.files){assert(!seen.has(entry.file));assert.equal(entry.sha256,crypto.createHash('sha256').update(fs.readFileSync('supabase/'+entry.file)).digest('hex'),entry.file+' changed: review inventory');for(const dependency of entry.dependsOn)assert(seen.has(dependency),entry.file+' dependency order');seen.add(entry.file);if(entry.kind!=='schema')assert.equal(entry.repeatability,'not-a-general-install-step');}
+assert.deepEqual([...seen].sort(),files.sort());console.log('PASS: complete SQL inventory with checksums, dependency order and account-specific scripts separated.');

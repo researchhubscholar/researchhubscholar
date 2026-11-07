@@ -175,7 +175,7 @@ returns table(user_id uuid,name text,email text,active boolean,added_at timestam
 language plpgsql stable security definer set search_path=public as $$
 begin
   if not public.scholar_can_access_advising(p_project) then raise exception 'Projeto indisponível'; end if;
-  return query select c.user_id,p.name,u.email,c.active,c.added_at from public.scholar_project_collaborators c join auth.users u on u.id=c.user_id left join public.profiles p on p.id=c.user_id where c.project_id=p_project order by c.added_at;
+  return query select c.user_id,p.name::text,u.email::text,c.active,c.added_at::timestamptz from public.scholar_project_collaborators c join auth.users u on u.id=c.user_id left join public.profiles p on p.id=c.user_id where c.project_id=p_project order by c.added_at;
 end $$;
 
 drop trigger if exists scholar_advisor_meetings_updated on public.scholar_advisor_meetings;

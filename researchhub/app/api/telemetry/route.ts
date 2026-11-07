@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 
-const allowedModules = new Set([
-  "dashboard", "radar", "ideas", "library", "project", "advising",
-  "documents", "license", "residency", "account", "operation", "other",
-]);
+import { telemetryRoute } from "@/lib/telemetry/routes";
 
 type TelemetryPayload = {
   kind?: "event" | "error";
@@ -25,17 +22,10 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as TelemetryPayload;
-    const moduleName = String(body.module || "");
-    const route = String(body.route || "");
-
-    if (
-      !allowedModules.has(moduleName) ||
-      route.length < 1 ||
-      route.length > 160 ||
-      !/^\/[a-z0-9_/-]*$/.test(route)
-    ) {
+    if (typeof body.route !== "string" || body.route.length > 160 || !body.route.startsWith("/")) {
       return NextResponse.json({ error: "Evento inválido." }, { status: 400 });
     }
+    const { module: moduleName, route } = telemetryRoute(body.route);
 
     const db = await supabaseServer();
     const { data: auth } = await db.auth.getUser();
@@ -45,8 +35,8 @@ export async function POST(request: Request) {
       const { error } = await db.rpc("scholar_record_error_event", {
         p_module: moduleName,
         p_route: route,
-        p_error_code: String(body.errorCode || "CLIENT_ERROR").slice(0, 80),
-        p_message: String(body.message || "Erro no cliente").slice(0, 500),
+        p_error_code: "CLIENT_ERROR",
+        p_message: "Falha na interface. Tente novamente.",
       });
       if (error) throw error;
     } else {
@@ -66,11 +56,11 @@ export async function POST(request: Request) {
       durationMs: Date.now() - startedAt,
     }));
     return NextResponse.json({ ok: true });
-  } catch (caught) {
+  } catch {
     console.error(JSON.stringify({
       level: "error",
       event: "telemetry_failed",
-      error: caught instanceof Error ? caught.message : "unknown",
+      error: "record_failed",
       durationMs: Date.now() - startedAt,
     }));
     return NextResponse.json({ error: "Não foi possível registrar o evento." }, { status: 400 });

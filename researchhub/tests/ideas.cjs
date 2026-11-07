@@ -38,7 +38,7 @@ for (const idea of ideas) {
   const brief = ideaBrief(idea);
   assert(brief.includes(article.title)); assert(brief.includes('My reading note'));
   assert(brief.includes(idea.resources)); assert(brief.includes(idea.variables)); assert(brief.includes(idea.difficulty));
-  assert(brief.includes(context.startingQuestion)); assert(brief.includes('sem geração por IA'));
+  assert(brief.includes(context.startingQuestion)); assert(brief.includes('Proposta preliminar para discussão'));
 }
 const noEvidence = generate({ ...context, access: 'literature' });
 assert.equal(noEvidence.length, 2);
@@ -68,6 +68,8 @@ records.set(transferKey('owner-a', token), JSON.stringify({ ownerId: 'owner-a', 
 const restored = readIdeaTransfer(storage, 'owner-a', token);
 assert.equal(restored.draft.manuscript, ideaBrief(ideas[0]));assert.deepEqual(restored.referenceIds, [a, b]);
 assert.equal(restored.draft.unrelatedField, undefined);
+records.set(transferKey('owner-a', token), JSON.stringify({ ownerId: 'owner-a', draft: { theme: ideas[0].title }, referenceIds: [], origin: { sourceType: 'idea', sourceKey: `idea-version:${token}`, ideaVersionId: token, seriesId: token, generationId: token, language: 'en', radarQuery: 'sleep AND residents' } }));
+const traced = readIdeaTransfer(storage, 'owner-a', token);assert.equal(traced.origin.sourceKey, `idea-version:${token}`);assert.equal(traced.origin.language, 'en');assert.equal(traced.origin.radarQuery, 'sleep AND residents');
 assert.throws(() => readIdeaTransfer(storage, 'owner-b', token));
 assert.throws(() => readIdeaTransfer(storage, null, token));
 assert.throws(() => readIdeaTransfer(storage, 'owner-a', 'bad-token'));

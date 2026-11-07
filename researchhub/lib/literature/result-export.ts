@@ -1,14 +1,16 @@
+import type { Locale } from "../i18n/locale";
+import { exportCopy } from "../i18n/export-copy";
 import type { Article } from "./types";
 
 const clean = (value: unknown) => String(value ?? "").replace(/\r?\n/g, " ").trim();
 const csv = (value: unknown) => `"${clean(value).replaceAll('"', '""')}"`;
 
-export function resultCsv(articles: Article[]) {
+export function resultCsv(articles: Article[], locale:Locale="pt-BR") {
   const headings = ["Título", "Autores", "Ano", "Periódico", "Fonte", "Tipos", "PMID", "DOI", "Link"];
   const rows = articles.map(article => [article.title, article.authors.join("; "), article.year, article.journal,
     (article.duplicateSources?.length ? article.duplicateSources : [article.source]).filter(Boolean).join(" + "),
     article.publicationTypes.join("; "), article.pmid, article.doi, article.pubmedUrl || article.doiUrl].map(csv).join(","));
-  return `\uFEFF${headings.map(csv).join(",")}\n${rows.join("\n")}`;
+  return `\uFEFF${headings.map(heading=>csv(exportCopy(locale,heading))).join(",")}\n${rows.join("\n")}`;
 }
 
 export function resultRis(articles: Article[]) {
