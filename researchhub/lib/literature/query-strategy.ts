@@ -25,6 +25,7 @@ export type SearchStrategy = {
 type Concept = { label: string; terms: string[]; mesh?: string[] };
 
 const phraseConcepts: Array<{ aliases: string[]; concept: Concept }> = [
+  { aliases: ["doenca de kawasaki", "enfermedad de kawasaki", "kawasaki disease", "kawasaki"], concept: { label: "Kawasaki disease", terms: ["Kawasaki disease", "Kawasaki syndrome"], mesh: ["Mucocutaneous Lymph Node Syndrome"] } },
   { aliases: ["cancer de mama"], concept: { label: "breast cancer", terms: ["breast cancer", "breast neoplasm"], mesh: ["Breast Neoplasms"] } },
   { aliases: ["cancer de prostata"], concept: { label: "prostate cancer", terms: ["prostate cancer", "prostatic neoplasm"], mesh: ["Prostatic Neoplasms"] } },
   { aliases: ["cancer de pulmao"], concept: { label: "lung cancer", terms: ["lung cancer", "lung neoplasm"], mesh: ["Lung Neoplasms"] } },
@@ -91,7 +92,7 @@ const wordConcepts: Record<string, Concept> = {
 
 const stopwords = new Set([
   "a", "as", "o", "os", "de", "da", "das", "do", "dos", "e", "em", "na", "nas", "no", "nos", "para", "por", "com", "sem",
-  "entre", "sobre", "qual", "quais", "como", "quanto", "uma", "um", "seu", "sua", "seus", "suas", "pode", "podem", "tem", "ter",
+  "en", "buscar", "entre", "sobre", "qual", "quais", "como", "quanto", "uma", "um", "seu", "sua", "seus", "suas", "pode", "podem", "tem", "ter",
   "avaliacao", "avaliar", "analise", "analisar", "estudo", "estudos", "pesquisa", "pesquisar", "impacto", "efeito", "efeitos", "relacao",
   "associacao", "influencia", "influenciar", "comparacao", "comparar",
 ]);
@@ -145,12 +146,17 @@ function plainAdvanced(value: string) {
 
 function detectLanguage(value: string): "pt" | "en" {
   if (/[áàâãéêíóôõúç]/i.test(value)) return "pt";
-  return /\b(?:qual|quais|como|entre|sobre|com|sem|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
+  return /\b(?:qual|quais|como|entre|sobre|com|sem|ninos|menores de|residentes|estudantes|medicos|pacientes|tratamento|saude)\b/i.test(value) ? "pt" : "en";
 }
 
 function conceptsFromNaturalLanguage(value: string, language: "pt" | "en", translations: Record<string, string>) {
   let working = ` ${fold(value).replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ")} `;
   const concepts: Concept[] = [];
+  const underFive = /\b(?:(?:criancas|ninos) (?:com )?(?:menores de|menos de) 5 anos|(?:children (?:under|younger than) 5(?: years(?: old)?)?|(?:under|younger than) 5 years(?: old)?))\b/g;
+  working = working.replace(underFive, () => {
+    if (!concepts.length) concepts.push({ label: "children under 5 (approximate)", terms: ["under five", "under 5 years", "infant", "infants", "preschool children", "young children"], mesh: ["Infant", "Child, Preschool"] });
+    return " ";
+  });
 
   const phrases = [...phraseConcepts].sort((a, b) => Math.max(...b.aliases.map(x => x.length)) - Math.max(...a.aliases.map(x => x.length)));
   for (const entry of phrases) {
@@ -253,6 +259,7 @@ export function buildSearchStrategy(value: string | SearchInput): SearchStrategy
     warnings.push(`Revise os conceitos ainda não reconhecidos: ${terms}. Nenhuma busca será enviada até a confirmação.`);
   }
   if (manualTranslations.length) warnings.push(`Equivalências confirmadas nesta busca: ${manualTranslations.map(item => `“${item.source}” → “${item.target}”`).join(", ")}.`);
+  if (concepts.includes("children under 5 (approximate)")) warnings.push("O recorte de menores de 5 anos é aproximado. Confira a idade dos participantes em cada artigo.");
   if (topicPart.truncated) warnings.push("A pergunta tinha muitos conceitos; o Radar priorizou os seis primeiros para evitar uma busca excessivamente restrita.");
 
   return {

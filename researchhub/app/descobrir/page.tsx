@@ -102,8 +102,6 @@ function DiscoverContent() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [source, setSource] = useState("pubmed");
   const [sort, setSort] = useState("recent");
-  const [nextOffset, setNextOffset] = useState<number | null>(null);
-  const [articleTotal, setArticleTotal] = useState(0);
   const [browsing, setBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
@@ -154,8 +152,6 @@ function DiscoverContent() {
       setTermReview(null);
       setResult(data);
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
-      setArticleTotal(data.sources.pubmed.total);
-      setNextOffset(data.sources.pubmed.total > 20 ? 20 : null);
       setBrowseError(null);
       void recordSearch(data);
     } catch (err) {
@@ -176,17 +172,17 @@ function DiscoverContent() {
     await library.saveArticle({ ...article, fullTextUrl: access?.status === "open" ? access.url : article.fullTextUrl }, projectId || null);
   }
 
-  async function browse(nextSource: string, nextSort: string, offset = 0) {
+  async function browse(nextSource: string, nextSort: string) {
     if (!result || browsing || loading) return;
     setBrowsing(true); setBrowseError(null);
     try {
       const response = await fetch("/api/literature/articles", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource, sort: nextSort, offset, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }), signal: AbortSignal.timeout(180000) });
+        body: JSON.stringify({ source: nextSource, sort: nextSort, topic: result.topic, period: result.filters.period, searchTerm: result.filters.searchTerm, crossrefQuery: result.filters.crossrefQuery }), signal: AbortSignal.timeout(180000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao recuperar artigos.");
-      setArticles(previous => offset === 0 ? data.articles : [...previous, ...data.articles.filter((a: Article) => !previous.some(b => sameArticle(a, b)))]);
-      setSource(nextSource); setSort(nextSort); setNextOffset(data.nextOffset); setArticleTotal(data.total);
-      setDuplicateCount(previous => offset === 0 ? Number(data.duplicateCount || 0) : previous + Number(data.duplicateCount || 0));
+      setArticles(data.articles);
+      setSource(nextSource); setSort(nextSort);
+      setDuplicateCount(Number(data.duplicateCount || 0));
       setSourceWarning(data.warning || null);
     } catch (error) { setBrowseError(error instanceof Error ? error.message : "Falha na busca."); }
     finally { setBrowsing(false); }
@@ -283,10 +279,10 @@ function DiscoverContent() {
 
       {!result && !loading && (
         <section className="radar-examples mt-6"><h2 className="font-display text-xl">{formatLocale==="es"?"Prueba una búsqueda":"Experimente uma busca"}</h2><div className="radar-example-chips">
-          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina"].map((example, index) => (
+          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina", formatLocale === "es" ? "Kawasaki en niños menores de 5 años" : "Kawasaki em crianças menores de 5 anos"].map((example, index) => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
               <svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>
-              <span>{(formatLocale==="es"?["Sueño en residentes","Adherencia en hipertensión","Burnout en estudiantes"]:["Sono em residentes","Adesão na hipertensão","Burnout em estudantes"])[index]}</span>
+              <span>{(formatLocale==="es"?["Sueño en residentes","Adherencia en hipertensión","Burnout en estudiantes","Kawasaki en menores de 5 años"]:["Sono em residentes","Adesão na hipertensão","Burnout em estudantes","Kawasaki em menores de 5 anos"])[index]}</span>
             </button>
           ))}
         </div></section>
@@ -297,6 +293,11 @@ function DiscoverContent() {
           <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label={uiText("screen.1552cf019613")}>
             <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.aef37a1b68b9" /></p>
             <p className="font-medium mt-2">{result.strategy.interpreted}</p>
+            <details className="mt-3 text-sm">
+              <summary className="cursor-pointer text-teal">{formatLocale === "es" ? "Ver o editar la estrategia de PubMed" : "Ver ou editar a estratégia do PubMed"}</summary>
+              <code className="block mt-2 break-words">{result.filters.searchTerm}</code>
+              <button type="button" className="mt-2 text-teal underline" onClick={() => { const next = appliedPubmedStrategy(result.strategy.pubmedQuery); setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage(next.language); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{formatLocale === "es" ? "Editar en el formulario" : "Editar no formulário"}</button>
+            </details>
             <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? uiText("screen.e4bf48ea4a79") : result.strategy.language === "en" ? uiText("screen.85a560bc1af9") : uiText("screen.0fd98652103f")}</p>
             {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
             <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.0d3f5add6671" /></p>
@@ -325,12 +326,12 @@ function DiscoverContent() {
               <div className="flex flex-wrap items-end gap-4">
                 <label className="text-xs text-ink-soft"><InterfaceText message="screen.1bdb4add5da2" /><select aria-label={uiText("screen.86844b68c2bf")} disabled={browsing || loading} value={source} onChange={e => browse(e.target.value, sort)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="pubmed">PubMed</option><option value="crossref">Crossref</option><option value="both">PubMed + Crossref</option></select></label>
                 <label className="text-xs text-ink-soft"><InterfaceText message="screen.63fbb2cee8cd" /><select aria-label={uiText("screen.4499f9a5360c")} disabled={browsing || loading} value={sort} onChange={e => browse(source, e.target.value)} className="block border border-line rounded-card px-3 py-2 mt-1 bg-white"><option value="recent"><InterfaceText message="screen.ade822bf50f9" /></option><option value="relevance"><InterfaceText message="screen.a415f1a5dcce" /></option></select></label>
-                <p role="status" className="text-sm text-ink-soft">{browsing ? "Recuperando artigos..." : `${articles.length} exibidos de ${articleTotal.toLocaleString(intlLocale(formatLocale))} registros em ${source === "pubmed" ? "PubMed" : source === "crossref" ? "Crossref" : "PubMed + Crossref"}`}</p>
+                <p role="status" className="text-sm text-ink-soft">{browsing ? (formatLocale === "es" ? "Recuperando artículos…" : "Recuperando artigos…") : `${articles.length}/30 · ${sort === "relevance" ? (formatLocale === "es" ? "Por relevancia" : "Por relevância") : (formatLocale === "es" ? "Más recientes" : "Mais recentes")}` }</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-4"><span className="text-xs font-medium text-ink-soft"><InterfaceText message="screen.975761e691ed" /></span><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultCsv(articles,formatLocale), "text/csv;charset=utf-8", "radar-scholar.csv")} className="text-xs text-teal underline disabled:opacity-40">CSV</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultRis(articles), "application/x-research-info-systems", "radar-scholar.ris")} className="text-xs text-teal underline disabled:opacity-40">RIS</button><button type="button" disabled={!articles.length} onClick={() => downloadResult(resultBibtex(articles), "application/x-bibtex", "radar-scholar.bib")} className="text-xs text-teal underline disabled:opacity-40">BibTeX</button>{source === "both" && <span className="text-xs bg-teal-soft text-teal rounded-full px-3 py-1">{duplicateCount} duplicado{duplicateCount === 1 ? "" : "s"} identificado{duplicateCount === 1 ? "" : "s"}</span>}</div>
               <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.943580f04e2a" /></p>
               {sourceWarning && <p role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={sourceWarning} /></p>}
-              {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort, nextOffset ?? 0)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
+              {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
             </div>
             <div className="divide-y divide-line">
               {articles.map((article) => {
@@ -382,7 +383,7 @@ function DiscoverContent() {
               {articles.length === 0 && <p className="p-6 text-sm text-ink-soft"><InterfaceText message="screen.6985a714b0cb" /></p>}
             </div>
             <div className="p-6 border-t border-line text-center">
-              {nextOffset !== null ? <button disabled={browsing || loading} onClick={() => browse(source, sort, nextOffset)} className="bg-teal text-white rounded-card px-6 py-3 text-sm disabled:opacity-50">{browsing ? uiText("screen.1258573b225a") : uiText("screen.9a2446f5578e")}</button> : <p className="text-sm text-ink-soft">{articleTotal > 10000 ? uiText("screen.c75819d136e4") : "Fim dos resultados desta fonte."}</p>}
+              <a href={`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(result.filters.searchTerm)}`} target="_blank" rel="noopener noreferrer" className="text-sm text-teal underline">{formatLocale === "es" ? "Abrir la búsqueda completa en PubMed" : "Abrir a busca completa no PubMed"}</a>
             </div>
           </section>
 
