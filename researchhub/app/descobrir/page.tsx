@@ -28,7 +28,7 @@ import { useOpenAccess } from "@/lib/literature/use-open-access";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
-  aiInterpretation?: { summary: string; rationale: string; warnings: string[] };
+  aiInterpretation?: { summary: string };
   topic: string;
   filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string; language: string };
   strategy: {
@@ -175,7 +175,7 @@ function DiscoverContent() {
               if (!retry.response.ok) throw new Error("Consulta interpretada indisponível");
               response = retry.response;
               data = { ...retry.data, topic: topic.trim(), filters: { ...retry.data.filters, mesh: mesh.trim(), population: populationTerm.trim(), outcome: outcomeTerm.trim(), operator, language },
-                aiInterpretation: { summary: output?.summary || "", rationale: item.rationale, warnings: output?.warnings || [] } };
+                aiInterpretation: { summary: output?.summary || "" } };
             } else {
               setInterpretationNotice(interpretation.mode !== "simulation" && output?.summary ? output.summary : (formatLocale === "es" ? "Revisa la pregunta para continuar." : "Revise a pergunta para continuar."));
             }
@@ -370,16 +370,17 @@ function DiscoverContent() {
           <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label={uiText("screen.1552cf019613")}>
             <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.aef37a1b68b9" /></p>
             <p className="font-medium mt-2">{result.aiInterpretation ? `Buscamos por: ${result.aiInterpretation.summary || result.strategy.interpreted}` : result.strategy.interpreted}</p>
-            {result.aiInterpretation && <div className="mt-2 text-sm text-ink-soft"><p>{result.aiInterpretation.rationale}</p>{result.aiInterpretation.warnings.map((warning, i) => <p key={i} className="mt-1">{warning}</p>)}</div>}
             <details className="mt-3 text-sm">
               <summary className="cursor-pointer text-teal">{formatLocale === "es" ? "Ver o editar la estrategia de PubMed" : "Ver ou editar a estratégia do PubMed"}</summary>
               <code className="block mt-2 break-words">{result.filters.searchTerm}</code>
               <button type="button" className="mt-2 text-teal underline" onClick={() => { const next = appliedPubmedStrategy(result.strategy.pubmedQuery); setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage(next.language); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{formatLocale === "es" ? "Editar en el formulario" : "Editar no formulário"}</button>
             </details>
+            {!result.aiInterpretation && <>
             <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? uiText("screen.e4bf48ea4a79") : result.strategy.language === "en" ? uiText("screen.85a560bc1af9") : uiText("screen.0fd98652103f")}</p>
             {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
             <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.0d3f5add6671" /></p>
             {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={warning} /></p>)}
+            </>}
           </section>
           <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Metric value={result.sources.pubmed.total.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.fd259676797d")} />
