@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/i18n/language-provider";
 import InterfaceText from "@/components/i18n/interface-text";
 
 
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
 import { postAI } from "@/lib/ai/client-request";
 import { normalizeSuggestionQuery } from "@/lib/literature/suggestion-query";
@@ -100,6 +100,8 @@ function DiscoverContent() {
   const [interpretationNotice, setInterpretationNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const searchLock = useRef(false);
+  const firstArticle = useRef<HTMLElement>(null);
+  const scrollToArticles = useRef(false);
   const queryInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [termReview, setTermReview] = useState<TermReview | null>(null);
@@ -125,6 +127,15 @@ function DiscoverContent() {
   const openAccess = useOpenAccess(accessArticles);
   const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
   const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
+
+  useEffect(() => {
+    if (loading || !scrollToArticles.current) return;
+    scrollToArticles.current = false;
+    firstArticle.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  }, [loading]);
 
   async function recordSearch(data: Result) {
     try {
@@ -193,6 +204,7 @@ function DiscoverContent() {
       finishAttempt("completed");
       setTermReview(null);
       setResult(data);
+      scrollToArticles.current = data.articles.length > 0;
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
       setBrowseError(null);
       void recordSearch(data);
@@ -413,10 +425,10 @@ function DiscoverContent() {
               {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
             </div>
             <div className="divide-y divide-line">
-              {articles.map((article) => {
+              {articles.map((article, index) => {
                 const saved = savedArticles.some(a => sameArticle(a, article));
                 return (
-                  <article key={articleKey(article)} className="radar-article p-6">
+                  <article key={articleKey(article)} ref={index === 0 ? firstArticle : undefined} className="radar-article scroll-mt-24 p-6">
                     <div className="flex flex-col md:flex-row md:justify-between gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
