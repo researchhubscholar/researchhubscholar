@@ -255,12 +255,21 @@ function DiscoverContent() {
       </details>
 
       <details className="radar-lookup-card radar-disclosure mt-4 bg-white border border-line rounded-2xl p-5">
-        <summary className="cursor-pointer text-sm font-medium text-teal"><svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2m2 6a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></svg>{formatLocale==="es"?"Añadir por DOI o PMID":"Adicionar por DOI ou PMID"}</summary>
-        <p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7672388197f" /></p>
+        <summary className="cursor-pointer text-sm font-medium text-teal"><svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2m2 6a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></svg>{formatLocale==="es"?"Añadir artículo por enlace":"Adicionar artigo por link"}</summary>
+        <p className="text-sm text-ink-soft mt-2">{formatLocale==="es"?"Pega el enlace del artículo en PubMed o doi.org. También puedes pegar solo el DOI o el PMID.":"Cole o link do artigo no PubMed ou em doi.org. Você também pode colar só o DOI ou o PMID."}</p>
         <form onSubmit={lookup} className="flex flex-wrap gap-3 mt-4">
-          <input aria-label={uiText("screen.a2bd655fdd75")} required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder={uiText("screen.e73ccadd8ebd")} className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
+          <input aria-label={formatLocale==="es"?"Enlace del artículo, DOI o PMID":"Link do artigo, DOI ou PMID"} required maxLength={500} value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder={formatLocale==="es"?"Pega el enlace del artículo, DOI o PMID":"Cole o link do artigo, DOI ou PMID"} className="flex-1 min-w-0 border border-line rounded-card px-4 py-3" />
           <button disabled={lookupLoading} className="bg-ink text-white px-4 py-3 rounded-card disabled:opacity-50">{lookupLoading ? "Buscando..." : uiText("screen.68cd1ec180da")}</button>
         </form>
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-teal">{formatLocale==="es"?"¿Dónde encuentro el enlace, el DOI o el PMID?":"Onde encontro o link, o DOI ou o PMID?"}</summary>
+          <dl className="mt-3 grid gap-3 text-ink-soft md:grid-cols-3">
+            <div><dt className="font-medium text-teal">{formatLocale==="es"?"Enlace del artículo":"Link do artigo"}</dt><dd className="mt-1">{formatLocale==="es"?"Copia la dirección de la ficha en PubMed o el enlace que empieza con":"Copie o endereço da página do artigo no PubMed ou o link que começa com"} <code>https://doi.org/</code>.</dd></div>
+            <div><dt className="font-medium text-teal">DOI</dt><dd className="mt-1">{formatLocale==="es"?"Identificador del artículo. Suele aparecer junto a la cita en la revista o en la primera página del PDF. Empieza con":"Identificador do artigo. Costuma aparecer perto da referência no site da revista ou na primeira página do PDF. Começa com"} <code>10.</code></dd></div>
+            <div><dt className="font-medium text-teal">PMID</dt><dd className="mt-1">{formatLocale==="es"?"Número del artículo en PubMed. Aparece en la ficha con la etiqueta «PMID» y al final de su enlace.":"Número do artigo no PubMed. Aparece na página do artigo com o rótulo “PMID” e no fim do link."}</dd></div>
+          </dl>
+          <p className="mt-3 text-xs text-ink-soft">{formatLocale==="es"?"Si tienes el enlace de la revista, busca el DOI en esa página y pégalo aquí.":"Se você tem o link do site da revista, procure o DOI nessa página e cole aqui."}</p>
+        </details>
         {lookupError && <p role="alert" className="text-red-700 text-sm mt-3"><AuthoredText text={lookupError} /></p>}
         {lookupArticle && <div className="mt-4 border-t border-line pt-4">
           <h3 className="font-medium">{lookupArticle.title}</h3>
