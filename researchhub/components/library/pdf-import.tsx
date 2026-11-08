@@ -59,7 +59,7 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
   </details>;
 }
 
-export function PdfDownload({ owner, id, spanish, refresh, title, projectId, saveMetadata }: { owner: string; id: string; spanish: boolean; refresh: boolean; title: string; projectId: string | null; saveMetadata: (fields: Record<string, string>) => Promise<boolean> }) {
+export function PdfDownload({ owner, id, spanish, refresh, title, projectId, saveMetadata, existingFields }: { owner: string; id: string; spanish: boolean; refresh: boolean; title: string; projectId: string | null; existingFields: Record<string, string>; saveMetadata: (fields: Record<string, string>) => Promise<boolean> }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [available, setAvailable] = useState(false);
@@ -81,5 +81,5 @@ export function PdfDownload({ owner, id, spanish, refresh, title, projectId, sav
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setMessage(spanish ? "No hay un PDF disponible para descargar." : "Não há um PDF disponível para baixar."); }
     finally { setBusy(false); }
-  }}>{spanish ? "Descargar PDF adjunto" : "Baixar PDF anexado"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span><PdfReading owner={owner} id={id} title={title} projectId={projectId} saveMetadata={saveMetadata} spanish={spanish} /></>;
+  }}>{spanish ? "Descargar PDF adjunto" : "Baixar PDF anexado"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span><PdfReading owner={owner} id={id} title={title} projectId={projectId} saveMetadata={saveMetadata} existingFields={existingFields} spanish={spanish} /></>;
 }
