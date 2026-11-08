@@ -11,6 +11,9 @@ export function sourceIds(value:unknown):string[]{
 }
 export function sourceManifest(sources:GuideSource[]):SourceManifest[]{return sources.map(({abstract,notes,...s})=>({...s,abstractAvailable:Boolean(abstract),notesAvailable:Boolean(notes)}));}
 const normalized=(s:string)=>s.replace(/\s+/g," ").trim();
+export function guideSourceExcerpts(source:GuideSource,kind:"abstract"|"notes"):string[]{
+ return normalized(source[kind]).match(/.{1,270}(?:\s|$)|.{1,270}/gu)?.map(part=>part.trim()).filter(part=>part.length>=12)||[];
+}
 export function groundGuideSources(output:AssistantOutput,sources:GuideSource[],language:OutputLanguage="pt-BR",allowPartial=false):AssistantOutput{
  if(!sources.length)return output;
  const recommendations=output.recommendations.flatMap(r=>{
@@ -18,6 +21,7 @@ export function groundGuideSources(output:AssistantOutput,sources:GuideSource[],
  let evidence;try{evidence=JSON.parse(r.source);}catch{throw Error("A resposta não trouxe trechos verificáveis das fontes. Consulte o registro desta tentativa.");}
  if(!evidence||typeof evidence!=="object")throw Error("A fonte citada está em formato inválido.");
  const source=sources.find(s=>s.label===evidence.id),kind=evidence.kind;
+ if(source&&(kind==="abstract"||kind==="notes")&&Number.isInteger(evidence.excerpt)&&evidence.excerpt>0) evidence.quote=guideSourceExcerpts(source,kind)[evidence.excerpt-1];
  if(!source||!["abstract","notes"].includes(kind)||typeof evidence.quote!=="string"||evidence.quote.length<12||evidence.quote.length>300||!normalized(source[kind as "abstract"|"notes"]).includes(normalized(evidence.quote)))throw Error("Um trecho citado não corresponde ao material enviado. A resposta não foi aplicada.");
  return [{...r,targetField:"",source:`${source.label} · ${source.title} · ${language==="es"?(kind==="abstract"?aiSpanishCopy["Resumo do artigo"]:aiSpanishCopy["Anotações do pesquisador"]):(kind==="abstract"?"Resumo do artigo":"Anotações do pesquisador")}: “${evidence.quote}”`}];
  }catch(error){if(!allowPartial)throw error;return []; }
