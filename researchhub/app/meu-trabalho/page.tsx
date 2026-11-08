@@ -100,7 +100,7 @@ export default function MeuTrabalhoPage() {
               return;
             }
           }
-          // Treat the imported proposal as unsaved even before the first manual edit.
+          // Queue the imported proposal for saving as soon as the editor is ready.
           draftRevision.current += 1;
           setDraft({ ...empty, ...transfer.draft });
           setReferenceIds(transfer.referenceIds);
@@ -108,7 +108,7 @@ export default function MeuTrabalhoPage() {
           setIncoming(null);
           setDirty(true);
           setSaveState("idle");
-          setMessage("Proposta aplicada a um novo rascunho. Revise os campos antes de salvar.");
+
           return;
         }
         if(auth.user && !isNew && !params.has("id") && !isIdea && !theme){setNeedsSelection(true);setSaveState("idle");return;}
@@ -231,8 +231,8 @@ export default function MeuTrabalhoPage() {
         } catch { referenceFailure = true; referenceMessage = " As referências continuam nas notas, mas não foi possível concluir a associação na biblioteca. Clique em Salvar alterações para tentar novamente."; }
       }
       const changedDuringSave = draftRevision.current !== savingRevision;
-      setSaveState("saved"); setDirty(changedDuringSave);
-      setMessage((changedDuringSave ? "A versão enviada foi salva. Há alterações mais recentes ainda pendentes; clique em Salvar alterações novamente." : "Projeto salvo na sua conta. Você pode abri-lo em Meu espaço.") + setupMessage + referenceMessage);
+      setSaveState(changedDuringSave ? "idle" : "saved"); setDirty(changedDuringSave);
+      setMessage((changedDuringSave ? "A versão enviada foi salva. As alterações mais recentes ainda estão pendentes." : "Projeto salvo na sua conta. Você pode abri-lo em Meu espaço.") + setupMessage + referenceMessage);
       window.history.replaceState(null, "", `/meu-trabalho?id=${encodeURIComponent(data.id)}`);
       try { if (changedDuringSave) { window.localStorage.setItem(storageKey, JSON.stringify({ ...latestDraft.current, _referenceIds: referenceFailure ? referenceIds : [], _projectId: data.id })); } else if (referenceFailure) window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: data.id })); else window.localStorage.removeItem(storageKey); } catch { /* A cópia na conta foi confirmada. */ }
       return !changedDuringSave;
@@ -242,6 +242,18 @@ export default function MeuTrabalhoPage() {
       return false;
     } finally { savingLock.current = false; }
   }
+  const autoSave = useRef(saveDraft);
+  autoSave.current = saveDraft;
+  useEffect(() => {
+    if (!loggedIn || loadBlocked || needsSelection || !dirty || saveState !== "idle" || !draft.theme.trim()) return;
+    const imported = !projectId && new URLSearchParams(window.location.search).has("proposta");
+    const timer = window.setTimeout(() => void autoSave.current(), imported ? 0 : 900);
+    return () => window.clearTimeout(timer);
+  }, [loggedIn, loadBlocked, needsSelection, dirty, saveState, draft, projectId]);
+  const saveLabel = locale === "es"
+    ? { loading: "Guardando…", saved: "Guardado", pending: "Cambios pendientes", error: "No se pudo guardar en tu cuenta", retry: "Volver a intentar" }
+    : { loading: "Salvando…", saved: "Salvo", pending: "Alterações pendentes", error: "Não foi possível salvar na conta", retry: "Tentar novamente" };
+  const saveFailed = saveState === "error" || saveState === "local";
   useUnsavedChanges({label:"Protocolo",dirty,busy:saveState==="loading",onSave:saveDraft,onDiscard:()=>{try{window.localStorage.removeItem(storageKey);}catch{}}});
   function exportProtocol() {
     const sections = groups.map(g => ({ title: g.title, fields: [...g.keys.map(k => ({ label: labels[k], value: draft[k] })), ...(g.id === "objetivos" ? [{ label: labels.hypothesis, value: draft.hypothesis }] : [])] }));
@@ -262,14 +274,14 @@ export default function MeuTrabalhoPage() {
       <nav aria-label={uiText("screen.8896ce31717e")} className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-1">{groups.map((g, i) => <a key={g.id} href={`#${g.id}`} className="text-sm rounded-card p-2 hover:bg-teal-soft"><span className="text-teal mr-2">{g.keys.every(k => draft[k].trim()) ? "✓" : String(i + 1).padStart(2, "0")}</span><AuthoredText text={g.title} /></a>)}</nav>{projectId && <Link href={radarHref} className="block text-sm text-teal mt-4"><InterfaceText message="screen.5f89d9da8dd0" /></Link>}<Link href="/biblioteca" className="block text-sm text-teal mt-3"><InterfaceText message="screen.238923bb78ef" /></Link>
     </aside>
     <div className="project-content">
-      {!projectId && dirty && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
+      {loggedIn && !loadBlocked && (projectId || dirty) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
         <div className="min-w-0">
-          <p className="font-semibold text-teal">{locale === "es" ? "Nuevo proyecto sin guardar" : "Novo projeto não salvo"}</p>
+          <p role="status" className="font-semibold text-teal">{saveState === "loading" ? saveLabel.loading : saveFailed ? saveLabel.error : dirty ? saveLabel.pending : saveLabel.saved}</p>
           <p className="mt-1 break-words text-sm text-ink-soft">{draft.theme}</p>
         </div>
-        <button type="button" onClick={() => void saveDraft()} disabled={saveState === "loading" || !draft.theme.trim()} className="min-h-11 rounded-card bg-teal px-4 py-2 font-semibold text-white disabled:opacity-50">
-          {saveState === "loading" ? (locale === "es" ? "Guardando…" : "Salvando…") : uiText("screen.1fb717453062")}
-        </button>
+        {saveFailed && <button type="button" onClick={() => void saveDraft()} disabled={!draft.theme.trim()} className="min-h-11 rounded-card bg-teal px-4 py-2 font-semibold text-white disabled:opacity-50">
+          {saveLabel.retry}
+        </button>}
       </div>}
       <ProjectSwitcher ownerId={loadedOwner} projectId={projectId} title={draft.theme} busy={loadBlocked || saveState === "loading"} dirty={dirty} onSave={() => void saveDraft()} onSelect={id => {
         if (savingLock.current || saveState === "loading") return;
