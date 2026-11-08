@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "2.116.0",
     "ai": "^7.0.122",
     "next": "15.5.26",
+    "pdfjs-dist": "^4.10.38",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

@@ -1,5 +1,6 @@
 "use client";
 
+import { PdfReading } from "./pdf-reading";
 import { useEffect, useState } from "react";
 import type { Article } from "@/lib/literature/types";
 import type { LibraryArticle, ResearchProject } from "@/lib/literature/library-store";
@@ -58,7 +59,7 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
   </details>;
 }
 
-export function PdfDownload({ owner, id, spanish, refresh }: { owner: string; id: string; spanish: boolean; refresh: boolean }) {
+export function PdfDownload({ owner, id, spanish, refresh, title, projectId }: { owner: string; id: string; spanish: boolean; refresh: boolean; title: string; projectId: string | null }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [available, setAvailable] = useState(false);
@@ -70,7 +71,7 @@ export function PdfDownload({ owner, id, spanish, refresh }: { owner: string; id
     return () => { active = false; };
   }, [owner, id, refresh]);
   if (!available) return null;
-  return <span><button type="button" disabled={busy} className="text-teal underline" onClick={async () => {
+  return <><span><button type="button" disabled={busy} className="text-teal underline" onClick={async () => {
     setBusy(true); setMessage("");
     try {
       const { data, error } = await supabaseBrowser().storage.from("library-pdfs").download(`${owner}/${id}.pdf`);
@@ -80,5 +81,5 @@ export function PdfDownload({ owner, id, spanish, refresh }: { owner: string; id
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setMessage(spanish ? "No hay un PDF disponible para descargar." : "Não há um PDF disponível para baixar."); }
     finally { setBusy(false); }
-  }}>{spanish ? "Descargar PDF adjunto" : "Baixar PDF anexado"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span>;
+  }}>{spanish ? "Descargar PDF adjunto" : "Baixar PDF anexado"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span><PdfReading owner={owner} id={id} title={title} projectId={projectId} spanish={spanish} /></>;
 }
