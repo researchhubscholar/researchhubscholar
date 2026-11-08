@@ -94,6 +94,7 @@ export function useLibrary() {
     } finally { busy.current = false; setWorking(false); }
   }
   const saveArticle = (article: Article, projectId: string | null = null) => run(async store => { await store.saveArticle(article, projectId); }, "Artigo salvo na sua conta.");
+  const savePdfMetadata = (id: string, fields: Record<string, string>) => run(store => store.savePdfMetadata(id, fields), "Ficha do artigo atualizada.");
   const attachPdf = (file: File, article: Article, projectId: string | null, existingId?: string) => run(store => store.attachPdf(file, article, projectId, existingId), "PDF salvo na sua biblioteca.");
   const saveNote = (id: string, note: EvidenceNote) => run(store => store.saveNote(id, note), "Anotações salvas na sua conta.");
   const assignProject = (id: string, projectId: string | null) => run(store => store.assignProject(id, projectId), "Projeto associado ao artigo.");
@@ -121,5 +122,5 @@ export function useLibrary() {
     localStorage.setItem(IMPORT_COMPLETE, stamp);
     setLegacyCount(0);
   }, "Artigos e anotações importados. A cópia antiga continua preservada neste navegador.");
-  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, attachPdf, saveNote, assignProject, updateArticle, setFullTextUrl, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
+  return { userId, articles, notes, projects, loading, working, error, message, legacyCount, saveArticle, attachPdf, savePdfMetadata, saveNote, assignProject, updateArticle, setFullTextUrl, addProjectLink, removeProjectLink, mergeDuplicates, remove, importLegacy, refresh };
 }

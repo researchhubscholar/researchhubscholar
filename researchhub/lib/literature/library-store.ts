@@ -101,6 +101,29 @@ export class LibraryStore {
     }
     return saved;
   }
+  async savePdfMetadata(id: string, fields: Record<string, string>) {
+    await this.ownedArticle(id);
+    const payload: Record<string, unknown> = {};
+    if (fields.title?.trim()) payload.title = fields.title.trim().slice(0, 500);
+    if (fields.authors?.trim()) payload.authors = fields.authors.slice(0, 3000).split(";").map(name => name.trim()).filter(Boolean);
+    if (fields.journal?.trim()) payload.journal = fields.journal.trim().slice(0, 500);
+    if (fields.abstract?.trim()) payload.abstract = fields.abstract.trim().slice(0, 6000);
+    if (fields.year?.trim()) {
+      const year = Number(fields.year);
+      if (!/^\d{4}$/.test(fields.year) || year < 1500 || year > new Date().getFullYear() + 1) throw new Error("Confira o ano do artigo.");
+      payload.publication_year = year;
+    }
+    if (fields.doi?.trim()) {
+      const doi = fields.doi.trim().toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "");
+      if (!/^10\.\d{4,9}\/\S+$/.test(doi) || doi.length > 250) throw new Error("Confira o DOI do artigo.");
+      if ((await this.allRows("library_articles")).map(fromArticleRow).some(article => article.id !== id && article.doi?.toLowerCase() === doi)) throw new Error("Este DOI já está salvo na Biblioteca. Anexe o PDF ao registro existente.");
+      payload.doi = doi;
+    }
+    if (!Object.keys(payload).length) throw new Error("Preencha ao menos um campo.");
+    const {error} = await this.db.from("library_articles").update(payload).eq("owner_id", this.ownerId).eq("id", id);
+    this.check(error);
+  }
+
   async attachPdf(file: File, article: Article, projectId: string | null, existingId?: string) {
     if (file.size > 10 * 1024 * 1024 || await file.slice(0, 5).text() !== "%PDF-") throw new Error("Selecione um PDF válido de até 10 MB.");
     await this.ownedProject(projectId);

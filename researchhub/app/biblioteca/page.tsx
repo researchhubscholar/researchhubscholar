@@ -265,7 +265,7 @@ function BibliotecaContent() {
                   <section className="library-reading-abstract mt-6"><h3 className="font-display text-2xl"><InterfaceText message="library.abstract" /></h3><p className="text-sm text-ink-soft leading-relaxed mt-3 whitespace-pre-wrap">{article.abstract || uiText("library.noAbstract")}</p></section>
                   <div className="flex flex-wrap gap-4 mt-4 text-xs">
                     {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>}
-                    {selectedArticle?.id === article.id && library.userId && <PdfDownload key={article.id} owner={library.userId} id={article.id} title={article.title} projectId={article.projectId} refresh={library.working} spanish={locale === "es"} />}
+                    {selectedArticle?.id === article.id && library.userId && <PdfDownload key={article.id} owner={library.userId} id={article.id} title={article.title} projectId={article.projectId} saveMetadata={fields => library.savePdfMetadata(article.id, fields)} refresh={library.working} spanish={locale === "es"} />}
                     {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">DOI ↗</a>}
                   </div>
                   <OpenAccessStatus existingUrl={article.fullTextUrl} result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => openAccess.results[articleKey(article)] ? void openAccess.retry(article) : void openAccess.lookup([article])} onSave={url => void library.setFullTextUrl(article.id, url)} disabled={library.working} />
