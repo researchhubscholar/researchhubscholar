@@ -1,7 +1,7 @@
 "use client";
 
 import { PdfReading } from "./pdf-reading";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Article } from "@/lib/literature/types";
 import type { LibraryArticle, ResearchProject } from "@/lib/literature/library-store";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -10,6 +10,7 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
   articles: LibraryArticle[]; projects: ResearchProject[]; busy: boolean; spanish: boolean;
   attach: (file: File, article: Article, project: string | null, existing?: string) => Promise<boolean>;
 }) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [authors, setAuthors] = useState("");
@@ -20,8 +21,13 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const t = (pt: string, es: string) => spanish ? es : pt;
-  return <details className="mt-5 rounded-card border border-line bg-white p-4">
-    <summary className="cursor-pointer font-medium text-teal">{t("Adicionar PDF", "Añadir PDF")}</summary>
+  return <>
+    <button type="button" className="library-pdf-trigger" onClick={() => dialog.current?.showModal()}>
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M13 3H5v18h7M13 3v6h6m-6-6 6 6v3m-3 9v-8m-3 3 3-3 3 3"/></svg>
+      {t("Adicionar PDF", "Añadir PDF")}
+    </button>
+    <dialog ref={dialog} aria-labelledby="library-pdf-title" className="library-pdf-dialog" onCancel={event => { if (busy) event.preventDefault(); }}>
+      <div className="flex items-center justify-between gap-3"><h2 id="library-pdf-title" className="font-display text-2xl">{t("Adicionar PDF", "Añadir PDF")}</h2><button type="button" disabled={busy} onClick={() => dialog.current?.close()} className="rounded-card border border-line px-3 py-2 text-sm">{t("Fechar", "Cerrar")}</button></div>
     <p className="mt-2 text-sm text-ink-soft">{t("PDF de até 10 MB. O arquivo fica privado na sua conta.", "PDF de hasta 10 MB. El archivo es privado en tu cuenta.")}</p>
     <form className="mt-3 grid gap-3" onSubmit={async event => {
       event.preventDefault();
@@ -35,7 +41,8 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
       if (await attach(file, { title: title.trim(), authors: authors.split(";").map(x => x.trim()).filter(Boolean),
         journal: "", year: year ? Number(year) : null, pubdate: year, doi: normalizedDoi || null, pmid: null,
         abstract: null, publicationTypes: [], doiUrl: normalizedDoi ? `https://doi.org/${normalizedDoi}` : null, pubmedUrl: null,
-      }, project || null, existing || undefined)) { form.reset(); setFile(null); setSaved(true); }
+      }, project || null, existing || undefined)) { form.reset(); setFile(null); setSaved(true); dialog.current?.close(); }
+      else setError(t("Não foi possível salvar o PDF. Confira o arquivo e tente novamente.", "No se pudo guardar el PDF. Revisa el archivo e inténtalo de nuevo."));
     }}>
       <label className="grid gap-1 text-sm">{t("Arquivo PDF", "Archivo PDF")}<input required type="file" accept=".pdf,application/pdf" disabled={busy} onChange={e => {
         const next = e.target.files?.[0] ?? null;
@@ -56,7 +63,7 @@ export function PdfImport({ articles, projects, busy, attach, spanish }: {
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       {saved && <p role="status" className="text-sm text-teal">{t("PDF salvo na Biblioteca.", "PDF guardado en la Biblioteca.")}</p>}
     </form>
-  </details>;
+  </dialog></>;
 }
 
 export function PdfDownload({ owner, id, spanish, refresh, title, projectId, saveMetadata, existingFields }: { owner: string; id: string; spanish: boolean; refresh: boolean; title: string; projectId: string | null; existingFields: Record<string, string>; saveMetadata: (fields: Record<string, string>) => Promise<boolean> }) {
@@ -71,7 +78,7 @@ export function PdfDownload({ owner, id, spanish, refresh, title, projectId, sav
     return () => { active = false; };
   }, [owner, id, refresh]);
   if (!available) return null;
-  return <><span><button type="button" disabled={busy} className="text-teal underline" onClick={async () => {
+  return <><span><button type="button" disabled={busy} className="library-pdf-download" onClick={async () => {
     setBusy(true); setMessage("");
     try {
       const { data, error } = await supabaseBrowser().storage.from("library-pdfs").download(`${owner}/${id}.pdf`);
@@ -81,5 +88,5 @@ export function PdfDownload({ owner, id, spanish, refresh, title, projectId, sav
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setMessage(spanish ? "No hay un PDF disponible para descargar." : "Não há um PDF disponível para baixar."); }
     finally { setBusy(false); }
-  }}>{spanish ? "Descargar PDF adjunto" : "Baixar PDF anexado"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span><PdfReading owner={owner} id={id} title={title} projectId={projectId} saveMetadata={saveMetadata} existingFields={existingFields} spanish={spanish} /></>;
+  }}>{spanish ? "Descargar PDF" : "Baixar PDF"}</button>{message && <span role="status" className="ml-2">{message}</span>}</span><PdfReading owner={owner} id={id} title={title} projectId={projectId} saveMetadata={saveMetadata} existingFields={existingFields} spanish={spanish} /></>;
 }

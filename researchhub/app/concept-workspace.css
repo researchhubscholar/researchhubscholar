@@ -445,3 +445,22 @@ body:has(.review-bell) .project-guide-window:not(.project-guide-window--expanded
   .radar-search-options { grid-template-columns: minmax(0, 1fr); }
   .radar-page .radar-query-row > button, .radar-refinement-action button { padding-inline: .4rem; }
 }
+
+/* Library actions and reading surface. */
+.library-hero-actions { display:flex; align-items:center; gap:.65rem; flex-wrap:wrap; flex-shrink:0; }
+.library-hero-actions > a, .library-pdf-trigger { display:inline-flex; align-items:center; justify-content:center; min-height:2.85rem; gap:.45rem; white-space:nowrap; }
+.library-pdf-trigger, .library-pdf-download { border:1px solid #89a79a; border-radius:.65rem; color:#194d41; background:#fff; padding:.6rem .9rem; font-size:.875rem; font-weight:500; }
+.library-pdf-trigger:hover, .library-pdf-download:hover { background:#eaf0e8; }
+.library-pdf-trigger svg { width:1.15rem; height:1.15rem; }
+.library-pdf-dialog { width:min(40rem, calc(100% - 2rem)); max-height:calc(100dvh - 2rem); margin:auto; padding:1.25rem; border:1px solid #dce2d9; border-radius:1rem; background:#fff; color:#173b32; }
+.library-pdf-dialog::backdrop { background:#102d27a0; }
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-controls { background:#fff; border:1px solid var(--workspace-line); border-radius:.85rem; padding:1rem; }
+.library-page .library-extra-filters > summary { display:inline-flex; align-items:center; border:1px solid #c5d2c9; border-radius:.55rem; padding:.55rem .8rem; }
+.library-page .library-extra-filters > summary::before { content:"☷"; margin-inline-end:.4rem; }
+@media (min-width: 900px) {
+  body:has(.primary-nav[data-workspace="true"]) .library-page .library-filter-grid:not(:has(details[open])) { grid-template-columns:minmax(10rem, 1fr) minmax(0, 2fr) auto; align-items:end; }
+  body:has(.primary-nav[data-workspace="true"]) .library-page .library-filter-grid:not(:has(details[open])) > .library-extra-filters { grid-column:auto; }
+  .library-page .library-reading-layout { border:1px solid #dce2d9; border-radius:.85rem; padding:1rem; gap:1.25rem; }
+}
+
+.library-hero-actions > a svg { width:1rem; height:1rem; }
