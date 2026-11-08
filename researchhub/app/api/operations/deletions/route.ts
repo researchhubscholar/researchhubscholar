@@ -39,7 +39,21 @@ export async function POST(request:NextRequest){
   if(claim.data.state==="completed")return NextResponse.json({...claim.data,message:deletionResultMessage("completed")},{headers});
   // Only the SQL admission selects the target. Never trust a client-supplied user ID.
   let result="uncertain";
-  try{const deleted=await admin.auth.admin.deleteUser(claim.data.userId,false);
+  try{
+   if(claim.data.cleanupLibraryPdfs===true){
+    const owner=claim.data.userId;
+    if(typeof owner!=="string"||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner)))throw new Error("Invalid deletion target");
+    const bucket=admin.storage.from("library-pdfs");
+    while(true){
+     const {data,error}=await bucket.list(owner,{limit:100});
+     if(error||!data)throw error || new Error("Could not list PDFs");
+     if(!data.length)break;
+     if(data.some(item=>!item.id||!(/^[0-9a-f-]{36}\.pdf$/i.test(item.name))))throw new Error("Unexpected PDF path");
+     const removed=await bucket.remove(data.map(item=>`${owner}/${item.name}`));
+     if(removed.error||removed.data?.length!==data.length)throw removed.error || new Error("Incomplete PDF removal");
+    }
+   }
+   const deleted=await admin.auth.admin.deleteUser(claim.data.userId,false);
    if(!deleted.error)result="check";
    else if(deleted.error.status&&deleted.error.status>=400&&deleted.error.status<500&&deleted.error.status!==408)result="rejected";
   }catch{/* Uncertain network outcome must not allow an automatic repeat or cancellation. */}

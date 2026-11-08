@@ -7,7 +7,7 @@ export type Article = {
 };
 // Existing PMID keys remain unchanged, preserving older evidence notes.
 export function articleKey(article: Article): string {
-  return article.pmid || `doi:${article.doi?.trim().toLowerCase()}`;
+  return article.pmid || (article.doi ? `doi:${article.doi.trim().toLowerCase()}` : `local:${(article as Article & { id?: string }).id || article.title}`);
 }
 export function sameArticle(a: Article, b: Article): boolean {
   return Boolean((a.pmid && b.pmid && a.pmid === b.pmid) ||

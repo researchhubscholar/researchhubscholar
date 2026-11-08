@@ -20,6 +20,7 @@ import { EvidenceNote, findDuplicateGroups, LibraryArticle, ReadingStatus, Resea
 import { buildBibtex, buildCsv, buildRis, download } from "@/lib/exports/scientific";
 import { designLabels, matrixGuidance, resolvedStudyDesign, StudyDesign, studyDesignOptions } from "@/lib/literature/matrix-template";
 import { sourceIds } from "@/lib/ai/guide-sources";
+import { PdfImport, PdfDownload } from "@/components/library/pdf-import";
 import { DuplicateReview } from "@/components/library/duplicate-review";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
 import AssistantPanel from "@/components/ai/assistant-panel";
@@ -172,6 +173,7 @@ function BibliotecaContent() {
         <Link href={projectFilter !== "all" && projectFilter !== "none" ? `/descobrir?projeto=${encodeURIComponent(projectFilter)}` : "/descobrir"} className="bg-teal text-white px-5 py-3 rounded-card text-sm font-medium text-center"><InterfaceText message="library.searchMore" /></Link>
       </header>
 
+      {library.userId && <PdfImport key={library.userId} articles={library.articles} projects={library.projects} busy={library.working || library.loading} attach={library.attachPdf} spanish={locale === "es"} />}
       <section className="library-controls mt-6 bg-white border border-line rounded-2xl p-5">
         <p role="status" className="text-sm text-ink-soft">{library.loading ? uiText("library.loading") : library.userId ? uiText("library.private") : uiText("library.signin")}</p>
         {!library.loading && !library.userId && <Link href="/login" className="inline-block mt-3 text-teal underline"><InterfaceText message="library.signinAction" /></Link>}
@@ -259,10 +261,11 @@ function BibliotecaContent() {
                   </div>
                   <h2 className="font-display text-xl md:text-2xl mt-3 leading-snug">{article.title}</h2>
                   <p className="text-sm text-ink-soft mt-2">{article.authors?.slice(0, 6).join(", ")}{article.authors?.length > 6 ? " et al." : ""}</p>
-                  <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
+                  <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : article.doi ? "· Crossref" : ""}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
                   <section className="library-reading-abstract mt-6"><h3 className="font-display text-2xl"><InterfaceText message="library.abstract" /></h3><p className="text-sm text-ink-soft leading-relaxed mt-3 whitespace-pre-wrap">{article.abstract || uiText("library.noAbstract")}</p></section>
                   <div className="flex flex-wrap gap-4 mt-4 text-xs">
                     {article.pubmedUrl && <a href={article.pubmedUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">PubMed ↗</a>}
+                    {selectedArticle?.id === article.id && library.userId && <PdfDownload key={article.id} owner={library.userId} id={article.id} refresh={library.working} spanish={locale === "es"} />}
                     {article.doiUrl && <a href={article.doiUrl} target="_blank" rel="noreferrer" className="text-teal hover:underline">DOI ↗</a>}
                   </div>
                   <OpenAccessStatus existingUrl={article.fullTextUrl} result={openAccess.results[articleKey(article)]} loading={openAccess.loading.has(articleKey(article))} onCheck={() => openAccess.results[articleKey(article)] ? void openAccess.retry(article) : void openAccess.lookup([article])} onSave={url => void library.setFullTextUrl(article.id, url)} disabled={library.working} />
@@ -300,7 +303,7 @@ function BibliotecaContent() {
                     <span className="w-8 h-8 rounded-full bg-teal text-white flex items-center justify-center text-sm shrink-0">{index + 1}</span>
                     <div>
                       <h2 className="font-medium leading-snug">{article.title}</h2>
-                      <p className="text-xs text-ink-soft mt-1">{article.year || uiText("screen.0d116becb93b")} · {article.journal || uiText("screen.93b425e2264f")} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}</p><p className="text-xs text-teal mt-1">Modelo: <AuthoredText text={designLabels[resolvedStudyDesign(article)]} /></p>
+                      <p className="text-xs text-ink-soft mt-1">{article.year || uiText("screen.0d116becb93b")} · {article.journal || uiText("screen.93b425e2264f")} {article.pmid ? `· PMID ${article.pmid}` : article.doi ? "· Crossref" : ""}</p><p className="text-xs text-teal mt-1">Modelo: <AuthoredText text={designLabels[resolvedStudyDesign(article)]} /></p>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">

@@ -72,8 +72,8 @@ export class LibraryStore {
     this.check(error); if (!data) throw new Error("Este artigo não está na sua biblioteca.");
     return fromArticleRow(data);
   }
-  async saveArticle(article: Article, projectId: string | null) {
-    if (!article.title?.trim() || (!article.pmid && !article.doi)) throw new Error("Artigo sem título ou identificador válido.");
+  async saveArticle(article: Article, projectId: string | null, pdfId?: string) {
+    if (!article.title?.trim() || (!article.pmid && !article.doi && !pdfId)) throw new Error("Artigo sem título ou identificador válido.");
     await this.ownedProject(projectId);
     const rows = await this.allRows("library_articles");
     const existing = rows.map(fromArticleRow).find(a => sameArticle(a, article));
@@ -83,7 +83,7 @@ export class LibraryStore {
       }
       return existing;
     }
-    const { data, error } = await this.db.from("library_articles").insert({ ...(article.doi ? { id: await stableDoiId(this.ownerId, article.doi) } : {}), owner_id: this.ownerId, project_id: projectId,
+    const { data, error } = await this.db.from("library_articles").insert({ ...(pdfId ? { id: pdfId } : article.doi ? { id: await stableDoiId(this.ownerId, article.doi) } : {}), owner_id: this.ownerId, project_id: projectId,
       pmid: article.pmid || null, doi: article.doi?.trim().toLowerCase() || null, title: article.title,
       authors: article.authors, journal: article.journal, publication_year: article.year,
       publication_types: article.publicationTypes, abstract: article.abstract, source_url: article.pubmedUrl || article.doiUrl,
@@ -101,6 +101,29 @@ export class LibraryStore {
     }
     return saved;
   }
+  async attachPdf(file: File, article: Article, projectId: string | null, existingId?: string) {
+    if (file.size > 10 * 1024 * 1024 || await file.slice(0, 5).text() !== "%PDF-") throw new Error("Selecione um PDF válido de até 10 MB.");
+    await this.ownedProject(projectId);
+    const existing = existingId ? await this.ownedArticle(existingId) :
+      (await this.allRows("library_articles")).map(fromArticleRow).find(row => sameArticle(row, article));
+    const id = existing?.id ?? crypto.randomUUID();
+    const path = `${this.ownerId}/${id}.pdf`;
+    const bucket = this.db.storage.from("library-pdfs");
+    const uploaded = await bucket.upload(path, file, { contentType: "application/pdf", upsert: false });
+    this.check(uploaded.error);
+    try {
+      if (existing) {
+        if (projectId && !existing.projectIds.includes(projectId)) await this.addProjectLink(id, projectId);
+      } else {
+        const saved = await this.saveArticle(article, projectId, id);
+        if (saved.id !== id) throw new Error("O artigo já existe. Selecione o registro para anexar o PDF.");
+      }
+    } catch (error) {
+      await bucket.remove([path]);
+      throw error;
+    }
+  }
+
   async saveNote(id: string, note: EvidenceNote) {
     const article = await this.ownedArticle(id);
     const payload: Record<string, unknown> = { owner_id: this.ownerId, article_id: id, project_id: article.projectId };
@@ -178,6 +201,7 @@ export class LibraryStore {
   async remove(id: string) {
     const { error } = await this.db.from("library_articles").delete().eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
+    await this.db.storage.from("library-pdfs").remove([`${this.ownerId}/${id}.pdf`]);
   }
 }
 
