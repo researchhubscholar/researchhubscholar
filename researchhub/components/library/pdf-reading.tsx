@@ -41,7 +41,14 @@ export function PdfReading({ owner, id, title, projectId, spanish, saveMetadata,
         if (!grounded.length) throw new Error(t("Nenhum trecho de apoio pôde ser confirmado no PDF.", "No se pudo confirmar ningún fragmento de respaldo en el PDF."));
         const keys = ["title", "authors", "journal", "year", "doi", "abstract"];
         setFields(Object.fromEntries(grounded.filter(item => keys.includes(item.key)).map(item => [item.key, item.content])));
-        setResult(grounded.filter(item => !keys.includes(item.key)));
+        const sections = [
+          ["objective", t("Objetivo", "Objetivo")], ["method", t("Método e população", "Método y población")],
+          ["finding", t("Principais resultados", "Resultados principales")], ["limitation", t("Limitações", "Limitaciones")],
+        ];
+        setResult(sections.flatMap(([key, label]) => {
+          const item = grounded.find(candidate => candidate.key === key);
+          return item ? [{...item, label}] : [];
+        }));
       } catch (reason) { setError(reason instanceof Error ? reason.message : t("Não foi possível ler o PDF.", "No se pudo leer el PDF.")); }
       finally { lock.current = false; setBusy(false); }
     }}>{busy ? t("Analisando…", "Analizando…") : t("Analisar PDF", "Analizar PDF")}</button>
@@ -81,6 +88,16 @@ export function PdfReading({ owner, id, title, projectId, spanish, saveMetadata,
         try { setSaved(await saveMetadata(fields)); } finally { setSaving(false); }
       }}>{saved ? t("Ficha atualizada", "Ficha actualizada") : t("Salvar ficha do artigo", "Guardar ficha del artículo")}</button>
     </section>}
-    {result.length > 0 && <ul className="mt-3 grid gap-3">{result.map((item, i) => <li key={i} className="rounded-card bg-paper p-3"><strong>{item.label}</strong><p>{item.content}</p><blockquote className="mt-2 border-l-2 border-line pl-3 text-xs">{t("Página", "Página")} {item.page}: “{item.quote}”</blockquote></li>)}</ul>}
+    {result.length > 0 && <section className="mt-4 rounded-card border border-line bg-paper p-3">
+      <h3 className="font-medium">{t("Síntese do trabalho gerada por IA", "Síntesis del trabajo generada por IA")}</h3>
+      <p className="mt-1 text-xs text-ink-soft">{t("Baseada nas páginas analisadas. O resumo original da ficha permanece separado.", "Basada en las páginas analizadas. El resumen original de la ficha se mantiene por separado.")}</p>
+      <ul className="mt-3 grid gap-3">{result.map(item => <li key={item.label} className="rounded-card bg-white p-3">
+        <strong>{item.label}</strong><p className="mt-1">{item.content}</p>
+        <details className="mt-2 text-xs text-ink-soft"><summary className="cursor-pointer text-teal">{t("Ver trecho de apoio", "Ver fragmento de respaldo")} · {t("Página", "Página")} {item.page}</summary>
+          <blockquote className="mt-2 border-l-2 border-line pl-3">“{item.quote}”</blockquote>
+        </details>
+      </li>)}</ul>
+    </section>}
+
   </details>;
 }
