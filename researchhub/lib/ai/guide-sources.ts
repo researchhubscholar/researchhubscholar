@@ -26,5 +26,18 @@ export function groundGuideSources(output:AssistantOutput,sources:GuideSource[],
  const summary=language==="es"
   ? (recommendations.length?"Se muestran solo los puntos con citas verificadas. No se pudo confirmar el resto con los resúmenes o las notas disponibles.":"No se pudieron verificar citas en los resúmenes o las notas disponibles para esta comparación.")
   : (recommendations.length?"Mostramos apenas os pontos com citações verificadas. Não foi possível confirmar o restante com os resumos ou as anotações disponíveis.":"Não foi possível verificar citações nos resumos ou nas anotações disponíveis para esta comparação.");
- return {title:language==="es"?"Comparación de fuentes":"Comparação de fontes",summary,recommendations,warnings:[],caution:""};
+ const spanish=language==="es";
+ const caution=spanish?"La comparación se limita a los resúmenes y las notas disponibles.":"A comparação se limita aos resumos e às anotações disponíveis.";
+ return {
+  title:spanish?"Comparación de fuentes":"Comparação de fontes",
+  summary,
+  recommendations:recommendations.length?recommendations:[{
+   label:spanish?"Cómo continuar":"Como continuar",
+   content:spanish?"Revisa los resúmenes o selecciona otros artículos con información sobre la misma pregunta.":"Confira os resumos ou selecione outros artigos com informações sobre a mesma pergunta.",
+   rationale:spanish?"No hay citas verificadas para sustentar una conclusión.":"Não há citações verificadas para sustentar uma conclusão.",
+   targetField:"",confidence:"baixa",source:"",
+  }],
+  warnings:[],
+  caution,
+ };
 }

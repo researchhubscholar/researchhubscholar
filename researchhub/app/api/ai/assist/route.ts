@@ -44,7 +44,7 @@ if(!isAssistantOutput(output))throw new Error("A resposta do modelo não corresp
     try{partial=groundGuideSources(policy.output,sources,language);}
     catch{
      const repairedPartial=groundGuideSources(policy.output,sources,language,true);
-     if(repairedPartial.recommendations.length>partial.recommendations.length)partial=repairedPartial;
+     if(repairedPartial.recommendations.filter(r=>r.source).length>partial.recommendations.filter(r=>r.source).length)partial=repairedPartial;
     }
    }
   }catch(error){
