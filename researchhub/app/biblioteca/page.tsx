@@ -219,7 +219,46 @@ function BibliotecaContent() {
         <button onClick={() => setView("library")} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === "library" ? "border-teal text-teal" : "border-transparent text-ink-soft"}`}><InterfaceText message="library.articles" /></button>
         <button onClick={() => setView("matrix")} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === "matrix" ? "border-teal text-teal" : "border-transparent text-ink-soft"}`}><InterfaceText message="library.matrix" /></button>
       </div>
-      {library.userId && articles.length>0 && <section className="library-export mt-5 flex flex-wrap items-center gap-2 bg-teal-soft border border-teal/20 rounded-card p-4"><span className="text-sm font-medium mr-2"><InterfaceText message="library.export" /></span><button onClick={()=>download(buildCsv(articles,notes,locale),"text/csv;charset=utf-8","matriz-scholar.csv")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">Excel / CSV</button><button onClick={()=>download(buildRis(articles),"application/x-research-info-systems;charset=utf-8","referencias-scholar.ris")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">RIS</button><button onClick={()=>download(buildBibtex(articles),"application/x-bibtex;charset=utf-8","referencias-scholar.bib")} className="border border-teal/30 bg-white px-3 py-2 rounded-card text-xs">BibTeX</button><span className="text-xs text-ink-soft"><InterfaceText message="library.csvHelp" /></span></section>}
+      {library.userId && articles.length > 0 && (
+        <details className="library-organize mt-5">
+          <summary className="w-fit border border-teal/30 bg-white">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4" /></svg>
+            <span>{locale === "es" ? "Exportar referencias" : "Exportar referências"}</span>
+            <svg className="library-organize-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m6 9 6 6 6-6" /></svg>
+          </summary>
+          <div className="grid gap-3 px-4 pb-4 pt-2">
+            <p className="text-sm text-ink-soft">
+              {locale === "es"
+                ? `Artículos que coinciden con los filtros actuales: ${articles.length}. Las casillas marcadas no cambian la exportación.`
+                : `Artigos que correspondem aos filtros atuais: ${articles.length}. As caixas marcadas não alteram a exportação.`}
+            </p>
+            <div className="grid gap-2 md:grid-cols-3">
+              {[
+                {
+                  title: locale === "es" ? "Abrir en una hoja de cálculo (.csv)" : "Abrir em planilha (.csv)",
+                  description: locale === "es" ? "Para Excel o Google Sheets. Incluye tus notas de la matriz." : "Para Excel ou Google Planilhas. Inclui suas anotações da matriz.",
+                  save: () => download(buildCsv(articles, notes, locale), "text/csv;charset=utf-8", "matriz-scholar.csv"),
+                },
+                {
+                  title: locale === "es" ? "Importar en Zotero o Mendeley (.ris)" : "Importar no Zotero ou Mendeley (.ris)",
+                  description: locale === "es" ? "Para organizar y citar las referencias en un gestor bibliográfico." : "Para organizar e citar as referências em um gerenciador bibliográfico.",
+                  save: () => download(buildRis(articles), "application/x-research-info-systems;charset=utf-8", "referencias-scholar.ris"),
+                },
+                {
+                  title: locale === "es" ? "Usar en LaTeX (.bib)" : "Usar no LaTeX (.bib)",
+                  description: locale === "es" ? "Archivo BibTeX para Overleaf y otros editores LaTeX." : "Arquivo BibTeX para Overleaf e outros editores LaTeX.",
+                  save: () => download(buildBibtex(articles), "application/x-bibtex;charset=utf-8", "referencias-scholar.bib"),
+                },
+              ].map(({ title, description, save }) => (
+                <button key={title} type="button" onClick={save} className="rounded-card border border-teal/30 bg-white p-3 text-left hover:bg-teal-soft">
+                  <span className="block text-sm font-medium">{title}</span>
+                  <span className="mt-1 block text-xs text-ink-soft">{description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+      )}
 
       {view === "matrix" && library.userId && !library.loading && <section className="library-compare mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl"><InterfaceText message="screen.35ee85ea46d7" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.81c9b115fa7e" /></p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
       {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3"><InterfaceText message="screen.dbb242947ed8" /></caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1"><AuthoredText text={designLabels[resolvedStudyDesign(article)]} /></span>{dirty[article.id] && <span className="block text-xs text-amber"><InterfaceText message="library.unsaved" /></span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top"><AuthoredText text={label} /></th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || uiText("screen.2346695afd53")}</td>)}</tr>)}</tbody></table></div>}</section>}
