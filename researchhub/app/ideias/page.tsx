@@ -180,7 +180,7 @@ export default function IdeasPage() {
     setAiLoading(true); setAiMessage(""); setAiOperation(""); setLastUsage(null); setQualityChecks([]); setMessage("");
     try {
       const startingIdeas = generate(requestContext, evidence);
-      const { data } = await postAI<{ ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] }>("/api/ai/ideas", { context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }, 150_000);
+      const { data } = await postAI<{ ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] }>("/api/ai/ideas", { creationMode, context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }, 150_000);
       if (!Array.isArray(data.ideas) || !data.ideas.length) throw new AIRequestError("A IA não retornou propostas válidas. Confira o registro antes de tentar novamente.", data.operationId);
       setContext(requestContext); setIdeas(data.ideas); setExpandedIdea(null); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});

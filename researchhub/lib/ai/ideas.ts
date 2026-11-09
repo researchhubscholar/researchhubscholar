@@ -235,7 +235,14 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
   if (!value || typeof value !== "object") throw new Error("Dados da ideia não foram enviados.");
   const body = value as Record<string, unknown>;
   if (!body.context || typeof body.context !== "object") throw new Error("Preencha o diagnóstico antes de usar a assistência.");
-  const context = body.context as Record<string, unknown>;
+  const context = { ...body.context } as Record<string, unknown>;
+  const language = outputLanguage(body.language);
+  if (body.creationMode === "theme") {
+    const pending = language === "es" ? "Por confirmar" : "A confirmar";
+    for (const field of ["population", "access"]) {
+      if (context[field] == null || (typeof context[field] === "string" && !context[field].trim())) context[field] = pending;
+    }
+  }
   const required = ["interest", "population", "months", "access"];
   for (const key of required) if (typeof context[key] !== "string" || !context[key].trim()) throw new Error("Informe o que deseja investigar, a população, o prazo e o acesso disponível.");
   const serialized = JSON.stringify(body);
@@ -243,7 +250,7 @@ export function validateIdeasRequest(value: unknown): { context: Context; ideas:
   const ideas = Array.isArray(body.ideas) ? body.ideas.slice(0, 3) : [];
   if (ideas.length < 1) throw new Error("Não foi possível preparar o ponto de partida da geração.");
   const projectId = typeof body.projectId === "string" && /^[0-9a-f-]{36}$/i.test(body.projectId) ? body.projectId : null;
-  return { context: context as Context, ideas: ideas as Idea[], projectId, language: outputLanguage(body.language) };
+  return { context: context as Context, ideas: ideas as Idea[], projectId, language };
 }
 
 function sharedRules(language: OutputLanguage = "pt-BR") {
@@ -255,6 +262,7 @@ Preserve o problema e as condições reais informadas, mas transforme-os em uma 
 Delimite população, contexto, exposição ou intervenção quando aplicável e um desfecho mensurável.
 Não afirme causalidade em desenho transversal. Não force hipótese causal em estudo descritivo ou revisão.
 Inclua elegibilidade, riscos éticos, limitações, viabilidade, variáveis, análise e forma de verificar originalidade na literatura.
+Quando população ou acesso estiverem a confirmar, proponha apenas recortes provisórios e explicite o que confirmar; não presuma dados, prontuários ou participantes disponíveis.
 Quando faltarem instrumento, desfecho ou amostra, apresente uma alternativa e marque explicitamente que precisa ser confirmada.
 O campo radar deve ser uma estratégia curta e ampla em inglês para busca exploratória inicial no PubMed, com somente um ou dois conceitos centrais. Inclua sinônimos usuais com OR. Não exija desenho, instrumento, cenário local, faixa etária ou todos os elementos da proposta ao mesmo tempo; mantenha somente os essenciais para o problema.
 Una conceitos com AND e agrupe sinônimos entre parênteses com OR: "rheumatoid arthritis" AND (adherence OR compliance). Nunca deixe OR solto entre conceitos.
