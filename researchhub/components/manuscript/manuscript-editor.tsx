@@ -78,6 +78,18 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
  const {locale:formatLocale}=useLanguage();
 
   const { t: uiText, locale } = useLanguage();
+  const [includeStudyTable, setIncludeStudyTable] = useState(false);
+  const studyType = project.study_type || "";
+  const showStudyTable = canEdit && /revis[aã]o|revisi[oó]n|review/i.test(studyType) && !/sistem[aá]tic|systematic|meta[- ]?an[aá]l/i.test(studyType);
+  const evidenceText = (value: unknown) => typeof value === "string" && value.trim() ? value : "—";
+  const studyTable = showStudyTable ? {
+    title: locale === "es" ? "Tabla de estudios" : "Tabela de estudos",
+    headers: locale === "es" ? ["Referencia", "Objetivo", "Método", "Hallazgos", "Limitaciones"] : ["Referência", "Objetivo", "Método", "Achados", "Limitações"],
+    rows: articles.map(article => [
+      [article.title, article.journal, article.publication_year, article.doi && `DOI: ${article.doi}`].filter(Boolean).join(" · "),
+      evidenceText(article.evidence?.objective), evidenceText(article.evidence?.method), evidenceText(article.evidence?.main_finding), evidenceText(article.evidence?.limitation),
+    ]),
+  } : null;
   const hydrated = sectionTemplates.map(template => ({ ...template, content: initialSections.find(section => section.section_key === template.section_key)?.content || "" }));
   const [manuscriptId, setManuscriptId] = useState(initialManuscript?.id || "");
   const [title, setTitle] = useState(initialManuscript?.title || project.title || project.theme || "");
@@ -287,7 +299,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     if (exportLock.current) return;
     exportLock.current = true; setExporting(true);
     try {
-      const input = { title, subtitle, authors, affiliations, keywords, sections, references: currentUserId === ownerId ? formattedCitedReferences(citationIds, articles, citationStyle) : [] };
+      const input = { title, subtitle, authors, affiliations, keywords, sections, studyTable: includeStudyTable ? studyTable ?? undefined : undefined, references: currentUserId === ownerId ? formattedCitedReferences(citationIds, articles, citationStyle) : [] };
       let results: ResultsWorkspace | null = null;
       // Results remain private to the project owner; sharing a manuscript does not share its dataset.
       if (currentUserId === ownerId) {
@@ -383,6 +395,19 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
         const sectionComments = comments.filter(comment => comment.section_key === section.section_key);
         const sectionOpen = sectionComments.filter(comment => comment.status === "open").length;
         return <section key={section.section_key} id={`section-${section.section_key}`} className="scroll-mt-28 bg-white border border-line rounded-2xl p-5 md:p-7" onFocus={() => setActiveKey(section.section_key)}><div className="flex justify-between gap-4 items-start"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.bd4321ba9322" /></p><h2 className="font-display text-2xl mt-2">{section.heading}</h2></div><div className="text-right"><span className="text-xs text-ink-soft whitespace-nowrap">{wordCount(section.content)} <InterfaceText message="screen.f662cb9a3b0a" /></span>{canEdit && section.section_key === "abstract" && <button onClick={applyAbstractTemplate} className="block text-xs text-teal mt-2"><InterfaceText message="screen.d707d4fe2a7c" /></button>}{canEdit && section.section_key === "references" && <button onClick={syncReferences} className="block text-xs text-teal mt-2"><InterfaceText message="screen.096f4271c0c9" /></button>}</div></div>{canEdit && <p className="text-sm text-ink-soft mt-3 leading-relaxed"><AuthoredText text={guidance[section.section_key]} /></p>}<ExcerptHelp key={`${project.id}:${section.section_key}`} value={section.content} label={section.heading} projectId={project.id} area="manuscrito" disabled={!canEdit||currentUserId!==ownerId} onApply={(original,next)=>applySectionSuggestion(section.section_key,original,next)}><textarea ref={field => { editorFields.current[section.section_key] = field; }} onFocus={() => setActiveKey(section.section_key)} onBlur={event => { citationPositions.current[section.section_key] = event.currentTarget.selectionEnd; }} readOnly={!canEdit} value={section.content} onChange={event => updateSection(section.section_key, event.target.value)} onSelect={event => { const field = event.currentTarget; citationPositions.current[section.section_key] = field.selectionEnd; const selected = field.value.slice(field.selectionStart, field.selectionEnd).trim().slice(0, 2000); if (selected) setQuotes(current => ({ ...current, [section.section_key]: selected })); }} rows={section.section_key === "references" ? 7 : 12} placeholder={`Escreva ${section.heading.toLowerCase()} aqui…`} className="manuscript-textarea block w-full mt-5 border border-line rounded-card p-4 bg-paper leading-7 outline-none focus:border-teal resize-y read-only:text-ink-soft" /></ExcerptHelp>
+          {section.section_key === "results" && studyTable && <details className="mt-4 rounded-card border border-line bg-paper/60 p-4">
+            <summary className="cursor-pointer font-medium text-teal">{locale === "es" ? "Vista previa de la tabla de estudios" : "Prévia da tabela de estudos"}</summary>
+            <p className="mt-3 text-sm text-ink-soft">{locale === "es" ? "Usa la extracción guardada en la Biblioteca. Un guion indica un campo sin completar." : "A tabela usa a extração salva na Biblioteca. Um traço indica um campo não preenchido."}</p>
+            {studyTable.rows.length ? <>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[620px] text-left text-sm">
+                  <thead><tr>{studyTable.headers.map(label => <th key={label} scope="col" className="border border-line p-2">{label}</th>)}</tr></thead>
+                  <tbody>{studyTable.rows.map((row,index) => <tr key={articles[index].id}>{row.map((cell,col) => <td key={col} className="whitespace-pre-wrap break-words border border-line p-2 align-top">{cell}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+              <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={includeStudyTable} onChange={event => setIncludeStudyTable(event.target.checked)} />{locale === "es" ? "Incluir esta tabla al exportar a Word" : "Incluir esta tabela ao exportar para Word"}</label>
+            </> : <p className="mt-3 text-sm">{locale === "es" ? "Vincula artículos al proyecto en la Biblioteca para crear la tabla." : "Vincule artigos ao projeto na Biblioteca para montar a tabela."}</p>}
+          </details>}
           {canEdit && section.section_key !== "references" && <SectionAssistant sectionKey={section.section_key} heading={section.heading} content={section.content} projectId={project.id} project={project} sources={articles as WritingSource[]} apply={(original, proposed) => applySectionSuggestion(section.section_key, original, proposed)} />}
           <div className="border-t border-line mt-5 pt-4"><button type="button" onClick={() => setActiveReview(current => current === section.section_key ? null : section.section_key)} className="w-full flex items-center justify-between text-left"><span><span className="text-sm font-medium"><InterfaceText message="screen.6280528a838a" /></span><span className="text-xs text-ink-soft ml-2">{sectionComments.length} <InterfaceText message="screen.e66f9a7567ab" /> {sectionOpen} <InterfaceText message="screen.bd0fbdfd15b6" /></span></span><span className="text-teal">{activeReview === section.section_key ? "−" : "+"}</span></button>
             {activeReview === section.section_key && <div className="mt-4 space-y-4">
