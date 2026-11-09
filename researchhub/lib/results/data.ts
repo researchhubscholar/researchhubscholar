@@ -10,7 +10,8 @@ import type { AnalysisConfig } from "./inference";
 export type Dataset = { columns: string[]; rows: string[][] };
 export type Figure = { column: string; title: string; caption: string; kind: "bar" | "histogram" };
 export type CaseEvent = { id: string; moment: string; event: string; finding: string; evolution: string };
-export type ResultsWorkspace = { caseTimeline?: CaseEvent[]; dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig; adjusted?: AdjustedConfig };
+export type ReviewDecision = { articleId: string; status: "pending" | "included" | "excluded"; reason: string };
+export type ResultsWorkspace = { reviewScreening?: ReviewDecision[]; caseTimeline?: CaseEvent[]; dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig; adjusted?: AdjustedConfig };
 export const emptyResults: ResultsWorkspace = { dataset: { columns: [], rows: [] }, figure: { column: "", title: "", caption: "", kind: "bar" }, flow: [{ label: "Identificados", count: 0 }, { label: "Avaliados", count: 0 }, { label: "Incluídos", count: 0 }], notes: "" };
 export function parseCsv(text: string): Dataset {
   const source = text.replace(/^\uFEFF/, "");
@@ -69,6 +70,11 @@ export function chartData(dataset: Dataset, column: string, kind: Figure["kind"]
 export function validWorkspace(input: unknown): input is ResultsWorkspace {
   if (!input || typeof input !== "object") return false;
   const x = input as ResultsWorkspace;
+  if (x.reviewScreening !== undefined && (!Array.isArray(x.reviewScreening) || x.reviewScreening.length > 5000 ||
+    !x.reviewScreening.every(item => item && typeof item.articleId === "string" && /^[0-9a-f-]{36}$/i.test(item.articleId) &&
+      ["pending","included","excluded"].includes(item.status) && typeof item.reason === "string" && item.reason.length <= 500 &&
+      (item.status !== "excluded" || Boolean(item.reason.trim()))) ||
+    new Set(x.reviewScreening.map(item => item.articleId)).size !== x.reviewScreening.length)) return false;
   if (x.caseTimeline !== undefined && (!Array.isArray(x.caseTimeline) || x.caseTimeline.length > 100 || !x.caseTimeline.every(item =>
     item && typeof item.id === "string" && item.id.length > 0 && item.id.length <= 64 &&
     typeof item.moment === "string" && item.moment.length <= 100 &&

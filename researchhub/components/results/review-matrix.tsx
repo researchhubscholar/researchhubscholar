@@ -7,6 +7,8 @@ import { useUnsavedChanges } from "@/components/projects/use-unsaved-changes";
 import { useLibrary } from "@/lib/literature/use-library";
 import type { EvidenceNote } from "@/lib/literature/library-store";
 
+import ReviewScreening from "./review-screening";
+
 const fields = [
   ["objective", "Objetivo", "Objetivo"],
   ["method", "Método", "Método"],
@@ -15,7 +17,7 @@ const fields = [
 ] as const;
 type Draft = Partial<Pick<EvidenceNote, typeof fields[number][0]>>;
 
-export default function ReviewMatrix({ projectId }: { projectId: string }) {
+export default function ReviewMatrix({ projectId, systematic }: { projectId: string; systematic: boolean }) {
   const { locale } = useLanguage();
   const es = locale === "es";
   const library = useLibrary();
@@ -37,7 +39,7 @@ export default function ReviewMatrix({ projectId }: { projectId: string }) {
     onSave: async () => { for (const id of Object.keys(drafts)) if (!await save(id)) return false; return true; },
     onDiscard: () => setDrafts({}),
   });
-  return <section className="rounded-2xl border border-line bg-white p-5 md:p-7">
+  return <>{systematic && <ReviewScreening projectId={projectId} articles={articles} />}<section className="rounded-2xl border border-line bg-white p-5 md:p-7">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="font-display text-2xl">{es ? "Matriz de estudios" : "Matriz de estudos"}</h2>
@@ -74,5 +76,5 @@ export default function ReviewMatrix({ projectId }: { projectId: string }) {
         </details>;
       })}
     </div>
-  </section>;
+  </section></>;
 }
