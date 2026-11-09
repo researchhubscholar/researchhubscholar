@@ -80,9 +80,10 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
   const { t: uiText, locale } = useLanguage();
   const [includeStudyTable, setIncludeStudyTable] = useState(false);
   const studyType = project.study_type || "";
+  const systematicReview = /sistem[aá]tic|systematic|meta[- ]?an[aá]l/i.test(studyType);
   const showStudyTable = canEdit && /revis[aã]o|revisi[oó]n|review/i.test(studyType) && !/sistem[aá]tic|systematic|meta[- ]?an[aá]l/i.test(studyType);
   const evidenceText = (value: unknown) => typeof value === "string" && value.trim() ? value : "—";
-  const studyTable = showStudyTable ? {
+  const studyTable = canEdit && (showStudyTable || systematicReview) ? {
     title: locale === "es" ? "Tabla de estudios" : "Tabela de estudos",
     headers: locale === "es" ? ["Referencia", "Objetivo", "Método", "Hallazgos", "Limitaciones"] : ["Referência", "Objetivo", "Método", "Achados", "Limitações"],
     rows: articles.map(article => [
@@ -299,7 +300,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     if (exportLock.current) return;
     exportLock.current = true; setExporting(true);
     try {
-      const input = { title, subtitle, authors, affiliations, keywords, sections, studyTable: includeStudyTable ? studyTable ?? undefined : undefined, references: currentUserId === ownerId ? formattedCitedReferences(citationIds, articles, citationStyle) : [] };
+      const input: import("@/lib/projects/manuscript-export").ManuscriptExport = { title, subtitle, authors, affiliations, keywords, sections, studyTable: includeStudyTable ? studyTable ?? undefined : undefined, references: currentUserId === ownerId ? formattedCitedReferences(citationIds, articles, citationStyle) : [] };
       let results: ResultsWorkspace | null = null;
       // Results remain private to the project owner; sharing a manuscript does not share its dataset.
       if (currentUserId === ownerId) {
@@ -308,6 +309,28 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
         if (!response.ok) throw new Error(body.error || "Não foi possível conferir os resultados salvos.");
         if (body.workspace !== null && !validWorkspace(body.workspace)) throw new Error("Confira os resultados salvos antes de exportar.");
         results = body.workspace;
+      }
+      if (systematicReview && studyTable) {
+        const decisions = new Map((results?.reviewScreening ?? []).map(decision => [decision.articleId, decision]));
+        const counts = { pending: 0, included: 0, excluded: 0 };
+        const exclusions: string[][] = [];
+        const includedRows: string[][] = [];
+        articles.forEach((article, index) => {
+          const decision = decisions.get(article.id);
+          const status = decision?.status ?? "pending";
+          counts[status]++;
+          if (status === "included") includedRows.push(studyTable.rows[index]);
+          if (status === "excluded" && decision) exclusions.push([studyTable.rows[index][0], decision.reason]);
+        });
+        const es = locale === "es";
+        input.studyTable = { ...studyTable, title: es ? "Estudios incluidos" : "Estudos incluídos", rows: includedRows };
+        input.screening = {
+          title: es ? "Resumen de selección de estudios" : "Resumo da triagem de estudos",
+          counts: es ? [["Artículos vinculados",articles.length],["Pendientes",counts.pending],["Incluidos",counts.included],["Excluidos",counts.excluded]]
+            : [["Artigos vinculados",articles.length],["Pendentes",counts.pending],["Incluídos",counts.included],["Excluídos",counts.excluded]],
+          exclusionHeaders: es ? ["Estudio excluido","Motivo de exclusión"] : ["Estudo excluído","Motivo da exclusão"],
+          exclusions,
+        };
       }
       const checks=resultsChecklist(results,dirty,lastResultsStamp(versions));if(checks.length&&!window.confirm(dialogCopy(`Antes de exportar:\n\n${checks.join("\n")}\n\nDeseja exportar mesmo assim para revisão?`)))return;
       const image = results && chartData(results.dataset, results.figure.column, results.figure.kind, resultsLocale).length ? await figurePng(figureSvg(results, undefined, resultsLocale)) : null;
@@ -395,7 +418,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
         const sectionComments = comments.filter(comment => comment.section_key === section.section_key);
         const sectionOpen = sectionComments.filter(comment => comment.status === "open").length;
         return <section key={section.section_key} id={`section-${section.section_key}`} className="scroll-mt-28 bg-white border border-line rounded-2xl p-5 md:p-7" onFocus={() => setActiveKey(section.section_key)}><div className="flex justify-between gap-4 items-start"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.bd4321ba9322" /></p><h2 className="font-display text-2xl mt-2">{section.heading}</h2></div><div className="text-right"><span className="text-xs text-ink-soft whitespace-nowrap">{wordCount(section.content)} <InterfaceText message="screen.f662cb9a3b0a" /></span>{canEdit && section.section_key === "abstract" && <button onClick={applyAbstractTemplate} className="block text-xs text-teal mt-2"><InterfaceText message="screen.d707d4fe2a7c" /></button>}{canEdit && section.section_key === "references" && <button onClick={syncReferences} className="block text-xs text-teal mt-2"><InterfaceText message="screen.096f4271c0c9" /></button>}</div></div>{canEdit && <p className="text-sm text-ink-soft mt-3 leading-relaxed"><AuthoredText text={guidance[section.section_key]} /></p>}<ExcerptHelp key={`${project.id}:${section.section_key}`} value={section.content} label={section.heading} projectId={project.id} area="manuscrito" disabled={!canEdit||currentUserId!==ownerId} onApply={(original,next)=>applySectionSuggestion(section.section_key,original,next)}><textarea ref={field => { editorFields.current[section.section_key] = field; }} onFocus={() => setActiveKey(section.section_key)} onBlur={event => { citationPositions.current[section.section_key] = event.currentTarget.selectionEnd; }} readOnly={!canEdit} value={section.content} onChange={event => updateSection(section.section_key, event.target.value)} onSelect={event => { const field = event.currentTarget; citationPositions.current[section.section_key] = field.selectionEnd; const selected = field.value.slice(field.selectionStart, field.selectionEnd).trim().slice(0, 2000); if (selected) setQuotes(current => ({ ...current, [section.section_key]: selected })); }} rows={section.section_key === "references" ? 7 : 12} placeholder={`Escreva ${section.heading.toLowerCase()} aqui…`} className="manuscript-textarea block w-full mt-5 border border-line rounded-card p-4 bg-paper leading-7 outline-none focus:border-teal resize-y read-only:text-ink-soft" /></ExcerptHelp>
-          {section.section_key === "results" && studyTable && <details className="mt-4 rounded-card border border-line bg-paper/60 p-4">
+          {section.section_key === "results" && showStudyTable && studyTable && <details className="mt-4 rounded-card border border-line bg-paper/60 p-4">
             <summary className="cursor-pointer font-medium text-teal">{locale === "es" ? "Vista previa de la tabla de estudios" : "Prévia da tabela de estudos"}</summary>
             <p className="mt-3 text-sm text-ink-soft">{locale === "es" ? "Usa la extracción guardada en la Biblioteca. Un guion indica un campo sin completar." : "A tabela usa a extração salva na Biblioteca. Um traço indica um campo não preenchido."}</p>
             {studyTable.rows.length ? <>

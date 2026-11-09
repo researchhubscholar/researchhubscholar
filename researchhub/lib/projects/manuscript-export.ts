@@ -8,6 +8,7 @@ export type ManuscriptExport = {
   title: string; subtitle: string; authors: string; affiliations: string; keywords: string;
   sections: { section_key: string; heading: string; content: string }[];
   references: string[];
+  screening?: { title: string; counts: [string, number][]; exclusionHeaders: string[]; exclusions: string[][] };
   studyTable?: { title: string; headers: string[]; rows: string[][] };
 };
 
@@ -22,6 +23,11 @@ export function manuscriptWordBlocks(input: ManuscriptExport, results?: ResultsW
   for (const text of [input.authors, input.affiliations]) if (text.trim()) blocks.push({ text });
   if (input.keywords.trim()) blocks.push({ text: `${exportCopy(locale, "Palavras-chave:")} ${input.keywords}` });
   const resultMaterial: WordBlock[] = results ? resultsWordBlocks(results, figure, locale) : [];
+  if (input.screening) {
+    const { title, counts, exclusionHeaders, exclusions } = input.screening;
+    resultMaterial.push({ text: title, heading: true }, { table: [[locale === "es" ? "Estado" : "Situação", "N"], ...counts] });
+    if (exclusions.length) resultMaterial.push({ table: [exclusionHeaders, ...exclusions] });
+  }
   if (input.studyTable?.rows.length) resultMaterial.push(
     { text: input.studyTable.title, heading: true },
     { table: [input.studyTable.headers, ...input.studyTable.rows] },
