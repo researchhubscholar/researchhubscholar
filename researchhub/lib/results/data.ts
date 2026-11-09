@@ -9,7 +9,8 @@ import { collectionDataset, validCollection, type ClinicalCollection } from "../
 import type { AnalysisConfig } from "./inference";
 export type Dataset = { columns: string[]; rows: string[][] };
 export type Figure = { column: string; title: string; caption: string; kind: "bar" | "histogram" };
-export type ResultsWorkspace = { dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig; adjusted?: AdjustedConfig };
+export type CaseEvent = { id: string; moment: string; event: string; finding: string; evolution: string };
+export type ResultsWorkspace = { caseTimeline?: CaseEvent[]; dataset: Dataset; figure: Figure; flow: { label: string; count: number }[]; notes: string; analysis?: AnalysisConfig; collection?: ClinicalCollection; comparison?: GroupComparison; followup?: ClinicalFollowup; paired?: PairedConfig; repeated?: RepeatedConfig; adjusted?: AdjustedConfig };
 export const emptyResults: ResultsWorkspace = { dataset: { columns: [], rows: [] }, figure: { column: "", title: "", caption: "", kind: "bar" }, flow: [{ label: "Identificados", count: 0 }, { label: "Avaliados", count: 0 }, { label: "Incluídos", count: 0 }], notes: "" };
 export function parseCsv(text: string): Dataset {
   const source = text.replace(/^\uFEFF/, "");
@@ -68,6 +69,11 @@ export function chartData(dataset: Dataset, column: string, kind: Figure["kind"]
 export function validWorkspace(input: unknown): input is ResultsWorkspace {
   if (!input || typeof input !== "object") return false;
   const x = input as ResultsWorkspace;
+  if (x.caseTimeline !== undefined && (!Array.isArray(x.caseTimeline) || x.caseTimeline.length > 100 || !x.caseTimeline.every(item =>
+    item && typeof item.id === "string" && item.id.length > 0 && item.id.length <= 64 &&
+    typeof item.moment === "string" && item.moment.length <= 100 &&
+    [item.event, item.finding, item.evolution].every(text => typeof text === "string" && text.length <= 1000)
+  ) || new Set(x.caseTimeline.map(item => item.id)).size !== x.caseTimeline.length)) return false;
   if (x.collection !== undefined && (!validCollection(x.collection) || (JSON.stringify(x.dataset?.columns) !== JSON.stringify(collectionDataset(x.collection).columns) || JSON.stringify(x.dataset?.rows) !== JSON.stringify(collectionDataset(x.collection).rows)))) return false;
   if (x.followup !== undefined && !validFollowup(x.followup, x.collection)) return false;
   if (x.adjusted !== undefined && !validAdjusted(x.adjusted, x.collection)) return false;

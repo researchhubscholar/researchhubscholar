@@ -17,6 +17,12 @@ export function resultsWordBlocks(workspace: ResultsWorkspace, figure?: ExportFi
 const copy=(source:string)=>statCopy(locale,source);
 const format=(value:unknown)=>typeof value==="number"?value.toLocaleString(intlLocale(locale),{maximumSignificantDigits:6}):value;
   const blocks: WordBlock[] = [];
+  const timeline = workspace.caseTimeline?.filter(item => [item.moment,item.event,item.finding,item.evolution].some(text => text.trim()));
+  if (timeline?.length) blocks.push(
+    { text: locale === "es" ? "Cronología del caso" : "Linha do tempo do caso", heading: true },
+    { table: [locale === "es" ? ["Momento","Evento","Hallazgo","Evolución"] : ["Momento","Evento","Achado","Evolução"],
+      ...timeline.map(item => [item.moment,item.event,item.finding,item.evolution])] },
+  );
   const stats = describe(workspace.dataset);
   if (workspace.collection) {
     const collection = workspace.collection, counts = selectionCounts(collection);

@@ -34,6 +34,7 @@ import { postAI } from "@/lib/ai/client-request";
 import { isAssistantOutput } from "@/lib/ai/assist";
 import { identifierHeader, identifierValue } from "@/lib/clinical/collection";
 
+import CaseTimeline from "./case-timeline";
 import DatasetTable from "./dataset-table";
 
 const steps = ["Preparar a coleta", "Adicionar e conferir dados", "Responder à pergunta", "Revisar e usar resultados"];
@@ -91,6 +92,13 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
   const clinical=Boolean(workspace.collection)||source==="clinical";
   const hasData=workspace.dataset.rows.length>0;
   const explanations=["Defina quais informações serão registradas. Se já tem uma planilha avulsa, escolha esse caminho abaixo.","Digite ou importe os dados e confira quem pode entrar no estudo. Visitas posteriores têm uma ficha própria.","Escolha a pergunta que deseja investigar. Você pode voltar e escolher outro caminho sem apagar suas análises.","Confira as tabelas e gráficos, salve os resultados e prepare o material do seu trabalho."];
+  const caseReport=/relato\s+de\s+caso|reporte\s+de\s+caso|case\s+report/i.test(protocol?.study_type||"");
+  if(caseReport)return <div className="results-guided space-y-4">
+    {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
+    {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando cronología…":"Carregando linha do tempo…"}</p>}
+    {ready&&<CaseTimeline events={workspace.caseTimeline||[]} onChange={caseTimeline=>change({...workspace,caseTimeline})} onSave={()=>void save()} busy={busy} dirty={dirty}/>}
+    {ready&&<Link href={`/manuscrito?projeto=${encodeURIComponent(projectId)}#section-results`} className="inline-block text-teal underline">{spanish?"Abrir resultados en el manuscrito":"Abrir resultados no manuscrito"}</Link>}
+  </div>;
   return <div className="results-guided"><ProjectGuide key={projectId} projectId={projectId} title={title} workspace={workspace} stage={step} question={question} dirty={dirty} disabled={!ready||busy} source={clinical?"clinical":"csv"} onNavigate={navigateFromGuide} onTransfer={text=>{if(!ready||busy)return;if(dirty){setMessage("Salve os resultados antes de enviar ao manuscrito. O rascunho continua no assistente.");return;}try{sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));window.location.assign(`/manuscrito?projeto=${projectId}`);}catch{setMessage("Não foi possível preparar a transferência neste navegador. Copie o texto revisado.");}}} onQuestion={id=>{if(!ready||busy||![...questions.map(q=>q.key),"general"].includes(id))return false;setQuestion(id);go(2);return true;}}/><div className="sticky top-3 z-20 rounded-card border bg-white p-3 mb-5 shadow-sm flex flex-wrap gap-3 items-center"><button disabled={!ready||busy||!dirty} onClick={save} className="bg-teal text-white p-3 rounded-card disabled:opacity-40">{busy?"Aguarde…":uiText("screen.d535d30c453c")}</button><span role="status" className="text-sm text-ink-soft">{dirty?uiText("screen.da5585beca57"):ready?"Pronto para editar":loadFailed?uiText("screen.a09f16b00998"):uiText("screen.df062fa03285")}</span><Link href={`/documentos?projeto=${projectId}`} className="text-teal underline"><InterfaceText message="screen.a55b518cc200" /></Link><p className="w-full text-xs text-ink-soft"><InterfaceText message="screen.33c5cc388629" /></p></div>
   <nav aria-label={uiText("screen.ada15438a1d3")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-5">{steps.map((label,i)=><button key={label} type="button" disabled={!ready||busy} aria-current={step===i?"step":undefined} onClick={()=>go(i)} className={`rounded-card border p-4 text-left text-sm disabled:opacity-40 ${step===i?"bg-teal text-white":"bg-white text-teal"}`}><span className="block text-xs mb-1">Etapa {i+1} de 4</span>{label}</button>)}</nav>
   <div className="mb-5"><h2 ref={stepHeading} tabIndex={-1} className="font-display text-2xl scroll-mt-40"><AuthoredText text={steps[step]} /></h2><p className="text-sm text-ink-soft mt-2"><AuthoredText text={explanations[step]} /></p></div>
