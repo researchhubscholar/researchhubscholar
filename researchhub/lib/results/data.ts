@@ -14,7 +14,7 @@ export const emptyResults: ResultsWorkspace = { dataset: { columns: [], rows: []
 export function parseCsv(text: string): Dataset {
   const source = text.replace(/^\uFEFF/, "");
   const firstLine = source.split(/\r?\n/)[0];
-  const delimiter = firstLine.split(";").length > firstLine.split(",").length ? ";" : ",";
+  const delimiter = firstLine.includes("\t") ? "\t" : firstLine.split(";").length > firstLine.split(",").length ? ";" : ",";
   const rows: string[][] = []; let row: string[] = [], value = "", quoted = false;
   for (let i = 0; i < source.length; i++) {
     const c = source[i];
