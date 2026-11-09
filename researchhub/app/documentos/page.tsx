@@ -1,3 +1,4 @@
+import { RememberProjectStage } from "@/components/projects/project-resume";
 import ActiveProjectPicker from "@/components/projects/active-project-picker";
 import AuthoredText from "@/components/i18n/authored-text";
 import InterfaceText from "@/components/i18n/interface-text";
@@ -53,7 +54,7 @@ export default async function DocumentsPage({searchParams}:{searchParams:Promise
     milestones:(milestoneRows||[]).map(row=>({key:row.milestone_key,label:milestoneLabels[row.milestone_key]||row.milestone_key,status:row.status,note:row.note||"",dueDate:row.due_date||""})),
     generatedAt:new Date().toISOString(),
   };
-  return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto">
+  return <div className="scholar-workspace secondary-page documents-page max-w-5xl mx-auto"><RememberProjectStage ownerId={user.id} projectId={project.id} stage="documents" />
     <header className="documents-hero flex flex-wrap justify-between gap-4 items-start"><div><Link href={`/meu-trabalho?id=${project.id}`} className="text-sm text-teal"><InterfaceText message="screen.997879846ae5" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.25609cbcecca" /></p><h1 className="font-display text-4xl md:text-5xl mt-3"><InterfaceText message="screen.f96d20bcedcc" /></h1><p className="text-ink-soft mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.196f85329361" /></p></div>
       <ActiveProjectPicker area="documentos" key={project.id} currentId={project.id} options={(projects || []).map(item => ({ id: item.id, label: item.title || item.theme || uiText("screen.53d02a124b87") }))} />
     </header>

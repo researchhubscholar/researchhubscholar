@@ -1,3 +1,4 @@
+import { ResumeProject } from "@/components/projects/project-resume";
 import { isAdvisorOnly } from "@/lib/access/advisor-mode";
 import { intlLocale } from "@/lib/i18n/format";
 import AuthoredText from "@/components/i18n/authored-text";
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
       <p className="text-xs uppercase tracking-widest text-teal-soft"><InterfaceText message="screen.044bb68cf0c8" /></p>
       <h1 className="font-display text-4xl md:text-5xl mt-4"><InterfaceText message="screen.85fe1ca05112" /> {name}<InterfaceText message="screen.5f2be26535f9" /></h1>
       <p className="text-white/70 mt-4 max-w-2xl leading-relaxed"><InterfaceText message="screen.5b095e7adf65" /></p>
-      <div className="workspace-hero-actions flex flex-wrap gap-3 mt-6"><Link href={latest ? `/meu-trabalho?id=${latest.id}` : "/ideias"} className="workspace-primary-action bg-white text-ink rounded-card px-5 py-3 font-medium">{latest ? uiText("screen.f126b8644562") : uiText("screen.a1ce526d0102")}</Link><Link href="/ideias" className="workspace-secondary-action border border-white/30 rounded-card px-5 py-3"><InterfaceText message="screen.c260f7a00b7e" /></Link></div>
+      <div className="workspace-hero-actions flex flex-wrap items-start gap-3 mt-6">{latest ? <ResumeProject ownerId={user.id} projects={projects.map(project => ({ id: project.id, title: project.title || project.theme || uiText("screen.53d02a124b87") }))} /> : <Link href="/ideias" className="workspace-primary-action bg-white text-ink rounded-card px-5 py-3 font-medium">{uiText("screen.a1ce526d0102")}</Link>}<Link href="/ideias" className="workspace-secondary-action border border-white/30 rounded-card px-5 py-3"><InterfaceText message="screen.c260f7a00b7e" /></Link></div>
     </section>
     {profile && !profile.onboarding_completed && <div className="mt-5 bg-teal-soft border border-teal/20 p-4 rounded-card text-sm"><InterfaceText message="screen.fdb6161f386c" /> <Link href="/scholar/onboarding" className="text-teal font-medium underline">Completar perfil</Link></div>}
     <section className="workspace-metrics workspace-summary grid sm:grid-cols-3 gap-4 mt-6" aria-label={uiText("screen.5136cb0f7b19")}>

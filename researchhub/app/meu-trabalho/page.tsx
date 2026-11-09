@@ -1,4 +1,5 @@
 "use client";
+import { RememberProjectStage } from "@/components/projects/project-resume";
 import { dialogCopy } from "@/lib/i18n/interface-copy";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -233,7 +234,7 @@ export default function MeuTrabalhoPage() {
       const changedDuringSave = draftRevision.current !== savingRevision;
       setSaveState(changedDuringSave ? "idle" : "saved"); setDirty(changedDuringSave);
       setMessage((changedDuringSave ? "A versão enviada foi salva. As alterações mais recentes ainda estão pendentes." : "Projeto salvo na sua conta. Você pode abri-lo em Meu espaço.") + setupMessage + referenceMessage);
-      window.history.replaceState(null, "", `/meu-trabalho?id=${encodeURIComponent(data.id)}`);
+      window.history.replaceState(null, "", `/meu-trabalho?id=${encodeURIComponent(data.id)}${window.location.hash}`);
       try { if (changedDuringSave) { window.localStorage.setItem(storageKey, JSON.stringify({ ...latestDraft.current, _referenceIds: referenceFailure ? referenceIds : [], _projectId: data.id })); } else if (referenceFailure) window.localStorage.setItem(storageKey, JSON.stringify({ ...draft, _referenceIds: referenceIds, _projectId: data.id })); else window.localStorage.removeItem(storageKey); } catch { /* A cópia na conta foi confirmada. */ }
       return !changedDuringSave;
     } catch(error) {
@@ -273,7 +274,7 @@ export default function MeuTrabalhoPage() {
       <div role="status" className={`mt-4 rounded-card p-3 text-xs ${saveState === "saved" ? "bg-teal-soft text-teal" : saveState === "error" ? "bg-red-50 text-red-700" : "bg-white border border-line"}`}>{saveState === "loading" ? copy.waiting : dirty ? uiText("screen.da5585beca57") : saveState === "saved" ? copy.saved : saveState === "local" ? uiText("screen.caa4ae7d2e23") : loggedIn ? projectId ? copy.loaded : copy.draft : copy.signIn}</div>
       <nav aria-label={uiText("screen.8896ce31717e")} className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-1">{groups.map((g, i) => <a key={g.id} href={`#${g.id}`} className="text-sm rounded-card p-2 hover:bg-teal-soft"><span className="text-teal mr-2">{g.keys.every(k => draft[k].trim()) ? "✓" : String(i + 1).padStart(2, "0")}</span><AuthoredText text={g.title} /></a>)}</nav>{projectId && <Link href={radarHref} className="block text-sm text-teal mt-4"><InterfaceText message="screen.5f89d9da8dd0" /></Link>}<Link href="/biblioteca" className="block text-sm text-teal mt-3"><InterfaceText message="screen.238923bb78ef" /></Link>
     </aside>
-    <div className="project-content">
+    <div className="project-content">{loadedOwner && projectId && <RememberProjectStage ownerId={loadedOwner} projectId={projectId} stage="protocol" />}
       {loggedIn && !loadBlocked && (projectId || dirty) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
         <div className="min-w-0">
           <p role="status" className="font-semibold text-teal">{saveState === "loading" ? saveLabel.loading : saveFailed ? saveLabel.error : dirty ? saveLabel.pending : saveLabel.saved}</p>
