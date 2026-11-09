@@ -7,7 +7,8 @@ import { identifierHeader, identifierValue } from "../clinical/collection";
 export const guideStages=["Preparar a coleta","Adicionar e conferir dados","Responder à pergunta","Revisar e usar resultados"] as const;
 export const guideQuestions=["","profile","groups","paired","repeated","adjusted","general"] as const;
 export type GuideSnapshot={collection:boolean;records:number;included:number;pending:number;excluded:number;rows:number;fields:{label:string;kind:string}[];visits:{moments:number;completed:number;pending:number;missed:number};analyses:{title:string;status:"ready"|"pending"}[]};
-export type GuideInput={message:string;stage:number;question:string;dirty:boolean;draft:GuideSnapshot;area?:GuideArea;sourceIds?:string[];excerpt?:GuideExcerpt};
+export type DescriptiveRow={column:string;n:number;missing:number;mean:number|null;median:number|null;sd:number|null};
+export type GuideInput={message:string;stage:number;question:string;dirty:boolean;draft:GuideSnapshot;area?:GuideArea;sourceIds?:string[];excerpt?:GuideExcerpt;descriptive?:DescriptiveRow[]};
 export function guideText(value:unknown,max=600){return typeof value==="string"&&!identifierValue(value)?value.trim().slice(0,max):"";}
 export function guideSnapshot(w:ResultsWorkspace):GuideSnapshot {
  const c=w.collection,records=c?.records||[],visits=w.followup?.visits||[];
@@ -30,5 +31,18 @@ export function validateGuideInput(value:unknown):GuideInput {
  if(excerpt&&!["protocolo","manuscrito"].includes(String(v.area)))throw Error("Selecione trechos no Protocolo ou no Manuscrito.");
  const selectedSources=sourceIds(v.sourceIds);
  if(selectedSources.length&&v.area!=="biblioteca")throw Error("Selecione fontes na Biblioteca para esta conversa.");
- return {...(excerpt?{excerpt}:{}),sourceIds:selectedSources,...(v.area?{area:v.area as GuideArea}:{}),message:v.message.trim(),stage:Number(v.stage),question:String(v.question),dirty:v.dirty,draft:{collection:d.collection,records:count(d.records),included:count(d.included),pending:count(d.pending),excluded:count(d.excluded),rows:count(d.rows),fields,visits:{moments:count(d.visits.moments),completed:count(d.visits.completed),pending:count(d.visits.pending),missed:count(d.visits.missed)},analyses}};
+ let descriptive:DescriptiveRow[]|undefined;
+ if(v.descriptive!==undefined){
+  if(v.area!=="resultados"||excerpt||!Array.isArray(v.descriptive)||!v.descriptive.length||v.descriptive.length>40)throw Error("Tabela descritiva inválida.");
+  const metric=(value:unknown)=>{if(value===null)return null;if(typeof value!=="number"||!Number.isFinite(value))throw Error("Indicador descritivo inválido.");return value;};
+  descriptive=v.descriptive.map(row=>{
+   const column=guideText(row?.column,100);
+   if(!column||identifierHeader(column))return null;
+   const n=count(row.n),missing=count(row.missing);
+   if(n+missing!==d.rows)throw Error("As contagens não correspondem à tabela descritiva.");
+   return {column,n,missing,mean:metric(row.mean),median:metric(row.median),sd:metric(row.sd)};
+  }).filter((row):row is DescriptiveRow=>row!==null);
+  if(!descriptive.length)throw Error("Nenhuma variável disponível para interpretar.");
+ }
+ return {descriptive,...(excerpt?{excerpt}:{}),sourceIds:selectedSources,...(v.area?{area:v.area as GuideArea}:{}),message:v.message.trim(),stage:Number(v.stage),question:String(v.question),dirty:v.dirty,draft:{collection:d.collection,records:count(d.records),included:count(d.included),pending:count(d.pending),excluded:count(d.excluded),rows:count(d.rows),fields,visits:{moments:count(d.visits.moments),completed:count(d.visits.completed),pending:count(d.visits.pending),missed:count(d.visits.missed)},analyses}};
 }

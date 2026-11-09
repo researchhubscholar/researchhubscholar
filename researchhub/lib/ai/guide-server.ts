@@ -42,6 +42,12 @@ export async function prepareGuideContext(db:DB,userId:string,projectId:string|n
  if(!projectId){if(guideScope(area)==="project")throw Error("Selecione um projeto para conversar.");const turns=await guideHistory(db,userId,null,area);return {sources,message:input.message,areaKey:area,area:guideAreas[area].title,pageHelp:guideAreas[area].help,scope:"Conversa sem projeto. Use somente a mensagem e esta conversa. Nenhum protocolo, manuscrito ou dado de projeto foi consultado. Somente as referências explicitamente selecionadas em sources estão disponíveis. Ajude a explorar ideias ou tarefas avulsas, sem pressupor um estudo já definido.",history:turns.slice(-3).map(t=>({user:t.message,assistant:t.mode==="simulation"?"Simulação sem análise científica.":t.output.summary}))};}
  if(guideScope(area)==="general")throw Error("Esta conversa deve continuar sem projeto.");
  const project=await guideProject(db,userId,projectId);
+ if(input.descriptive)return {
+  areaKey:"resultados",
+  message:input.message,
+  descriptive:input.descriptive,
+  scope:"Interprete exclusivamente os indicadores já calculados na tabela descriptive. Não execute testes nem calcule novos indicadores. Não crie, complete ou estime dados. Explique padrões e ausências sem causalidade ou significância, sem inferir diferenças entre grupos e sem repetir números: os valores originais estão visíveis na tabela. Coloque a interpretação no summary, sem recomendações clínicas.",
+ };
  const [{data,error},turns]=await Promise.all([db.from("scholar_project_results").select("workspace").eq("project_id",projectId).eq("owner_id",userId).maybeSingle(),guideHistory(db,userId,projectId)]);
  if(error)throw Error("Não foi possível verificar os resultados salvos.");if(data?.workspace&&!validWorkspace(data.workspace))throw Error("Os resultados salvos precisam de revisão antes de usar o assistente.");
  let overview:unknown=null;
