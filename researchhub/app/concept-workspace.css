@@ -565,3 +565,31 @@ body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-wi
   outline: 2px solid #40735d;
   outline-offset: 3px;
 }
+
+/* Finish cream content surfaces and make action controls identifiable. */
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(div,section,article,form,details,p,span)[class*="bg-teal-soft"]:not([role="alert"]):not([aria-selected="true"]):not([aria-pressed="true"]) {
+  background: var(--workspace-paper);
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border:not(.text-white):not(.bg-teal):not(.bg-ink):not([class*="border-red"]):not([class*="text-red"]) {
+  background-color: var(--workspace-field);
+  color: var(--workspace-green);
+}
+body:has(.primary-nav[data-workspace="true"]) .radar-refinement-action button,
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).bg-ink,
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).bg-teal {
+  background: var(--workspace-green) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  border-radius: .5rem;
+}
+body:has(.primary-nav[data-workspace="true"]) .radar-refinement-action button:not(:disabled):hover,
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a):is(.bg-ink,.bg-teal):not(:disabled):hover {
+  background: #123d32 !important;
+}
+body:has(.primary-nav[data-workspace="true"]) .radar-refinement-action button:disabled {
+  opacity: .5;
+}
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-pressed="true"]:not(.bg-teal):not(.bg-ink),
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-selected="true"]:not(.bg-teal):not(.bg-ink) {
+  background-color: #dce7d8;
+}
