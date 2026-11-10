@@ -1,4 +1,6 @@
 "use client";
+import MethodReview from "@/components/research/method-review";
+import { manuscriptReview } from "@/lib/research/method-review";
 import { studyFormat } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 
@@ -433,6 +435,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
               <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={includeStudyTable} onChange={event => setIncludeStudyTable(event.target.checked)} />{locale === "es" ? "Incluir esta tabla al exportar a Word" : "Incluir esta tabela ao exportar para Word"}</label>
             </> : <p className="mt-3 text-sm">{locale === "es" ? "Vincula artículos al proyecto en la Biblioteca para crear la tabla." : "Vincule artigos ao projeto na Biblioteca para montar a tabela."}</p>}
           </details>}
+          {canEdit && section.section_key === "conclusion" && <MethodReview alerts={manuscriptReview(studyType, section.content, sections.find(item => item.section_key === "results")?.content || "", locale)} locale={locale} />}
           {canEdit && section.section_key !== "references" && <SectionAssistant sectionKey={section.section_key} heading={section.heading} content={section.content} projectId={project.id} project={project} sources={articles as WritingSource[]} apply={(original, proposed) => applySectionSuggestion(section.section_key, original, proposed)} />}
           <div className="border-t border-line mt-5 pt-4"><button type="button" onClick={() => setActiveReview(current => current === section.section_key ? null : section.section_key)} className="w-full flex items-center justify-between text-left"><span><span className="text-sm font-medium"><InterfaceText message="screen.6280528a838a" /></span><span className="text-xs text-ink-soft ml-2">{sectionComments.length} <InterfaceText message="screen.e66f9a7567ab" /> {sectionOpen} <InterfaceText message="screen.bd0fbdfd15b6" /></span></span><span className="text-teal">{activeReview === section.section_key ? "−" : "+"}</span></button>
             {activeReview === section.section_key && <div className="mt-4 space-y-4">
