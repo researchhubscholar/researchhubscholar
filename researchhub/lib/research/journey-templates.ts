@@ -1,3 +1,5 @@
+import { studyFormat } from "./study-format";
+
 export type JourneyStep = {
   key: string;
   label: string;
@@ -23,17 +25,18 @@ function replace(steps: JourneyStep[], key: string, patch: Partial<JourneyStep>)
 
 export function getJourneyTemplate(studyType = ""): JourneyStep[] {
   let steps = common.map((step) => ({ ...step, checklist: [...step.checklist] }));
-  if (/revisão/i.test(studyType)) {
+  const format = studyFormat(studyType);
+  if (format === "review" || format === "systematic") {
     steps = replace(steps, "design", { description: "Defina protocolo, bases, critérios e processo de seleção.", checklist: ["Tipo de revisão justificado", "Bases e estratégia definidas", "Critérios de seleção reproduzíveis"] });
     steps = replace(steps, "ethics", { description: "Registre a aplicabilidade ética e o tratamento de documentos e dados.", checklist: ["Necessidade de avaliação ética verificada", "Arquivos e dados protegidos", "Conflitos de interesse previstos"] });
     steps = replace(steps, "collection", { label: "Busca e seleção", description: "Execute a busca e registre o fluxo de seleção dos estudos.", checklist: ["Busca executada e datada", "Duplicados tratados", "Motivos de exclusão registrados"] });
     steps = replace(steps, "analysis", { label: "Síntese das evidências", description: "Compare resultados, qualidade e limitações dos estudos incluídos.", checklist: ["Matriz preenchida", "Qualidade ou risco de viés avaliado", "Divergências explicitadas"] });
-  } else if (/relato de caso/i.test(studyType)) {
+  } else if (format === "caseReport") {
     steps = replace(steps, "question", { label: "Mensagem e objetivo", description: "Defina o aprendizado clínico central e por que o caso merece ser relatado.", checklist: ["Mensagem central explícita", "Singularidade justificada", "Objetivo compatível com relato de caso"] });
     steps = replace(steps, "design", { label: "Estrutura do caso", description: "Organize linha do tempo, dados clínicos relevantes e discussão.", checklist: ["Linha do tempo", "Dados essenciais anonimizados", "Diagnósticos diferenciais considerados"] });
     steps = replace(steps, "ethics", { description: "Confirme consentimento, anonimização e regras institucionais.", checklist: ["Consentimento verificado", "Identificadores removidos", "Regra institucional conferida"] });
     steps = replace(steps, "collection", { label: "Documentação do caso", description: "Reúna somente informações clínicas necessárias e autorizadas.", checklist: ["Documentos autorizados", "Cronologia conferida", "Imagens anonimizadas quando aplicável"] });
-  } else if (/ensaio|coorte|caso-controle|transversal|observacional/i.test(studyType)) {
+  } else if (format === "transverse" || format === "caseControl" || /ensaio|coorte|observacional/i.test(studyType)) {
     steps = replace(steps, "collection", { description: "Planeje recrutamento, instrumento, qualidade e proteção da coleta.", checklist: ["População acessível", "Instrumento testado", "Controle de qualidade e segurança definido"] });
   }
   return steps;

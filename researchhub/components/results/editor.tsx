@@ -1,4 +1,5 @@
 "use client";
+import { studyFormat } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 import { dialogCopy } from "@/lib/i18n/interface-copy";
 
@@ -51,8 +52,8 @@ export default function ResultsEditor({projectId,title,protocol}:{projectId:stri
  const {locale:formatLocale}=useLanguage();
 const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(formatLocale),{maximumFractionDigits:3});
   const { t: uiText } = useLanguage();
-  const caseControl=/caso[s]?[\s–—-]+control(?:es)?|case[\s–—-]+control/i.test(protocol?.study_type||"");
-  const transverse=/transversal|cross[ -]sectional/i.test(protocol?.study_type||"");
+  const caseControl=studyFormat(protocol?.study_type || "") === "caseControl";
+  const transverse=studyFormat(protocol?.study_type || "") === "transverse";
   const [step,setStep]=useState(transverse||caseControl?1:0),[question,setQuestion]=useState(""),[source,setSource]=useState(transverse||caseControl?"csv":"clinical"),[visits,setVisits]=useState(false);
   const stepHeading=useRef<HTMLHeadingElement>(null);
   function go(next:number){setStep(next);requestAnimationFrame(()=>stepHeading.current?.focus());}
@@ -155,7 +156,7 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
       <span>{item.text}</span>
     </label>;
   }
-  const caseReport=/relato\s+de\s+caso|reporte\s+de\s+caso|case\s+report/i.test(protocol?.study_type||"");
+  const caseReport=studyFormat(protocol?.study_type || "") === "caseReport";
   if(caseReport)return <div className="results-guided space-y-4">
     {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
     {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando cronología…":"Carregando linha do tempo…"}</p>}

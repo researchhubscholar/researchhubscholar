@@ -1,4 +1,5 @@
 "use client";
+import { studyFormat } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 
 
@@ -80,8 +81,8 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
   const { t: uiText, locale } = useLanguage();
   const [includeStudyTable, setIncludeStudyTable] = useState(false);
   const studyType = project.study_type || "";
-  const systematicReview = /sistem[aá]tic|systematic|meta[- ]?an[aá]l/i.test(studyType);
-  const showStudyTable = canEdit && /revis[aã]o|revisi[oó]n|review/i.test(studyType) && !/sistem[aá]tic|systematic|meta[- ]?an[aá]l/i.test(studyType);
+  const systematicReview = studyFormat(studyType) === "systematic";
+  const showStudyTable = canEdit && studyFormat(studyType) === "review";
   const evidenceText = (value: unknown) => typeof value === "string" && value.trim() ? value : "—";
   const studyTable = canEdit && (showStudyTable || systematicReview) ? {
     title: locale === "es" ? "Tabla de estudios" : "Tabela de estudos",

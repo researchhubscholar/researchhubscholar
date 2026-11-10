@@ -1,4 +1,5 @@
 "use client";
+import { studyFormatText } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 
 import { dialogCopy } from "@/lib/i18n/interface-copy";
@@ -384,7 +385,7 @@ function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, ed
         <button type="button" className="idea-proposal-heading" aria-expanded={expanded} aria-disabled={expanded || undefined} aria-controls={contentId} onClick={() => { if (!expanded) onExpand(); }}>
           <span className="idea-proposal-chevron" aria-hidden="true" />
           <span className="idea-proposal-path"><AuthoredText text={pathLabels[index] || `CAMINHO ${index + 1}`} /></span>
-          {expanded && <span className="idea-proposal-study">{idea.studyType}</span>}
+          <span className="idea-proposal-study">{studyFormatText(idea.studyType, locale)}</span>
           <span className="idea-proposal-title font-display">{idea.title}</span>
         </button>
       </h3>
