@@ -489,7 +489,7 @@ body .mobile-nav .primary-nav-link.workspace-home-link:hover { background: #173e
 
 /* Soft green surfaces within the signed-in workspace; public/export palettes stay independent. */
 body:has(.primary-nav[data-workspace="true"]) {
-  --workspace-surface: #edf4ee;
+  --workspace-surface: #e9eee6;
   --workspace-field: #f5f8f3;
   --scholar-surface: var(--workspace-surface);
 }
