@@ -221,9 +221,21 @@ function DiscoverContent() {
   function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
   function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
+  const [savingArticleKey, setSavingArticleKey] = useState<string | null>(null);
+  const articleSaveLock = useRef(false);
+  const savingLabel = formatLocale === "es" ? "Guardando…" : "Salvando…";
   async function saveArticle(article: Article) {
-    const access = openAccess.results[articleKey(article)];
-    await library.saveArticle({ ...article, fullTextUrl: access?.status === "open" ? access.url : article.fullTextUrl }, projectId || null);
+    if (articleSaveLock.current || library.working) return;
+    const key = articleKey(article);
+    articleSaveLock.current = true;
+    setSavingArticleKey(key);
+    try {
+      const access = openAccess.results[key];
+      await library.saveArticle({ ...article, fullTextUrl: access?.status === "open" ? access.url : article.fullTextUrl }, projectId || null);
+    } finally {
+      articleSaveLock.current = false;
+      setSavingArticleKey(null);
+    }
   }
 
   async function browse(nextSource: string, nextSort: string) {
@@ -355,7 +367,7 @@ function DiscoverContent() {
           <p className="text-xs text-ink-soft mt-2">{lookupArticle.journal} · {lookupArticle.year} · {lookupArticle.pmid ? `PMID ${lookupArticle.pmid}` : `DOI ${lookupArticle.doi}`}</p>
           {lookupArticle.abstract && <details className="mt-3"><summary className="text-teal text-sm cursor-pointer"><InterfaceText message="screen.e0ac436e7868" /></summary><p className="text-sm mt-2">{lookupArticle.abstract}</p></details>}
           <OpenAccessStatus result={openAccess.results[articleKey(lookupArticle)]} loading={openAccess.loading.has(articleKey(lookupArticle))} onCheck={() => void openAccess.retry(lookupArticle)} />
-          <button disabled={library.loading || library.working || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? uiText("screen.ca1030e614c1") : uiText("screen.16caed53e0f7")}</button>
+          <button disabled={library.loading || library.working || savingArticleKey !== null || !library.userId || savedArticles.some(a => sameArticle(a, lookupArticle))} onClick={() => saveArticle(lookupArticle)} className="mt-3 text-sm bg-teal text-white px-4 py-2 rounded-card disabled:opacity-50">{savedArticles.some(a => sameArticle(a, lookupArticle)) ? uiText("screen.ca1030e614c1") : savingArticleKey === articleKey(lookupArticle) ? savingLabel : uiText("screen.16caed53e0f7")}</button>
         </div>}
       </details>
 
@@ -461,11 +473,11 @@ function DiscoverContent() {
 
                       <button
                         type="button"
-                        disabled={saved || library.loading || library.working || !library.userId}
+                        disabled={saved || library.loading || library.working || savingArticleKey !== null || !library.userId}
                         onClick={() => saveArticle(article)}
                         className={`shrink-0 self-start px-4 py-2.5 rounded-card text-sm font-medium ${saved ? "bg-teal-soft text-teal" : "bg-ink text-white hover:bg-ink/90"}`}
                       >
-                        {saved ? uiText("screen.ca1030e614c1") : library.working ? "Aguarde..." : uiText("screen.16caed53e0f7")}
+                        {saved ? uiText("screen.ca1030e614c1") : savingArticleKey === articleKey(article) ? savingLabel : uiText("screen.16caed53e0f7")}
                       </button>
                     </div>
                   </article>
