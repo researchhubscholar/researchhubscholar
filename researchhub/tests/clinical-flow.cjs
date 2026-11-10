@@ -35,10 +35,11 @@ function harness(initial = null) {
  });
  const Editor = load('components/results/editor.tsx', parentHooks.react, {
   '@/components/projects/use-unsaved-changes':{useUnsavedChanges(){}},
+  "@/lib/ai/client-request": {}, "@/lib/ai/assist": {}, "@/lib/clinical/collection": core, "./case-timeline": {}, "./dataset-table": {},
   '@/components/clinical/collection-panel': { default: Panel }, '@/components/clinical/comparison-panel': { default: 'comparison' }, '@/components/clinical/followup-panel': { default: 'followup' }, '@/components/clinical/paired-panel': { default: 'paired' }, '@/components/clinical/repeated-panel': { default: 'repeated' }, '@/components/clinical/adjusted-panel': { default: 'adjusted' }, '@/lib/clinical/summary': summary,
   './inference-panel': { default: 'inference' }, './saved-readings': { default: 'saved-readings' }, '@/components/ai/project-guide': {default:'project-guide'}, 'next/link': { default: 'link' }, '@/lib/results/data': data,
   '@/lib/results/transfer':require('../lib/results/transfer.ts'),'@/lib/ai/guide':require('../lib/ai/guide.ts'),'@/lib/ai/guide-actions':require('../lib/ai/guide-actions.ts'),'@/lib/results/figure': {}, '@/lib/exports/ooxml': exporter, '@/lib/exports/scientific': {}, '@/lib/results/word': word,
- }, { fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true, revision: 1 }) }; } return { ok: true, json: async () => ({ workspace: persisted, revision: persisted?1:null }) }; } });
+ }, { AbortSignal, fetch: async (url, options) => { requests.push({ url, options }); if (options?.method === 'PUT') { if (fail) return { ok: false, json: async () => ({ error: 'Falha de gravação' }) }; persisted = JSON.parse(options.body).workspace; assert(data.validWorkspace(persisted)); return { ok: true, json: async () => ({ ok: true, revision: 1 }) }; } return { ok: true, json: async () => ({ workspace: persisted, revision: persisted?1:null }) }; } });
  const renderParent = () => parentHooks.render(() => Editor({ projectId: 'project-a', title: 'Estudo de perfil', protocol }));
  const props = () => nodes(renderParent()).find(node => node.type === Panel).props;
  const render = () => panelHooks.render(() => Panel(props()));
@@ -106,7 +107,7 @@ function harness(initial = null) {
  h.button('Exportar ficha, coleta e Tabela 1 · Excel').props.onClick(); assert.equal(h.downloads.at(-1).file.sheets.find(sheet => sheet.name === 'Coleta').rows.length, 4);
  h.button('Baixar modelo CSV vazio').props.onClick(); assert(h.downloads.at(-1).text.includes('codigo_pesquisa')); assert(!h.downloads.at(-1).text.includes('P002'));
  h.fail(true); await h.save(); assert(visibleText(h.renderParent()).includes('Falha de gravação')); assert(visibleText(h.renderParent()).includes('Alterações ainda não salvas'));
- h.fail(false); await h.save(); assert(visibleText(h.renderParent()).includes('Pronto para editar')); assert.equal(h.persisted().collection.records.length, 3);
+ h.fail(false); await h.save(); assert(visibleText(h.renderParent()).includes('Salvo na conta')); assert.equal(h.persisted().collection.records.length, 3);
  const payload = JSON.parse(h.requests.filter(request => request.options?.method === 'PUT').at(-1).options.body); assert.equal(payload.project, 'project-a'); assert.equal(payload.workspace.dataset.rows.length, 2);
  press(h,'Etapa 3 de 4');press(h,'Considerar outras características');assert(visible(h.renderParent()).some(n=>n.type==='adjusted'));assert(!visible(h.renderParent()).some(n=>n.type==='comparison'));press(h,'Comparar grupos');assert(visible(h.renderParent()).some(n=>n.type==='comparison'));assert(!visible(h.renderParent()).some(n=>n.type==='adjusted'));
  const restored = harness(h.persisted()); restored.renderParent(); await tick(); assert.equal(restored.workspace().collection.records.length, 3);
