@@ -121,7 +121,7 @@ function BibliotecaContent() {
     return false;
   }
 
-  async function analyzeArticle(article: LibraryArticle) {
+  async function analyzeArticle(article: LibraryArticle, openSheet = false) {
     if (!article.abstract || analysisLock.current) return;
     analysisLock.current = true;
     setLoadingPmid(article.id);
@@ -136,7 +136,9 @@ function BibliotecaContent() {
       if (!response.ok) throw new Error(data?.error || "Falha na pré-análise");
       const next:SuggestionSet={objective:null,population:null,method:null,finding:null,limitation:null};
       for(const item of data.output?.recommendations||[]){if(item.targetField in next)next[item.targetField as SuggestionField]={value:item.content,source:item.source,confidence:item.confidence};}
+      if (!Object.values(next).some(Boolean)) throw new Error(locale === "es" ? "No se generaron sugerencias para este resumen." : "Não foram geradas sugestões para este resumo.");
       setSuggestions((prev) => ({ ...prev, [article.id]: next }));
+      if (openSheet) router.push(libraryHref(article.id, true));
     } catch (error) {
       setErrors((prev) => ({ ...prev, [article.id]: error instanceof Error ? error.message : "Não foi possível analisar o artigo." }));
     } finally {
@@ -371,11 +373,12 @@ function BibliotecaContent() {
                 </div>
                 <div className="flex w-full min-w-0 max-w-full flex-wrap gap-2 self-start lg:flex-col">
                   <label className="w-full min-w-0 max-w-lg text-xs text-ink-soft"><InterfaceText message="library.primaryProject" /><select aria-label={localizeInterfaceCopy(locale, `Projeto do artigo ${article.title}`)} value={article.projectId || ""} disabled={library.working} onChange={e => library.assignProject(article.id, e.target.value || null)} className="mt-1 block w-full min-w-0 max-w-full truncate rounded-card border border-line px-2 py-2"><option value=""><InterfaceText message="library.noPrimary" /></option>{library.projects.map(project => <option key={project.id} value={project.id}>{project.title || project.theme || uiText("screen.53d02a124b87")}</option>)}</select></label>
-                  <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? uiText("library.analyzing") : uiText("library.analyze")}</button>
+                  <button disabled={library.working || !article.abstract || Boolean(loadingPmid)} onClick={() => analyzeArticle(article, true)} className="text-xs text-white bg-ink px-3 py-2 rounded-card disabled:opacity-40">{loadingPmid === article.id ? uiText("library.analyzing") : uiText("library.analyze")}</button>
                   <Link href={libraryHref(article.id,true)} className="text-xs text-teal border border-teal/30 px-3 py-2 rounded-card">{locale==="es"?"Abrir ficha de evidencias":"Abrir ficha de evidências"}</Link>
                   <button disabled={library.working} onClick={() => removeArticle(article.id)} className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-card hover:bg-red-50"><InterfaceText message="library.remove" /></button>
                 </div>
               </div>
+              {errors[article.id] && <p role="alert" className="mt-4 text-sm text-red-700"><AuthoredText text={errors[article.id]} /></p>}
               <section className="library-reading-notes mt-6 border-t border-line pt-5">
                 <label htmlFor={`reading-notes-${article.id}`} className="font-display text-2xl"><InterfaceText message="library.notes" /></label>
                 <p className="text-xs text-ink-soft mt-2"><InterfaceText message="library.notesHelp" /></p>
