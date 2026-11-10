@@ -559,3 +559,27 @@ body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-list,.library
   border-color: var(--workspace-line);
 }
 body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table :is(th,td) { border-color: var(--workspace-line); }
+
+/* Border-light trial: surface contrast defines groups; keyboard focus stays visible. */
+body:has(.primary-nav[data-workspace="true"]) {
+  --workspace-line: #e0e6dc;
+  --workspace-control-line: #dde5d8;
+  --workspace-action-line: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(
+  .ideas-main-form,.idea-proposal-card,.radar-search-panel,.radar-utility-bar,
+  .library-controls,.library-pdf-dialog,.library-matrix-card,.document-matrix,
+  .project-stage-card,.review-bell-panel,.project-guide-answer
+) { border-color: transparent; box-shadow: none; }
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(section,article,form,div,details).border.border-line {
+  border-color: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-article-card > .library-organize {
+  border-color: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border.border-line:not(.bg-teal):not(.bg-ink):not(.text-white) {
+  background-color: var(--workspace-surface); border-color: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white):hover {
+  border-color: #d3dece;
+}
