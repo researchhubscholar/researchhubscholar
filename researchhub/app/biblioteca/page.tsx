@@ -1,4 +1,5 @@
 "use client";
+import ProjectLiteraturePath from "@/components/projects/project-literature-path";
 import { dialogCopy, localizeInterfaceCopy } from "@/lib/i18n/interface-copy";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -57,6 +58,7 @@ function BibliotecaContent() {
   const library = useLibrary();
   const params = useSearchParams();
   const [projectFilter, setProjectFilter] = useState(params.get("projeto") || "all");
+  const linkedProject = library.projects.find(project => project.id === projectFilter);
   const [drafts, setDrafts] = useState<Record<string, EvidenceNote>>({});
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
@@ -175,6 +177,8 @@ function BibliotecaContent() {
         </div>
       </header>
 
+
+      {linkedProject && <ProjectLiteraturePath project={linkedProject} count={library.articles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={locale} />}
 
       <section className="library-controls mt-6 bg-white border border-line rounded-2xl p-5">
         {(library.loading || !library.userId) && <p role="status" className="text-sm text-ink-soft">{library.loading ? uiText("library.loading") : uiText("library.signin")}</p>}

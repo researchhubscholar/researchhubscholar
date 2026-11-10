@@ -5,7 +5,7 @@ import type { StudyDesign } from "./matrix-template";
 export type ReadingStatus = "unread" | "reading" | "reviewed" | "excluded";
 export type LibraryArticle = Article & { id: string; projectId: string | null; projectIds: string[]; readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string };
 export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string; sampleSize?: string; intervention?: string; comparator?: string; outcomes?: string; evidenceLevel?: string; riskOfBias?: string; generalNotes?: string };
-export type ResearchProject = { id: string; title: string | null; theme: string | null };
+export type ResearchProject = { id: string; title: string | null; theme: string | null; study_type?: string | null };
 export const noteFields = ["objective", "population", "method", "finding", "limitation", "sampleSize", "intervention", "comparator", "outcomes", "evidenceLevel", "riskOfBias", "generalNotes"] as const;
 const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation", sampleSize: "sample_size", intervention: "intervention", comparator: "comparator", outcomes: "outcomes", evidenceLevel: "evidence_level", riskOfBias: "risk_of_bias", generalNotes: "notes" };
 const confirmableFields = new Set(["objective", "population", "method", "finding", "limitation"]);
@@ -51,7 +51,7 @@ export class LibraryStore {
     const [articleRows, noteRows, linkRows, projectsResult] = await Promise.all([
       this.allRows("library_articles"), this.allRows("evidence_matrix"),
       this.optionalRows("library_article_projects"),
-      this.db.from("research_projects").select("id,title,theme").eq("owner_id", this.ownerId).order("updated_at", { ascending: false }),
+      this.db.from("research_projects").select("id,title,theme,study_type").eq("owner_id", this.ownerId).order("updated_at", { ascending: false }),
     ]);
     this.check(projectsResult.error);
     const notes: Record<string, EvidenceNote> = {};

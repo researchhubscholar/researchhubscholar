@@ -1,4 +1,5 @@
 "use client";
+import ProjectLiteraturePath from "@/components/projects/project-literature-path";
 import { intlLocale } from "@/lib/i18n/format";
 
 import AuthoredText from "@/components/i18n/authored-text";
@@ -108,6 +109,7 @@ function DiscoverContent() {
   const library = useLibrary();
   const savedArticles = library.articles;
   const [projectId, setProjectId] = useState(params.get("projeto") || "");
+  const linkedProject = library.projects.find(project => project.id === projectId);
   const [articles, setArticles] = useState<Article[]>([]);
   const [source, setSource] = useState("pubmed");
   const [sort, setSort] = useState("recent");
@@ -281,7 +283,9 @@ function DiscoverContent() {
       {params.get("origem")==="assistente"&&<p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal"><InterfaceText message="screen.41f2f15677f8" /></p>}
       {params.get("origem") === "ideias" && <p role="status" className="mt-6 rounded-card bg-teal-soft p-4 text-sm text-teal"><InterfaceText message="screen.063ed0cd5381" /> <Link href="/ideias" className="underline"><InterfaceText message="screen.d08eb8b43f90" /></Link></p>}
 
-      {params.get("origem") === "projeto" && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c5971fc6df9e" /></p><h2 className="font-display text-xl mt-2"><InterfaceText message="screen.4504ece4c91e" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7b37c70f8eb" /></p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal"><InterfaceText message="screen.324fd80fa0d9" /></Link>}</section>}
+      {params.get("origem") === "projeto" && !linkedProject && <section className="mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5 flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c5971fc6df9e" /></p><h2 className="font-display text-xl mt-2"><InterfaceText message="screen.4504ece4c91e" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.f7b37c70f8eb" /></p></div>{projectId && <Link href={`/meu-trabalho?id=${projectId}`} className="text-sm text-teal"><InterfaceText message="screen.324fd80fa0d9" /></Link>}</section>}
+
+      {linkedProject && <ProjectLiteraturePath project={linkedProject} count={library.articles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
 
       <form id="preparar-busca-ia" onSubmit={analyze} className="scroll-mt-24 module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input ref={queryInput} aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
@@ -413,6 +417,7 @@ function DiscoverContent() {
             <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.54a245bc407b")} />
           </section>
 
+          {linkedProject && <ProjectLiteraturePath project={linkedProject} count={savedArticles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>

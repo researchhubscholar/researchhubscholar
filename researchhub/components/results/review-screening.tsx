@@ -6,7 +6,7 @@ import { useLanguage } from "@/components/i18n/language-provider";
 import { useUnsavedChanges } from "@/components/projects/use-unsaved-changes";
 import { emptyResults, validWorkspace, type ResultsWorkspace, type ReviewDecision } from "@/lib/results/data";
 
-export default function ReviewScreening({ projectId, articles }: { projectId: string; articles: { id: string; title: string }[] }) {
+export default function ReviewScreening({ projectId, articles }: { projectId: string; articles: { id: string; title: string; abstract?: string | null }[] }) {
   const { locale } = useLanguage();
   const es = locale === "es";
   const labels = es ? { pending:"Pendiente", included:"Incluido", excluded:"Excluido" } : { pending:"Pendente", included:"Incluído", excluded:"Excluído" };
@@ -72,8 +72,14 @@ export default function ReviewScreening({ projectId, articles }: { projectId: st
         {articles.filter(article=>filter==="all" || (byId.get(article.id)?.status ?? "pending")===filter).map(article=>{
           const item=byId.get(article.id);
           return <li key={article.id} className="grid gap-3 py-3 sm:grid-cols-[1fr_auto]">
-            <p className="text-sm font-medium">{article.title}</p>
-            <select aria-label={`${es?"Decisión":"Decisão"}: ${article.title}`} value={item?.status ?? "pending"} onChange={event=>change(article.id,event.target.value as ReviewDecision["status"],item?.reason)} className="rounded-card border p-2 text-sm">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{article.title}</p>
+              {article.abstract?.trim() ? <details className="mt-2 rounded-card border border-line p-3 text-sm">
+                <summary className="cursor-pointer font-medium text-teal">{es ? "Leer resumen" : "Ler resumo"}</summary>
+                <p className="mt-2 whitespace-pre-wrap break-words">{article.abstract}</p>
+              </details> : <p className="mt-2 text-xs text-ink-soft">{es ? "Resumen no disponible. Puedes dejar el estudio pendiente para consultar el texto completo." : "Resumo indisponível. Você pode deixar o estudo pendente para consultar o texto completo."}</p>}
+            </div>
+            <select aria-label={`${es?"Decisión":"Decisão"}: ${article.title}`} value={item?.status ?? "pending"} onChange={event=>change(article.id,event.target.value as ReviewDecision["status"],item?.reason)} className="self-start rounded-card border p-2 text-sm">
               {(Object.keys(labels) as (keyof typeof labels)[]).map(status=><option key={status} value={status}>{labels[status]}</option>)}
             </select>
             {item?.status==="excluded" && <label className="text-sm sm:col-span-2">{es?"Motivo de exclusión":"Motivo da exclusão"}
