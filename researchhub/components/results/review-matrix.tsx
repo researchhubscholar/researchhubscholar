@@ -39,7 +39,7 @@ export default function ReviewMatrix({ projectId, systematic }: { projectId: str
     onSave: async () => { for (const id of Object.keys(drafts)) if (!await save(id)) return false; return true; },
     onDiscard: () => setDrafts({}),
   });
-  return <>{systematic && <ReviewScreening projectId={projectId} articles={articles} />}<section className="rounded-2xl border border-line bg-white p-5 md:p-7">
+  return <>{systematic && <ReviewScreening projectId={projectId} articles={articles} />}<section id="matriz" className="scroll-mt-28 rounded-2xl border border-line bg-white p-5 md:p-7">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="font-display text-2xl">{es ? "Matriz de estudios" : "Matriz de estudos"}</h2>

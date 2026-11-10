@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { useUnsavedChanges } from "@/components/projects/use-unsaved-changes";
@@ -13,7 +14,9 @@ export default function ReviewScreening({ projectId, articles }: { projectId: st
   const [dirty,setDirty] = useState(false);
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
-  const [filter,setFilter] = useState("all");
+  const [filter,setFilter] = useState(() => "all");
+  const pendingOnly = useSearchParams().get("triagem") === "pendentes";
+  useEffect(() => { setFilter(pendingOnly ? "pending" : "all"); }, [pendingOnly]);
   const revision = useRef<number | null>(null);
   const lock = useRef(false);
   const url = `/api/results?project=${encodeURIComponent(projectId)}`;
@@ -55,7 +58,7 @@ export default function ReviewScreening({ projectId, articles }: { projectId: st
     } finally { lock.current = false; setBusy(false); }
   }
   useUnsavedChanges({label:es?"Selección de estudios":"Triagem de estudos",dirty,busy,onSave:save});
-  return <section className="mb-5 rounded-2xl border border-line bg-white p-5 md:p-7">
+  return <section id="triagem" className="scroll-mt-28 mb-5 rounded-2xl border border-line bg-white p-5 md:p-7">
     <h2 className="font-display text-2xl">{es?"Selección de estudios":"Triagem de estudos"}</h2>
     <p className="mt-2 text-sm text-ink-soft">{es?"Registra las decisiones sobre los artículos vinculados a esta revisión.":"Registre as decisões sobre os artigos vinculados a esta revisão."}</p>
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
