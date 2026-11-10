@@ -12,7 +12,7 @@ import InterfaceText from "@/components/i18n/interface-text";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { appliedPubmedStrategy, searchLimits } from "@/lib/literature/search-limits";
 import { postAI } from "@/lib/ai/client-request";
-import { normalizeSuggestionQuery } from "@/lib/literature/suggestion-query";
+import { normalizeSuggestionQuery, validateSuggestionQuery } from "@/lib/literature/suggestion-query";
 import { trackRadarAttempt } from "@/lib/telemetry/journey";
 import LoadingDialog from "@/components/ai/loading-dialog";
 import AssistantPanel from "@/components/ai/assistant-panel";
@@ -309,7 +309,16 @@ function DiscoverContent() {
       <form id="preparar-busca-ia" onSubmit={analyze} className="scroll-mt-24 module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
         <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input ref={queryInput} aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
 </div>
-      <AssistantPanel feature="radar" compact title={formatLocale==="es"?"Prepara tu estrategia de búsqueda":"Prepare sua estratégia de busca"} actionLabel={formatLocale==="es"?"Refinar con IA":"Refinar com IA"} disabled={loading || browsing || lookupLoading || topic.trim().length < 3} description={formatLocale==="es"?"Sugiere términos y sinónimos. Usa tu cuota de IA.":"Sugere termos e sinônimos. Usa sua franquia de IA."} context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);queryInput.current?.focus({preventScroll:true});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
+      <AssistantPanel feature="radar" compact title={formatLocale==="es"?"Prepara tu estrategia de búsqueda":"Prepare sua estratégia de busca"} actionLabel={formatLocale==="es"?"Refinar con IA":"Refinar com IA"} disabled={loading || browsing || lookupLoading || topic.trim().length < 3} description={formatLocale==="es"?"Sugiere términos y sinónimos. Usa tu cuota de IA.":"Sugere termos e sinônimos. Usa sua franquia de IA."} context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onAutoApply={items=>{
+        const item=items.find(candidate=>candidate.targetField==="pubmedQuery" && candidate.confidence!=="baixa");
+        if(!item || searchLock.current || queryInput.current?.value !== topic) return false;
+        try {
+          const prepared=appliedPubmedStrategy(validateSuggestionQuery(normalizeSuggestionQuery(item.content)));
+          setTopic(prepared.topic);setMesh("");setPopulationTerm("");setOutcomeTerm("");setOperator(prepared.operator);setLanguage(prepared.language);
+          void runAnalysis({},period,prepared);
+          return true;
+        } catch { return false; }
+      }} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);queryInput.current?.focus({preventScroll:true});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
           {loading ? "Consultando PubMed..." : uiText("screen.96767be14e59")}
         </button>
