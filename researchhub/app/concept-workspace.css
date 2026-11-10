@@ -515,3 +515,47 @@ body:has(.primary-nav[data-workspace="true"]) :is(.library-pdf-trigger,.library-
 body:has(.primary-nav[data-workspace="true"]) .language-selector button[aria-pressed="true"] {
   background: var(--workspace-field);
 }
+
+
+/* Approved border hierarchy: quiet panels, defined controls and restrained dividers. */
+body:has(.primary-nav[data-workspace="true"]) {
+  --workspace-line: #d3dcd0;
+  --workspace-control-line: #a8b9a7;
+  --workspace-action-line: #9aaf9f;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.review-bell-panel) :is(
+  .border-line,.divide-line > :not([hidden]) ~ :not([hidden]),hr
+) { border-color: var(--workspace-line); }
+body:has(.primary-nav[data-workspace="true"]) :is(
+  .ideas-main-form,.idea-proposal-card,.radar-search-panel,.radar-utility-bar,
+  .library-controls,.library-pdf-dialog,.library-matrix-card,.document-matrix,
+  .project-stage-card,.review-bell-panel
+) { border-color: var(--workspace-line); border-radius: .75rem; box-shadow: none; }
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),textarea,select
+) {
+  border-color: var(--workspace-control-line);
+  border-width: 1px;
+  border-radius: .5rem;
+  box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
+  input:not([type="checkbox"]):not([type="radio"]),textarea,select
+):focus-visible { border-color: #40735d; outline: 2px solid #40735d; outline-offset: 2px; }
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white),
+body:has(.primary-nav[data-workspace="true"]) :is(.library-pdf-trigger,.library-pdf-download,.library-export-trigger),
+body:has(.primary-nav[data-workspace="true"]) .library-extra-filters > summary {
+  border-color: var(--workspace-action-line);
+  border-radius: .5rem;
+  box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white):hover {
+  border-color: #789881;
+}
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-article-card > .library-organize {
+  background: var(--workspace-surface); border-color: var(--workspace-line); border-radius: .75rem;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-list,.library-reading-row,.project-guide-header,.project-guide-footer,.project-guide-answer) {
+  border-color: var(--workspace-line);
+}
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table :is(th,td) { border-color: var(--workspace-line); }
