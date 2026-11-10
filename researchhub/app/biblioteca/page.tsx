@@ -83,7 +83,10 @@ function BibliotecaContent() {
   const notes = { ...library.notes, ...drafts };
   const duplicateGroups = useMemo(() => findDuplicateGroups(library.articles), [library.articles]);
   const [sourceError,setSourceError]=useState("");
+  const [matrixQuery,setMatrixQuery]=useState("");
   const [comparison, setComparison] = useState<string[]>([]);
+  const comparedArticles=articles.filter(article=>comparison.includes(article.id));
+  const matrixChoices=articles.filter(article=>article.title.toLocaleLowerCase().includes(matrixQuery.trim().toLocaleLowerCase()));
   const [view, setView] = useState<"library" | "matrix">("library");
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionSet>>({});
   const analysisLock = useRef(false);
@@ -264,14 +267,25 @@ function BibliotecaContent() {
         </details>
       )}
 
-      {view === "matrix" && library.userId && !library.loading && <section className="library-compare mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl"><InterfaceText message="screen.35ee85ea46d7" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.81c9b115fa7e" /></p><div className="space-y-2 mt-4">{articles.map(article => <label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id) && comparison.length >= 5} onChange={e => setComparison(ids => e.target.checked ? [...ids, article.id] : ids.filter(id => id !== article.id))} className="mt-1" />{article.title}</label>)}</div>
-      {articles.filter(article => comparison.includes(article.id)).length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3"><InterfaceText message="screen.dbb242947ed8" /></caption><thead><tr><th scope="col" className="p-3">Campo</th>{articles.filter(article => comparison.includes(article.id)).map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1"><AuthoredText text={designLabels[resolvedStudyDesign(article)]} /></span>{dirty[article.id] && <span className="block text-xs text-amber"><InterfaceText message="library.unsaved" /></span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top"><AuthoredText text={label} /></th>{articles.filter(article => comparison.includes(article.id)).map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || uiText("screen.2346695afd53")}</td>)}</tr>)}</tbody></table></div>}</section>}
-      {view === "matrix" && comparison.length >= 2 && <AssistantPanel
+      {view === "matrix" && library.userId && !library.loading && <section className="library-compare mt-5 bg-white border border-line rounded-2xl p-5"><h2 className="font-display text-2xl"><InterfaceText message="screen.35ee85ea46d7" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.81c9b115fa7e" /></p><div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <strong>{comparedArticles.length}/5 {locale==="es"?"seleccionados":"selecionados"}</strong>
+        {comparedArticles.map(article=><button type="button" key={article.id} className="rounded-card border border-line px-2 py-1 text-left" onClick={()=>setComparison(ids=>ids.filter(id=>id!==article.id))} aria-label={`${locale==="es"?"Quitar":"Remover"}: ${article.title}`}>{article.title} ×</button>)}
+        {comparedArticles.length>0&&<button type="button" className="text-teal underline" onClick={()=>setComparison(ids=>ids.filter(id=>!comparedArticles.some(article=>article.id===id)))}>{locale==="es"?"Limpiar selección":"Limpar seleção"}</button>}
+      </div>
+      <label className="mt-4 block text-sm">{locale==="es"?"Buscar artículos por título":"Buscar artigos por título"}
+        <input type="search" value={matrixQuery} onChange={event=>setMatrixQuery(event.target.value)} className="mt-1 block w-full rounded-card border border-line px-3 py-2" />
+      </label>
+      <div className="mt-3 max-h-48 space-y-2 overflow-y-auto rounded-card border border-line p-3">{matrixChoices.map(article=><label key={article.id} className="flex items-start gap-2 text-sm"><input type="checkbox" checked={comparison.includes(article.id)} disabled={!comparison.includes(article.id)&&comparedArticles.length>=5} onChange={event=>{const checked=event.target.checked;setComparison(ids=>checked?[...ids,article.id]:ids.filter(id=>id!==article.id));}} className="mt-1"/>{article.title}</label>)}
+        {!matrixChoices.length&&<p className="text-sm text-ink-soft">{locale==="es"?"Ningún artículo encontrado en este filtro.":"Nenhum artigo encontrado neste recorte."}</p>}
+      </div>
+      {comparedArticles.length<2&&<p className="mt-3 text-sm text-ink-soft">{locale==="es"?"Elige al menos dos artículos para ver la tabla.":"Escolha pelo menos dois artigos para ver a tabela."}</p>}
+      {comparedArticles.length >= 2 && <div className="overflow-x-auto mt-5"><table className="w-full text-sm text-left"><caption className="text-left text-xs text-ink-soft mb-3"><InterfaceText message="screen.dbb242947ed8" /></caption><thead><tr><th scope="col" className="p-3">Campo</th>{comparedArticles.map(article => <th scope="col" key={article.id} className="p-3 min-w-60">{article.title}<span className="block text-xs text-teal mt-1"><AuthoredText text={designLabels[resolvedStudyDesign(article)]} /></span>{dirty[article.id] && <span className="block text-xs text-amber"><InterfaceText message="library.unsaved" /></span>}</th>)}</tr></thead><tbody>{([ ["Objetivo", "objective"], ["População", "population"], ["Método", "method"], ["Tamanho da amostra", "sampleSize"], ["Intervenção / exposição", "intervention"], ["Comparador", "comparator"], ["Desfechos", "outcomes"], ["Achado", "finding"], ["Limitação", "limitation"], ["Nível de evidência", "evidenceLevel"], ["Risco de viés", "riskOfBias"], ["Notas gerais", "generalNotes"] ] as const).map(([label, key]) => <tr key={key} className="border-t border-line"><th scope="row" className="p-3 align-top"><AuthoredText text={label} /></th>{comparedArticles.map(article => <td key={article.id} className="p-3 align-top text-ink-soft whitespace-pre-wrap">{notes[article.id]?.[key] || uiText("screen.2346695afd53")}</td>)}</tr>)}</tbody></table></div>}</section>}
+      {view === "matrix" && comparedArticles.length >= 2 && <AssistantPanel
         feature="matrix"
         title={uiText("screen.808630f5f236")}
         description={uiText("screen.d0692b943f01")}
         projectId={projectFilter !== "all" && projectFilter !== "none" ? projectFilter : null}
-        context={articles.filter(article => comparison.includes(article.id)).map(article => ({ id: article.id, title: article.title, doi: article.doi, pmid: article.pmid, abstract: article.abstract, notes: notes[article.id] || {} }))}
+        context={comparedArticles.map(article => ({ id: article.id, title: article.title, doi: article.doi, pmid: article.pmid, abstract: article.abstract, notes: notes[article.id] || {} }))}
       />}
 
       {library.loading ? <p className="mt-8 text-sm text-ink-soft"><InterfaceText message="library.loadingArticles" /></p> : !library.userId ? null : articles.length === 0 ? (
