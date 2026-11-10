@@ -5,7 +5,7 @@ import type { StudyDesign } from "./matrix-template";
 export type ReadingStatus = "unread" | "reading" | "reviewed" | "excluded";
 export type LibraryArticle = Article & { id: string; projectId: string | null; projectIds: string[]; readingStatus: ReadingStatus; favorite: boolean; tags: string[]; folder: string; studyDesign: StudyDesign; exclusionReason: string; fullTextUrl: string };
 export type EvidenceNote = { objective?: string; population?: string; method?: string; finding?: string; limitation?: string; sampleSize?: string; intervention?: string; comparator?: string; outcomes?: string; evidenceLevel?: string; riskOfBias?: string; generalNotes?: string };
-export type ResearchProject = { id: string; title: string | null; theme: string | null };
+export type ResearchProject = { id: string; title: string | null; theme: string | null; study_type?: string | null };
 export const noteFields = ["objective", "population", "method", "finding", "limitation", "sampleSize", "intervention", "comparator", "outcomes", "evidenceLevel", "riskOfBias", "generalNotes"] as const;
 const dbFields = { objective: "objective", population: "population", method: "method", finding: "main_finding", limitation: "limitation", sampleSize: "sample_size", intervention: "intervention", comparator: "comparator", outcomes: "outcomes", evidenceLevel: "evidence_level", riskOfBias: "risk_of_bias", generalNotes: "notes" };
 const confirmableFields = new Set(["objective", "population", "method", "finding", "limitation"]);
@@ -51,7 +51,7 @@ export class LibraryStore {
     const [articleRows, noteRows, linkRows, projectsResult] = await Promise.all([
       this.allRows("library_articles"), this.allRows("evidence_matrix"),
       this.optionalRows("library_article_projects"),
-      this.db.from("research_projects").select("id,title,theme").eq("owner_id", this.ownerId).order("updated_at", { ascending: false }),
+      this.db.from("research_projects").select("id,title,theme,study_type").eq("owner_id", this.ownerId).order("updated_at", { ascending: false }),
     ]);
     this.check(projectsResult.error);
     const notes: Record<string, EvidenceNote> = {};
@@ -72,8 +72,8 @@ export class LibraryStore {
     this.check(error); if (!data) throw new Error("Este artigo não está na sua biblioteca.");
     return fromArticleRow(data);
   }
-  async saveArticle(article: Article, projectId: string | null) {
-    if (!article.title?.trim() || (!article.pmid && !article.doi)) throw new Error("Artigo sem título ou identificador válido.");
+  async saveArticle(article: Article, projectId: string | null, pdfId?: string) {
+    if (!article.title?.trim() || (!article.pmid && !article.doi && !pdfId)) throw new Error("Artigo sem título ou identificador válido.");
     await this.ownedProject(projectId);
     const rows = await this.allRows("library_articles");
     const existing = rows.map(fromArticleRow).find(a => sameArticle(a, article));
@@ -83,7 +83,7 @@ export class LibraryStore {
       }
       return existing;
     }
-    const { data, error } = await this.db.from("library_articles").insert({ ...(article.doi ? { id: await stableDoiId(this.ownerId, article.doi) } : {}), owner_id: this.ownerId, project_id: projectId,
+    const { data, error } = await this.db.from("library_articles").insert({ ...(pdfId ? { id: pdfId } : article.doi ? { id: await stableDoiId(this.ownerId, article.doi) } : {}), owner_id: this.ownerId, project_id: projectId,
       pmid: article.pmid || null, doi: article.doi?.trim().toLowerCase() || null, title: article.title,
       authors: article.authors, journal: article.journal, publication_year: article.year,
       publication_types: article.publicationTypes, abstract: article.abstract, source_url: article.pubmedUrl || article.doiUrl,
@@ -101,6 +101,52 @@ export class LibraryStore {
     }
     return saved;
   }
+  async savePdfMetadata(id: string, fields: Record<string, string>) {
+    await this.ownedArticle(id);
+    const payload: Record<string, unknown> = {};
+    if (fields.title?.trim()) payload.title = fields.title.trim().slice(0, 500);
+    if (fields.authors?.trim()) payload.authors = fields.authors.slice(0, 3000).split(";").map(name => name.trim()).filter(Boolean);
+    if (fields.journal?.trim()) payload.journal = fields.journal.trim().slice(0, 500);
+    if (fields.abstract?.trim()) payload.abstract = fields.abstract.trim().slice(0, 6000);
+    if (fields.year?.trim()) {
+      const year = Number(fields.year);
+      if (!/^\d{4}$/.test(fields.year) || year < 1500 || year > new Date().getFullYear() + 1) throw new Error("Confira o ano do artigo.");
+      payload.publication_year = year;
+    }
+    if (fields.doi?.trim()) {
+      const doi = fields.doi.trim().toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "");
+      if (!/^10\.\d{4,9}\/\S+$/.test(doi) || doi.length > 250) throw new Error("Confira o DOI do artigo.");
+      if ((await this.allRows("library_articles")).map(fromArticleRow).some(article => article.id !== id && article.doi?.toLowerCase() === doi)) throw new Error("Este DOI já está salvo na Biblioteca. Anexe o PDF ao registro existente.");
+      payload.doi = doi;
+    }
+    if (!Object.keys(payload).length) throw new Error("Preencha ao menos um campo.");
+    const {error} = await this.db.from("library_articles").update(payload).eq("owner_id", this.ownerId).eq("id", id);
+    this.check(error);
+  }
+
+  async attachPdf(file: File, article: Article, projectId: string | null, existingId?: string) {
+    if (file.size > 10 * 1024 * 1024 || await file.slice(0, 5).text() !== "%PDF-") throw new Error("Selecione um PDF válido de até 10 MB.");
+    await this.ownedProject(projectId);
+    const existing = existingId ? await this.ownedArticle(existingId) :
+      (await this.allRows("library_articles")).map(fromArticleRow).find(row => sameArticle(row, article));
+    const id = existing?.id ?? crypto.randomUUID();
+    const path = `${this.ownerId}/${id}.pdf`;
+    const bucket = this.db.storage.from("library-pdfs");
+    const uploaded = await bucket.upload(path, file, { contentType: "application/pdf", upsert: false });
+    this.check(uploaded.error);
+    try {
+      if (existing) {
+        if (projectId && !existing.projectIds.includes(projectId)) await this.addProjectLink(id, projectId);
+      } else {
+        const saved = await this.saveArticle(article, projectId, id);
+        if (saved.id !== id) throw new Error("O artigo já existe. Selecione o registro para anexar o PDF.");
+      }
+    } catch (error) {
+      await bucket.remove([path]);
+      throw error;
+    }
+  }
+
   async saveNote(id: string, note: EvidenceNote) {
     const article = await this.ownedArticle(id);
     const payload: Record<string, unknown> = { owner_id: this.ownerId, article_id: id, project_id: article.projectId };
@@ -178,6 +224,7 @@ export class LibraryStore {
   async remove(id: string) {
     const { error } = await this.db.from("library_articles").delete().eq("owner_id", this.ownerId).eq("id", id);
     this.check(error);
+    await this.db.storage.from("library-pdfs").remove([`${this.ownerId}/${id}.pdf`]);
   }
 }
 

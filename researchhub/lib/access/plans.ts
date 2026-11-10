@@ -1,7 +1,7 @@
 export const plans = {
-  essential: { name: "Essencial", annualCents: 59900, tokens: 3000000 },
-  plus: { name: "Plus", annualCents: 89900, tokens: 6000000 },
-  premium: { name: "Premium", annualCents: 149900, tokens: 12000000 },
+  essential: { name: "Essencial", annualCents: 59900, advisorsPerProject: 0, tokens: 3000000 },
+  plus: { name: "Plus", annualCents: 79900, advisorsPerProject: 1, tokens: 6000000 },
+  premium: { name: "Premium", annualCents: 99900, advisorsPerProject: 3, tokens: 12000000 },
 } as const;
 export const policy = { maxOperationTokens: 10000, dailyOperations: 20, concurrentOperations: 1, rechargeCents: 7900, rechargeTokens: 1000000 } as const;
 export const institutional = { seats: 30, annualCents: 1440000, tokens: 90000000, directorsIncluded: 1 } as const;

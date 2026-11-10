@@ -1,4 +1,9 @@
 "use client";
+import { dialogCopy } from "@/lib/i18n/interface-copy";
+
+import AuthoredText from "@/components/i18n/authored-text";
+
+import InterfaceText from "@/components/i18n/interface-text";
 import {useEffect,useRef,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/browser";
 export default function ProjectSharing({projectId}:{projectId:string|null}){
@@ -12,8 +17,8 @@ export default function ProjectSharing({projectId}:{projectId:string|null}){
   const {data:listener}=client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"||(event==="SIGNED_IN"&&owner.current&&session?.user.id!==owner.current)){++epochRef.current;setOptions([]);setShares([]);owner.current=null;}});
   return()=>{++epochRef.current;listener.subscription.unsubscribe();};
  },[projectId]);
- async function toggle(org:string,checked:boolean){if(busyRef.current||!projectId)return;if(checked&&!window.confirm("Compartilhar o protocolo e as notas deste projeto com a coordenação? Sua biblioteca e ideias pessoais não serão compartilhadas."))return;
+ async function toggle(org:string,checked:boolean){if(busyRef.current||!projectId)return;if(checked&&!window.confirm(dialogCopy("Compartilhar o protocolo e as notas deste projeto com a coordenação? Sua biblioteca e ideias pessoais não serão compartilhadas.")))return;
   const ticket=epoch.current;busyRef.current=true;setBusy(true);setMessage("");try{const client=supabaseBrowser();const {data:auth}=await client.auth.getUser();if(auth.user?.id!==owner.current)throw new Error("Sua sessão mudou.");const {error}=await client.rpc("scholar_share_project",{p_project:projectId,p_org:org,p_share:checked});if(error)throw error;if(ticket!==epoch.current)return;setShares(ids=>checked?[...ids,org]:ids.filter(id=>id!==org));setMessage(checked?"Projeto compartilhado em modo de leitura.":"Compartilhamento retirado.");}catch{if(ticket===epoch.current)setMessage("Não foi possível alterar o compartilhamento.");}finally{busyRef.current=false;setBusy(false);}}
  if(!projectId||!options.length)return null;
- return <section className="mt-6 border border-line bg-white rounded-2xl p-5"><h3 className="font-display text-2xl">Compartilhar com a residência</h3><p className="text-sm text-ink-soft mt-3">A coordenação poderá ler o protocolo salvo e suas notas. Alterações precisam ser salvas para aparecer; você pode retirar o acesso.</p><div className="space-y-3 mt-4">{options.map(o=><label key={o.id} className="text-sm flex gap-2"><input type="checkbox" checked={shares.includes(o.id)} disabled={busy} onChange={e=>toggle(o.id,e.target.checked)} />{o.name}</label>)}</div>{message&&<p role="status" className="text-sm text-teal mt-3">{message}</p>}</section>;
+ return <section className="mt-6 border border-line bg-white rounded-2xl p-5"><h3 className="font-display text-2xl"><InterfaceText message="screen.e477de452e8f" /></h3><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.28b6f9906f76" /></p><div className="space-y-3 mt-4">{options.map(o=><label key={o.id} className="text-sm flex gap-2"><input type="checkbox" checked={shares.includes(o.id)} disabled={busy} onChange={e=>toggle(o.id,e.target.checked)} />{o.name}</label>)}</div>{message&&<p role="status" className="text-sm text-teal mt-3"><AuthoredText text={message} /></p>}</section>;
 }

@@ -1,4 +1,10 @@
 "use client";
+import { intlLocale } from "@/lib/i18n/format";
+
+import AuthoredText from "@/components/i18n/authored-text";
+
+import InterfaceText from "@/components/i18n/interface-text";
+import { useLanguage } from "@/components/i18n/language-provider";
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -19,6 +25,9 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
   query: string; period: string; studyType: string; source: string; sort: string;
   resultCount: number | null; onApply: (item: SearchStrategy) => void;
 }) {
+ const {locale:formatLocale}=useLanguage();
+
+  const { t: uiText } = useLanguage();
   const [items, setItems] = useState<SearchStrategy[]>([]);
   const [owner, setOwner] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -50,15 +59,18 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
   async function save() {
     if (busy || !owner || name.trim().length < 2) return;
     setBusy(true); setMessage("");
+    const existing = items.find(item => item.name === name.trim());
+    const definitionChanged = existing && (existing.query !== query.trim() || existing.period !== period || existing.study_type !== studyType || existing.source !== source);
     const { error } = await supabaseBrowser().from("scholar_saved_searches").upsert({
       owner_id: owner, name: name.trim(), query: query.trim(), period,
       study_type: studyType, source, sort,
       last_run_at: resultCount === null ? null : new Date().toISOString(),
       last_result_count: resultCount,
+      ...(definitionChanged ? { alerts_enabled: false } : {}),
     }, { onConflict: "owner_id,name" });
     setBusy(false);
-    if (error) { setMessage(source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
-    setName(""); setMessage("Estratégia salva."); void load();
+    if (error) { setMessage(error.code === "23514" && query.length > 500 ? "Para salvar esta estratégia completa, execute scholar_search_query_limits.sql no Supabase." : source === "both" ? "Para salvar a busca combinada, execute scholar_radar_upgrade.sql no Supabase." : "Não foi possível salvar. Confira se scholar_productivity.sql foi executado."); return; }
+    setName(""); setMessage(definitionChanged && existing.alerts_enabled ? "Estratégia atualizada e alerta pausado. Reative o alerta para criar uma linha de base com os novos critérios." : "Estratégia salva."); void load();
   }
 
   async function remove(id: string) {
@@ -111,20 +123,21 @@ export default function SavedSearches({ query, period, studyType, source, sort, 
   if (!owner && !items.length && !message) return null;
   return <section className="mt-6 bg-white border border-line rounded-2xl p-5">
     <div className="flex flex-wrap justify-between gap-3">
-      <div><p className="text-xs uppercase tracking-widest text-teal">Estratégias de busca</p><h2 className="font-display text-2xl mt-2">Salve uma busca reproduzível</h2></div>
-      <div className="flex gap-2"><input aria-label="Nome da estratégia" value={name} maxLength={120} onChange={e => setName(e.target.value)} placeholder="Ex.: Busca principal" className="border rounded-card px-3 py-2"/><button type="button" disabled={busy || name.trim().length < 2 || query.trim().length < 3} onClick={save} className="bg-teal text-white px-4 py-2 rounded-card disabled:opacity-40">Salvar busca</button></div>
+      <div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.8b3e8a8dd888" /></p><h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.80ece1639967" /></h2></div>
+      <div className="flex gap-2"><input aria-label={uiText("screen.adc5953e0329")} value={name} maxLength={120} onChange={e => setName(e.target.value)} placeholder={uiText("screen.23c8d9f67d45")} className="border rounded-card px-3 py-2"/><button type="button" disabled={busy || name.trim().length < 2 || query.trim().length < 3} onClick={save} className="bg-teal text-white px-4 py-2 rounded-card disabled:opacity-40"><InterfaceText message="screen.1c7170557679" /></button></div>
     </div>
-    <p className="text-xs text-ink-soft mt-3">Guarda consulta, período, tipo, fonte e ordenação. Ative o alerta para comparar as próximas verificações com a literatura disponível hoje.</p>
-    {message && <p role="status" className="text-sm mt-3 text-ink-soft">{message}</p>}
+    <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.f2b75287815d" /></p>
+    <p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.871b178dd4b9" /></p>
+    {message && <p role="status" className="text-sm mt-3 text-ink-soft"><AuthoredText text={message} /></p>}
     <div className="grid md:grid-cols-2 gap-3 mt-4">
-      {items.map(item => <article key={item.id} className="border border-line rounded-card p-4"><div className="flex justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.name}</h3>{item.alerts_enabled && <span className="text-[10px] uppercase tracking-wide bg-teal-soft text-teal px-2 py-1 rounded-full">Alerta ativo</span>}</div><p className="text-xs text-ink-soft mt-1 line-clamp-2">{item.query}</p><p className="text-[11px] text-ink-soft mt-2">{item.source} · {item.period === "all" ? "todo o período" : `${item.period} anos`} · {item.last_result_count === null ? "ainda não executada" : `${item.last_result_count.toLocaleString("pt-BR")} resultados`}</p></div><button type="button" disabled={busy} onClick={() => remove(item.id)} className="text-xs text-red-600">Remover</button></div><div className="flex flex-wrap gap-3 mt-3"><button type="button" onClick={() => onApply(item)} className="text-sm text-teal underline">Aplicar estratégia</button>{alertsReady && <button type="button" disabled={busy} onClick={() => toggleAlert(item)} className="text-sm text-teal underline disabled:opacity-40">{item.alerts_enabled ? "Pausar alerta" : "Ativar alerta"}</button>}{item.alerts_enabled && alertsReady && <button type="button" disabled={busy} onClick={() => checkNow(item)} className="text-sm text-teal underline disabled:opacity-40">Verificar agora</button>}</div></article>)}
-      {!items.length && <p className="text-sm text-ink-soft">Nenhuma estratégia salva.</p>}
+      {items.map(item => <article key={item.id} className="border border-line rounded-card p-4"><div className="flex justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.name}</h3>{item.alerts_enabled && <span className="text-[10px] uppercase tracking-wide bg-teal-soft text-teal px-2 py-1 rounded-full"><InterfaceText message="screen.5a8f669d1ec4" /></span>}</div><p className="text-xs text-ink-soft mt-1 line-clamp-2">{item.query}</p><p className="text-[11px] text-ink-soft mt-2">{item.source} · {item.period === "all" ? uiText("screen.82ad7fcc1330") : `${item.period} anos`} · {item.last_result_count === null ? uiText("screen.4875d79a0932") : `${item.last_result_count.toLocaleString(intlLocale(formatLocale))} resultados`}</p></div><button type="button" disabled={busy} onClick={() => remove(item.id)} className="text-xs text-red-600"><InterfaceText message="screen.a3037dc71a43" /></button></div><div className="flex flex-wrap gap-3 mt-3"><button type="button" onClick={() => onApply(item)} className="text-sm text-teal underline"><InterfaceText message="screen.22aab1d06be0" /></button>{alertsReady && <button type="button" disabled={busy} onClick={() => toggleAlert(item)} className="text-sm text-teal underline disabled:opacity-40">{item.alerts_enabled ? "Pausar alerta" : "Ativar alerta"}</button>}{item.alerts_enabled && alertsReady && <button type="button" disabled={busy} onClick={() => checkNow(item)} className="text-sm text-teal underline disabled:opacity-40"><InterfaceText message="screen.493a9e9d17f8" /></button>}</div></article>)}
+      {!items.length && <p className="text-sm text-ink-soft"><InterfaceText message="screen.acb05ff6e20a" /></p>}
     </div>
-    {!alertsReady && items.length > 0 && <p className="text-xs text-ink-soft mt-4 border-t border-line pt-4">Para ativar novidades das buscas, execute a nova migração <code>scholar_search_alerts.sql</code>.</p>}
+    {!alertsReady && items.length > 0 && <p className="text-xs text-ink-soft mt-4 border-t border-line pt-4"><InterfaceText message="screen.0cf9f1f14dad" /> <code>scholar_search_alerts.sql</code>.</p>}
     {alerts.length > 0 && <div className="mt-6 border-t border-line pt-5">
-      <div className="flex flex-wrap justify-between gap-2"><div><p className="text-xs uppercase tracking-widest text-teal">Novas publicações</p><h3 className="font-display text-xl mt-1">Atualizações das suas estratégias</h3></div><span className="text-xs text-ink-soft">{alerts.filter(item => !item.read_at).length} não lidas</span></div>
+      <div className="flex flex-wrap justify-between gap-2"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.19ee59b92d98" /></p><h3 className="font-display text-xl mt-1"><InterfaceText message="screen.ec61d1b47088" /></h3></div><span className="text-xs text-ink-soft">{alerts.filter(item => !item.read_at).length} <InterfaceText message="screen.e7ef6506a758" /></span></div>
       <div className="space-y-3 mt-4">{alerts.map(alert => <article key={alert.id} className={`rounded-card border p-4 ${alert.read_at ? "border-line bg-paper/40" : "border-teal/30 bg-teal-soft/40"}`}>
-        <div className="flex flex-wrap justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-[11px] uppercase tracking-wide text-teal">{alert.source} · {alert.published_year || "ano não informado"}</p><h4 className="font-medium mt-1">{alert.title}</h4><p className="text-xs text-ink-soft mt-1">{alert.journal || "Periódico não informado"}</p></div><div className="flex items-start gap-3">{alert.article_url && <a href={alert.article_url} target="_blank" rel="noreferrer" className="text-sm text-teal underline">Abrir artigo</a>}{!alert.read_at && <button type="button" onClick={() => markRead(alert.id)} className="text-sm text-teal underline">Marcar como lido</button>}</div></div>
+        <div className="flex flex-wrap justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-[11px] uppercase tracking-wide text-teal">{alert.source} · {alert.published_year || uiText("screen.727e12386241")}</p><h4 className="font-medium mt-1">{alert.title}</h4><p className="text-xs text-ink-soft mt-1">{alert.journal || uiText("screen.93b425e2264f")}</p></div><div className="flex items-start gap-3">{alert.article_url && <a href={alert.article_url} target="_blank" rel="noreferrer" className="text-sm text-teal underline"><InterfaceText message="screen.4b4d129e7950" /></a>}{!alert.read_at && <button type="button" onClick={() => markRead(alert.id)} className="text-sm text-teal underline"><InterfaceText message="screen.18cad51dac79" /></button>}</div></div>
       </article>)}</div>
     </div>}
   </section>;

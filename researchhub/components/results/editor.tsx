@@ -1,0 +1,225 @@
+"use client";
+import { studyFormat } from "@/lib/research/study-format";
+import { intlLocale } from "@/lib/i18n/format";
+import { dialogCopy } from "@/lib/i18n/interface-copy";
+
+import AuthoredText from "@/components/i18n/authored-text";
+
+import { statCopy } from "@/lib/i18n/statistics-copy";
+import { useLanguage } from "@/components/i18n/language-provider";
+import InterfaceText from "@/components/i18n/interface-text";
+
+import { useUnsavedChanges } from "@/components/projects/use-unsaved-changes";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AdjustedPanel from "@/components/clinical/adjusted-panel";
+import RepeatedPanel from "@/components/clinical/repeated-panel";
+import PairedPanel from "@/components/clinical/paired-panel";
+import FollowupPanel from "@/components/clinical/followup-panel";
+import ComparisonPanel from "@/components/clinical/comparison-panel";
+import CollectionPanel from "@/components/clinical/collection-panel";
+import { collectionWorkbook } from "@/lib/clinical/summary";
+import type { CollectionProtocol } from "@/lib/clinical/collection";
+import InferencePanel from "./inference-panel";
+import Link from "next/link";
+import SavedReadings from "./saved-readings";
+import { guideSnapshot } from "@/lib/ai/guide";
+import { guideActions, type GuideActionId } from "@/lib/ai/guide-actions";
+import { resultsStamp } from "@/lib/results/transfer";
+import ProjectGuide from "@/components/ai/project-guide";
+import { chartData, describe, emptyResults, parseCsv, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
+import { figurePng, figureSvg } from "@/lib/results/figure";
+import { downloadBinary, workbook, wordDocument } from "@/lib/exports/ooxml";
+import { download } from "@/lib/exports/scientific";
+import { resultsWordBlocks } from "@/lib/results/word";
+import { postAI } from "@/lib/ai/client-request";
+import { isAssistantOutput } from "@/lib/ai/assist";
+import { identifierHeader, identifierValue } from "@/lib/clinical/collection";
+
+import CaseTimeline from "./case-timeline";
+import DatasetTable from "./dataset-table";
+
+const steps = ["Preparar a coleta", "Adicionar e conferir dados", "Responder à pergunta", "Revisar e usar resultados"];
+const questions = [
+ {key:"profile",title:"Conhecer o perfil dos participantes",example:"Ex.: qual a idade e quais condições são mais frequentes?"},
+ {key:"groups",title:"Comparar grupos",example:"Ex.: os grupos apresentam valores diferentes de pressão?"},
+ {key:"paired",title:"Comparar antes e depois",example:"Ex.: a medida mudou nas mesmas pessoas?"},
+ {key:"repeated",title:"Acompanhar vários momentos",example:"Ex.: como a medida variou entre início, 30 e 90 dias?"},
+ {key:"adjusted",title:"Considerar outras características",example:"Ex.: estudar pressão arterial considerando idade e grupo de tratamento."},
+];
+export default function ResultsEditor({projectId,title,protocol}:{projectId:string;title:string;protocol?:CollectionProtocol}) {
+ const {locale:resultsLocale}=useLanguage();
+
+ const {locale:formatLocale}=useLanguage();
+const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(formatLocale),{maximumFractionDigits:3});
+  const { t: uiText } = useLanguage();
+  const caseControl=studyFormat(protocol?.study_type || "") === "caseControl";
+  const transverse=studyFormat(protocol?.study_type || "") === "transverse";
+  const [step,setStep]=useState(transverse||caseControl?1:0),[question,setQuestion]=useState(""),[source,setSource]=useState(transverse||caseControl?"csv":"clinical"),[visits,setVisits]=useState(false);
+  const stepHeading=useRef<HTMLHeadingElement>(null);
+  function go(next:number){setStep(next);requestAnimationFrame(()=>stepHeading.current?.focus());}
+  const [workspace,setWorkspace]=useState<ResultsWorkspace>(emptyResults),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[dirty,setDirty]=useState(false); const [loadFailed,setLoadFailed]=useState(false); const lock=useRef(false); const revision=useRef<number|null>(null); const editRevision=useRef(0);
+  useEffect(()=>{const controller=new AbortController();void fetch(`/api/results?project=${projectId}`,{signal:controller.signal}).then(async r=>{const body=await r.json();if(!r.ok)throw new Error(body.error);if(body.workspace!==null&&!validWorkspace(body.workspace))throw new Error("Os resultados salvos estão incompletos ou em formato incompatível. A edição foi bloqueada para preservar os dados.");revision.current=body.revision??null;if(body.workspace){setWorkspace(body.workspace);if(body.workspace.collection)setSource("clinical");else if(body.workspace.dataset.columns.length)setSource("csv");}setReady(true);}).catch(e=>{if(!controller.signal.aborted){setLoadFailed(true);setMessage(e instanceof Error && e.message ? e.message : "Não foi possível carregar os resultados. Atualize a página para tentar novamente.");}});return()=>controller.abort();},[projectId]);
+
+  const stats=useMemo(()=>describe(workspace.dataset).map(stat=>{
+    const field=workspace.collection?.fields.find(field=>field.label===stat.column);
+    return field&&field.kind!=="number"?{...stat,type:field.kind==="date"?"Data":"Categórica",mean:null,median:null,sd:null,min:null,max:null}:stat;
+  }),[workspace.dataset,workspace.collection]); const bars=useMemo(()=>chartData(workspace.dataset,workspace.figure.column,workspace.figure.kind, resultsLocale),[workspace.dataset,workspace.figure, resultsLocale]);
+  const change=(next:ResultsWorkspace)=>{editRevision.current++;setWorkspace(next);setDirty(true);setMessage("");};
+  async function run(task:()=>Promise<boolean|void>){if(lock.current)return false;lock.current=true;setBusy(true);setMessage("");try{return await task()!==false;}catch(e){setMessage(e instanceof Error?e.message:"Não foi possível concluir.");return false;}finally{lock.current=false;setBusy(false);}}
+  async function save(){return run(async()=>{const savedEdit=editRevision.current;if(!validWorkspace(workspace))throw new Error("Confira a ficha, os códigos, as categorias e os registros incluídos antes de salvar.");const payload=JSON.stringify({project:projectId,workspace,expectedRevision:revision.current});if(new TextEncoder().encode(payload).byteLength>1500000)throw new Error("Os dados excedem 1,5 MB. Exporte uma cópia e reduza a base antes de salvar.");const response=await fetch("/api/results",{method:"PUT",headers:{"Content-Type":"application/json"},body:payload,signal:AbortSignal.timeout(20000)}).catch(error=>{if(error instanceof Error&&error.name==="TimeoutError")throw new Error(spanish?"No se pudo confirmar el guardado. Tus cambios siguen en esta pantalla.":"Não foi possível confirmar o salvamento. Suas alterações continuam nesta tela.");throw error;});const body=await response.json();if(!response.ok)throw new Error(body.error);if(!Number.isInteger(body.revision)||body.revision<1)throw new Error(spanish?"El servidor no confirmó el guardado.":"O servidor não confirmou o salvamento.");revision.current=body.revision;const unchanged=savedEdit===editRevision.current;setDirty(!unchanged);setMessage(unchanged?"Resultados salvos na conta.":"A versão enviada foi salva; há alterações mais recentes nesta página.");return unchanged;});}
+  useUnsavedChanges({label:"Resultados",dirty,busy,onSave:save});
+  const resultLabel = (source: string) => statCopy(resultsLocale, source);
+  const summaryRows=()=>[["Variável","Tipo","N válido","Ausentes","Categorias distintas","Média","Mediana","DP amostral","Mínimo","Máximo"].map(resultLabel),...stats.map(s=>[s.column,resultLabel(s.type),s.n,s.missing,s.unique,s.mean??"",s.median??"",s.sd??"",s.min??"",s.max??""])];
+  async function exportWord(){await run(async()=>{const image=bars.length?await figurePng(figureSvg(workspace, undefined, resultsLocale)):null;downloadBinary(wordDocument([{text:title,style:"title"},...resultsWordBlocks(workspace,image, resultsLocale)], resultsLocale),"resultados.docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document");setMessage("Word preparado com tabelas, figura e análises disponíveis.");});}
+  function navigateFromGuide(id:GuideActionId){if(!ready||busy)return false;const action=guideActions(guideSnapshot(workspace)).find(a=>a.id===id);if(!action)return false;if(action.source)setSource(action.source);setVisits(action.visits);if(action.stage===2)setQuestion("");go(action.stage);return true;}
+  const [interpretation,setInterpretation]=useState<{revision:number;text:string}|null>(null);
+  const [interpreting,setInterpreting]=useState(false);
+  const interpretingLock=useRef(false);
+  const spanish=resultsLocale==="es";
+  const descriptive=stats.filter(row=>!identifierHeader(row.column)&&!identifierValue(row.column)).slice(0,40).map(({column,n,missing,mean,median,sd})=>({column,n,missing,mean,median,sd}));
+  async function interpretTable(){
+    if(interpretingLock.current||!descriptive.length)return;
+    const revision=editRevision.current;
+    interpretingLock.current=true;setInterpreting(true);setInterpretation(null);
+    try {
+      const {data}=await postAI<{output?:unknown}>("/api/ai/assist",{feature:"guide",projectId,language:resultsLocale,context:{
+        area:"resultados",stage:3,question:"profile",dirty,draft:guideSnapshot(workspace),descriptive,
+        message:spanish?"Interpreta la tabla descriptiva proporcionada, con sus límites.":"Interprete a tabela descritiva fornecida, com seus limites.",
+      }});
+      if(!isAssistantOutput(data.output))throw Error(spanish?"No se pudo leer la interpretación.":"Não foi possível ler a interpretação.");
+      setInterpretation({revision,text:data.output.summary});
+    }catch(error){setInterpretation({revision,text:error instanceof Error?error.message:(spanish?"No se pudo interpretar la tabla.":"Não foi possível interpretar a tabela.")});}
+    finally{interpretingLock.current=false;setInterpreting(false);}
+  }
+  const clinical=Boolean(workspace.collection)||source==="clinical";
+  const hasData=workspace.dataset.rows.length>0;
+  const explanations=["Defina quais informações serão registradas. Se já tem uma planilha avulsa, escolha esse caminho abaixo.","Digite ou importe os dados e confira quem pode entrar no estudo. Visitas posteriores têm uma ficha própria.","Escolha a pergunta que deseja investigar. Você pode voltar e escolher outro caminho sem apagar suas análises.","Confira as tabelas e gráficos, salve os resultados e prepare o material do seu trabalho."];
+  const [advanced,setAdvanced]=useState(false);
+  const [associationOpen,setAssociationOpen]=useState(false);
+  const [showSummary,setShowSummary]=useState(false);
+  const summaryHeading=useRef<HTMLHeadingElement>(null);
+  const associationHeading=useRef<HTMLHeadingElement>(null);
+  const numericColumns=stats.filter(row=>row.mean!==null && !identifierHeader(row.column) && !identifierValue(row.column)).map(row=>row.column);
+  const missingCells=stats.reduce((sum,row)=>sum+row.missing,0);
+  function openAssociation(){
+    setAssociationOpen(true);
+    requestAnimationFrame(()=>associationHeading.current?.focus());
+  }
+  const [selection,setSelection]=useState<{revision:number;ids:string[]}>({revision:-1,ids:[]});
+  const selected=selection.revision===editRevision.current?selection.ids:[];
+  const candidates=descriptive.filter(row=>row.n>0).map(row=>{
+    const label=row.column.replaceAll("_"," ");
+    const sample=spanish?`n = ${row.n}; sin dato: ${row.missing}`:`n = ${row.n}; sem dado: ${row.missing}`;
+    return {id:row.column,label,text:row.mean===null?`${label}: ${sample}.`:`${label}: ${spanish?"media":"média"} ${format(row.mean)}, ${spanish?"mediana":"mediana"} ${format(row.median)} (${sample}).`};
+  }).sort((a,b)=>{
+    const question=(protocol?.research_question||"").toLowerCase().normalize("NFD").replace(/\p{M}/gu,"");
+    const score=(label:string)=>label.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").split(/\W+/).filter(word=>word.length>2&&question.includes(word)).length;
+    return score(b.label)-score(a.label);
+  });
+  function replaceData(dataset:ResultsWorkspace["dataset"]){
+    setShowSummary(false);setAssociationOpen(false);
+    change({...workspace,dataset,analysis:undefined,figure:{...workspace.figure,column:dataset.columns.includes(workspace.figure.column)?workspace.figure.column:dataset.columns[0]||""}});
+  }
+  async function sendSelected(){
+    const text=candidates.filter(item=>selected.includes(item.id)).map(item=>item.text).join("\n");
+    await sendToManuscript(text);
+  }
+  async function sendToManuscript(text:string){
+    if(!text.trim()||busy)return;
+    if(dirty&&!await save())return;
+    try{
+      sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));
+      window.location.assign(`/manuscrito?projeto=${encodeURIComponent(projectId)}#section-results`);
+    }catch{setMessage(spanish?"No se pudo preparar el borrador en este navegador.":"Não foi possível preparar o rascunho neste navegador.");}
+  }
+  if(transverse&&!workspace.collection&&!advanced)return <div className="results-guided space-y-4">
+    {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
+    {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando datos…":"Carregando dados…"}</p>}
+    {ready&&<fieldset disabled={busy} className="min-w-0 space-y-4">
+      {!hasData && <section className="rounded-card border border-line bg-white p-4">
+        <h2 className="font-display text-xl">{spanish?"¿Ya tienes los datos?":"Você já tem os dados?"}</h2>
+        <p className="my-2 text-sm">{spanish?"Pega una tabla o importa un CSV sin identificadores personales.":"Cole uma tabela ou importe um CSV sem identificadores pessoais."}</p>
+        <button type="button" className="text-sm text-teal underline" onClick={()=>{setAdvanced(true);setSource("clinical");go(0);}}>{spanish?"Aún voy a recolectar los datos":"Ainda vou coletar os dados"}</button>
+      </section>}
+      <DatasetTable dataset={workspace.dataset} onChange={replaceData}/>
+      <label className="block rounded-card border bg-white p-4 text-sm">{spanish?"Importar CSV":"Importar CSV"}
+        <input type="file" accept=".csv,text/csv" className="mt-2 block max-w-full" onChange={event=>{
+          const file=event.target.files?.[0];event.target.value="";
+          if(file)void run(async()=>{
+            if(file.size>1_500_000)throw Error(spanish?"El archivo supera 1,5 MB.":"O arquivo excede 1,5 MB.");
+            const dataset=parseCsv(await file.text());
+            if(!validWorkspace({...workspace,dataset}))throw Error(spanish?"Revisa las columnas y los valores del archivo.":"Confira as colunas e os valores do arquivo.");
+            if(workspace.dataset.rows.length&&!window.confirm(dialogCopy("Substituir os dados importados deste projeto?")))return;
+            replaceData(dataset);
+          });
+        }}/>
+      </label>
+      {hasData && <section className="rounded-card border border-line bg-white p-4">
+        <h2 className="font-display text-xl">{spanish?"Revisa los datos":"Confira os dados"}</h2>
+        <p className="my-2 text-sm">{workspace.dataset.rows.length} {spanish?"registros":"registros"} · {workspace.dataset.columns.length} {spanish?"columnas":"colunas"} · {missingCells} {spanish?"celdas vacías":"células vazias"}</p>
+        <button type="button" disabled={!candidates.length} className="rounded-card bg-teal px-4 py-2 text-white disabled:opacity-50" onClick={()=>{setShowSummary(true);requestAnimationFrame(()=>summaryHeading.current?.focus());}}>{spanish?"Ver resumen de los datos":"Ver resumo dos dados"}</button>
+        <button type="button" disabled={!dirty} onClick={()=>void save()} className="ml-2 rounded-card border px-4 py-2 disabled:opacity-50">{spanish?"Guardar datos":"Salvar dados"}</button>
+      </section>}
+      {hasData&&showSummary&&<section className="rounded-2xl border bg-white p-5">
+        <h2 ref={summaryHeading} tabIndex={-1} className="font-display text-2xl scroll-mt-28">{spanish?"Hallazgos de la tabla":"Achados da tabela"}</h2>
+        <p className="mt-2 text-sm text-ink-soft">{workspace.dataset.rows.length} {spanish?"registros. Selecciona qué incluir en el borrador.":"registros. Selecione o que deseja incluir no rascunho."}</p>
+        {candidates.slice(0,3).map(card)}
+        {candidates.length>3&&<details className="mt-3"><summary className="cursor-pointer text-sm text-teal">{spanish?"Ver otros hallazgos":"Ver outros achados"}</summary>{candidates.slice(3).map(card)}</details>}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button type="button" disabled={!selected.length} onClick={()=>void sendSelected()} className="rounded-card bg-teal px-4 py-2 text-white disabled:opacity-50">{spanish?"Llevar selección al manuscrito":"Levar selecionados ao manuscrito"}</button>
+          <button type="button" disabled={!dirty} onClick={()=>void save()} className="rounded-card border px-4 py-2 disabled:opacity-50">{spanish?"Guardar datos":"Salvar dados"}</button>
+          <button type="button" disabled={interpreting||!descriptive.length} onClick={()=>void interpretTable()} className="rounded-card border px-4 py-2 disabled:opacity-50">{interpreting?"…":spanish?"Interpretar con IA":"Interpretar com IA"}</button>
+        </div>
+        {numericColumns.length>=2 && <div className="mt-4 border-t border-line pt-4">
+          <p className="mb-2 text-sm">{spanish?"El resumen describe cada variable por separado. Para investigar una relación lineal, compara dos columnas numéricas.":"O resumo descreve cada variável separadamente. Para investigar uma relação linear, compare duas colunas numéricas."}</p>
+          <button type="button" onClick={openAssociation} className="rounded-card border px-4 py-2 text-teal">{spanish?"Analizar la asociación lineal":"Analisar a associação linear"}</button>
+        </div>}
+        {interpretation?.revision===editRevision.current&&<p role="status" className="mt-3 whitespace-pre-wrap rounded-card bg-teal-soft p-4 text-sm">{interpretation.text}</p>}
+      </section>}
+      {associationOpen && showSummary && hasData && <div>
+        <h2 ref={associationHeading} tabIndex={-1} className="mb-2 font-display text-xl scroll-mt-28">{spanish?"Elige dos variables numéricas":"Escolha duas variáveis numéricas"}</h2>
+        <InferencePanel dataset={workspace.dataset} config={workspace.analysis?.kind==="pearson"?workspace.analysis:undefined}
+          associationColumns={numericColumns} onChange={analysis=>change({...workspace,analysis})} onTransfer={text=>void sendToManuscript(text)} />
+      </div>}
+      <button type="button" onClick={()=>setAdvanced(true)} className="text-sm text-teal underline">{spanish?"Abrir análisis avanzados":"Abrir análises avançadas"}</button>
+    </fieldset>}
+  </div>;
+  function card(item:typeof candidates[number]){
+    return <label key={item.id} className="mt-3 flex items-start gap-3 rounded-card border p-3 text-sm">
+      <input type="checkbox" className="mt-1" checked={selected.includes(item.id)} onChange={event=>setSelection({revision:editRevision.current,ids:event.target.checked?[...selected,item.id]:selected.filter(id=>id!==item.id)})}/>
+      <span>{item.text}</span>
+    </label>;
+  }
+  const caseReport=studyFormat(protocol?.study_type || "") === "caseReport";
+  if(caseReport)return <div className="results-guided space-y-4">
+    {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
+    {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando cronología…":"Carregando linha do tempo…"}</p>}
+    {ready&&<CaseTimeline events={workspace.caseTimeline||[]} onChange={caseTimeline=>change({...workspace,caseTimeline})} onSave={()=>void save()} busy={busy} dirty={dirty}/>}
+    {ready&&<Link href={`/manuscrito?projeto=${encodeURIComponent(projectId)}#section-results`} className="inline-block text-teal underline">{spanish?"Abrir resultados en el manuscrito":"Abrir resultados no manuscrito"}</Link>}
+  </div>;
+  return <div className="results-guided">{transverse&&!workspace.collection&&<button type="button" onClick={()=>setAdvanced(false)} className="mb-4 text-sm text-teal underline">{spanish?"Volver a los hallazgos":"Voltar aos achados"}</button>}<ProjectGuide key={projectId} projectId={projectId} title={title} workspace={workspace} stage={step} question={question} dirty={dirty} disabled={!ready||busy} source={clinical?"clinical":"csv"} onNavigate={navigateFromGuide} onTransfer={text=>{if(!ready||busy)return;if(dirty){setMessage("Salve os resultados antes de enviar ao manuscrito. O rascunho continua no assistente.");return;}try{sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));window.location.assign(`/manuscrito?projeto=${projectId}`);}catch{setMessage("Não foi possível preparar a transferência neste navegador. Copie o texto revisado.");}}} onQuestion={id=>{if(!ready||busy||![...questions.map(q=>q.key),"general"].includes(id))return false;setQuestion(id);go(2);return true;}}/><div className="sticky top-3 z-20 rounded-card border bg-white p-3 mb-5 shadow-sm flex flex-wrap gap-3 items-center"><button disabled={!ready||busy||!dirty} onClick={save} className="bg-teal text-white p-3 rounded-card disabled:opacity-40">{busy?(spanish?"Procesando…":"Processando…"):uiText("screen.d535d30c453c")}</button><span role="status" className="text-sm text-ink-soft">{dirty?uiText("screen.da5585beca57"):ready?(revision.current!==null?(spanish?"Guardado en tu cuenta":"Salvo na conta"):(spanish?"Sin cambios para guardar":"Sem alterações para salvar")):loadFailed?uiText("screen.a09f16b00998"):uiText("screen.df062fa03285")}</span><Link href={`/documentos?projeto=${projectId}`} className="text-teal underline"><InterfaceText message="screen.a55b518cc200" /></Link>{message&&<p role="status" className="w-full text-sm"><AuthoredText text={message}/></p>}<p className="w-full text-xs text-ink-soft"><InterfaceText message="screen.33c5cc388629" /></p></div>
+  <nav aria-label={uiText("screen.ada15438a1d3")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-5">{steps.map((label,i)=><button key={label} type="button" disabled={!ready||busy} aria-current={step===i?"step":undefined} onClick={()=>go(i)} className={`rounded-card border p-4 text-left text-sm disabled:opacity-40 ${step===i?"bg-teal text-white":"bg-white text-teal"}`}><span className="block text-xs mb-1">Etapa {i+1} de 4</span>{label}</button>)}</nav>
+  <div className="mb-5"><h2 ref={stepHeading} tabIndex={-1} className="font-display text-2xl scroll-mt-40"><AuthoredText text={steps[step]} /></h2><p className="text-sm text-ink-soft mt-2"><AuthoredText text={explanations[step]} /></p></div>
+  <div hidden={step!==0||Boolean(workspace.collection)} className="rounded-card border bg-white p-5 mb-5"><h3 className="font-medium"><InterfaceText message="screen.c5eba4c921bd" /></h3><div className="grid gap-3 md:grid-cols-2 mt-3"><button type="button" disabled={!ready||busy} aria-pressed={clinical} onClick={()=>{setSource("clinical");setQuestion("");}} className={`border rounded-card p-4 text-left ${clinical?"border-teal bg-teal-soft":""}`}><strong><InterfaceText message="screen.441c4887e1ec" /></strong><span className="block text-sm mt-2"><InterfaceText message="screen.d14c174450e7" /></span></button><button type="button" disabled={!ready||busy} aria-pressed={!clinical} onClick={()=>{setSource("csv");setQuestion("");go(1);}} className={`border rounded-card p-4 text-left ${!clinical?"border-teal bg-teal-soft":""}`}><strong><InterfaceText message="screen.d7eb9b98fb9a" /></strong><span className="block text-sm mt-2"><InterfaceText message="screen.8014f29a2bcd" /></span></button></div>{!clinical&&<p className="mt-3 text-sm"><InterfaceText message="screen.4e4dfa734eae" /></p>}</div>
+  <div hidden={step!==2} className="rounded-card border bg-white p-5 mb-5"><h3 className="text-lg font-medium"><InterfaceText message="screen.3fb9c2bf1d05" /></h3><div className="grid gap-3 md:grid-cols-2 mt-4">{questions.filter(q=>clinical||q.key==="profile").map(q=><button type="button" disabled={!ready||busy} key={q.key} aria-pressed={question===q.key} onClick={()=>setQuestion(q.key)} className={`border rounded-card p-4 text-left ${question===q.key?"border-teal bg-teal-soft":""}`}><strong className="text-sm"><AuthoredText text={q.title} /></strong><span className="block text-sm text-ink-soft mt-2"><AuthoredText text={q.example} /></span></button>)}{<button type="button" disabled={!ready||busy} aria-pressed={question==="general"} onClick={()=>setQuestion("general")} className="border rounded-card p-4 text-left"><strong><InterfaceText message="screen.338e2dffa6e5" /></strong><span className="block text-sm mt-2"><InterfaceText message="screen.65c1c90a0e9e" /></span></button>}</div>{!question&&<p className="text-sm mt-3"><InterfaceText message="screen.79c75bb1d7e7" /></p>}{clinical&&!workspace.collection&&<p className="mt-3 text-sm"><InterfaceText message="screen.25697ac090b9" /></p>}{!hasData&&<p role="status" className="mt-3 text-sm"><InterfaceText message="screen.ea01b6a5a440" /></p>}{question==="profile"&&hasData&&<p className="text-sm mt-3"><InterfaceText message="screen.0b948564c6f2" /></p>}{clinical&&["paired","repeated"].includes(question)&&!workspace.followup&&<div className="mt-3 text-sm"><p><InterfaceText message="screen.2035d3082c63" /></p><button type="button" className="text-teal underline mt-2" onClick={()=>{setVisits(true);go(1);}}><InterfaceText message="screen.704f6261d27e" /></button></div>}</div>
+  {step===1&&clinical&&<div className="flex flex-wrap gap-3 mb-5"><button type="button" disabled={!ready||busy} aria-pressed={!visits} className="border rounded-card p-3 text-sm" onClick={()=>setVisits(false)}><InterfaceText message="screen.1a252bf766e8" /></button><button type="button" disabled={!ready||busy} aria-pressed={visits} className="border rounded-card p-3 text-sm" onClick={()=>setVisits(true)}><InterfaceText message="screen.103cbf53ef63" /></button></div>}
+  {message&&<p role="status" className="border rounded-card p-4 mb-5"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/resultados?projeto=${projectId}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p>}<fieldset disabled={!ready||busy} className="min-w-0 space-y-6 disabled:opacity-60">{step===3&&<SavedReadings workspace={workspace}/>}<div hidden={!clinical||(!workspace.collection&&step!==0)||!(step===0||step===1&&!visits||step===2&&question==="profile"||step===3)}><CollectionPanel workspace={workspace} protocol={protocol} projectId={projectId} onChange={change} view={step===0?"prepare":step===1?"records":"profile"}/></div>
+<div hidden={step!==2||question!=="groups"||!clinical}><ComparisonPanel workspace={workspace} onChange={change}/></div>
+<div hidden={step!==1||!clinical||!visits}><FollowupPanel workspace={workspace} projectId={projectId} onChange={change}/></div>
+<div hidden={step!==2||question!=="paired"}>{workspace.followup&&<PairedPanel workspace={workspace} projectId={projectId} onChange={change}/>}</div>
+<div hidden={step!==2||question!=="repeated"}>{workspace.followup&&<RepeatedPanel workspace={workspace} projectId={projectId} onChange={change}/>}</div>
+<div hidden={step!==2||question!=="adjusted"}>{workspace.collection&&<AdjustedPanel workspace={workspace} projectId={projectId} onChange={change}/>}</div>
+<div className="min-w-0 space-y-6">{ready&&step===1&&!clinical&&<DatasetTable caseControl={caseControl} dataset={caseControl&&!workspace.dataset.columns.length
+    ? {columns:spanish?["Código","Grupo","Exposición"]:["Código","Grupo","Exposição"],rows:[]}
+    : workspace.dataset} onChange={dataset=>change({...workspace,dataset,analysis:undefined,figure:{...workspace.figure,column:dataset.columns.includes(workspace.figure.column)?workspace.figure.column:dataset.columns[0]||""}})}/>}
+{workspace.collection?<section hidden={step!==3} className="rounded-card bg-teal-soft p-5 text-sm"><strong><InterfaceText message="screen.c88d55b964ec" /></strong><p className="mt-2"><InterfaceText message="screen.18926bfe1355" /></p></section>:<section hidden={step!==1} className="bg-white border rounded-2xl p-6"><h2 className="font-display text-2xl"><InterfaceText message="screen.ae0af28976d9" /></h2><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.68d8775cb618" /></p><div className="mt-4 rounded-card bg-teal-soft p-4 text-sm"><strong><InterfaceText message="screen.0001e7e54d95" /></strong><p className="mt-2"><InterfaceText message="screen.4be246a04440" /></p><button type="button" className="text-teal underline mt-3" onClick={()=>download("grupo;idade;pressao_sistolica;adesao\n"+Array.from({length:40},(_,i)=>`${i<20?"A":"B"};${35+(i*7)%36};${110+(i*11)%45};${i%4<2?"sim":"nao"}`).join("\n"),"text/csv;charset=utf-8","exemplo-dados-ficticios.csv")}><InterfaceText message="screen.79b2e34ac975" /></button><p className="text-xs mt-2"><InterfaceText message="screen.670fd5df458c" /></p></div><label className="block text-sm mt-4"><InterfaceText message="screen.b8c5f3c53c94" /><input type="file" accept=".csv,text/csv" className="block mt-2" onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void run(async()=>{if(file.size>1500000)throw new Error("Arquivo maior que 1,5 MB.");const dataset=parseCsv(await file.text());if(dataset.columns.some(c=>c.length>200)||dataset.rows.some(r=>r.some(v=>v.length>2000)))throw new Error("Há campos muito extensos.");if(workspace.dataset.rows.length&&!window.confirm(dialogCopy("Substituir os dados importados deste projeto?")))return;change({...workspace,dataset,analysis:undefined,figure:{...workspace.figure,column:dataset.columns[0]}});});}}/></label><p className="text-sm mt-4">{workspace.dataset.rows.length} registros · {workspace.dataset.columns.length} <InterfaceText message="screen.3b71b6a40b09" /></p>{workspace.dataset.rows.length>0&&<details className="mt-4"><summary><InterfaceText message="screen.1600800465ce" /></summary><div className="overflow-x-auto mt-3"><table className="text-sm"><thead><tr>{workspace.dataset.columns.map(c=><th key={c} className="p-2 border">{c}</th>)}</tr></thead><tbody>{workspace.dataset.rows.slice(0,10).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} className="p-2 border">{v}</td>)}</tr>)}</tbody></table></div></details>}</section>}
+<section hidden={step!==3&&!(step===1&&!clinical&&hasData)&&!(step===2&&question==="profile"&&!clinical)} className="bg-white border rounded-2xl p-6"><h2 className="font-display text-2xl"><InterfaceText message="screen.8cee0bf8ffc7" /></h2><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.d4b4022fee6e" /></p><div className="overflow-x-auto mt-4"><table className="w-full text-sm"><thead><tr>{["Variável","Tipo","N","Ausentes","Média","Mediana","DP"].map(h=><th key={h} className="p-3 border text-left">{resultLabel(h)}</th>)}</tr></thead><tbody>{stats.map(s=><tr key={s.column}><td className="p-3 border">{s.column}</td><td className="p-3 border"><AuthoredText text={s.type} /></td><td className="p-3 border">{s.n}</td><td className="p-3 border">{s.missing}</td><td className="p-3 border">{format(s.mean)}</td><td className="p-3 border">{format(s.median)}</td><td className="p-3 border">{format(s.sd)}</td></tr>)}</tbody></table></div><button disabled={!stats.length} className="border rounded-card p-3 mt-4" onClick={()=>downloadBinary(workbook([{name:resultLabel("Dados"),rows:[workspace.dataset.columns,...workspace.dataset.rows]},{name:resultLabel("Descritiva"),rows:summaryRows()},{name:resultLabel("Frequências"),rows:[[resultLabel("Categoria ou intervalo"),"N"],...bars.map(b=>[b.label,b.count])]},{name:resultLabel("Fluxo"),rows:[["Etapa","N"],...workspace.flow.map(s=>[s.label,s.count])] },...(workspace.collection?collectionWorkbook(workspace.collection, workspace.comparison, workspace.followup, workspace.paired, workspace.repeated, workspace.adjusted, resultsLocale):[])]),"resultados.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}><InterfaceText message="screen.2f0ed4575383" /></button>
+{step===1&&hasData&&<button type="button" onClick={()=>void save()} className="mt-4 ml-2 rounded-card bg-teal px-4 py-2 text-white">{spanish?"Guardar resultados":"Salvar resultados"}</button>}
+{hasData&&descriptive.length>0&&<div className="mt-4 border-t pt-4">
+  <button type="button" disabled={interpreting} onClick={()=>void interpretTable()} className="rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50">{interpreting?(spanish?"Interpretando…":"Interpretando…"):(spanish?"Interpretar con IA":"Interpretar com IA")}</button>
+  <p className="mt-2 text-xs text-ink-soft">{spanish?"Usa solo los indicadores de la tabla. Consume tu cuota de IA.":"Usa apenas os indicadores da tabela. Consome sua franquia de IA."}</p>
+  {interpretation?.revision===editRevision.current&&<p role="status" className="mt-3 whitespace-pre-wrap rounded-card bg-teal-soft p-4 text-sm">{interpretation.text}</p>}
+</div>}</section>
+<section hidden={step!==3} className="bg-white border rounded-2xl p-6"><h2 className="font-display text-2xl"><InterfaceText message="screen.a1323a6ca24c" /></h2><div className="aligned-fields grid md:grid-cols-2 gap-4 mt-4"><label className="text-sm"><InterfaceText message="screen.8d1559c8b3cf" /><select className="block w-full border p-3 rounded-card mt-2" value={workspace.figure.column} onChange={e=>change({...workspace,figure:{...workspace.figure,column:e.target.value,kind:workspace.collection?.fields.find(field=>field.label===e.target.value)?.kind!=="number"&&workspace.collection?"bar":workspace.figure.kind}})}><option value=""><InterfaceText message="screen.987d5be9f4bf" /></option>{workspace.dataset.columns.map(c=><option key={c}>{c}</option>)}</select></label><label className="text-sm"><InterfaceText message="screen.90ae4241af1e" /><select className="block w-full border p-3 rounded-card mt-2" value={workspace.figure.kind} onChange={e=>change({...workspace,figure:{...workspace.figure,kind:workspace.collection?.fields.find(field=>field.label===workspace.figure.column)?.kind!=="number"&&workspace.collection?"bar":e.target.value as "bar"|"histogram"}})}><option value="bar"><InterfaceText message="screen.7b7f84146d90" /></option><option value="histogram">Histograma numérico</option></select></label><label className="text-sm">Título<input className="block w-full border p-3 rounded-card mt-2" maxLength={200} value={workspace.figure.title} onChange={e=>change({...workspace,figure:{...workspace.figure,title:e.target.value}})}/></label><label className="text-sm"><InterfaceText message="screen.61154f2a8bab" /><input className="block w-full border p-3 rounded-card mt-2" maxLength={1000} value={workspace.figure.caption} onChange={e=>change({...workspace,figure:{...workspace.figure,caption:e.target.value}})}/></label></div>{bars.length?<div className="mt-6 space-y-3" role="img" aria-label={workspace.figure.title||uiText("screen.4f41d605ff3f")}>{bars.map(b=><div key={b.label} className="grid grid-cols-[minmax(80px,1fr)_3fr_40px] gap-3 items-center text-sm"><span className="break-words">{b.label}</span><div className="h-6 bg-teal-soft"><div className="h-full bg-teal" style={{width:`${b.count/Math.max(...bars.map(x=>x.count))*100}%`}}/></div><span>{b.count}</span></div>)}</div>:<p className="mt-4 text-sm"><InterfaceText message="screen.d29e95d97c84" /></p>}<div className="flex flex-wrap gap-3 mt-5"><button disabled={!bars.length} className="border rounded-card p-3" onClick={()=>download(figureSvg(workspace, undefined, resultsLocale),"image/svg+xml","figura.svg")}>Figura SVG</button><button disabled={!bars.length} className="border rounded-card p-3" onClick={()=>run(async()=>{const png=await figurePng(figureSvg(workspace, undefined, resultsLocale));downloadBinary(png.bytes,"figura.png","image/png");})}><InterfaceText message="screen.89f18d533a4a" /></button><button disabled={!stats.length} className="border rounded-card p-3" onClick={exportWord}><InterfaceText message="screen.14e26d904299" /></button></div></section>
+<div hidden={step!==2||question!=="general"}><InferencePanel dataset={workspace.dataset} kinds={workspace.collection?Object.fromEntries(workspace.collection.fields.map(field=>[field.label,field.kind])):undefined} config={workspace.analysis} onChange={analysis=>change({...workspace,analysis})}/></div><section hidden={step!==3} className="bg-white border rounded-2xl p-6"><h2 className="font-display text-2xl"><InterfaceText message="screen.30170cab2604" /></h2><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.3ad363616970" /></p><div className="space-y-3 mt-4">{workspace.flow.map((s,i)=><div key={i} className="flex flex-wrap gap-3"><label className="text-sm flex-1">Etapa<input disabled={Boolean(workspace.collection)} value={s.label} maxLength={200} className="block w-full border p-3 rounded-card mt-2" onChange={e=>change({...workspace,flow:workspace.flow.map((v,j)=>j===i?{...v,label:e.target.value}:v)})}/></label><label className="text-sm">N<input disabled={Boolean(workspace.collection)} type="number" min={0} max={100000000} value={s.count} className="block w-32 border p-3 rounded-card mt-2" onChange={e=>change({...workspace,flow:workspace.flow.map((v,j)=>j===i?{...v,count:Math.max(0,Math.floor(Number(e.target.value)))}:v)})}/></label><button disabled={Boolean(workspace.collection)} className="text-teal self-end p-3" onClick={()=>change({...workspace,flow:workspace.flow.filter((_,j)=>j!==i)})}><InterfaceText message="screen.3887d917d2e2" /></button></div>)}</div><button disabled={Boolean(workspace.collection)||workspace.flow.length>=12} className="text-teal underline mt-4 mr-5" onClick={()=>change({...workspace,flow:[...workspace.flow,{label:"Nova etapa",count:0}]})}><InterfaceText message="screen.69a323773685" /></button><button disabled={!workspace.flow.length} className="border rounded-card p-3 mt-4" onClick={()=>download(figureSvg(workspace,true, resultsLocale),"image/svg+xml","fluxo-selecao.svg")}><InterfaceText message="screen.5e821cb04420" /></button></section><label hidden={step!==3} className="block bg-white border rounded-2xl p-6"><InterfaceText message="screen.a8b1874d6b4c" /><textarea value={workspace.notes} maxLength={10000} rows={5} className="block w-full border rounded-card p-3 mt-3" onChange={e=>change({...workspace,notes:e.target.value})}/></label></div></fieldset><div className="flex justify-between gap-3 mt-6"><button type="button" disabled={!ready||busy||step===0} className="border rounded-card p-3 disabled:opacity-40" onClick={()=>go(step-1)}><InterfaceText message="screen.59dc926760d0" /></button>{step<3?<button type="button" disabled={!ready||busy} className="bg-teal text-white rounded-card p-3 disabled:opacity-40" onClick={()=>go(step+1)}><InterfaceText message="screen.9da0347c817f" /> {steps[step+1]}</button>:<button type="button" disabled={!ready||busy||!dirty} className="bg-teal text-white rounded-card p-3 disabled:opacity-40" onClick={save}><InterfaceText message="screen.589ae0fc1088" /></button>}</div></div>;
+}

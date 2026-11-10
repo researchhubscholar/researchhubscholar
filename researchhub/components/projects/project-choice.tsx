@@ -1,0 +1,10 @@
+import { getRequestLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n/locale";
+import type { MessageKey } from "@/lib/i18n/catalog";
+import InterfaceText from "@/components/i18n/interface-text";
+import Link from "next/link";
+export default async function ProjectChoice({projects,requested,path,label,sharedOnly=false}:{projects:{id:string;title?:string|null;theme?:string|null}[];requested?:string|null;path:string;label:string;sharedOnly?:boolean}) {
+  const requestLocale = await getRequestLocale();
+  const uiText = (key: MessageKey) => translate(requestLocale, key);
+ return <section className="scholar-workspace max-w-4xl mx-auto p-5">{!sharedOnly?<Link href="/dashboard" className="text-teal text-sm"><InterfaceText message="screen.66078a571c89" /></Link>:null}<h1 className="font-display text-3xl mt-5">{sharedOnly?(requestLocale==="es"?"Proyectos compartidos":"Projetos compartilhados"):requested!=null?uiText("screen.665b86a0dcc3"):uiText("screen.8b0e89899dae")}</h1><p className="text-ink-soft mt-3">{sharedOnly?(requestLocale==="es"?"Abre un proyecto compartido o acepta un código de invitación.":"Abra um projeto compartilhado ou aceite um código de convite."):requested!=null?uiText("screen.ab458ec3196b"):`Selecione o trabalho que deseja abrir em ${label}.`}</p>{projects.length?<form action={path} method="get" className="workspace-project-picker mt-5"><label><InterfaceText message="screen.4c7877d7558f" /><select name="projeto" required defaultValue="" className="block w-full border rounded-card p-3 mt-2"><option value="" disabled><InterfaceText message="screen.dedad02f93e9" /></option>{projects.map(project=><option key={project.id} value={project.id}>{project.title||project.theme||uiText("screen.53d02a124b87")}</option>)}</select></label><button className="workspace-project-picker-action"><InterfaceText message="screen.7577403dd89e" /></button></form>:sharedOnly?null:<Link href="/ideias" className="inline-block mt-5 text-teal underline"><InterfaceText message="screen.e9f99b8a9a6d" /></Link>}</section>;
+}

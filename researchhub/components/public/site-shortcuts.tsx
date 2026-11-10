@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "@/components/i18n/language-provider";
 import { usePathname } from "next/navigation";
+import { returnNavigation } from "@/lib/navigation/return-link";
 
 const publicPages = new Set([
   "/", "/como-funciona", "/para-residencias", "/contato",
@@ -9,13 +11,15 @@ const publicPages = new Set([
 ]);
 
 export default function SiteShortcuts() {
+  const { t: uiText } = useLanguage();
   const pathname = usePathname();
+  const back = returnNavigation(pathname);
   return <>
-    {pathname !== "/" && <div className="site-return">
-      <Link href="/" className="site-return-link"><span aria-hidden="true">←</span> Voltar ao início</Link>
+    {back && <div className="site-return">
+      <Link href={back.href} className="site-return-link"><span aria-hidden="true">←</span> {uiText(back.href === "/dashboard" ? "nav.backWorkspace" : "nav.backHome")}</Link>
     </div>}
     {publicPages.has(pathname) && <Link href="/planos" className="floating-plans">
-      Ver planos <span aria-hidden="true">↗</span>
+      {uiText("nav.viewPlans")} <span aria-hidden="true">↗</span>
     </Link>}
   </>;
 }

@@ -60,6 +60,18 @@ try {
   await waitForServer();
 
   const home = await expectPage("/", /ResearchHub/);
+  for (const [cookie, language] of [[undefined, "pt-BR"], ["scholar_locale=es", "es"], ["scholar_locale=invalid", "pt-BR"], [undefined, "pt-BR"]]) {
+    const localized = await request("/", cookie ? {headers:{cookie}} : undefined);
+    assert.equal(localized.status, 200);
+    assert.ok((await localized.text()).includes(`<html lang="${language}">`), `Request locale should be ${language}`);
+  }
+  for (const [cookie, heading] of [["scholar_locale=es", "Tu investigación continúa aquí."], ["scholar_locale=pt-BR", "Sua pesquisa continua aqui."]]) {
+    const response = await request("/login", {headers:{cookie}});
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(heading), "Login must use the explicitly selected language");
+    assert.ok(html.includes('name="email"') && html.includes('name="password"'), "Auth field names must remain unchanged");
+  }
   const publicPages = [
     ["/login", /Entrar|Acessar/],
     ["/cadastro", /Criar|cadastro|conta/i],
@@ -86,6 +98,9 @@ try {
     "/biblioteca",
     "/meu-trabalho",
     "/documentos",
+    "/resultados",
+    "/manuscrito",
+    "/geracoes/11111111-1111-4111-8111-111111111111",
     "/licenca",
     "/orientacao",
     "/residencia",
@@ -113,6 +128,10 @@ try {
   });
   assert.equal(protectedApi.status, 401);
   assert.match(await protectedApi.text(), /Entre na sua conta/);
+
+  const privateResults = await request("/api/results?project=11111111-1111-4111-8111-111111111111");
+  assert.equal(privateResults.status, 401, "Resultados exigem uma sessão autenticada");
+  assert.match(await privateResults.text(), /Entre na sua conta/);
 
   for (const path of ["/robots.txt", "/sitemap.xml", "/manifest.webmanifest"]) {
     const response = await request(path);

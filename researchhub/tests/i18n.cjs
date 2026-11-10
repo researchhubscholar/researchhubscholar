@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText, filename);
+const {resolveLocale, translate, localeCookie, SUPPORTED_LOCALES} = require('../lib/i18n/locale.ts');
+const {portuguese, spanish} = require('../lib/i18n/catalog.ts');
+assert.deepEqual(SUPPORTED_LOCALES, ['pt-BR','es']);
+for (const value of [undefined,null,'','pt-BR','en','es-MX','<script>']) assert.equal(resolveLocale(value),'pt-BR');
+assert.equal(resolveLocale('es'),'es');
+assert.deepEqual(Object.keys(portuguese).sort(),Object.keys(spanish).sort());
+for(const key of Object.keys(portuguese)) for(const locale of SUPPORTED_LOCALES) assert.ok(translate(locale,key).trim());
+assert.equal(translate('pt-BR','common.save'),'Salvar');
+assert.equal(translate('es','common.save'),'Guardar');
+assert.equal(localeCookie('es',true),'scholar_locale=es; Path=/; Max-Age=31536000; SameSite=Lax; Secure');
+assert.equal(localeCookie('pt-BR',false),'scholar_locale=pt-BR; Path=/; Max-Age=31536000; SameSite=Lax');
+assert.ok(!localeCookie('es; injected=true',true).includes('injected'));
+console.log('PASS: Portuguese default, strict locale validation, catalog parity, Spanish translation and safe persistent preference cookie.');

@@ -1,5 +1,9 @@
 # Licenças, residências e franquias
 
+> A implementação evoluiu desde este documento. Para IA conectada, seleção de
+> carteira e controles financeiros atuais, consulte docs/ai-readiness.md. As
+> referências abaixo a IA futura/desligada e modelos recomendados são históricas.
+
 ## Ativação da base
 
 Executar apenas supabase/scholar_access.sql em uma base Scholar já instalada.
@@ -97,7 +101,7 @@ comercial; não alterar saldos ou períodos manualmente com chamadas em andament
 
 ## Configuração comercial inicial (sem checkout)
 
-Individual: Essencial R$599/3M, Plus R$899/6M, Premium R$1499/12M por ano.
+Individual: Essencial R$599/3M, Plus R$799/6M, Premium R$999/12M por ano.
 Recarga proposta: R$79/1M até o fim da licença.
 Referência institucional: 30 vagas Essencial por R$14.400/ano (90M tokens),
 coordenação incluída. Preços sujeitos a validação com o público.
@@ -114,3 +118,28 @@ compartilhamento, permissões, reservas, liquidação, falha e limite diário.
 Funções pgcrypto são substituídas somente nesse teste, pois a extensão não está
 no runtime WASM. O teste não comprova concorrência entre conexões nem substitui
 resgate real com duas contas no Supabase.
+
+
+## Conta de teste e gestão com franquia ilimitada
+
+`supabase/scholar_test_account_unlimited.sql` adiciona uma marca privada à carteira e libera exclusivamente a carteira pessoal de `anthonny1414@gmail.com`, mantendo consumo e reservas. Ativa a licença pessoal e estende a validade até 2099 para uso de teste/gestão. Não modifica o modo de IA nem concede privilégios administrativos. Carteiras institucionais e demais contas continuam limitadas.
+
+O script é transacional e reexecutável, falha sem alterar nada se conta/licença/carteira não forem encontradas e preserva o controle financeiro existente. Limite por operação, concorrência e limite diário de tentativas continuam ativos. Somente o administrador do banco/backend pode alterar a marca. Aplicação continua compatível com banco sem a coluna até a migração ser executada; sem ela a liberação ainda não está ativa.
+
+Nas contas limitadas, a admissão passa a informar o saldo disponível e a reserva mínima exigida, distinguindo licença inativa/fora da validade. A tela de licença mostra “Ilimitada” para a carteira liberada, com consumo real e reservas ainda visíveis.
+
+## Preços individuais — 05/11/2026
+
+Preço anual autorizado: Essencial R$599 (3M tokens), Plus R$799 (6M) e Premium
+R$999 (12M). Planos institucionais e recargas permanecem iguais. As telas e a
+simulação local usam `lib/access/plans.ts`. Para alinhar novos pedidos no banco,
+aplicar somente `supabase/scholar_individual_prices_20261105.sql`, após
+`scholar_commerce.sql`. Não reexecutar o instalador comercial antigo: seu seed
+histórico contém os preços anteriores. Em instalação nova, aplicar a atualização
+de preços após o catálogo comercial.
+
+A atualização é reexecutável, modifica somente o preço dos três planos
+individuais e confere os valores antes de concluir. Não altera franquias,
+recargas, catálogo institucional, pedidos anteriores, licenças ou configurações
+de pagamento. SQL preparado e testado localmente; execução no ResearchHub
+ainda pendente de confirmação. Nenhuma mudança no Stripe foi realizada.

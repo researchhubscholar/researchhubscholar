@@ -3,19 +3,13 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-const modules: [string,string][] = [
-  ["/dashboard","dashboard"],["/descobrir","radar"],["/ideias","ideas"],["/biblioteca","library"],
-  ["/meu-trabalho","project"],["/orientacao","advising"],["/documentos","documents"],
-  ["/licenca","license"],["/contratacao","license"],["/residencia","residency"],["/conta","account"],["/operacao","operation"],
-];
+import { telemetryRoute } from "@/lib/telemetry/routes";
 
-export function moduleFromPath(pathname:string) {
-  return modules.find(([prefix])=>pathname===prefix||pathname.startsWith(prefix+"/"))?.[1]||"other";
-}
+export function moduleFromPath(pathname:string) { return telemetryRoute(pathname).module; }
 
-export function reportClientError(pathname:string,error:Error & {digest?:string}) {
+export function reportClientError(pathname:string) {
   return fetch("/api/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
-    body:JSON.stringify({kind:"error",module:moduleFromPath(pathname),route:pathname,errorCode:error.digest||"CLIENT_ERROR",message:(error.message||"Erro no cliente").slice(0,500)})}).catch(()=>undefined);
+    body:JSON.stringify({kind:"error",...telemetryRoute(pathname),errorCode:"CLIENT_ERROR"})}).catch(()=>undefined);
 }
 
 export default function ProductTelemetry() {
@@ -23,7 +17,7 @@ export default function ProductTelemetry() {
   useEffect(()=>{
     if(moduleFromPath(pathname)==="other")return;
     void fetch("/api/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
-      body:JSON.stringify({kind:"event",eventName:"page_view",module:moduleFromPath(pathname),route:pathname})});
+      body:JSON.stringify({kind:"event",eventName:"page_view",...telemetryRoute(pathname)})}).catch(()=>undefined);
   },[pathname]);
   return null;
 }
