@@ -583,3 +583,36 @@ body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-wi
 body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white):hover {
   border-color: #d3dece;
 }
+
+/* Complete the border-light finish across remaining internal modules. */
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(section,article,form,div,details).border:is(.bg-white,[class*="bg-white/"]):not([role="alert"]):not([class*="border-red"]):not([class*="border-amber"]):not([class*="border-teal"]):not([class*="border-green"]) {
+  border-color: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(
+  .library-reading-layout,.library-organize,.idea-proposal-more-options,
+  .assistant-inline-panel,.project-guide-window,.project-guide-roadmap,.project-guide-next,
+  .document-card,.document-preview,.document-matrix,.library-empty,
+  .account-export,.workspace-project-picker-action
+) { border-color: transparent; }
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-layout {
+  border-color: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.idea-proposal-actions > a,.idea-proposal-actions > button):not(.idea-proposal-primary),
+body:has(.primary-nav[data-workspace="true"]) :is(.library-export-trigger,.library-pdf-trigger,.library-pdf-download,.workspace-project-picker-action),
+body:has(.primary-nav[data-workspace="true"]) .library-extra-filters > summary,
+body:has(.primary-nav[data-workspace="true"]) .project-guide-next details button {
+  border-color: transparent;
+  background: var(--workspace-surface);
+  box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border.border-teal:not([aria-pressed="true"]):not([aria-selected="true"]):not(.text-white):not(.bg-teal):not(.bg-ink) {
+  border-color: transparent;
+  background-color: var(--workspace-surface);
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-list,.library-reading-row,.project-guide-header,.project-guide-footer,.language-selector) {
+  border-color: var(--workspace-line);
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a,summary):focus-visible {
+  outline: 2px solid #40735d;
+  outline-offset: 3px;
+}
