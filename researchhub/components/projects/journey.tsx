@@ -17,6 +17,8 @@ import { studyFormat } from "@/lib/research/study-format";
 import { validWorkspace } from "@/lib/results/data";
 import { systematicNextStep, type ScreeningProgress } from "@/lib/research/systematic-next-step";
 
+import { transverseNextStep } from "@/lib/research/transverse-next-step";
+
 type Status = "pending" | "current" | "done" | "blocked";
 type Item = { key:string;label:string;description:string;checklist:string[];checked:Record<string,boolean>;status:Status;note:string;dueDate:string };
 const statusLabels: Record<Status,string> = { pending:"A confirmar",current:"Em andamento",done:"Confirmada",blocked:"Bloqueada" };
@@ -33,6 +35,8 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
   const [state,setState]=useState<{scope:string;items:Item[]}>({scope,items:template});
   const items=state.scope===scope?state.items:template;
   const [activity,setActivity]=useState<{scope:string;value:ProjectActivity}>({scope,value:unknownActivity});
+  const transverse=studyFormat(studyType)==="transverse";
+  const [dataProgress,setDataProgress]=useState<{scope:string;hasData:boolean|null;hasResultsText:boolean|null}>({scope,hasData:null,hasResultsText:null});
   const systematic=studyFormat(studyType)==="systematic";
   const [screening,setScreening]=useState<{scope:string;value:ScreeningProgress|null}>({scope,value:null});
   const [loadedScope,setLoadedScope]=useState("");
@@ -41,7 +45,7 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
   const currentScope=useRef(scope);currentScope.current=scope;
   useEffect(()=>{setState(current=>({scope,items:template.map(step=>{const previous=current.scope===scope?current.items.find(i=>i.key===step.key):null;return previous?{...step,checked:previous.checked,status:previous.status,note:previous.note,dueDate:previous.dueDate}:step;})}));},[template,scope]);
   useEffect(()=>{
-    let active=true;setScreening({scope,value:null});setLoadedScope("");setDirty(false);setMessage("");setActivity({scope,value:unknownActivity});
+    let active=true;const controller=new AbortController();setDataProgress({scope,hasData:null,hasResultsText:null});setScreening({scope,value:null});setLoadedScope("");setDirty(false);setMessage("");setActivity({scope,value:unknownActivity});
     if(!projectId||!ownerId)return;
     const db=supabaseBrowser();
     void(async()=>{try{
@@ -57,8 +61,17 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
       else {setState(current=>({scope,items:(current.scope===scope?current.items:[]).map(step=>{const saved=milestones.data?.find(row=>row.milestone_key===step.key);if(!saved)return step;return {...step,status:saved.status as Status,note:saved.note||"",dueDate:saved.due_date||"",checked:saved.checklist_state&&typeof saved.checklist_state==="object"&&!Array.isArray(saved.checklist_state)?saved.checklist_state as Record<string,boolean>:{}};})}));setLoadedScope(scope);}
       const references=legacyLinks.error||links.error?null:new Set([...(legacyLinks.data||[]).map(r=>r.id),...(links.data||[]).map(r=>r.article_id)]).size;
       const result:ProjectActivity={references,searches:searches.error?null:searches.count||0,manuscriptStarted:manuscripts.error?null:false};
-      if(manuscripts.data){const sections=await db.from("scholar_manuscript_sections").select("content").eq("owner_id",ownerId).eq("manuscript_id",manuscripts.data.id);result.manuscriptStarted=sections.error?null:Boolean(sections.data?.some(s=>s.content?.trim()));}
+      let hasResultsText:boolean|null=manuscripts.error?null:false;
+      if(manuscripts.data){const sections=await db.from("scholar_manuscript_sections").select("section_key,content").eq("owner_id",ownerId).eq("manuscript_id",manuscripts.data.id);result.manuscriptStarted=sections.error?null:Boolean(sections.data?.some(s=>s.content?.trim()));hasResultsText=sections.error?null:Boolean(sections.data?.some(s=>s.section_key==="results"&&s.content?.trim()));}
       if(active)setActivity({scope,value:result});
+      if(transverse){
+        if(active)setDataProgress({scope,hasData:null,hasResultsText});
+        const response=await fetch(`/api/results?project=${encodeURIComponent(projectId)}`,{cache:"no-store",signal:controller.signal});
+        const {workspace}=await response.json();
+        if(active && response.ok && (workspace===null || validWorkspace(workspace))){
+          setDataProgress({scope,hasData:Boolean(workspace?.dataset.rows.some((row:string[])=>row.some(cell=>cell.trim()))),hasResultsText});
+        }
+      }
       if(systematic && references !== null){
         const ids = new Set([...(legacyLinks.data||[]).map(row=>row.id), ...(links.data||[]).map(row=>row.article_id)]);
         if(!ids.size){if(active)setScreening({scope,value:{total:0,pending:0,included:0,findings:0}});return;}
@@ -72,8 +85,8 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
         if(active&&!evidence?.error)setScreening({scope,value:{total:ids.size,pending:ids.size-decided.size,included:included.length,findings:new Set((evidence?.data??[]).filter(row=>row.main_finding?.trim()).map(row=>row.article_id)).size}});
       }
     }catch{if(active)setMessage("Não foi possível conferir o acompanhamento. Seu protocolo continua disponível.");}})();
-    return()=>{active=false;};
-  },[projectId,ownerId,scope,systematic]);
+    return()=>{active=false;controller.abort();};
+  },[projectId,ownerId,scope,systematic,transverse]);
   const ready=Boolean(projectId&&ownerId&&loadedScope===scope&&!disabled);
   const observed=activity.scope===scope?activity.value:unknownActivity;
   const signals=registeredSteps(draft,observed);const next=projectNextStep(draft,observed,items);
@@ -86,7 +99,7 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
       const {error}=await db.from("scholar_project_milestones").upsert(rows,{onConflict:"owner_id,project_id,milestone_key"});if(error)throw new Error("Não foi possível salvar o acompanhamento. Suas alterações permanecem nesta tela.");
       if(currentScope.current===who){setDirty(false);setMessage("Confirmações e prazos salvos na conta.");}
     }catch(error){if(currentScope.current===who)setMessage(error instanceof Error?error.message:"Não foi possível salvar.");}finally{lock.current=false;setBusy(false);}}
-  const guide = systematic && protocolSaved && projectId && next.destination !== "field" && !items.some(item=>item.status==="blocked");
+  const guide = (systematic || transverse) && protocolSaved && projectId && next.destination !== "field" && !items.some(item=>item.status==="blocked");
   const stage = systematicNextStep(screening.scope===scope ? screening.value : null);
   const es=formatLocale==="es";
   const guideCopy = es ? {
@@ -106,10 +119,27 @@ export default function ProjectJourney({projectId,ownerId,studyType,draft,radarH
     extract:["Organizar os achados","Registre o achado principal de cada estudo incluído na matriz."],
     write:["Levar achados ao manuscrito","Use a matriz para redigir e revisar a seção de Resultados."],
   };
-  const guideHref = stage==="search"||stage==="searchAgain" ? radarHref : stage==="write" ? `/manuscrito?projeto=${projectId}#section-results` : `/resultados?projeto=${projectId}${stage==="continue"?"&triagem=pendentes":""}#${stage==="extract"?"matriz":"triagem"}`;
+  const systematicHref = stage==="search"||stage==="searchAgain" ? radarHref : stage==="write" ? `/manuscrito?projeto=${projectId}#section-results` : `/resultados?projeto=${projectId}${stage==="continue"?"&triagem=pendentes":""}#${stage==="extract"?"matriz":"triagem"}`;
+  const currentData=dataProgress.scope===scope?dataProgress:null;
+  const dataStage=transverseNextStep(currentData?.hasData??null,currentData?.hasResultsText??null,items.some(item=>item.key==="collection"&&item.status==="done"));
+  const dataCopy=es?{
+    check:["Consultar datos y resultados","Abre el espacio de resultados para comprobar qué está guardado."],
+    collect:["Preparar la recolección","Confirma las autorizaciones aplicables y prepara las variables. Si ya tienes los datos, puedes registrarlos aquí."],
+    import:["Registrar los datos recolectados","Pega la tabla o importa un CSV sin identificadores personales."],
+    analyze:["Revisar y llevar los hallazgos al manuscrito","Revisa los datos guardados y elige qué hallazgos incorporar."],
+    write:["Continuar el manuscrito","Ya hay texto en Resultados. Revísalo y continúa la redacción."],
+  }:{
+    check:["Conferir dados e resultados","Abra a área de resultados para conferir o que está salvo."],
+    collect:["Preparar a coleta","Confirme as autorizações aplicáveis e prepare as variáveis. Se já tiver os dados, você pode registrá-los aqui."],
+    import:["Registrar os dados coletados","Cole a tabela ou importe um CSV sem identificadores pessoais."],
+    analyze:["Revisar e levar os achados ao manuscrito","Confira os dados salvos e escolha quais achados incorporar."],
+    write:["Continuar o manuscrito","Já há texto em Resultados. Revise essa seção e continue a escrita."],
+  };
+  const [guideTitle,guideDescription]=transverse?dataCopy[dataStage]:guideCopy[stage];
+  const guideHref=transverse ? dataStage==="write"?`/manuscrito?projeto=${projectId}#section-results`:`/resultados?projeto=${projectId}` : systematicHref;
   const destination=next.destination==="radar"?radarHref:next.destination==="manuscript"?`/manuscrito?projeto=${projectId}`:next.destination==="documents"?`/documentos?projeto=${projectId}`:`#${next.anchor||"pergunta"}`;
   return <section className="mt-6" aria-label={uiText("screen.04be19f79e2e")}>
-    <div className="bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.8979984026f0" /></p><h3 className="font-display text-2xl mt-2">{disabled?uiText("screen.36a640af1cca"):guide?guideCopy[stage][0]:next.title}</h3><p className="text-sm text-ink-soft mt-3 max-w-2xl">{disabled?uiText("screen.2da862aebf47"):guide?guideCopy[stage][1]:next.description}</p><div className="flex flex-wrap gap-3 items-center mt-4">{!disabled&&(guide?<Link href={guideHref} className="bg-teal text-white rounded-card px-4 py-2.5">{guideCopy[stage][0]}</Link>:next.destination==="review"?<button type="button" onClick={()=>openReview(next.milestone)} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></button>:(!projectId&&["radar","manuscript","documents"].includes(next.destination))?<a href="#project-save" className="bg-teal text-white rounded-card px-4 py-2.5"><InterfaceText message="screen.e464408181fe" /></a>:<Link href={destination} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></Link>)}{due&&<p className="text-xs text-ink-soft"><InterfaceText message="screen.2e26f24d9de9" /> <AuthoredText text={due.label} /> · {new Date(`${due.dueDate}T12:00:00`).toLocaleDateString(intlLocale(formatLocale))}</p>}</div>
+    <div className="bg-white border border-line rounded-2xl p-5 md:p-6"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.8979984026f0" /></p><h3 className="font-display text-2xl mt-2">{disabled?uiText("screen.36a640af1cca"):guide?guideTitle:next.title}</h3><p className="text-sm text-ink-soft mt-3 max-w-2xl">{disabled?uiText("screen.2da862aebf47"):guide?guideDescription:next.description}</p><div className="flex flex-wrap gap-3 items-center mt-4">{!disabled&&(guide?(transverse&&dataStage==="collect"?<><button type="button" onClick={()=>openReview("collection")} className="bg-teal text-white rounded-card px-4 py-2.5">{guideTitle}</button><Link href={guideHref} className="text-sm text-teal underline">{es?"Ya tengo los datos":"Já tenho os dados"}</Link></>:<Link href={guideHref} className="bg-teal text-white rounded-card px-4 py-2.5">{guideTitle}</Link>):next.destination==="review"?<button type="button" onClick={()=>openReview(next.milestone)} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></button>:(!projectId&&["radar","manuscript","documents"].includes(next.destination))?<a href="#project-save" className="bg-teal text-white rounded-card px-4 py-2.5"><InterfaceText message="screen.e464408181fe" /></a>:<Link href={destination} className="bg-teal text-white rounded-card px-4 py-2.5"><AuthoredText text={next.label} /></Link>)}{due&&<p className="text-xs text-ink-soft"><InterfaceText message="screen.2e26f24d9de9" /> <AuthoredText text={due.label} /> · {new Date(`${due.dueDate}T12:00:00`).toLocaleDateString(intlLocale(formatLocale))}</p>}</div>
       {!disabled&&projectId&&<p className="text-xs text-ink-soft mt-4"><InterfaceText message="screen.4785d7b832f4" /> {observed.references??"a conferir"} <InterfaceText message="screen.3b93719e2ff8" /> {observed.searches??"a conferir"} · Manuscrito: {observed.manuscriptStarted===null?"a conferir":observed.manuscriptStarted?"texto iniciado":"a iniciar"}</p>}
     </div>
     <details ref={reviewRef} className="mt-4 bg-white border border-line rounded-2xl p-5 md:p-6"><summary className="cursor-pointer text-teal font-medium"><InterfaceText message="screen.97f9b8a74112" /></summary><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.1b7b6c0b9dea" /></p>
