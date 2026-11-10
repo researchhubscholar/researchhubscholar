@@ -485,3 +485,33 @@ body .mobile-nav .primary-nav-link.workspace-home-link:hover { background: #173e
 
 .site-return-link[href="/dashboard"] { background: #1e4d40; border-color: #1e4d40; color: #fff; }
 .site-return-link[href="/dashboard"]:hover { background: #173e34; border-color: #173e34; color: #fff; }
+
+
+/* Soft green surfaces within the signed-in workspace; public/export palettes stay independent. */
+body:has(.primary-nav[data-workspace="true"]) {
+  --workspace-surface: #edf4ee;
+  --workspace-field: #f5f8f3;
+  --scholar-surface: var(--workspace-surface);
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.review-bell-panel) :is(.bg-white,[class*="bg-white/"]),
+body:has(.primary-nav[data-workspace="true"]) :is(
+  .radar-search-panel,.radar-utility-bar,.radar-suggestion-card,
+  .ideas-main-form,.idea-proposal-card,.library-controls,.library-pdf-dialog,
+  .library-empty,.library-matrix-card,.document-matrix,
+  .project-stage-card,.project-guide-window,.project-guide-header,
+  .project-guide-answer,.project-guide-footer,.project-guide-compose,
+  .review-bell-panel
+) {
+  background: var(--workspace-surface) !important;
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,select
+) {
+  background: var(--workspace-field) !important;
+}
+body:has(.primary-nav[data-workspace="true"]) dialog.bg-white,
+body:has(.primary-nav[data-workspace="true"]) :is(.library-pdf-trigger,.library-pdf-download),
+body:has(.primary-nav[data-workspace="true"]) .language-selector button[aria-pressed="true"] {
+  background: var(--workspace-field);
+}
