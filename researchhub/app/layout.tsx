@@ -1,3 +1,4 @@
+import BrandLink from "@/components/brand-link";
 import type { MessageKey } from "@/lib/i18n/catalog";
 import InterfaceText from "@/components/i18n/interface-text";
 import LanguageProvider from "@/components/i18n/language-provider";
@@ -49,12 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Suspense fallback={null}><GlobalGuide /></Suspense>
         <header className="app-header">
           <div className="app-header-inner">
-            <Link href="/" className="brand-lockup" aria-label={translate(locale, "nav.homeLabel")}>
-              <span className="brand-symbol" aria-hidden="true">R</span>
-              <span>
-                <span className="brand-name">Research<span className="brand-product">Hub</span></span>
-              </span>
-            </Link>
+            <BrandLink />
             <SessionNavigation />
           </div>
         </header>

@@ -476,3 +476,9 @@ body:has(.primary-nav[data-workspace="true"]) .library-page .library-controls { 
 .library-organize[open] .library-organize-chevron { transform:rotate(180deg); }
 .library-organize > :not(summary) { margin-inline:.9rem; }
 .library-organize > :last-child:not(summary) { margin-bottom:.9rem; }
+
+/* Keep the workspace home action visible throughout the research journey. */
+body .primary-nav .primary-nav-link.workspace-home-link,
+body .mobile-nav .primary-nav-link.workspace-home-link { background: var(--workspace-green); color: #fff; }
+body .primary-nav .primary-nav-link.workspace-home-link:hover,
+body .mobile-nav .primary-nav-link.workspace-home-link:hover { background: #173e34; color: #fff; }

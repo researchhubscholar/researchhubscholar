@@ -116,7 +116,7 @@ export default function SessionNavigation() {
         href={href}
         title={icon ? name : undefined}
         aria-current={isCurrent(pathname, href) ? "page" : undefined}
-        className={`primary-nav-link ${mobile ? "" : "desktop-only-link"}`}
+        className={`primary-nav-link ${href === "/dashboard" ? "workspace-home-link" : ""} ${mobile ? "" : "desktop-only-link"}`}
       >
         {icon ? <><svg className="workspace-rail-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg><span className="workspace-rail-label">{name}</span></> : name}
       </Link>
