@@ -95,6 +95,16 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
   const hasData=workspace.dataset.rows.length>0;
   const explanations=["Defina quais informações serão registradas. Se já tem uma planilha avulsa, escolha esse caminho abaixo.","Digite ou importe os dados e confira quem pode entrar no estudo. Visitas posteriores têm uma ficha própria.","Escolha a pergunta que deseja investigar. Você pode voltar e escolher outro caminho sem apagar suas análises.","Confira as tabelas e gráficos, salve os resultados e prepare o material do seu trabalho."];
   const [advanced,setAdvanced]=useState(false);
+  const [associationOpen,setAssociationOpen]=useState(false);
+  const [showSummary,setShowSummary]=useState(false);
+  const summaryHeading=useRef<HTMLHeadingElement>(null);
+  const associationHeading=useRef<HTMLHeadingElement>(null);
+  const numericColumns=stats.filter(row=>row.mean!==null && !identifierHeader(row.column) && !identifierValue(row.column)).map(row=>row.column);
+  const missingCells=stats.reduce((sum,row)=>sum+row.missing,0);
+  function openAssociation(){
+    setAssociationOpen(true);
+    requestAnimationFrame(()=>associationHeading.current?.focus());
+  }
   const [selection,setSelection]=useState<{revision:number;ids:string[]}>({revision:-1,ids:[]});
   const selected=selection.revision===editRevision.current?selection.ids:[];
   const candidates=descriptive.filter(row=>row.n>0).map(row=>{
@@ -107,11 +117,15 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
     return score(b.label)-score(a.label);
   });
   function replaceData(dataset:ResultsWorkspace["dataset"]){
+    setShowSummary(false);setAssociationOpen(false);
     change({...workspace,dataset,analysis:undefined,figure:{...workspace.figure,column:dataset.columns.includes(workspace.figure.column)?workspace.figure.column:dataset.columns[0]||""}});
   }
   async function sendSelected(){
     const text=candidates.filter(item=>selected.includes(item.id)).map(item=>item.text).join("\n");
-    if(!text||busy)return;
+    await sendToManuscript(text);
+  }
+  async function sendToManuscript(text:string){
+    if(!text.trim()||busy)return;
     if(dirty&&!await save())return;
     try{
       sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));
@@ -122,6 +136,11 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
     {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
     {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando datos…":"Carregando dados…"}</p>}
     {ready&&<fieldset disabled={busy} className="min-w-0 space-y-4">
+      {!hasData && <section className="rounded-card border border-line bg-white p-4">
+        <h2 className="font-display text-xl">{spanish?"¿Ya tienes los datos?":"Você já tem os dados?"}</h2>
+        <p className="my-2 text-sm">{spanish?"Pega una tabla o importa un CSV sin identificadores personales.":"Cole uma tabela ou importe um CSV sem identificadores pessoais."}</p>
+        <button type="button" className="text-sm text-teal underline" onClick={()=>{setAdvanced(true);setSource("clinical");go(0);}}>{spanish?"Aún voy a recolectar los datos":"Ainda vou coletar os dados"}</button>
+      </section>}
       <DatasetTable dataset={workspace.dataset} onChange={replaceData}/>
       <label className="block rounded-card border bg-white p-4 text-sm">{spanish?"Importar CSV":"Importar CSV"}
         <input type="file" accept=".csv,text/csv" className="mt-2 block max-w-full" onChange={event=>{
@@ -135,8 +154,14 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
           });
         }}/>
       </label>
-      {hasData&&<section className="rounded-2xl border bg-white p-5">
-        <h2 className="font-display text-2xl">{spanish?"Hallazgos de la tabla":"Achados da tabela"}</h2>
+      {hasData && <section className="rounded-card border border-line bg-white p-4">
+        <h2 className="font-display text-xl">{spanish?"Revisa los datos":"Confira os dados"}</h2>
+        <p className="my-2 text-sm">{workspace.dataset.rows.length} {spanish?"registros":"registros"} · {workspace.dataset.columns.length} {spanish?"columnas":"colunas"} · {missingCells} {spanish?"celdas vacías":"células vazias"}</p>
+        <button type="button" disabled={!candidates.length} className="rounded-card bg-teal px-4 py-2 text-white disabled:opacity-50" onClick={()=>{setShowSummary(true);requestAnimationFrame(()=>summaryHeading.current?.focus());}}>{spanish?"Ver resumen de los datos":"Ver resumo dos dados"}</button>
+        <button type="button" disabled={!dirty} onClick={()=>void save()} className="ml-2 rounded-card border px-4 py-2 disabled:opacity-50">{spanish?"Guardar datos":"Salvar dados"}</button>
+      </section>}
+      {hasData&&showSummary&&<section className="rounded-2xl border bg-white p-5">
+        <h2 ref={summaryHeading} tabIndex={-1} className="font-display text-2xl scroll-mt-28">{spanish?"Hallazgos de la tabla":"Achados da tabela"}</h2>
         <p className="mt-2 text-sm text-ink-soft">{workspace.dataset.rows.length} {spanish?"registros. Selecciona qué incluir en el borrador.":"registros. Selecione o que deseja incluir no rascunho."}</p>
         {candidates.slice(0,3).map(card)}
         {candidates.length>3&&<details className="mt-3"><summary className="cursor-pointer text-sm text-teal">{spanish?"Ver otros hallazgos":"Ver outros achados"}</summary>{candidates.slice(3).map(card)}</details>}
@@ -145,8 +170,17 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
           <button type="button" disabled={!dirty} onClick={()=>void save()} className="rounded-card border px-4 py-2 disabled:opacity-50">{spanish?"Guardar datos":"Salvar dados"}</button>
           <button type="button" disabled={interpreting||!descriptive.length} onClick={()=>void interpretTable()} className="rounded-card border px-4 py-2 disabled:opacity-50">{interpreting?"…":spanish?"Interpretar con IA":"Interpretar com IA"}</button>
         </div>
+        {numericColumns.length>=2 && <div className="mt-4 border-t border-line pt-4">
+          <p className="mb-2 text-sm">{spanish?"El resumen describe cada variable por separado. Para investigar una relación lineal, compara dos columnas numéricas.":"O resumo descreve cada variável separadamente. Para investigar uma relação linear, compare duas colunas numéricas."}</p>
+          <button type="button" onClick={openAssociation} className="rounded-card border px-4 py-2 text-teal">{spanish?"Analizar la asociación lineal":"Analisar a associação linear"}</button>
+        </div>}
         {interpretation?.revision===editRevision.current&&<p role="status" className="mt-3 whitespace-pre-wrap rounded-card bg-teal-soft p-4 text-sm">{interpretation.text}</p>}
       </section>}
+      {associationOpen && showSummary && hasData && <div>
+        <h2 ref={associationHeading} tabIndex={-1} className="mb-2 font-display text-xl scroll-mt-28">{spanish?"Elige dos variables numéricas":"Escolha duas variáveis numéricas"}</h2>
+        <InferencePanel dataset={workspace.dataset} config={workspace.analysis?.kind==="pearson"?workspace.analysis:undefined}
+          associationColumns={numericColumns} onChange={analysis=>change({...workspace,analysis})} onTransfer={text=>void sendToManuscript(text)} />
+      </div>}
       <button type="button" onClick={()=>setAdvanced(true)} className="text-sm text-teal underline">{spanish?"Abrir análisis avanzados":"Abrir análises avançadas"}</button>
     </fieldset>}
   </div>;
