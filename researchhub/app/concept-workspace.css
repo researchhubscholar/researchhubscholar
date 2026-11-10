@@ -487,132 +487,81 @@ body .mobile-nav .primary-nav-link.workspace-home-link:hover { background: #173e
 .site-return-link[href="/dashboard"]:hover { background: #173e34; border-color: #173e34; color: #fff; }
 
 
-/* Soft green surfaces within the signed-in workspace; public/export palettes stay independent. */
+
+/* Cream is for content; sage is reserved for editing, selection and actions. */
 body:has(.primary-nav[data-workspace="true"]) {
-  --workspace-surface: #e9eee6;
-  --workspace-field: #f5f8f3;
-  --scholar-surface: var(--workspace-surface);
+  --workspace-surface: #f7f5ef;
+  --workspace-field: #e9eee6;
+  --workspace-line: #e0e3d9;
+  --workspace-control-line: #d6dfd0;
+  --scholar-surface: var(--workspace-paper);
 }
 body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.review-bell-panel) :is(.bg-white,[class*="bg-white/"]),
 body:has(.primary-nav[data-workspace="true"]) :is(
-  .radar-search-panel,.radar-utility-bar,.radar-suggestion-card,
-  .ideas-main-form,.idea-proposal-card,.library-controls,.library-pdf-dialog,
-  .library-empty,.library-matrix-card,.document-matrix,
-  .project-stage-card,.project-guide-window,.project-guide-header,
-  .project-guide-answer,.project-guide-footer,.project-guide-compose,
-  .review-bell-panel
+  .ideas-main-form,.idea-proposal-card,.idea-proposal,.radar-search-panel,.radar-utility-bar,
+  .library-controls,.library-pdf-dialog,.library-reading-layout,.library-article-card,
+  .library-empty,.library-matrix-card,.document-matrix,.project-stage-card,
+  .workspace-project-picker,.workspace-priority-main,.review-bell-panel,
+  .project-guide-window,.project-guide-header,.project-guide-thread,.project-guide-footer,
+  .project-guide-answer,.project-guide-roadmap,.project-guide-next,.assistant-inline-panel
 ) {
-  background: var(--workspace-surface) !important;
+  background: var(--workspace-paper) !important;
+  border-color: transparent;
+  box-shadow: none;
 }
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-  textarea,select
-) {
-  background: var(--workspace-field) !important;
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace :is(div,section,article,form,details,p,span).bg-teal-soft:not([role="alert"]):not([aria-selected="true"]):not([aria-pressed="true"]) {
+  background: var(--workspace-paper);
 }
-body:has(.primary-nav[data-workspace="true"]) dialog.bg-white,
-body:has(.primary-nav[data-workspace="true"]) :is(.library-pdf-trigger,.library-pdf-download),
-body:has(.primary-nav[data-workspace="true"]) .language-selector button[aria-pressed="true"] {
-  background: var(--workspace-field);
+body:has(.primary-nav[data-workspace="true"]) .library-metrics > div,
+body:has(.primary-nav[data-workspace="true"]) .library-reading-detail .library-article-card,
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-article-card > .library-organize {
+  background: transparent !important;
+  border-color: transparent;
+  box-shadow: none;
 }
-
-
-/* Approved border hierarchy: quiet panels, defined controls and restrained dividers. */
-body:has(.primary-nav[data-workspace="true"]) {
-  --workspace-line: #d3dcd0;
-  --workspace-control-line: #a8b9a7;
-  --workspace-action-line: #9aaf9f;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.review-bell-panel) :is(
-  .border-line,.divide-line > :not([hidden]) ~ :not([hidden]),hr
-) { border-color: var(--workspace-line); }
-body:has(.primary-nav[data-workspace="true"]) :is(
-  .ideas-main-form,.idea-proposal-card,.radar-search-panel,.radar-utility-bar,
-  .library-controls,.library-pdf-dialog,.library-matrix-card,.document-matrix,
-  .project-stage-card,.review-bell-panel
-) { border-color: var(--workspace-line); border-radius: .75rem; box-shadow: none; }
 body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),textarea,select
-) {
-  border-color: var(--workspace-control-line);
-  border-width: 1px;
+),
+body:has(.primary-nav[data-workspace="true"]) .project-guide-compose {
+  background: var(--workspace-field) !important;
+  border: 1px solid var(--workspace-control-line);
   border-radius: .5rem;
   box-shadow: none;
 }
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(
-  input:not([type="checkbox"]):not([type="radio"]),textarea,select
-):focus-visible { border-color: #40735d; outline: 2px solid #40735d; outline-offset: 2px; }
-body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white),
-body:has(.primary-nav[data-workspace="true"]) :is(.library-pdf-trigger,.library-pdf-download,.library-export-trigger),
-body:has(.primary-nav[data-workspace="true"]) .library-extra-filters > summary {
-  border-color: var(--workspace-action-line);
-  border-radius: .5rem;
-  box-shadow: none;
-}
-body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white):hover {
-  border-color: #789881;
-}
-body:has(.primary-nav[data-workspace="true"]) .library-page .library-article-card > .library-organize {
-  background: var(--workspace-surface); border-color: var(--workspace-line); border-radius: .75rem;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-list,.library-reading-row,.project-guide-header,.project-guide-footer,.project-guide-answer) {
-  border-color: var(--workspace-line);
-}
-body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table :is(th,td) { border-color: var(--workspace-line); }
-
-/* Border-light trial: surface contrast defines groups; keyboard focus stays visible. */
-body:has(.primary-nav[data-workspace="true"]) {
-  --workspace-line: #e0e6dc;
-  --workspace-control-line: #dde5d8;
-  --workspace-action-line: transparent;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(
-  .ideas-main-form,.idea-proposal-card,.radar-search-panel,.radar-utility-bar,
-  .library-controls,.library-pdf-dialog,.library-matrix-card,.document-matrix,
-  .project-stage-card,.review-bell-panel,.project-guide-answer
-) { border-color: transparent; box-shadow: none; }
 body:has(.primary-nav[data-workspace="true"]) .app-content :is(section,article,form,div,details).border.border-line {
   border-color: transparent;
 }
-body:has(.primary-nav[data-workspace="true"]) .library-page .library-article-card > .library-organize {
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border:not(.text-white):not(.bg-teal):not(.bg-ink):not([class*="border-red"]):not([class*="text-red"]) {
   border-color: transparent;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border.border-line:not(.bg-teal):not(.bg-ink):not(.text-white) {
-  background-color: var(--workspace-surface); border-color: transparent;
-}
-body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-red-600):not(.text-red-700):not(.border-red-200):not(.border-red-300):not(.bg-teal):not(.bg-ink):not(.text-white):hover {
-  border-color: #d3dece;
-}
-
-/* Complete the border-light finish across remaining internal modules. */
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(section,article,form,div,details).border:is(.bg-white,[class*="bg-white/"]):not([role="alert"]):not([class*="border-red"]):not([class*="border-amber"]):not([class*="border-teal"]):not([class*="border-green"]) {
-  border-color: transparent;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(
-  .library-reading-layout,.library-organize,.idea-proposal-more-options,
-  .assistant-inline-panel,.project-guide-window,.project-guide-roadmap,.project-guide-next,
-  .document-card,.document-preview,.document-matrix,.library-empty,
-  .account-export,.workspace-project-picker-action
-) { border-color: transparent; }
-body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-layout {
-  border-color: transparent;
-}
-body:has(.primary-nav[data-workspace="true"]) :is(.idea-proposal-actions > a,.idea-proposal-actions > button):not(.idea-proposal-primary),
-body:has(.primary-nav[data-workspace="true"]) :is(.library-export-trigger,.library-pdf-trigger,.library-pdf-download,.workspace-project-picker-action),
-body:has(.primary-nav[data-workspace="true"]) .library-extra-filters > summary,
-body:has(.primary-nav[data-workspace="true"]) .project-guide-next details button {
-  border-color: transparent;
-  background: var(--workspace-surface);
   box-shadow: none;
 }
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a).border.border-teal:not([aria-pressed="true"]):not([aria-selected="true"]):not(.text-white):not(.bg-teal):not(.bg-ink) {
+body:has(.primary-nav[data-workspace="true"]) :is(
+  .library-pdf-trigger,.library-pdf-download,.library-export-trigger,
+  .workspace-project-picker-action
+) {
+  background: var(--workspace-field);
   border-color: transparent;
-  background-color: var(--workspace-surface);
+  box-shadow: none;
 }
-body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-list,.library-reading-row,.project-guide-header,.project-guide-footer,.language-selector) {
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a,summary):not(:disabled):hover {
+  text-decoration-color: currentColor;
+}
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a).border:not(.text-white):not(.bg-teal):not(.bg-ink):not([class*="border-red"]):not([class*="text-red"]):hover {
+  background-color: var(--workspace-field);
+}
+body:has(.primary-nav[data-workspace="true"]) .library-reading-row.is-selected,
+body:has(.primary-nav[data-workspace="true"]) .language-selector button[aria-pressed="true"] {
+  background: var(--workspace-field);
+}
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-pressed="true"],
+body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-selected="true"] {
+  background-color: var(--workspace-field);
+}
+body:has(.primary-nav[data-workspace="true"]) :is(.library-reading-row,.library-reading-list,.project-guide-header,.project-guide-footer),
+body:has(.primary-nav[data-workspace="true"]) .scholar-workspace table :is(th,td) {
   border-color: var(--workspace-line);
 }
-body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window) :is(button,a,summary):focus-visible {
+body:has(.primary-nav[data-workspace="true"]) :is(.app-content,.project-guide-window,.library-pdf-dialog) :is(button,a,summary,input,textarea,select):focus-visible {
   outline: 2px solid #40735d;
   outline-offset: 3px;
 }
