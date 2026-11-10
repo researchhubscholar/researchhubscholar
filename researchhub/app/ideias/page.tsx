@@ -1,4 +1,5 @@
 "use client";
+import { appliedPubmedStrategy } from "@/lib/literature/search-limits";
 import { studyFormatText } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 
@@ -231,6 +232,11 @@ export default function IdeasPage() {
       const { data } = await postAI<{ output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage }>("/api/ai/refine-idea", { idea, projectId: projectId || null, language: outputLanguage });
       if (!data.output) throw new AIRequestError("A IA não retornou um refinamento válido. Confira o registro antes de tentar novamente.", data.operationId);
       setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage, language: outputLanguage } }));
+      const query = appliedPubmedStrategy(data.pubmedQuery || "").topic;
+      if (!await saveVersion(idea, true)) return;
+      const handoff = crypto.randomUUID();
+      sessionStorage.setItem(`scholar-radar-refinement:${handoff}`, query);
+      router.push(`/descobrir?${new URLSearchParams({ origem: "ideias", busca: handoff, ...(projectId ? { projeto: projectId } : {}) })}`);
     } catch (error) {
       setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? `${error.message}${error instanceof AIRequestError && error.operationId ? ` Código da operação: ${error.operationId}.` : ""}` : "Não foi possível refinar esta proposta." }));
     } finally { refinementInFlight.current = false; setRefiningId(""); }
@@ -411,7 +417,7 @@ function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, ed
     </dl><div className="grid md:grid-cols-2 gap-5 mt-6 text-sm"><List title={uiText("screen.3c079482c65b")} values={idea.unresolved} /><List title={uiText("screen.9afdfa4b758f")} values={idea.plan} ordered /></div></details>
 
     <div className="idea-proposal-actions">
-      <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : uiText("screen.28dfad4eb9d8")}</button>
+      <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : (locale === "es" ? "Refinar y buscar literatura" : "Refinar e buscar literatura")}</button>
       <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
       <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
       <details className="idea-proposal-more">

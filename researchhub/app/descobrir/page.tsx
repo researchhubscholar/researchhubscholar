@@ -91,7 +91,7 @@ function DiscoverContent() {
 
   const { t: uiText } = useLanguage();
   const params = useSearchParams();
-  const [topic, setTopic] = useState(params.get("tema") || "semaglutide depression");
+  const [topic, setTopic] = useState(params.get("tema") || (params.has("busca") ? "" : "semaglutide depression"));
   const [period, setPeriod] = useState(params.get("origem")==="assistente"?"all":"5");
   const incomingStudy = params.get("desenho") || "";
   const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
@@ -147,7 +147,7 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period) {
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
     const finishAttempt = trackRadarAttempt();
@@ -165,7 +165,7 @@ function DiscoverContent() {
       });
       return { response, data: await response.json() };
     };
-    const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType, translations };
+    const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType, translations, ...prepared };
     try {
       let { response, data } = await requestSearch(original);
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
@@ -220,6 +220,25 @@ function DiscoverContent() {
   }
   async function analyze(e: React.FormEvent) { e.preventDefault(); await runAnalysis(); }
   async function confirmTerms(e: React.FormEvent) { e.preventDefault(); if (termReview) await runAnalysis(termReview.translations); }
+  const handoff = params.get("origem") === "ideias" ? params.get("busca") : null;
+  const usedHandoff = useRef<string | null>(null);
+  useEffect(() => {
+    if (!handoff || usedHandoff.current === handoff) return;
+    usedHandoff.current = handoff;
+    try {
+      const key = `scholar-radar-refinement:${handoff}`;
+      const prepared = appliedPubmedStrategy(sessionStorage.getItem(key) || "");
+      sessionStorage.removeItem(key);
+      setTopic(prepared.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm("");
+      setOperator(prepared.operator); setLanguage(prepared.language);
+      void runAnalysis({}, period, prepared);
+    } catch {
+      setError(formatLocale === "es" ? "No se pudo recuperar la búsqueda. Vuelve a Ideas o escribe una consulta." : "Não foi possível recuperar a busca. Volte a Ideias ou escreva uma consulta.");
+    }
+    // Consume each handoff once, using the strategy passed explicitly to the search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff]);
+
   function applyStrategy(item: SearchStrategy) { setTopic(item.query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); setPeriod(item.period); setStudyType(item.study_type); setSource(item.source); setSort(item.sort); window.scrollTo({ top: 0, behavior: "smooth" }); }
   function applyHistory(query: string) { setTopic(query); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage("auto"); window.scrollTo({ top: 0, behavior: "smooth" }); }
 

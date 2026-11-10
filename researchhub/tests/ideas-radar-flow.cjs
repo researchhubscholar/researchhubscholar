@@ -32,6 +32,8 @@ function ideasHarness() {
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
   if (name === '@/lib/ideas/generate') return generation;
   if (name === '@/lib/ideas/radar') return radar;
+  if (name === '@/lib/research/study-format') return {studyFormatText: value => value};
+  if (name === '@/lib/literature/search-limits') return limits;
   if (name === '@/lib/ideas/history') return { historyError: () => 'Falha no salvamento.' };
   if (name === '@/lib/literature/use-library') return { useLibrary: () => library };
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => client };
@@ -50,7 +52,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const h = hooks(), requests = [];
  const module = { exports: {} };
  const source = fs.readFileSync('app/descobrir/page.tsx', 'utf8').replace('function DiscoverContent()', 'export function DiscoverContent()');
- vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, sessionStorage: {getItem: () => "hypertension AND exercise", removeItem() {}}, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useSearchParams: () => new URLSearchParams(query) };
@@ -59,6 +61,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
   if (name === '@/lib/literature/use-library') return { useLibrary: () => ({ userId: null, articles: [], projects: [] }) };
   if (name === '@/lib/literature/use-open-access') return { useOpenAccess: () => ({ results: {}, loading: new Set() }) };
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }) };
+  if (name === '@/lib/ai/client-request' || name === '@/lib/literature/suggestion-query') return {};
   if (name === '@/lib/literature/types' || name === '@/lib/literature/result-export') return {};
   if (name.startsWith('@/components/') || name === 'next/link') return { default: name };
   throw Error(name);
@@ -92,9 +95,10 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const stale = ideasHarness(); stale.render(); await tick(); stale.restore(); stale.all().find(n => typeof n.type === 'function' && n.props.label === copy('Sua especialidade ou área')).props.change('Outra área'); stale.card().props.onRadar(); await tick(); assert.equal(stale.writes.length, 0);
  const account = ideasHarness(); account.render(); await tick(); account.restore(); account.card().props.onRadar(); await tick(); account.library.userId = 'owner-b'; account.render(); account.pending[0].resolve({ error: null }); await tick(); assert.equal(account.destinations.length, 0, 'account switches must prevent stale navigation');
 
+ const auto=radarHarness('origem=ideias&busca=test'); auto.render(); auto.render(); assert.equal(auto.requests.length,1); assert.equal(JSON.parse(auto.requests[0].options.body).topic,'hypertension AND exercise'); auto.requests[0].resolve({ok:false,status:500,json:async()=>({error:'Teste'})}); await tick();
  const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Tema da busca')).props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Idioma da busca')).props.value,'en');
- const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, locale==='es'?'Preparar con IA':'Preparar com IA');
- assert.equal(r.assistant().props.actionLabel,locale==='es'?'Preparar con IA':'Preparar com IA');
+ const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, locale==='es'?'Refinar con IA':'Refinar com IA');
+ assert.equal(r.assistant().props.actionLabel,locale==='es'?'Refinar con IA':'Refinar com IA');
  assert.equal(r.assistant().props.context.searchGoal, 'exploratory_broad');
  const search = r.search(); assert.equal(r.dialog().props.open, true); assert.equal(r.assistant().props.disabled, true); assert(!r.dialog().props.statusText.includes('modelo'));
  assert(r.requests[0].options.signal instanceof AbortSignal);
