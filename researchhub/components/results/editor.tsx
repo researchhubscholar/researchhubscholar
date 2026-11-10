@@ -93,6 +93,68 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
   const clinical=Boolean(workspace.collection)||source==="clinical";
   const hasData=workspace.dataset.rows.length>0;
   const explanations=["Defina quais informações serão registradas. Se já tem uma planilha avulsa, escolha esse caminho abaixo.","Digite ou importe os dados e confira quem pode entrar no estudo. Visitas posteriores têm uma ficha própria.","Escolha a pergunta que deseja investigar. Você pode voltar e escolher outro caminho sem apagar suas análises.","Confira as tabelas e gráficos, salve os resultados e prepare o material do seu trabalho."];
+  const [advanced,setAdvanced]=useState(false);
+  const [selection,setSelection]=useState<{revision:number;ids:string[]}>({revision:-1,ids:[]});
+  const selected=selection.revision===editRevision.current?selection.ids:[];
+  const candidates=descriptive.filter(row=>row.n>0).map(row=>{
+    const label=row.column.replaceAll("_"," ");
+    const sample=spanish?`n = ${row.n}; sin dato: ${row.missing}`:`n = ${row.n}; sem dado: ${row.missing}`;
+    return {id:row.column,label,text:row.mean===null?`${label}: ${sample}.`:`${label}: ${spanish?"media":"média"} ${format(row.mean)}, ${spanish?"mediana":"mediana"} ${format(row.median)} (${sample}).`};
+  }).sort((a,b)=>{
+    const question=(protocol?.research_question||"").toLowerCase().normalize("NFD").replace(/\p{M}/gu,"");
+    const score=(label:string)=>label.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").split(/\W+/).filter(word=>word.length>2&&question.includes(word)).length;
+    return score(b.label)-score(a.label);
+  });
+  function replaceData(dataset:ResultsWorkspace["dataset"]){
+    change({...workspace,dataset,analysis:undefined,figure:{...workspace.figure,column:dataset.columns.includes(workspace.figure.column)?workspace.figure.column:dataset.columns[0]||""}});
+  }
+  async function sendSelected(){
+    const text=candidates.filter(item=>selected.includes(item.id)).map(item=>item.text).join("\n");
+    if(!text||busy)return;
+    if(dirty&&!await save())return;
+    try{
+      sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));
+      window.location.assign(`/manuscrito?projeto=${encodeURIComponent(projectId)}#section-results`);
+    }catch{setMessage(spanish?"No se pudo preparar el borrador en este navegador.":"Não foi possível preparar o rascunho neste navegador.");}
+  }
+  if(transverse&&!workspace.collection&&!advanced)return <div className="results-guided space-y-4">
+    {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
+    {!ready&&!loadFailed&&<p role="status">{spanish?"Cargando datos…":"Carregando dados…"}</p>}
+    {ready&&<fieldset disabled={busy} className="min-w-0 space-y-4">
+      <DatasetTable dataset={workspace.dataset} onChange={replaceData}/>
+      <label className="block rounded-card border bg-white p-4 text-sm">{spanish?"Importar CSV":"Importar CSV"}
+        <input type="file" accept=".csv,text/csv" className="mt-2 block max-w-full" onChange={event=>{
+          const file=event.target.files?.[0];event.target.value="";
+          if(file)void run(async()=>{
+            if(file.size>1_500_000)throw Error(spanish?"El archivo supera 1,5 MB.":"O arquivo excede 1,5 MB.");
+            const dataset=parseCsv(await file.text());
+            if(!validWorkspace({...workspace,dataset}))throw Error(spanish?"Revisa las columnas y los valores del archivo.":"Confira as colunas e os valores do arquivo.");
+            if(workspace.dataset.rows.length&&!window.confirm(dialogCopy("Substituir os dados importados deste projeto?")))return;
+            replaceData(dataset);
+          });
+        }}/>
+      </label>
+      {hasData&&<section className="rounded-2xl border bg-white p-5">
+        <h2 className="font-display text-2xl">{spanish?"Hallazgos de la tabla":"Achados da tabela"}</h2>
+        <p className="mt-2 text-sm text-ink-soft">{workspace.dataset.rows.length} {spanish?"registros. Selecciona qué incluir en el borrador.":"registros. Selecione o que deseja incluir no rascunho."}</p>
+        {candidates.slice(0,3).map(card)}
+        {candidates.length>3&&<details className="mt-3"><summary className="cursor-pointer text-sm text-teal">{spanish?"Ver otros hallazgos":"Ver outros achados"}</summary>{candidates.slice(3).map(card)}</details>}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button type="button" disabled={!selected.length} onClick={()=>void sendSelected()} className="rounded-card bg-teal px-4 py-2 text-white disabled:opacity-50">{spanish?"Llevar selección al manuscrito":"Levar selecionados ao manuscrito"}</button>
+          <button type="button" disabled={!dirty} onClick={()=>void save()} className="rounded-card border px-4 py-2 disabled:opacity-50">{spanish?"Guardar datos":"Salvar dados"}</button>
+          <button type="button" disabled={interpreting||!descriptive.length} onClick={()=>void interpretTable()} className="rounded-card border px-4 py-2 disabled:opacity-50">{interpreting?"…":spanish?"Interpretar con IA":"Interpretar com IA"}</button>
+        </div>
+        {interpretation?.revision===editRevision.current&&<p role="status" className="mt-3 whitespace-pre-wrap rounded-card bg-teal-soft p-4 text-sm">{interpretation.text}</p>}
+      </section>}
+      <button type="button" onClick={()=>setAdvanced(true)} className="text-sm text-teal underline">{spanish?"Abrir análisis avanzados":"Abrir análises avançadas"}</button>
+    </fieldset>}
+  </div>;
+  function card(item:typeof candidates[number]){
+    return <label key={item.id} className="mt-3 flex items-start gap-3 rounded-card border p-3 text-sm">
+      <input type="checkbox" className="mt-1" checked={selected.includes(item.id)} onChange={event=>setSelection({revision:editRevision.current,ids:event.target.checked?[...selected,item.id]:selected.filter(id=>id!==item.id)})}/>
+      <span>{item.text}</span>
+    </label>;
+  }
   const caseReport=/relato\s+de\s+caso|reporte\s+de\s+caso|case\s+report/i.test(protocol?.study_type||"");
   if(caseReport)return <div className="results-guided space-y-4">
     {message&&<p role="status" className="rounded-card border p-4"><AuthoredText text={message}/></p>}
@@ -100,7 +162,7 @@ const format = (n: number|null) => n===null?"—":n.toLocaleString(intlLocale(fo
     {ready&&<CaseTimeline events={workspace.caseTimeline||[]} onChange={caseTimeline=>change({...workspace,caseTimeline})} onSave={()=>void save()} busy={busy} dirty={dirty}/>}
     {ready&&<Link href={`/manuscrito?projeto=${encodeURIComponent(projectId)}#section-results`} className="inline-block text-teal underline">{spanish?"Abrir resultados en el manuscrito":"Abrir resultados no manuscrito"}</Link>}
   </div>;
-  return <div className="results-guided"><ProjectGuide key={projectId} projectId={projectId} title={title} workspace={workspace} stage={step} question={question} dirty={dirty} disabled={!ready||busy} source={clinical?"clinical":"csv"} onNavigate={navigateFromGuide} onTransfer={text=>{if(!ready||busy)return;if(dirty){setMessage("Salve os resultados antes de enviar ao manuscrito. O rascunho continua no assistente.");return;}try{sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));window.location.assign(`/manuscrito?projeto=${projectId}`);}catch{setMessage("Não foi possível preparar a transferência neste navegador. Copie o texto revisado.");}}} onQuestion={id=>{if(!ready||busy||![...questions.map(q=>q.key),"general"].includes(id))return false;setQuestion(id);go(2);return true;}}/><div className="sticky top-3 z-20 rounded-card border bg-white p-3 mb-5 shadow-sm flex flex-wrap gap-3 items-center"><button disabled={!ready||busy||!dirty} onClick={save} className="bg-teal text-white p-3 rounded-card disabled:opacity-40">{busy?(spanish?"Procesando…":"Processando…"):uiText("screen.d535d30c453c")}</button><span role="status" className="text-sm text-ink-soft">{dirty?uiText("screen.da5585beca57"):ready?(revision.current!==null?(spanish?"Guardado en tu cuenta":"Salvo na conta"):(spanish?"Sin cambios para guardar":"Sem alterações para salvar")):loadFailed?uiText("screen.a09f16b00998"):uiText("screen.df062fa03285")}</span><Link href={`/documentos?projeto=${projectId}`} className="text-teal underline"><InterfaceText message="screen.a55b518cc200" /></Link>{message&&<p role="status" className="w-full text-sm"><AuthoredText text={message}/></p>}<p className="w-full text-xs text-ink-soft"><InterfaceText message="screen.33c5cc388629" /></p></div>
+  return <div className="results-guided">{transverse&&!workspace.collection&&<button type="button" onClick={()=>setAdvanced(false)} className="mb-4 text-sm text-teal underline">{spanish?"Volver a los hallazgos":"Voltar aos achados"}</button>}<ProjectGuide key={projectId} projectId={projectId} title={title} workspace={workspace} stage={step} question={question} dirty={dirty} disabled={!ready||busy} source={clinical?"clinical":"csv"} onNavigate={navigateFromGuide} onTransfer={text=>{if(!ready||busy)return;if(dirty){setMessage("Salve os resultados antes de enviar ao manuscrito. O rascunho continua no assistente.");return;}try{sessionStorage.setItem(`scholar-results-transfer:${projectId}`,JSON.stringify({text,stamp:resultsStamp(workspace),project:projectId}));window.location.assign(`/manuscrito?projeto=${projectId}`);}catch{setMessage("Não foi possível preparar a transferência neste navegador. Copie o texto revisado.");}}} onQuestion={id=>{if(!ready||busy||![...questions.map(q=>q.key),"general"].includes(id))return false;setQuestion(id);go(2);return true;}}/><div className="sticky top-3 z-20 rounded-card border bg-white p-3 mb-5 shadow-sm flex flex-wrap gap-3 items-center"><button disabled={!ready||busy||!dirty} onClick={save} className="bg-teal text-white p-3 rounded-card disabled:opacity-40">{busy?(spanish?"Procesando…":"Processando…"):uiText("screen.d535d30c453c")}</button><span role="status" className="text-sm text-ink-soft">{dirty?uiText("screen.da5585beca57"):ready?(revision.current!==null?(spanish?"Guardado en tu cuenta":"Salvo na conta"):(spanish?"Sin cambios para guardar":"Sem alterações para salvar")):loadFailed?uiText("screen.a09f16b00998"):uiText("screen.df062fa03285")}</span><Link href={`/documentos?projeto=${projectId}`} className="text-teal underline"><InterfaceText message="screen.a55b518cc200" /></Link>{message&&<p role="status" className="w-full text-sm"><AuthoredText text={message}/></p>}<p className="w-full text-xs text-ink-soft"><InterfaceText message="screen.33c5cc388629" /></p></div>
   <nav aria-label={uiText("screen.ada15438a1d3")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-5">{steps.map((label,i)=><button key={label} type="button" disabled={!ready||busy} aria-current={step===i?"step":undefined} onClick={()=>go(i)} className={`rounded-card border p-4 text-left text-sm disabled:opacity-40 ${step===i?"bg-teal text-white":"bg-white text-teal"}`}><span className="block text-xs mb-1">Etapa {i+1} de 4</span>{label}</button>)}</nav>
   <div className="mb-5"><h2 ref={stepHeading} tabIndex={-1} className="font-display text-2xl scroll-mt-40"><AuthoredText text={steps[step]} /></h2><p className="text-sm text-ink-soft mt-2"><AuthoredText text={explanations[step]} /></p></div>
   <div hidden={step!==0||Boolean(workspace.collection)} className="rounded-card border bg-white p-5 mb-5"><h3 className="font-medium"><InterfaceText message="screen.c5eba4c921bd" /></h3><div className="grid gap-3 md:grid-cols-2 mt-3"><button type="button" disabled={!ready||busy} aria-pressed={clinical} onClick={()=>{setSource("clinical");setQuestion("");}} className={`border rounded-card p-4 text-left ${clinical?"border-teal bg-teal-soft":""}`}><strong><InterfaceText message="screen.441c4887e1ec" /></strong><span className="block text-sm mt-2"><InterfaceText message="screen.d14c174450e7" /></span></button><button type="button" disabled={!ready||busy} aria-pressed={!clinical} onClick={()=>{setSource("csv");setQuestion("");go(1);}} className={`border rounded-card p-4 text-left ${!clinical?"border-teal bg-teal-soft":""}`}><strong><InterfaceText message="screen.d7eb9b98fb9a" /></strong><span className="block text-sm mt-2"><InterfaceText message="screen.8014f29a2bcd" /></span></button></div>{!clinical&&<p className="mt-3 text-sm"><InterfaceText message="screen.4e4dfa734eae" /></p>}</div>
