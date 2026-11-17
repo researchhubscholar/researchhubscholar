@@ -12,7 +12,9 @@ const providerConfigured = useGateway
   // Vercel Functions expose OIDC through request context, not always env.
   ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_ENV === "preview")
   : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const modelIds = [selectedModel];
+const modelIds = useGateway
+  ? [selectedModel, "google/gemini-2.5-flash"]
+  : [selectedModel, "gemini-2.5-flash"];
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,
