@@ -28,6 +28,8 @@ type License = { id: string; status: string; mode: "simulation" | "live"; starts
 type Wallet = { id: string; license_id: string; allowance: number; used: number; reserved: number; unlimited?:boolean };
 
 function message(error: unknown) {
+  const admissionReason = providerErrorDiagnostic(error).databaseReason;
+  if (admissionReason) return `${admissionReason}. Confira sua franquia em Minha licença ou solicite a revisão dos limites de uso.`;
   const raw = error instanceof Error ? error.message : "Não foi possível concluir o aprimoramento.";
   if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. tente novamente.";
   if (raw.includes("Franquia")) return raw;
