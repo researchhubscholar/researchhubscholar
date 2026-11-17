@@ -48,7 +48,7 @@ export function providerErrorText(error: unknown): string {
   try { return JSON.stringify(error); } catch { return String(error); }
 }
 
-export function providerErrorDiagnostic(error: unknown): { name: string; status?: number; code?: string; retryable: boolean } {
+export function providerErrorDiagnostic(error: unknown): { name: string; status?: number; code?: string; databaseReason?: string; retryable: boolean } {
   const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
   const status = typeof value.statusCode === "number" ? value.statusCode : typeof value.status === "number" ? value.status : undefined;
   const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name.slice(0, 80) : typeof error;
