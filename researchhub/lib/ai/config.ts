@@ -50,7 +50,7 @@ export function providerErrorText(error: unknown): string {
 
 export function retryWithFallback(error: unknown) {
   const raw = providerErrorText(error);
-  return /high demand|temporar|unavailable|overloaded|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
+  return /high demand|temporar|unavailable|overloaded|timeout|timed out|abort|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
 }
 
 export function estimatedCost(inputTokens: number, outputTokens: number) {
