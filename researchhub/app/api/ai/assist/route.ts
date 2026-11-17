@@ -10,7 +10,7 @@ import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, providerErrorText, retryWithFallback } from "@/lib/ai/config";
+import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, providerErrorText, retryWithFallback, providerErrorDiagnostic } from "@/lib/ai/config";
 import { safeGuideActions } from "@/lib/ai/radar-action";
 import { assistantJsonSchema, assistantPrompt, isAssistantOutput, ledgerFeature, simulatedOutput, type AssistantOutput, validateAssistRequest } from "@/lib/ai/assist";
 import { outputBudget } from "@/lib/ai/structured-output";
@@ -56,5 +56,5 @@ if(!isAssistantOutput(output))throw new Error("A resposta do modelo não corresp
   output=partial;
  }
 }if(i+o>scholarAI.reservedTokens)throw new Error("A resposta excedeu o limite de consumo da operação.");const cost=estimatedCost(i,o);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:i,p_output:o,p_cost:cost,p_failed:false,p_provider_id:providerResponseId});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"live",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):[],output,usage:{inputTokens:i,outputTokens:o,costUsd:cost}});
-}catch(e){const timedOut=generationTimedOut(e);console.error("[scholar-ai:assist] generation failed",{operationId,model:scholarAI.model,timedOut,error:e instanceof Error?e.message:"unknown"});const reservation = operationId&&reserved ? await settleFailedReservation(operationId,timedOut?"GENERATION_TIMEOUT":"GENERATION_FAILED",metering||providerMetering(e)) : null;
+}catch(e){const timedOut=generationTimedOut(e);console.error("[scholar-ai:assist] generation failed",{operationId,model:scholarAI.model,timedOut,error:providerErrorDiagnostic(e)});const reservation = operationId&&reserved ? await settleFailedReservation(operationId,timedOut?"GENERATION_TIMEOUT":"GENERATION_FAILED",metering||providerMetering(e)) : null;
 return reply(request,{error:reservation==="completed"?reservationNotice(reservation):[safeMessage(e),reservation?reservationNotice(reservation):""].filter(Boolean).join(" "),operationId,reservation},{status:reservation==="pending"?503:timedOut?504:400});}}
