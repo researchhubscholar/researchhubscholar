@@ -206,6 +206,30 @@ function load(path, deps) {
     assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[walletA]),0);
     await assert.rejects(db.query('update scholar_wallets set allowance=1,used=2 where id=$1',[walletB]),/check constraint/);
     await db.exec('set role authenticated');await assert.rejects(db.query('update scholar_wallets set unlimited=true where id=$1',[walletB]),/permission denied/);
+    await db.exec('reset role');
+
+    // Commercial policy migration: failed calls do not consume Essential's 20 successful daily generations.
+    const commercialMigration=fs.readFileSync('supabase/scholar_ai_plan_usage_20261117.sql','utf8');
+    await db.exec(commercialMigration);await db.exec(commercialMigration);
+    assert.equal(await scalar('select enabled from scholar_ai_emergency_controls where id=true'),false);
+    await db.exec("update scholar_usage set created_at=now()-interval '2 days'; update scholar_ai_budget_settings set enabled=true");
+    await db.query("update scholar_licenses set plan='essential',mode='live',status='active',starts_at=now()-interval '1 day',ends_at=now()+interval '30 days' where id=$1",[licA]);
+    await db.query("update scholar_licenses set plan='plus',mode='live',status='active',starts_at=now()-interval '1 day',ends_at=now()+interval '30 days' where id=$1",[licB]);
+
+    const failEssential=uuid();await reserve(failEssential);await db.query('select scholar_settle($1,0,0,0,true)',[failEssential]);
+    for(let n=0;n<20;n++){const id=uuid();await reserve(id);await db.query('select scholar_settle($1,100,100,0,false)',[id]);}
+    await assert.rejects(reserve(uuid()),/20 gerações diárias do plano Essencial/);
+    assert.equal(Number(await scalar("select count(*)::int from scholar_usage where user_id=$1 and status='completed' and created_at>=date_trunc('day',now() at time zone 'UTC') at time zone 'UTC'",[a])),20);
+
+    for(let n=0;n<21;n++){const id=uuid();await reserve(id,walletB,b);await db.query('select scholar_settle($1,100,100,0,false)',[id]);}
+    assert.equal(Number(await scalar("select count(*)::int from scholar_usage where user_id=$1 and status='completed' and created_at>=date_trunc('day',now() at time zone 'UTC') at time zone 'UTC'",[b])),21);
+    assert(Number(await scalar('select sum(reserved_usd) from scholar_ai_budget_admissions'))>2,'accounting envelopes still accumulate after exceeding old daily dollar caps');
+
+    await db.exec('update scholar_ai_emergency_controls set enabled=true,hard_limit_usd=0.25 where id=true');
+    await assert.rejects(reserve(uuid(),walletB,b),/Proteção financeira emergencial/);
+    await db.exec('update scholar_ai_emergency_controls set enabled=false where id=true');
+    const stillAvailable=uuid();await reserve(stillAvailable,walletB,b);await db.query('select scholar_settle($1,100,100,0,false)',[stillAvailable]);
+    console.log('PASS: Essential completed-only 20/day, paid Plus >20/day, no customer daily dollar cap, optional emergency stop and unchanged token settlements.');
     console.log('PASS: confirmed refunds, lost-settlement responses, financial envelopes, atomic reservation state, exact balances, cross-wallet daily limits, scoped/idempotent recharges, unchanged expiry and protected credit grants.');
   } finally { await db.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
