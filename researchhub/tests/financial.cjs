@@ -193,6 +193,14 @@ function load(path, deps) {
     await assert.rejects(reserve(uuid()),/financeiro diário da plataforma/);
     await db.exec('update scholar_ai_budget_settings set enabled=false');
     await db.query('update scholar_wallets set allowance=1 where id=$1',[walletA]);
+    // Reproduce the production migration-order regression: budgets overwrites unlimited admission.
+    await db.exec(fs.readFileSync('supabase/scholar_ai_budgets.sql','utf8'));
+    await assert.rejects(reserve(uuid()),/Franquia insuficiente/);
+    const reservationRepair=fs.readFileSync('supabase/scholar_reservation_unlimited_repair_20261117.sql','utf8');
+    await db.exec(reservationRepair);
+    await db.exec(reservationRepair); // Idempotent and preserves the live budget configuration.
+    assert.equal(await scalar('select unlimited from scholar_wallets where id=$1',[walletA]),true);
+    assert.equal(await scalar('select unlimited from scholar_wallets where id=$1',[walletB]),false);
     const unlimitedOperation=uuid();await reserve(unlimitedOperation);await assert.rejects(reserve(uuid()),/andamento/);await db.query('select scholar_settle($1,2000,1000,0,false)',[unlimitedOperation]);
     assert.equal(await scalar('select used from scholar_wallets where id=$1',[walletA]),Number(usedBeforeUnlimited)+3000);
     assert.equal(await scalar('select reserved from scholar_wallets where id=$1',[walletA]),0);
