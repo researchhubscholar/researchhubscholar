@@ -73,7 +73,7 @@ export function retryWithFallback(error: unknown) {
   return /high demand|temporar|unavailable|overloaded|timeout|timed out|abort|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
 }
 
-export function estimatedCost(inputTokens: number, outputTokens: number, modelId = scholarAI.model) {
+export function estimatedCost(inputTokens: number, outputTokens: number, modelId: string = scholarAI.model) {
   // Estimate the model actually used, not the conservative maximum for fallback admission.
   // Gateway pricing: Qwen 3.7 Flash <=32k tokens, Gemini 2.5 Flash standard.
   const googleFallback = useGateway && modelId === "google/gemini-2.5-flash";
