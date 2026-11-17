@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: AI reservation and financial regression
+        run: node tests/financial.cjs
+
       - name: Tests
         run: npm test
 
