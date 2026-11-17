@@ -157,7 +157,7 @@ export async function POST(request: Request) {
     const providerResponseId = generation.result.response.id || null;
     if (!isAIIdeasOutput(output)) throw new Error("A resposta do modelo não corresponde ao formato científico esperado. Tente novamente.");
     if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("A resposta excedeu o limite de consumo da operação.");
-    const costUsd = estimatedCost(inputTokens, outputTokens);
+    const costUsd = estimatedCost(inputTokens, outputTokens, generation.modelId);
     const ideas = mergeAIProposals(input.ideas, output);
     const outputSnapshot = { ...output, ideas, qualityIssues };
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: outputSnapshot }).eq("usage_id", operationId);
