@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const generationTimeoutMs = 120_000;
-const modelAttemptTimeoutMs = 100_000;
+const modelAttemptTimeoutMs = 55_000;
 const staleReservationMs = 10 * 60_000;
 
 function generationTimedOut(error: unknown) {
