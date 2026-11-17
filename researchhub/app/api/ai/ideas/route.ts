@@ -6,7 +6,7 @@ import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, Output, jsonSchema, type JSONSchema7 } from "ai";
-import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
+import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback, providerErrorDiagnostic } from "@/lib/ai/config";
 import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const generationTimeoutMs = 120_000;
-const modelAttemptTimeoutMs = 100_000;
+const modelAttemptTimeoutMs = 55_000;
 const staleReservationMs = 10 * 60_000;
 
 function generationTimedOut(error: unknown) {
@@ -28,6 +28,8 @@ type License = { id: string; status: string; mode: "simulation" | "live"; starts
 type Wallet = { id: string; license_id: string; allowance: number; used: number; reserved: number; unlimited?:boolean };
 
 function message(error: unknown) {
+  const admissionReason = providerErrorDiagnostic(error).databaseReason;
+  if (admissionReason) return `${admissionReason}. Confira sua franquia em Minha licença ou solicite a revisão dos limites de uso.`;
   const raw = error instanceof Error ? error.message : "Não foi possível concluir o aprimoramento.";
   if (generationTimedOut(error)) return "A geração demorou mais que o esperado e foi interrompida com segurança. tente novamente.";
   if (raw.includes("Franquia")) return raw;
@@ -94,7 +96,7 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
       capture(error);
       lastError = error;
       const failure = error as { finishReason?: unknown; usage?: { inputTokens?: number; outputTokens?: number } };
-      console.warn("[scholar-ai:ideas] incomplete response", { model: candidate.id, finishReason: failure?.finishReason, inputTokens: failure?.usage?.inputTokens, outputTokens: failure?.usage?.outputTokens });
+      console.warn("[scholar-ai:ideas] incomplete response", { model: candidate.id, ...providerErrorDiagnostic(error), finishReason: failure?.finishReason, inputTokens: failure?.usage?.inputTokens, outputTokens: failure?.usage?.outputTokens });
       if (/JSON|objeto.*completo|formato científico/i.test(error instanceof Error ? error.message : String(error))) {
         parseFailures += 1;
         if (parseFailures < 2) continue;
@@ -166,7 +168,7 @@ export async function POST(request: Request) {
     return reply(request,{ operationId, language:input.language, mode: "live", ideas, caution: output.caution, qualityChecks, usage: { inputTokens, outputTokens, costUsd } });
   } catch (error) {
     const timedOut = generationTimedOut(error);
-    console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: error instanceof Error ? error.message : "unknown" });
+    console.error("[scholar-ai:ideas] generation failed", { operationId, model: scholarAI.model, timedOut, error: providerErrorDiagnostic(error) });
     const reservation = operationId && reserved ? await settleFailedReservation(operationId, timedOut ? "GENERATION_TIMEOUT" : "GENERATION_FAILED", metering || providerMetering(error)) : null;
     return reply(request,{ error: reservation === "completed" ? reservationNotice(reservation) : [message(error), reservation ? reservationNotice(reservation) : ""].filter(Boolean).join(" "), operationId, reservation }, { status: reservation === "pending" ? 503 : timedOut ? 504 : 400 });
   }

@@ -20,7 +20,7 @@ const fmt=(value:string|number)=>typeof value==="number"?value.toLocaleString(in
  const {locale:resultsLocale}=useLanguage();
 
   const { t: uiText } = useLanguage();
-  const current=config||(associationColumns?{...defaultConfig,kind:"pearson" as const}:defaultConfig);
+  const current=useMemo(()=>config||(associationColumns?{...defaultConfig,kind:"pearson" as const}:defaultConfig),[config,associationColumns]);
   const es=resultsLocale==="es";
   const result=useMemo(()=>{try{assertAnalysisKinds(kinds,current);return {value:analyze(dataset,current),error:''};}catch(e){return {value:null,error:e instanceof Error?e.message:'Confira os dados.'};}},[dataset,current,kinds]);
   const update=(next:Partial<AnalysisConfig>)=>onChange({...current,...next});

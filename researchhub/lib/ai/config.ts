@@ -12,7 +12,9 @@ const providerConfigured = useGateway
   // Vercel Functions expose OIDC through request context, not always env.
   ? Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_ENV === "preview")
   : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const modelIds = [selectedModel];
+const modelIds = useGateway
+  ? [selectedModel, "google/gemini-2.5-flash"]
+  : [selectedModel, "gemini-2.5-flash"];
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,
@@ -46,9 +48,27 @@ export function providerErrorText(error: unknown): string {
   try { return JSON.stringify(error); } catch { return String(error); }
 }
 
+export function providerErrorDiagnostic(error: unknown): { name: string; status?: number; code?: string; databaseReason?: string; retryable: boolean } {
+  const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const status = typeof value.statusCode === "number" ? value.statusCode : typeof value.status === "number" ? value.status : undefined;
+  const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name.slice(0, 80) : typeof error;
+  const code = typeof value.code === "string" ? value.code.slice(0, 80) : undefined;
+  const knownDatabaseMessages = [
+    "Franquia indisponível", "Franquia insuficiente", "Já existe uma operação em andamento",
+    "Limite diário atingido", "Limite financeiro diário da plataforma atingido",
+    "Limite financeiro diário desta licença atingido", "Projeto indisponível",
+    "Vínculo institucional indisponível", "Limite financeiro de IA ainda não configurado",
+    "Limite de 10.000 tokens por operação",
+  ];
+  const databaseReason = code === "P0001" && typeof value.message === "string"
+    ? knownDatabaseMessages.find(known => value.message === known)
+    : undefined;
+  return { name, ...(status === undefined ? {} : { status }), ...(code ? { code } : {}), ...(databaseReason ? { databaseReason } : {}), retryable: retryWithFallback(error) };
+}
+
 export function retryWithFallback(error: unknown) {
   const raw = providerErrorText(error);
-  return /high demand|temporar|unavailable|overloaded|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
+  return /high demand|temporar|unavailable|overloaded|timeout|timed out|abort|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
 }
 
 export function estimatedCost(inputTokens: number, outputTokens: number) {

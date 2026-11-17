@@ -419,7 +419,7 @@ function SuggestionCard({ label, suggestion, onAccept }: { label: string; sugges
 }
 
 function EvidenceField({ label, value, onChange, disabled }: { label: string; value: string; onChange: (value: string) => void; disabled?: boolean }) {
-  const { t: uiText, locale } = useLanguage();
+  const { t: uiText } = useLanguage();
   return (
     <div className="p-4 border-b md:border-b-0 md:border-r border-line last:border-r-0">
       <label className="text-[11px] uppercase tracking-wider text-teal font-semibold"><AuthoredText text={label} /></label>
