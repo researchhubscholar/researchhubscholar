@@ -53,7 +53,17 @@ export function providerErrorDiagnostic(error: unknown): { name: string; status?
   const status = typeof value.statusCode === "number" ? value.statusCode : typeof value.status === "number" ? value.status : undefined;
   const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name.slice(0, 80) : typeof error;
   const code = typeof value.code === "string" ? value.code.slice(0, 80) : undefined;
-  return { name, ...(status === undefined ? {} : { status }), ...(code ? { code } : {}), retryable: retryWithFallback(error) };
+  const knownDatabaseMessages = [
+    "Franquia indisponível", "Franquia insuficiente", "Já existe uma operação em andamento",
+    "Limite diário atingido", "Limite financeiro diário da plataforma atingido",
+    "Limite financeiro diário desta licença atingido", "Projeto indisponível",
+    "Vínculo institucional indisponível", "Limite financeiro de IA ainda não configurado",
+    "Limite de 10.000 tokens por operação",
+  ];
+  const databaseReason = code === "P0001" && typeof value.message === "string"
+    ? knownDatabaseMessages.find(known => value.message === known)
+    : undefined;
+  return { name, ...(status === undefined ? {} : { status }), ...(code ? { code } : {}), ...(databaseReason ? { databaseReason } : {}), retryable: retryWithFallback(error) };
 }
 
 export function retryWithFallback(error: unknown) {
