@@ -55,7 +55,7 @@ function load(path, deps) {
   }
 
   // Invoke the real HTTP handler with an invalid model response and returned DB errors.
-  const config = { scholarAIReady: true, scholarAI: { model: 'fixture', reasoning: 'none', reservedTokens: 10000, maxAssistOutputTokens: 4000 }, scholarAIModels: [{ model: {}, id: 'fixture' }], estimatedCost: (i,o) => (i+o)/100000, providerErrorText: error => error?.message || '', retryWithFallback: () => false };
+  const config = { scholarAIReady: true, scholarAI: { model: 'fixture', reasoning: 'none', reservedTokens: 10000, maxAssistOutputTokens: 4000 }, scholarAIModels: [{ model: {}, id: 'fixture' }], estimatedCost: (i,o) => (i+o)/100000, providerErrorText: error => error?.message || '', retryWithFallback: () => false, providerErrorDiagnostic: error => ({ name: error instanceof Error ? error.name : typeof error, retryable: false }) };
   for (const ledgerStatus of ['failed', 'completed', 'reserved']) {
     const rpcCalls = [];
     const admin = {
