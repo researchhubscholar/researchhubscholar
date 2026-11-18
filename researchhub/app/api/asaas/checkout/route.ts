@@ -33,6 +33,10 @@ export async function POST(request: Request) {
   try {
     const apiKey = process.env.ASAAS_API_KEY;
     if (!apiKey) throw new Error("Chave do Asaas não configurada.");
+    // Do not open live payments until the Asaas webhook endpoint is configured and verified.
+    if (process.env.ASAAS_ENVIRONMENT?.toLowerCase() === "production" &&
+        process.env.RESEARCHHUB_ASAAS_CHECKOUT_READY !== "true")
+      return NextResponse.json({ error: "Pagamento temporariamente indisponível até a confirmação do webhook Asaas." }, { status: 503 });
     const admin = supabaseAdmin();
     const { data, error } = await admin.from("scholar_purchase_requests")
       .select("id,requester_id,kind,plan,status,billing_schedule,total_amount_cents,provider_checkout_id")
@@ -43,8 +47,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Solicitação não disponível para pagamento." }, { status: 409 });
     if (purchase.kind !== "individual" || !purchase.plan)
       return NextResponse.json({ error: "Checkout automático disponível inicialmente apenas para planos individuais." }, { status: 422 });
-    if (purchase.billing_schedule !== "annual")
-      return NextResponse.json({ error: "O parcelamento ainda não foi ativado neste checkout. Escolha pagamento anual." }, { status: 422 });
+    if (!["annual", "12x"].includes(purchase.billing_schedule))
+      return NextResponse.json({ error: "Forma de pagamento inválida." }, { status: 422 });
     if (purchase.provider_checkout_id)
       return NextResponse.json({ url: checkoutUrl(purchase.provider_checkout_id), requestId: purchase.id });
 
@@ -54,8 +58,9 @@ export async function POST(request: Request) {
     if (!origin || !origin.startsWith("https://")) throw new Error("Origem HTTPS do site não configurada.");
     const site = new URL(origin).origin;
     const body = {
-      billingTypes: ["PIX", "CREDIT_CARD"],
-      chargeTypes: ["DETACHED"],
+      billingTypes: purchase.billing_schedule === "12x" ? ["CREDIT_CARD"] : ["PIX", "CREDIT_CARD"],
+      chargeTypes: purchase.billing_schedule === "12x" ? ["INSTALLMENT"] : ["DETACHED"],
+      ...(purchase.billing_schedule === "12x" ? { installment: { maxInstallmentCount: 12 } } : {}),
       minutesToExpire: 60,
       externalReference: purchase.id,
       callback: {
