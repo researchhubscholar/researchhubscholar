@@ -109,11 +109,12 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/ai/config.ts','utf8')
 const configuration=configurationModule.exports;
 assert.equal(configuration.scholarAI.model,'alibaba/qwen3.7-flash');
 assert.equal(configuration.scholarAIModel.modelId,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModels.length,1);
+assert.equal(configuration.scholarAIModels.length,2);
 assert.equal(configuration.scholarAIModels[0].id,'alibaba/qwen3.7-flash');
+assert.equal(configuration.scholarAIModels[1].id,'google/gemini-2.5-flash');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
 assert.equal(configuration.scholarAI.reasoning,"none");
 for (const route of ["ideas","assist","refine-idea"]) assert.match(fs.readFileSync(`app/api/ai/${route}/route.ts`,"utf8"), /reasoning:\s*scholarAI.reasoning/);
 assert.equal(configuration.estimatedCost(1000,1000),0.00016);
-console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides without additional paid fallback attempts.');
+console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides with an explicit backup model and no stale environment override.');
