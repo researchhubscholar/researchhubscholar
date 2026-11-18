@@ -85,7 +85,12 @@ export default function ScholarOnboardingPage() {
       setError(profileError.message.includes("column") || profileError.code === "PGRST204" ? "O diagnóstico novo ainda precisa da migration scholar_phase1_journey.sql no Supabase." : "Não foi possível salvar seu diagnóstico. Tente novamente.");
       setLoading(false); return;
     }
-    router.push("/dashboard?onboarding=concluido"); router.refresh();
+    // Finishing a profile is not equivalent to purchasing a license.
+    const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
+    const allowed = !accessError && access && typeof access === "object" &&
+      !Array.isArray(access) && access.allowed === true;
+    router.push(accessError ? "/licenca" : allowed ? "/dashboard?onboarding=concluido" : "/contratacao");
+    router.refresh();
   }
 
   if (loadingProfile) return <div className="max-w-4xl mx-auto py-20 text-center text-ink-soft"><InterfaceText message="screen.25a0d3aec5a5" /></div>;
