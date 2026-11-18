@@ -82,6 +82,29 @@ export async function middleware(request: NextRequest) {
     const redirected=NextResponse.redirect(target);response.cookies.getAll().forEach(cookie=>redirected.cookies.set(cookie));return redirected;
   }
 
+  // Authentication does not itself grant a purchased ResearchHub license.
+  // Public enrollment, profile onboarding and the license/contract screens stay accessible.
+  const paidWorkspaceRoutes = [
+    "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho",
+    "/documentos", "/resultados", "/manuscrito", "/geracoes",
+  ];
+  if (user && paidWorkspaceRoutes.some(path =>
+    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")
+  )) {
+    const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
+    const allowed = !accessError && access && typeof access === "object" &&
+      !Array.isArray(access) && access.allowed === true;
+    if (!allowed) {
+      const target = request.nextUrl.clone();
+      // A database outage should not be mistaken for an unpaid account.
+      target.pathname = accessError ? "/licenca" : "/contratacao";
+      target.search = "";
+      const redirected = NextResponse.redirect(target);
+      response.cookies.getAll().forEach(cookie => redirected.cookies.set(cookie));
+      return redirected;
+    }
+  }
+
   return response;
 }
 
