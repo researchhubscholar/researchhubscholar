@@ -44,17 +44,24 @@ export async function POST(request: Request) {
     const amount = checkoutEventAmountCents(body);
     if (amount !== purchase.total_amount_cents)
       return NextResponse.json({ error: "Valor do checkout divergente" }, { status: 422 });
+    // Audit the correct provider even though older commerce.sql defaults to "stripe".
+    const { data: existing, error: existingError } = await admin.from("scholar_payment_events")
+      .select("purchase_request_id,provider").eq("provider_event_id", body.id).maybeSingle();
+    if (existingError) throw existingError;
+    if (existing && existing.purchase_request_id !== purchase.id)
+      return NextResponse.json({ error: "Identificador de evento reutilizado" }, { status: 409 });
+    if (existing) {
+      if (existing.provider !== "asaas") {
+        const { error: auditError } = await admin.from("scholar_payment_events")
+          .update({ provider: "asaas" }).eq("provider_event_id", body.id).eq("purchase_request_id", purchase.id);
+        if (auditError) throw auditError;
+      }
+      return NextResponse.json({ acknowledged: true, alreadyProcessed: true });
+    }
     if (purchase.status === "activated" && purchase.fulfilled_license_id)
       return NextResponse.json({ acknowledged: true, alreadyActivated: true });
     if (!["approved", "payment_pending"].includes(purchase.status))
       return NextResponse.json({ error: "Compra não elegível para ativação automática" }, { status: 409 });
-
-    const { data: existing, error: existingError } = await admin.from("scholar_payment_events")
-      .select("purchase_request_id").eq("provider_event_id", body.id).maybeSingle();
-    if (existingError) throw existingError;
-    if (existing && existing.purchase_request_id !== purchase.id)
-      return NextResponse.json({ error: "Identificador de evento reutilizado" }, { status: 409 });
-    if (existing) return NextResponse.json({ acknowledged: true, alreadyProcessed: true });
 
     const { error: fulfillmentError } = await admin.rpc("scholar_fulfill_paid_request", {
       p_request: purchase.id,
@@ -63,6 +70,9 @@ export async function POST(request: Request) {
       p_provider_subscription: null,
     });
     if (fulfillmentError) throw fulfillmentError;
+    const { error: auditError } = await admin.from("scholar_payment_events")
+      .update({ provider: "asaas" }).eq("provider_event_id", body.id).eq("purchase_request_id", purchase.id);
+    if (auditError) throw auditError;
     console.info("[asaas:checkout] paid checkout activated", { checkoutId: body.checkout.id, requestId: purchase.id });
     return NextResponse.json({ acknowledged: true, activated: true });
   } catch (error) {
