@@ -18,9 +18,14 @@ export async function POST(request: Request) {
   let event: Event;
   try { event = await request.json() as Event; }
   catch { return NextResponse.json({ error: "Evento inválido." }, { status: 400 }); }
-  if (typeof event.id !== "string" || !event.id || typeof event.event !== "string"
-      || !event.checkout || typeof event.checkout.id !== "string" || !event.checkout.id)
+  if (typeof event.id !== "string" || !event.id || typeof event.event !== "string")
     return NextResponse.json({ error: "Evento incompleto." }, { status: 400 });
+  // Asaas can deliver payment and other events to the same webhook.
+  // Ignoring unrelated authenticated events prevents unnecessary queue retries.
+  if (!["CHECKOUT_PAID", "CHECKOUT_CANCELED", "CHECKOUT_EXPIRED"].includes(event.event))
+    return NextResponse.json({ received: true, ignored: true });
+  if (!event.checkout || typeof event.checkout.id !== "string" || !event.checkout.id)
+    return NextResponse.json({ error: "Checkout incompleto." }, { status: 400 });
   const checkout = event.checkout;
   const db = supabaseAdmin();
   const { data, error } = await db.from("scholar_purchase_requests")
