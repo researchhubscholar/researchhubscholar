@@ -3147,3 +3147,28 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .project-guide-window--clean *, .assistant-inline-panel--clean * { scroll-behavior: auto; }
 }
+
+/* Visual QA: clearly separate the expanded chat from the ResearchHub workspace. */
+.project-guide-window.project-guide-window--clean {
+  border: 1.5px solid #c8d7cd;
+  border-radius: 1.2rem;
+  box-shadow: 0 22px 65px rgba(20,52,42,.20), 0 4px 18px rgba(20,52,42,.09);
+}
+.project-guide-window--clean .project-guide-header {
+  border-bottom: 1px solid #e2e9e2;
+}
+.project-guide-window--clean .project-guide-footer {
+  border-top: 1px solid #e2e9e2;
+}
+@media (min-width: 1280px) {
+  .project-guide-window.project-guide-window--clean.project-guide-window--expanded {
+    right: max(1.25rem, env(safe-area-inset-right));
+    border-radius: 1.2rem;
+  }
+}
+@media (max-width: 600px) {
+  .project-guide-window.project-guide-window--clean {
+    border: 1px solid #c8d7cd;
+    box-shadow: 0 12px 35px rgba(20,52,42,.18);
+  }
+}
