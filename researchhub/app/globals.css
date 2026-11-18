@@ -3172,3 +3172,30 @@ body {
     box-shadow: 0 12px 35px rgba(20,52,42,.18);
   }
 }
+
+/* Fix: browser chrome reduces usable viewport below 680px on common Mac screens.
+   Expanded assistant must remain a clearly bounded panel regardless of viewport height. */
+@media (min-width: 1024px) {
+  .project-guide-window.project-guide-window--clean.project-guide-window--expanded {
+    position: fixed;
+    top: max(.75rem, env(safe-area-inset-top));
+    right: max(.85rem, env(safe-area-inset-right));
+    bottom: max(.75rem, env(safe-area-inset-bottom));
+    width: min(42rem, calc(100vw - 2.5rem));
+    height: auto;
+    max-height: none;
+    border: 2px solid #a0b8aa;
+    border-radius: 1.15rem;
+    background: #fff;
+    box-shadow: 0 24px 74px rgba(20,52,42,.24), 0 4px 18px rgba(20,52,42,.10);
+  }
+  .project-guide-window--clean.project-guide-window--expanded .project-guide-header {
+    padding: .95rem 1.15rem;
+  }
+  .project-guide-window--clean.project-guide-window--expanded .project-guide-thread {
+    background: #fff;
+  }
+  .project-guide-window--clean.project-guide-window--expanded .project-guide-footer {
+    background: #fff;
+  }
+}
