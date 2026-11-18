@@ -12,7 +12,7 @@ const {extractStructuredEvidence,resolveExtractionDesign}=require("../lib/litera
 const trialAbstract="METHODS: A randomized trial enrolled 120 participants in an intervention and a control group. RESULTS: The primary outcome improved after 12 weeks (OR 1.5, 95% confidence interval 1.1 to 2.0; p=0.03).";
 const trial=extractStructuredEvidence(trialAbstract,{title:"Sleep intervention",publicationTypes:["Randomized Controlled Trial"]});
 assert.equal(trial.studyDesign,"clinical-trial");
-assert.equal(trial.designSource,"publication_metadata");
+assert.equal(trial.designSource,"title_or_publication_metadata");
 for(const kind of ["sample","groups","outcome","effect","uncertainty","timepoint"])
   assert(trial.candidates.some(candidate=>candidate.kind===kind),kind);
 assert.deepEqual(trial.missing,[]);
@@ -25,6 +25,8 @@ for(const candidate of trial.candidates){
 }
 assert.equal(trial.safeguards.hasParticipantLevelData,false);
 assert.equal(trial.safeguards.numericalInterpretationVerified,false);
+assert.equal(trial.safeguards.evidenceGranularity,"not_determined");
+assert(trial.candidates.some(candidate=>candidate.numericalUnit==="participants"));
 
 const observational=extractStructuredEvidence(
  "METHODS: Cross-sectional analysis of 200 participants. RESULTS: Prevalence of fatigue was measured.",
@@ -41,7 +43,7 @@ const systematic=extractStructuredEvidence(
  {publicationTypes:["Systematic Review"]}
 );
 assert.equal(systematic.studyDesign,"systematic-review");
-assert(systematic.candidates.some(item=>item.kind==="sample"));
+assert(systematic.candidates.some(item=>item.kind==="sample" && item.numericalUnit==="studies"));
 assert(systematic.missing.includes("uncertainty"));
 
 const caseReport=extractStructuredEvidence(
@@ -60,6 +62,11 @@ assert.equal(unknown.designSource,"unknown");
 assert.equal(unknown.candidates.length,0);
 assert.equal(resolveExtractionDesign("x",[],"not-a-design").studyDesign,"other");
 
+const longAbstract="RESULTS: "+("An exploratory sample is described in detail. ".repeat(14))+"A cohort included 220 participants.";
+const long=extractStructuredEvidence(longAbstract,{title:"Long cohort",studyDesign:"cohort"});
+assert(long.candidates.some(item=>item.provenance.verification==="exact_excerpt"),"Long sentence evidence must be anchored");
+assert(long.candidates.every(item=>item.text.length<=520));
+assert(long.candidates.every(item=>prov.verifyEvidenceAnchor(longAbstract,item.provenance)));
 const response={NextResponse:{json:(data,options)=>new Response(JSON.stringify(data),{status:options?.status||200})}};
 const mod={exports:{}};
 new Function("require","module","exports","process",compile("app/api/literature/extract/route.ts"))(id=>{
