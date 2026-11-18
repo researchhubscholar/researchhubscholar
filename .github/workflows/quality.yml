@@ -40,11 +40,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependency advisories
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: IA-01 through IA-10 focused integration regression
+        run: |
+          node tests/query-preflight.cjs
+          node tests/decs-auto.cjs
+          node tests/decs-radar-flow.cjs
+          node tests/evidence-provenance.cjs
+          node tests/scientific-claim-validation.cjs
+          node tests/study-design-extraction.cjs
+          node tests/deep-results-evidence.cjs
+          node tests/evidence-matrix-preview.cjs
+          node tests/evidence-review.cjs
+          node tests/project-evidence-handoff.cjs
+          node tests/evidence-handoff-interface.cjs
 
       - name: AI reservation and financial regression
         run: node tests/financial.cjs
