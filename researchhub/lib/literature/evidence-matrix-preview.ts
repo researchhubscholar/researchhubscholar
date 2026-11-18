@@ -64,6 +64,11 @@ export function buildEvidenceMatrixPreview(articles: MatrixSource[]): EvidenceMa
     }
     if (seen.has(article.articleId)) throw new Error("Não repita o mesmo artigo na matriz.");
     seen.add(article.articleId);
+    if (article.publicationTypes !== undefined && (!Array.isArray(article.publicationTypes)
+      || article.publicationTypes.length > 30
+      || article.publicationTypes.some(value => typeof value !== "string" || value.length > 120))) {
+      throw new Error("Os tipos de publicação precisam ser uma lista válida.");
+    }
     const { studyDesign } = resolveExtractionDesign(article.title, article.publicationTypes || [], article.studyDesign);
     const extracted = extractDeepResultsEvidence(article.abstract);
     const cells: MatrixCell[] = extracted.fragments
