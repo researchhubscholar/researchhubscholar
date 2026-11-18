@@ -103,25 +103,37 @@ export default function CommercePage() {
     if (!userId || busy) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
-      p_kind: kind,
-      p_plan: plan,
-      p_billing_schedule: schedule,
-      p_seats: kind === "institutional" ? seats : 1,
-      p_quantity: 1,
-      p_organization_name: kind === "institutional" ? organizationName : null,
-      p_target_license: null,
-      p_coupon: coupon || null,
-    });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message || "Não foi possível registrar a solicitação.");
-      return;
+    try {
+      const response = await fetch("/api/checkout/asaas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          plan,
+          billingSchedule: schedule,
+          seats: kind === "institutional" ? seats : 1,
+          organizationName: kind === "institutional" ? organizationName : undefined,
+          coupon: coupon.trim() || undefined,
+        }),
+      });
+      const result = await response.json() as { error?: string; url?: string };
+      if (!response.ok || !result.url) {
+        setMessage(result.error || "Não foi possível abrir o pagamento.");
+        return;
+      }
+      // Checkout redirects are navigation only; only the verified Asaas
+      // CHECKOUT_PAID webhook may activate the purchased license.
+      const url = new URL(result.url);
+      if (!["asaas.com", "www.asaas.com", "sandbox.asaas.com", "www.sandbox.asaas.com"].includes(url.hostname) || url.protocol !== "https:") {
+        setMessage("Não foi possível verificar o endereço do checkout.");
+        return;
+      }
+      window.location.assign(url.toString());
+    } catch {
+      setMessage("O pagamento está temporariamente indisponível. Tente novamente.");
+    } finally {
+      setBusy(false);
     }
-    setMessage(paymentsEnabled
-      ? "Solicitação criada. O checkout será aberto quando a integração de pagamento estiver concluída."
-      : "Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
-    await load();
   }
 
   async function createRechargeRequest() {
