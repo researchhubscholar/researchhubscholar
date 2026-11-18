@@ -1,0 +1,23 @@
+const fs=require("node:fs");
+const assert=require("node:assert/strict");
+const guide=fs.readFileSync("components/ai/project-guide.tsx","utf8");
+const inline=fs.readFileSync("components/ai/assistant-panel.tsx","utf8");
+const css=fs.readFileSync("app/globals.css","utf8");
+assert(guide.includes("project-guide-window--clean"));
+assert(inline.includes("assistant-inline-panel--clean"));
+assert(css.includes(".project-guide-window.project-guide-window--clean"));
+assert(css.includes(".assistant-inline-panel.assistant-inline-panel--clean"));
+for(const key of ["project-guide-header","project-guide-thread","project-guide-question","project-guide-answer","project-guide-compose","project-guide-footer","project-guide-starter","project-guide-next"]) {
+ assert(css.includes(".project-guide-window--clean ."+key),"Missing restyle: "+key);
+}
+for(const key of ["postAI<Record<string,unknown>>","setTurns(current=>","readAIUsage(data.usage)","setError(","setSending(true)","disabled={sending||disabled||loading||!loaded||!draft.trim()}"]) {
+ assert(guide.includes(key),"Missing preserved behavior: "+key);
+}
+assert(guide.includes("onKeyDown={e=>{if(e.key==="),"Escape handling must remain");
+assert(guide.includes("aria-label={copy(\"Histórico da conversa\")}"));
+assert(guide.includes("aria-busy={loading||sending}"));
+assert(guide.includes("if(e.key!==\"Enter\"||e.shiftKey"),"Do not alter enter/shift+enter keyboard UX");
+assert(guide.includes("setExcerptPreview("),"Keep editing confirmation");
+assert(guide.includes("onPlan={"),"Keep science action affordances");
+assert(inline.includes("onAutoApply?.(data.output.recommendations)"),"Keep automatic Radar handoff");
+console.log("PASS: ResearchHub visual refresh is CSS-scoped and preserves core chat, assistant and safety hooks.");
