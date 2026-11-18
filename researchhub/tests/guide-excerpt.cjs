@@ -19,7 +19,7 @@ for (const query of [
 for (const query of [
   'sleep AND', 'AND sleep', '(sleep OR )', '( OR sleep)',
   'sleep OR OR physicians', '(sleep', '"unclosed', 'sleep[MeSH Terms',
-  '()', 'sleep AND ()', 'sleep\\nOR insomnia',
+  '()', 'sleep AND ()', 'sleep\nOR insomnia',
 ]) assert.equal(actions.validRadarDraft(query),false,query);
 const suggested = {...out,recommendations:[{...out.recommendations[0],targetField:'guide_radar',content:'(sleep OR )'}]};
 assert.equal(actions.safeGuideActions(suggested).recommendations[0].targetField,'');
