@@ -9,6 +9,7 @@ require.extensions[".ts"] = (module, file) => module._compile(compile(file), fil
 const provenance = require("../lib/literature/provenance.ts");
 const validation = require("../lib/literature/claim-validation.ts");
 const structuredExtraction = require("../lib/literature/structured-extraction.ts");
+const deepResults = require("../lib/literature/deep-results-evidence.ts");
 
 const abstract = "RESULTS: Among 120 participants, 35% reported symptoms (95% CI 20%-40%; OR 1.5; p=0.03). The observational study found an association.";
 const anchor = provenance.anchorEvidence(abstract, "Among 120 participants, 35% reported symptoms (95% CI 20%-40%; OR 1.5; p=0.03).");
@@ -48,6 +49,7 @@ new Function("require", "module", "exports", compile("app/api/literature/extract
   if (id === "@/lib/literature/provenance") return provenance;
   if (id === "@/lib/literature/claim-validation") return validation;
   if (id === "@/lib/literature/structured-extraction") return structuredExtraction;
+  if (id === "@/lib/literature/deep-results-evidence") return deepResults;
   throw Error("Unexpected import: " + id);
 }, moduleRef, moduleRef.exports);
 (async () => {
