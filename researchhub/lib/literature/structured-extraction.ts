@@ -15,16 +15,17 @@ export type StructuredEvidence = {
   provenance: EvidenceAnchor;
   validation: ClaimValidation;
   status: "review_required";
+  numericalUnit: "studies" | "participants" | "not_determined";
 };
 export type StructuredExtraction = {
   studyDesign: Exclude<StudyDesign, "auto">;
-  designSource: "user" | "publication_metadata" | "unknown";
+  designSource: "user" | "title_or_publication_metadata" | "unknown";
   sourceScope: "abstract_only";
   candidates: StructuredEvidence[];
   missing: EvidenceKind[];
   safeguards: {
     reviewRequired: true;
-    evidenceIsAggregated: true;
+    evidenceGranularity: "not_determined";
     hasParticipantLevelData: false;
     numericalInterpretationVerified: false;
     hasPageLevelEvidence: false;
@@ -62,7 +63,7 @@ export function resolveExtractionDesign(
     return { studyDesign: selected as Exclude<StudyDesign, "auto">, designSource: "user" };
   }
   const detected = inferStudyDesign({ title, publicationTypes });
-  return { studyDesign: detected, designSource: detected === "other" ? "unknown" : "publication_metadata" };
+  return { studyDesign: detected, designSource: detected === "other" ? "unknown" : "title_or_publication_metadata" };
 }
 
 function excerpts(abstract: string): string[] {
@@ -85,12 +86,17 @@ export function extractStructuredEvidence(
     for (const kind of KINDS) {
       if (!markers[kind].test(sentence)) continue;
       // Multiple kinds can share a sentence but must always cite that sentence.
-      const provenance = anchorEvidence(abstract, sentence);
+      // A long sentence still yields an anchored excerpt; never cite beyond the bound.
+      const excerpt = sentence.slice(0, 520).trim();
+      const provenance = anchorEvidence(abstract, excerpt);
       if (!verifyEvidenceAnchor(abstract, provenance)) continue;
+      const numericalUnit = /\b\d+\s+(?:studies|trials)\b/i.test(excerpt)
+        ? "studies" : /\b\d+\s+(?:patients?|participants?|subjects?|individuals?|residents?|adults?|children)\b/i.test(excerpt)
+          ? "participants" : "not_determined";
       candidates.push({
-        kind, text: sentence.slice(0, 520), source: "abstract",
-        provenance, validation: validateClaimAgainstEvidence(sentence.slice(0, 520), abstract, provenance),
-        status: "review_required",
+        kind, text: excerpt, source: "abstract",
+        provenance, validation: validateClaimAgainstEvidence(excerpt, abstract, provenance),
+        status: "review_required", numericalUnit,
       });
       if (candidates.length >= 30) break;
     }
@@ -102,7 +108,7 @@ export function extractStructuredEvidence(
     missing: designKinds[studyDesign].filter(kind => !found.has(kind)),
     safeguards: {
       reviewRequired: true,
-      evidenceIsAggregated: true,
+      evidenceGranularity: "not_determined",
       hasParticipantLevelData: false,
       numericalInterpretationVerified: false,
       hasPageLevelEvidence: false,
