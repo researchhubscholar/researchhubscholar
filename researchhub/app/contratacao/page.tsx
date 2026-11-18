@@ -200,6 +200,14 @@ export default function CommercePage() {
   async function cancelRequest(id: string) {
     if (busy) return;
     setBusy(true);
+    // Do not mark a live checkout as cancelled in our database: the buyer may
+    // still complete that payment on Asaas, and its webhook must activate the license.
+    const pending = requests.find(item => item.id === id);
+    if (!pending || pending.status === "payment_pending") {
+      setBusy(false);
+      setMessage("Este checkout já foi criado no Asaas e não pode ser cancelado nesta tela. Consulte o status do pagamento.");
+      return;
+    }
     const { error } = await supabaseBrowser().rpc("scholar_cancel_purchase_request", { p_request: id });
     setBusy(false);
     if (error) setMessage("Não foi possível cancelar a solicitação.");
@@ -303,7 +311,7 @@ export default function CommercePage() {
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} pacote(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}</td>
             <td className="p-2">{money(item.total_amount_cents)}</td>
             <td className="p-2">{requestStatus(item.status)}</td>
-            <td className="p-2">{["requested", "approved", "payment_pending"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => cancelRequest(item.id)} className="text-teal underline">Cancelar</button> : "—"}</td>
+            <td className="p-2">{["requested", "approved"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => cancelRequest(item.id)} className="text-teal underline">Cancelar</button> : item.status === "payment_pending" ? (formatLocale === "es" ? "Pago en curso" : "Pagamento em andamento") : "—"}</td>
           </tr>)}</tbody>
         </table>
       </div>
