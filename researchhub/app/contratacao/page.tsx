@@ -209,27 +209,30 @@ export default function CommercePage() {
     }
   }
 
-  if (loading) return <div className="marketing-page public-commerce"><p role="status"><InterfaceText message="screen.2c1aafb83914" /></p></div>;
-  if (!userId) return <div className="marketing-page public-commerce commerce-page">
+  if (loading) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto"><p role="status"><InterfaceText message="screen.2c1aafb83914" /></p></div>;
+  if (!userId) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
     <h1 className="font-display text-4xl"><InterfaceText message="screen.083cff630878" /></h1>
     <Link href="/login" className="inline-block mt-5 text-teal underline"><InterfaceText message="screen.1fdff273ce1e" /></Link>
   </div>;
 
-  return <div className="marketing-page public-commerce commerce-page">
-    <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.2ac304df498c" /></p>
-    <h1 className="font-display text-4xl mt-3">{c.purchaseTitle}</h1>
-    <p className="text-ink-soft mt-4 max-w-3xl">
-      {formatLocale === "es" ? "Elige tu plan, revisa el descuento y continúa al pago seguro de Asaas. El acceso se libera después de confirmar el pago." : "Escolha seu plano, confira o desconto e prossiga para o pagamento seguro pelo Asaas. Seu acesso será liberado após a confirmação do pagamento."}
-    </p>
+  return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
+    <header className="checkout-page-header">
+      <p className="text-xs uppercase tracking-widest text-teal">{formatLocale === "es" ? "Contratación" : "Contratação"}</p>
+      <h1 className="font-display mt-2">{formatLocale === "es" ? "Elige tu suscripción" : "Escolha sua assinatura"}</h1>
+      <p className="text-ink-soft mt-2">
+        {formatLocale === "es" ? "Selecciona tu plan, revisa el valor final y continúa al pago. Tu acceso se activará después de confirmar el pago." : "Selecione seu plano, confira o valor final e siga para o pagamento. Seu acesso será liberado após a confirmação."}
+      </p>
+    </header>
 
-    <div className="mt-5 rounded-card border border-teal/20 bg-teal-soft p-4 text-sm">
-      <strong>{paymentsEnabled ? (formatLocale === "es" ? "Pago seguro" : "Pagamento seguro") : (formatLocale === "es" ? "Pago indisponible" : "Pagamento indisponível")}</strong>{" "}
-      {paymentsEnabled ? (formatLocale === "es" ? "El valor se confirma antes de abrir Asaas. No se concede acceso hasta la confirmación del pago." : "O valor final é confirmado antes de abrir o Asaas. O acesso é liberado somente após a confirmação do pagamento.") : (formatLocale === "es" ? "El pago no está disponible por el momento." : "O pagamento não está disponível no momento.")}
+    <div className="checkout-notice mt-5 text-sm" role="note">
+      <span className="checkout-notice-dot" aria-hidden="true" />
+      <p><strong>{paymentsEnabled ? (formatLocale === "es" ? "Pago seguro." : "Pagamento seguro.") : (formatLocale === "es" ? "Pago no disponible." : "Pagamento indisponível.")}</strong>{" "}
+      {paymentsEnabled ? (formatLocale === "es" ? "Consulta el total antes de continuar a Asaas." : "Confira o total antes de continuar para o Asaas.") : (formatLocale === "es" ? "Inténtalo más tarde." : "Tente novamente mais tarde.")}</p>
     </div>
     {message ? <p role="status" className="mt-5 rounded-card border border-line bg-white p-4 text-sm"><AuthoredText text={message} /></p> : null}
 
-    <div className="purchase-layout"><section className="purchase-main mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl">{formatLocale === "es" ? "Elige tu suscripción" : "Escolha sua assinatura"}</h2>
+    <div className="purchase-layout"><section className="purchase-main rounded-2xl border border-line bg-white p-5">
+      <h2 className="font-display text-2xl">{formatLocale === "es" ? "Datos de contratación" : "Dados da contratação"}</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <label className="text-sm"><InterfaceText message="screen.94f633413108" />
           <select value={kind} onChange={event => setKind(event.target.value as typeof kind)} className="mt-2 block w-full rounded-card border p-3">
@@ -250,22 +253,22 @@ export default function CommercePage() {
         </label>
         {kind === "institutional" ? <label className="text-sm"><InterfaceText message="screen.33ad4aad4288" />
           <input type="number" min={1} max={10000} value={seats} onChange={event => setSeats(Number(event.target.value))} className="mt-2 block w-full rounded-card border p-3" />
-        </label> : <div />}
+        </label> : null}
         {kind === "institutional" ? <label className="text-sm md:col-span-2"><InterfaceText message="screen.8f92935483c2" />
           <input required minLength={2} maxLength={200} value={organizationName} onChange={event => setOrganizationName(event.target.value)} className="mt-2 block w-full rounded-card border p-3" placeholder={uiText("screen.f24b447bf58e")} />
         </label> : null}
         <label className="text-sm md:col-span-2"><InterfaceText message="screen.0145d934eb76" />
-          <input maxLength={40} value={coupon} onChange={event => setCoupon(event.target.value.toUpperCase())} className="mt-2 block w-full rounded-card border p-3 uppercase" placeholder="Opcional" />
+          <input maxLength={40} value={coupon} onChange={event => setCoupon(event.target.value.toUpperCase())} className="mt-2 block w-full rounded-card border p-3 uppercase" placeholder={formatLocale === "es" ? "Código de descuento (opcional)" : "Código de desconto (opcional)"} />
         </label>
       </div>
 
-      <p className="mt-3 text-xs text-ink-soft">{formatLocale === "es" ? "El valor y el cupón se validan nuevamente en el servidor antes de crear el pago." : "O valor e o cupom são validados novamente no servidor antes da criação do pagamento."}</p>
+      <p className="mt-3 text-xs text-ink-soft">{formatLocale === "es" ? "El valor final se valida antes de abrir el pago." : "O valor final será validado antes de abrir o pagamento."}</p>
       {quoteError ? <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p> : null}
       <button type="button" disabled={busy || quoteLoading || !quotePreview || Boolean(quoteError) || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="purchase-continue mt-5 rounded-card bg-teal px-5 py-3 text-white font-semibold disabled:opacity-50">
         {busy ? (formatLocale === "es" ? "Preparando..." : "Preparando...") : kind === "institutional" ? (formatLocale === "es" ? "Solicitar contratación institucional" : "Solicitar contratação institucional") : (formatLocale === "es" ? "Continuar al pago seguro" : "Continuar para pagamento seguro")}
       </button>
-    </section><aside className="purchase-summary"><p className="public-eyebrow">{c.purchaseSummary}</p><h2>{plans[plan].name}</h2><p className="purchase-price">{quoteLoading ? "—" : money(quotePreview?.totalAmountCents ?? quote.grossAmountCents)}</p><p>{c.annual}</p>
-      {quotePreview && quotePreview.discountCents > 0 ? <p className="purchase-discount mt-2 text-sm"><span className="line-through opacity-65">{money(quotePreview.grossAmountCents)}</span> <strong>{formatLocale === "es" ? "Descuento" : "Desconto"}: -{money(quotePreview.discountCents)}</strong></p> : null}      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+    </section><aside className="purchase-summary" aria-label={formatLocale === "es" ? "Resumen de suscripción" : "Resumo da assinatura"}><p className="checkout-summary-eyebrow">{c.purchaseSummary}</p><h2>{plans[plan].name}</h2><p className="purchase-price">{quoteLoading ? "—" : money(quotePreview?.totalAmountCents ?? quote.grossAmountCents)}</p><p>{c.annual}</p>
+      {quotePreview && quotePreview.discountCents > 0 ? <p className="purchase-discount mt-2 text-sm"><span className="line-through opacity-65">{money(quotePreview.grossAmountCents)}</span> <strong>{formatLocale === "es" ? "Descuento" : "Desconto"}: -{money(quotePreview.discountCents)}</strong></p> : null}      <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{quoteLoading ? "—" : money(quotePreview?.grossAmountCents ?? quote.grossAmountCents)}</p></div>
         <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{quoteLoading ? "—" : schedule === "12x" ? money(Math.ceil((quotePreview?.totalAmountCents ?? quote.grossAmountCents) / 12)) : "1 parcela"}</p></div>
         <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{(quotePreview?.tokenAllowance ?? quote.tokenAllowance).toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
@@ -307,7 +310,7 @@ export default function CommercePage() {
       {!requests.length ? <p className="mt-3 text-sm text-ink-soft"><InterfaceText message="screen.68842c1604b0" /></p> : null}
     </section>
 
-    <div className="mt-6 flex flex-wrap gap-5 text-sm">
+    <div className="checkout-links mt-6 flex flex-wrap gap-5 text-sm">
       <Link href="/licenca" className="text-teal underline"><InterfaceText message="screen.1ee0fcabfabd" /></Link>
       <Link href="/planos" className="text-teal underline"><InterfaceText message="screen.f273f15de044" /></Link>
     </div>
