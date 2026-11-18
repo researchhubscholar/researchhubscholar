@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { anchorEvidence, verifyEvidenceAnchor, normalizeEvidenceText, type EvidenceAnchor, type EvidenceOrigin } from "@/lib/literature/provenance";
 
 type Suggestion = {
   value: string;
   source: string;
   confidence: "alta" | "media" | "baixa";
+  provenance: EvidenceAnchor;
 };
 
 function clean(text: string) {
@@ -33,9 +35,10 @@ function clip(text: string, max = 420) {
   return `${text.slice(0, max).trim()}…`;
 }
 
-function make(value: string, source: string, confidence: Suggestion["confidence"]): Suggestion | null {
+function make(value: string, source: string, confidence: Suggestion["confidence"], abstract: string, origin: EvidenceOrigin = "abstract"): Suggestion | null {
   if (!value.trim()) return null;
-  return { value: clip(clean(value), 520), source: clip(clean(source), 520), confidence };
+  const provenance = anchorEvidence(abstract, source, origin);
+  return { value: clip(clean(value), 520), source: clip(clean(source), 520), confidence, provenance };
 }
 
 export async function POST(request: NextRequest) {
@@ -87,15 +90,19 @@ export async function POST(request: NextRequest) {
       : methodSentence;
 
     const suggestions = {
-      objective: make(objectiveSection || objectiveFallback, objectiveSection || objectiveFallback, objectiveSection ? "alta" : objectiveFallback ? "media" : "baixa"),
-      population: make(populationSentence, populationSentence, populationSentence ? "media" : "baixa"),
-      method: make(inferredMethod, methodSentence || publicationTypes.join("; "), methodSentence ? "media" : publicationTypes.length ? "media" : "baixa"),
-      finding: make(findingSentence, findingSentence, resultsSection || conclusionSection ? "alta" : findingSentence ? "media" : "baixa"),
-      limitation: make(limitationSentence, limitationSentence, limitationSentence ? "media" : "baixa"),
+      objective: make(objectiveSection || objectiveFallback, objectiveSection || objectiveFallback, objectiveSection ? "alta" : objectiveFallback ? "media" : "baixa", abstract),
+      population: make(populationSentence, populationSentence, populationSentence ? "media" : "baixa", abstract),
+      method: make(inferredMethod, methodSentence || publicationTypes.join("; "), methodSentence ? "media" : publicationTypes.length ? "media" : "baixa", abstract, methodSentence ? "abstract" : "publication_types"),
+      finding: make(findingSentence, findingSentence, resultsSection || conclusionSection ? "alta" : findingSentence ? "media" : "baixa", abstract),
+      limitation: make(limitationSentence, limitationSentence, limitationSentence ? "media" : "baixa", abstract),
     };
-
+    const confirmed = Object.values(suggestions).filter((suggestion): suggestion is Suggestion => Boolean(suggestion))
+      .filter(suggestion => suggestion.provenance.verification === "exact_excerpt"
+        && verifyEvidenceAnchor(abstract, suggestion.provenance)).length;
+    const normalizedAbstract = normalizeEvidenceText(abstract);
     return NextResponse.json({
       suggestions,
+      provenance: { scope: "abstract_only", normalizedAbstractLength: normalizedAbstract.length, verifiedExcerptCount: confirmed, fullTextAvailable: false, pageLevelAvailable: false },
       note: "Pré-análise automática baseada apenas no abstract e no tipo de publicação. Confirme cada campo antes de incorporar à matriz.",
     });
   } catch (error) {
