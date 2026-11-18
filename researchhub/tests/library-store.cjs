@@ -49,7 +49,7 @@ class Query {
     return { data, error: null };
   }
 }
-const db = { from: table => new Query(table), rpc: async (name, args) => {
+const db = { from: table => new Query(table), storage: { from: () => ({ remove: async () => ({ data: [], error: null }) }) }, rpc: async (name, args) => {
   if (name !== 'scholar_merge_library_duplicates') return { error: { code: 'PGRST202', message: 'missing function' } };
   const keep = tables.library_articles.find(row => row.id === args.p_keep && row.owner_id === 'owner-a');
   const duplicates = tables.library_articles.filter(row => args.p_remove.includes(row.id) && row.owner_id === 'owner-a');
