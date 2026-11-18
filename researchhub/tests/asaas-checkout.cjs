@@ -40,3 +40,14 @@ assert.match(webhook, /scholar_fulfill_paid_request/);
 assert.match(webhook, /provider_event_id/);
 assert.doesNotMatch(webhook, /event\s*===\s*["']CHECKOUT_CREATED["']\s*\)\s*await/);
 console.log("PASS: Asaas payment verification, price consistency, checkout links, environment routing and fulfillment gates.");
+
+const checkoutRoute = fs.readFileSync(path.resolve(__dirname, "../app/api/asaas/checkout/route.ts"), "utf8");
+assert.match(checkoutRoute, /!generalCheckoutEnabled/);
+assert.match(checkoutRoute, /purchase\.coupon_code === "TESTE99"/);
+assert.match(checkoutRoute, /purchase\.plan === "essential"/);
+assert.match(checkoutRoute, /purchase\.total_amount_cents === 599/);
+assert.match(checkoutRoute, /testCoupon\.max_redemptions !== 1/);
+assert.match(checkoutRoute, /pendingTest\?\.length/);
+assert.match(checkoutRoute, /"payment_pending"/);
+assert.match(checkoutRoute, /"access_token": apiKey/);
+console.log("PASS: gated production checkout requires valid one-use Essencial TESTE99; other purchases remain disabled.");
