@@ -39,6 +39,6 @@ export async function POST(request: NextRequest) {
    const suggestions=await lookupTerms();
    if(Object.keys(suggestions).length)return review(suggestions,Object.keys(suggestions));
  }
- return NextResponse.json({...result, terminology:{source:"DeCS", verified:decsResolutions, automatic:decsResolutions.length>0}});
+ return NextResponse.json({...result, terminology:{source:decsResolutions.length ? "DeCS" : "none", verified:decsResolutions, automatic:decsResolutions.length>0}});
  }catch{return NextResponse.json({error:"Não foi possível consultar o PubMed agora. Tente novamente."},{status:502});}
 }
