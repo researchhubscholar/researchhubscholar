@@ -62,7 +62,7 @@ assert.equal(unknown.designSource,"unknown");
 assert.equal(unknown.candidates.length,0);
 assert.equal(resolveExtractionDesign("x",[],"not-a-design").studyDesign,"other");
 
-const longAbstract="RESULTS: "+("An exploratory sample is described in detail. ".repeat(14))+"A cohort included 220 participants.";
+const longAbstract="RESULTS: "+("The clinical report provides detailed demographic and statistical context without interruption ".repeat(12))+"and included 220 participants.";
 const long=extractStructuredEvidence(longAbstract,{title:"Long cohort",studyDesign:"cohort"});
 assert(long.candidates.some(item=>item.provenance.verification==="exact_excerpt"),"Long sentence evidence must be anchored");
 assert(long.candidates.every(item=>item.text.length<=520));
