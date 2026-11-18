@@ -44,7 +44,7 @@ export default function CommercePage() {
   const { t: uiText } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [kind, setKind] = useState<Exclude<CommerceKind, "recharge">>("individual");
-  const [plan, setPlan] = useState<PlanKey>("plus");
+  const [plan, setPlan] = useState<PlanKey>("essential");
   const [schedule, setSchedule] = useState<BillingSchedule>("annual");
   const [seats, setSeats] = useState(30);
   const [organizationName, setOrganizationName] = useState("");
@@ -57,6 +57,9 @@ export default function CommercePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [quotePreview, setQuotePreview] = useState<{ grossAmountCents: number; discountCents: number; totalAmountCents: number; tokenAllowance: number } | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
 
   const quote = useMemo(() => localQuote(kind, plan, seats), [kind, plan, seats]);
   const rechargeQuote = useMemo(
@@ -99,8 +102,36 @@ export default function CommercePage() {
 
   useEffect(() => { void load(); }, []);
 
+  // Preview exactly the same authoritative server quote used when creating a purchase.
+  // Never display an unverified discount or let a stale quote authorize checkout.
+  useEffect(() => {
+    let active = true;
+    setQuoteLoading(true);
+    setQuoteError("");
+    setQuotePreview(null);
+    const handle = setTimeout(async () => {
+      const { data, error } = await supabaseBrowser().rpc("scholar_commerce_quote", {
+        p_kind: kind, p_plan: plan, p_seats: kind === "institutional" ? seats : 1,
+        p_quantity: 1, p_coupon: coupon.trim() || null,
+      });
+      if (!active) return;
+      if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+        setQuoteError(error?.message || "Não foi possível calcular o valor final. Confira os dados e tente novamente.");
+      } else {
+        setQuotePreview({
+          grossAmountCents: Number(data.grossAmountCents),
+          discountCents: Number(data.discountCents),
+          totalAmountCents: Number(data.totalAmountCents),
+          tokenAllowance: Number(data.tokenAllowance),
+        });
+      }
+      setQuoteLoading(false);
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [kind, plan, seats, coupon]);
+
   async function createRequest() {
-    if (!userId || busy) return;
+    if (!userId || busy || quoteLoading || quoteError || !quotePreview) return;
     setBusy(true);
     setMessage("");
     const { data: purchaseId, error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
@@ -188,22 +219,22 @@ export default function CommercePage() {
     <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.2ac304df498c" /></p>
     <h1 className="font-display text-4xl mt-3">{c.purchaseTitle}</h1>
     <p className="text-ink-soft mt-4 max-w-3xl">
-      <InterfaceText message="screen.833d0b11906a" />
+      {formatLocale === "es" ? "Elige tu plan, revisa el descuento y continúa al pago seguro de Asaas. El acceso se libera después de confirmar el pago." : "Escolha seu plano, confira o desconto e prossiga para o pagamento seguro pelo Asaas. Seu acesso será liberado após a confirmação do pagamento."}
     </p>
 
     <div className="mt-5 rounded-card border border-teal/20 bg-teal-soft p-4 text-sm">
-      <strong>{paymentsEnabled ? uiText("screen.96eafcca4663") : uiText("screen.3ac130bab6da")}</strong>{" "}
-      <InterfaceText message="screen.2ce2bd5e2c82" />
+      <strong>{paymentsEnabled ? (formatLocale === "es" ? "Pago seguro" : "Pagamento seguro") : (formatLocale === "es" ? "Pago indisponible" : "Pagamento indisponível")}</strong>{" "}
+      {paymentsEnabled ? (formatLocale === "es" ? "El valor se confirma antes de abrir Asaas. No se concede acceso hasta la confirmación del pago." : "O valor final é confirmado antes de abrir o Asaas. O acesso é liberado somente após a confirmação do pagamento.") : (formatLocale === "es" ? "El pago no está disponible por el momento." : "O pagamento não está disponível no momento.")}
     </div>
     {message ? <p role="status" className="mt-5 rounded-card border border-line bg-white p-4 text-sm"><AuthoredText text={message} /></p> : null}
 
     <div className="purchase-layout"><section className="purchase-main mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl"><InterfaceText message="screen.0ca6dc7b69d6" /></h2>
+      <h2 className="font-display text-2xl">{formatLocale === "es" ? "Elige tu suscripción" : "Escolha sua assinatura"}</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <label className="text-sm"><InterfaceText message="screen.94f633413108" />
           <select value={kind} onChange={event => setKind(event.target.value as typeof kind)} className="mt-2 block w-full rounded-card border p-3">
             <option value="individual">Individual</option>
-            <option value="institutional"><InterfaceText message="screen.dc953d4ca934" /></option>
+            <option value="institutional">{uiText("screen.dc953d4ca934")}</option>
           </select>
         </label>
         <label className="text-sm"><InterfaceText message="screen.6c55806376ab" />
@@ -213,8 +244,8 @@ export default function CommercePage() {
         </label>
         <label className="text-sm"><InterfaceText message="screen.957bc40226f7" />
           <select value={schedule} onChange={event => setSchedule(event.target.value as BillingSchedule)} className="mt-2 block w-full rounded-card border p-3">
-            <option value="annual"><InterfaceText message="screen.9d4f11e25866" /></option>
-            <option value="12x"><InterfaceText message="screen.4d43a6558c98" /></option>
+            <option value="annual">{uiText("screen.9d4f11e25866")}</option>
+            <option value="12x">{uiText("screen.4d43a6558c98")}</option>
           </select>
         </label>
         {kind === "institutional" ? <label className="text-sm"><InterfaceText message="screen.33ad4aad4288" />
@@ -228,14 +259,16 @@ export default function CommercePage() {
         </label>
       </div>
 
-      <p className="mt-3 text-xs text-ink-soft"><InterfaceText message="screen.21003e165b48" /></p>
-      <button type="button" disabled={busy || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="mt-5 rounded-card bg-teal px-5 py-3 text-white disabled:opacity-50">
-        {busy ? "Registrando..." : uiText("screen.5d92b1945c45")}
+      <p className="mt-3 text-xs text-ink-soft">{formatLocale === "es" ? "El valor y el cupón se validan nuevamente en el servidor antes de crear el pago." : "O valor e o cupom são validados novamente no servidor antes da criação do pagamento."}</p>
+      {quoteError ? <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p> : null}
+      <button type="button" disabled={busy || quoteLoading || !quotePreview || Boolean(quoteError) || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="purchase-continue mt-5 rounded-card bg-teal px-5 py-3 text-white font-semibold disabled:opacity-50">
+        {busy ? (formatLocale === "es" ? "Preparando..." : "Preparando...") : kind === "institutional" ? (formatLocale === "es" ? "Solicitar contratación institucional" : "Solicitar contratação institucional") : (formatLocale === "es" ? "Continuar al pago seguro" : "Continuar para pagamento seguro")}
       </button>
-    </section><aside className="purchase-summary"><p className="public-eyebrow">{c.purchaseSummary}</p><h2>{plans[plan].name}</h2><p className="purchase-price">{money(quote.grossAmountCents)}</p><p>{c.annual}</p>      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{money(quote.grossAmountCents)}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{schedule === "12x" ? money(Math.ceil(quote.grossAmountCents / 12)) : "1 parcela"}</p></div>
-        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{quote.tokenAllowance.toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
+    </section><aside className="purchase-summary"><p className="public-eyebrow">{c.purchaseSummary}</p><h2>{plans[plan].name}</h2><p className="purchase-price">{quoteLoading ? "—" : money(quotePreview?.totalAmountCents ?? quote.grossAmountCents)}</p><p>{c.annual}</p>
+      {quotePreview && quotePreview.discountCents > 0 ? <p className="purchase-discount mt-2 text-sm"><span className="line-through opacity-65">{money(quotePreview.grossAmountCents)}</span> <strong>{formatLocale === "es" ? "Descuento" : "Desconto"}: -{money(quotePreview.discountCents)}</strong></p> : null}      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.920c48e9ba3e" /></p><p className="mt-2 text-xl">{quoteLoading ? "—" : money(quotePreview?.grossAmountCents ?? quote.grossAmountCents)}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft">{schedule === "12x" ? uiText("screen.5767a5fa021e") : "Pagamento"}</p><p className="mt-2 text-xl">{quoteLoading ? "—" : schedule === "12x" ? money(Math.ceil((quotePreview?.totalAmountCents ?? quote.grossAmountCents) / 12)) : "1 parcela"}</p></div>
+        <div className="rounded-card bg-paper p-4"><p className="text-xs text-ink-soft"><InterfaceText message="screen.9dea6203ae5a" /></p><p className="mt-2 text-xl">{(quotePreview?.tokenAllowance ?? quote.tokenAllowance).toLocaleString(intlLocale(formatLocale))}</p><p className="text-xs">tokens</p></div>
       </div>
 {kind==="individual"?<p className="purchase-advisor">{advisor.benefit(plans[plan].advisorsPerProject)}</p>:null}</aside></div>
 
