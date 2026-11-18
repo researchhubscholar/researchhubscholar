@@ -71,8 +71,12 @@ export async function POST(request: Request) {
       console.error("[asaas:webhook] paid checkout mismatch", { requestId: purchase.id });
       return NextResponse.json({ error: "Valor ou estado incompatível." }, { status: 409 });
     }
-    if (purchase.status === "activated" && purchase.fulfilled_license_id)
+    if (purchase.status === "activated" && purchase.fulfilled_license_id) {
+      const { error: providerError } = await db.from("scholar_payment_events")
+        .update({ provider: "asaas" }).eq("purchase_request_id", purchase.id);
+      if (providerError) return NextResponse.json({ error: "Conciliação pendente." }, { status: 503 });
       return NextResponse.json({ received: true, alreadyProcessed: true });
+    }
     if (!["requested", "approved", "payment_pending"].includes(purchase.status)) {
       console.error("[asaas:webhook] paid checkout in invalid state", { requestId: purchase.id, status: purchase.status });
       return NextResponse.json({ error: "Pedido requer conciliação." }, { status: 409 });
@@ -89,6 +93,12 @@ export async function POST(request: Request) {
       console.error("[asaas:webhook] fulfillment failed", { requestId: purchase.id, code: fulfillError?.code });
       return NextResponse.json({ error: "Ativação pendente, tente novamente." }, { status: 503 });
     }
+    // The preexisting scholar_fulfill_paid_request SQL defaults provider to "stripe".
+    // Correct the ledger's provider without a database-function migration.
+    const { error: providerError } = await db.from("scholar_payment_events")
+      .update({ provider: "asaas" }).eq("provider_event_id", event.id)
+      .eq("purchase_request_id", purchase.id);
+    if (providerError) return NextResponse.json({ error: "Conciliação pendente." }, { status: 503 });
     console.info("[asaas:webhook] license activated", { requestId: purchase.id });
     return NextResponse.json({ received: true });
   }
@@ -96,10 +106,11 @@ export async function POST(request: Request) {
   if (event.event === "CHECKOUT_CANCELED" || event.event === "CHECKOUT_EXPIRED") {
     const expected = event.event === "CHECKOUT_CANCELED" ? "CANCELED" : "EXPIRED";
     if (checkout.status !== expected) return NextResponse.json({ error: "Estado incompatível." }, { status: 409 });
-    await db.from("scholar_purchase_requests").update({
+    const { error: updateError } = await db.from("scholar_purchase_requests").update({
       status: event.event === "CHECKOUT_CANCELED" ? "cancelled" : "expired",
       updated_at: new Date().toISOString(),
     }).eq("id", purchase.id).in("status", ["requested", "approved", "payment_pending"]);
+    if (updateError) return NextResponse.json({ error: "Estado não atualizado." }, { status: 503 });
   }
   return NextResponse.json({ received: true });
 }
