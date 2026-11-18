@@ -1,0 +1,15 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const page = fs.readFileSync(path.resolve(__dirname, "../app/contratacao/page.tsx"), "utf8");
+const styles = fs.readFileSync(path.resolve(__dirname, "../app/public-concepts.css"), "utf8");
+assert.match(page, /rpc\("scholar_commerce_quote"/);
+assert.match(page, /quotePreview\?\.totalAmountCents/);
+assert.match(page, /quotePreview\.discountCents > 0/);
+assert.match(page, /disabled=\{busy \|\| quoteLoading \|\| !quotePreview/);
+assert.match(page, /Continuar para pagamento seguro/);
+assert.doesNotMatch(page, /screen\.5d92b1945c45/);
+assert.doesNotMatch(page, /screen\.2ce2bd5e2c82/);
+assert.match(styles, /@media \(max-width: 520px\)/);
+assert.match(styles, /\.public-commerce\.commerce-page \.purchase-continue/);
+console.log("PASS: checkout total reflects validated server quote, button copy and responsive form are present.");
