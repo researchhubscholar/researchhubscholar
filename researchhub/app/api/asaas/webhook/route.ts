@@ -1,42 +1,17 @@
-import { timingSafeEqual } from "node:crypto";
+import { validAsaasWebhookToken, verifiedAsaasPaidCheckout, type CheckoutPayload } from "@/lib/access/asaas-security";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-type Checkout = {
-  id?: unknown; status?: unknown; externalReference?: unknown;
-  items?: Array<{ value?: unknown; quantity?: unknown }>;
-};
-type Event = { id?: unknown; event?: unknown; checkout?: Checkout };
+type Event = { id?: unknown; event?: unknown; checkout?: CheckoutPayload };
 type Purchase = {
   id: string; status: string; kind: string; total_amount_cents: number;
   provider_checkout_id: string; fulfilled_license_id: string | null;
 };
 
-function validToken(received: string | null): boolean {
-  const expected = process.env.ASAAS_WEBHOOK_TOKEN;
-  if (!expected || !received) return false;
-  const a = Buffer.from(received);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function totalCheckoutCents(checkout: Checkout): number | null {
-  if (!Array.isArray(checkout.items) || !checkout.items.length) return null;
-  let cents = 0;
-  for (const item of checkout.items) {
-    if (typeof item.value !== "number" || !Number.isFinite(item.value)
-        || !Number.isInteger(item.quantity) || Number(item.quantity) < 1) return null;
-    const value = Math.round(item.value * 100);
-    if (Math.abs(item.value * 100 - value) > 0.001 || value < 0) return null;
-    cents += value * Number(item.quantity);
-  }
-  return Number.isSafeInteger(cents) ? cents : null;
-}
-
 export async function POST(request: Request) {
-  if (!validToken(request.headers.get("asaas-access-token")))
+  if (!validAsaasWebhookToken(request.headers.get("asaas-access-token"), process.env.ASAAS_WEBHOOK_TOKEN))
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   if (Number(request.headers.get("content-length") || 0) > 128_000)
     return NextResponse.json({ error: "Evento muito grande." }, { status: 413 });
@@ -67,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   if (event.event === "CHECKOUT_PAID") {
-    if (checkout.status !== "PAID" || totalCheckoutCents(checkout) !== purchase.total_amount_cents) {
+    if (!verifiedAsaasPaidCheckout(event.event, checkout, purchase.id, purchase.provider_checkout_id, purchase.total_amount_cents)) {
       console.error("[asaas:webhook] paid checkout mismatch", { requestId: purchase.id });
       return NextResponse.json({ error: "Valor ou estado incompatível." }, { status: 409 });
     }
