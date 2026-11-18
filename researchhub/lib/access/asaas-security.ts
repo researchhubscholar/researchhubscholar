@@ -21,7 +21,7 @@ export function asaasCheckoutTotalCents(checkout: CheckoutPayload): number | nul
   let cents = 0;
   for (const item of checkout.items) {
     if (typeof item.value !== "number" || !Number.isFinite(item.value)
-      || !Number.isInteger(item.quantity) || Number(item.quantity) < 1) return null;
+      || typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1) return null;
     const value = Math.round(item.value * 100);
     if (Math.abs(item.value * 100 - value) > 0.001 || value < 0) return null;
     cents += value * Number(item.quantity);
