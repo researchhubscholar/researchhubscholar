@@ -7,6 +7,7 @@ require.extensions[".ts"]=(module,file)=>module._compile(compile(file),file);
 const matrix=require("../lib/literature/matrix-template.ts");
 const prov=require("../lib/literature/provenance.ts");
 const claim=require("../lib/literature/claim-validation.ts");
+const deepResults=require("../lib/literature/deep-results-evidence.ts");
 const {extractStructuredEvidence,resolveExtractionDesign}=require("../lib/literature/structured-extraction.ts");
 
 const trialAbstract="METHODS: A randomized trial enrolled 120 participants in an intervention and a control group. RESULTS: The primary outcome improved after 12 weeks (OR 1.5, 95% confidence interval 1.1 to 2.0; p=0.03).";
@@ -75,7 +76,8 @@ new Function("require","module","exports","process",compile("app/api/literature/
   "next/server":response,
   "@/lib/literature/provenance":prov,
   "@/lib/literature/claim-validation":claim,
-  "@/lib/literature/structured-extraction":{extractStructuredEvidence}
+  "@/lib/literature/structured-extraction":{extractStructuredEvidence},
+  "@/lib/literature/deep-results-evidence":deepResults
  };
  if(!(id in deps))throw Error("Unexpected module: "+id);
  return deps[id];
