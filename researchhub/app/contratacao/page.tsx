@@ -208,10 +208,13 @@ export default function CommercePage() {
       setMessage("Este checkout já foi criado no Asaas e não pode ser cancelado nesta tela. Consulte o status do pagamento.");
       return;
     }
-    const { error } = await supabaseBrowser().rpc("scholar_cancel_purchase_request", { p_request: id });
+    const { data: wasCancelled, error } = await supabaseBrowser().rpc("scholar_cancel_purchase_request", { p_request: id });
     setBusy(false);
     if (error) setMessage("Não foi possível cancelar a solicitação.");
-    else {
+    else if (wasCancelled !== true) {
+      setMessage("A solicitação já está vinculada a um checkout ou mudou de situação. Confira o pagamento antes de tentar novamente.");
+      await load();
+    } else {
       setMessage("Solicitação cancelada.");
       await load();
     }
