@@ -44,4 +44,5 @@ assert.throws(()=>buildEvidenceMatrixPreview([first,first]),/repita/);
 assert.throws(()=>buildEvidenceMatrixPreview(Array.from({length:13},(_,i)=>({...first,articleId:"article-"+i}))),/12/);
 assert.throws(()=>buildEvidenceMatrixPreview([{...first,articleId:"../secret"}]),/identificador/);
 assert.deepEqual(buildEvidenceMatrixPreview([]).rows,[]);
+assert.throws(()=>buildEvidenceMatrixPreview([{...first,publicationTypes:"clinical trial"}]),/tipos de publicação/);
 console.log("PASS: IA-07 separate articles, missing fields, citations, duplicate defense and review-only safeguards.");
