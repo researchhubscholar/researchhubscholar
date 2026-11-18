@@ -1,4 +1,5 @@
 import { searchLimits } from "./search-limits";
+import { validateBooleanStructure } from "./query-preflight";
 
 export type SuggestionOperator = "AND" | "OR";
 
@@ -14,6 +15,7 @@ export function validateSuggestionQuery(query: string) {
     else if (!field && character === ")" && --parentheses < 0) throw new Error("Revise os parênteses na prévia.");
   }
   if (quoted || parentheses || field) throw new Error("Feche as aspas, os parênteses e os colchetes na prévia antes de aplicar.");
+  validateBooleanStructure(query);
   return query.trim();
 }
 
