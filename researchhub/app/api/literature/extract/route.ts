@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anchorEvidence, verifyEvidenceAnchor, normalizeEvidenceText, type EvidenceAnchor, type EvidenceOrigin } from "@/lib/literature/provenance";
+import { validateClaimAgainstEvidence, type ClaimValidation } from "@/lib/literature/claim-validation";
 
 type Suggestion = {
   value: string;
   source: string;
   confidence: "alta" | "media" | "baixa";
   provenance: EvidenceAnchor;
+  validation: ClaimValidation;
 };
 
 function clean(text: string) {
@@ -38,7 +40,9 @@ function clip(text: string, max = 420) {
 function make(value: string, source: string, confidence: Suggestion["confidence"], abstract: string, origin: EvidenceOrigin = "abstract"): Suggestion | null {
   if (!value.trim()) return null;
   const provenance = anchorEvidence(abstract, source, origin);
-  return { value: clip(clean(value), 520), source: clip(clean(source), 520), confidence, provenance };
+  const proposed = clip(clean(value), 520);
+  const validation = validateClaimAgainstEvidence(proposed, abstract, provenance);
+  return { value: proposed, source: clip(clean(source), 520), confidence, provenance, validation };
 }
 
 export async function POST(request: NextRequest) {
@@ -103,6 +107,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       suggestions,
       provenance: { scope: "abstract_only", normalizedAbstractLength: normalizedAbstract.length, verifiedExcerptCount: confirmed, fullTextAvailable: false, pageLevelAvailable: false },
+      scientificValidation: { scope: "lexical_numeric_only", statisticallyVerified: false, requiresHumanReview: true },
       note: "Pré-análise automática baseada apenas no abstract e no tipo de publicação. Confirme cada campo antes de incorporar à matriz.",
     });
   } catch (error) {
