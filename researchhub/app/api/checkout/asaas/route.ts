@@ -23,8 +23,8 @@ const checkoutUrl = (id: string) => {
   if (!["asaas.com", "www.asaas.com", "sandbox.asaas.com", "www.sandbox.asaas.com"].includes(url.hostname) || url.protocol !== "https:") {
     throw new Error("Asaas checkout origin is invalid");
   }
-  // Legacy settings may store the complete checkout path; do not append a second copy.
-  if (!url.pathname.includes("/checkoutSession/show")) url.pathname = "/checkoutSession/show";
+  // Asaas documents the canonical Checkout URL with ?id=; discard legacy /000 paths.
+  url.pathname = "/checkoutSession/show";
   url.searchParams.set("id", id);
   return url.toString();
 };
