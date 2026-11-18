@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { anchorEvidence, verifyEvidenceAnchor, normalizeEvidenceText, type EvidenceAnchor, type EvidenceOrigin } from "@/lib/literature/provenance";
 import { validateClaimAgainstEvidence, type ClaimValidation } from "@/lib/literature/claim-validation";
 import { extractStructuredEvidence } from "@/lib/literature/structured-extraction";
+import type { StudyDesign } from "@/lib/literature/matrix-template";
 
 type Suggestion = {
   value: string;
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     const abstract = String(body?.abstract ?? "").trim();
     const publicationTypes = Array.isArray(body?.publicationTypes) ? body.publicationTypes.map(String) : [];
     const title = typeof body?.title === "string" ? body.title.slice(0, 300) : "";
-    const requestedDesign = body?.studyDesign;
+    const requestedDesign: StudyDesign | undefined = typeof body?.studyDesign === "string" ? body.studyDesign as StudyDesign : undefined;
 
     if (abstract.length < 40) {
       return NextResponse.json({ error: "Este artigo não possui abstract suficiente para pré-análise." }, { status: 400 });
