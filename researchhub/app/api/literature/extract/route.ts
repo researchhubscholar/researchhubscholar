@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const suggestions = {
       objective: make(objectiveSection || objectiveFallback, objectiveSection || objectiveFallback, objectiveSection ? "alta" : objectiveFallback ? "media" : "baixa", abstract),
       population: make(populationSentence, populationSentence, populationSentence ? "media" : "baixa", abstract),
-      method: make(inferredMethod, methodSentence || publicationTypes.join("; "), methodSentence ? "media" : publicationTypes.length ? "media" : "baixa", abstract, methodSentence ? "abstract" : "publication_types"),
+      method: make(inferredMethod, publicationTypes.length ? publicationTypes.join("; ") : methodSentence, methodSentence ? "media" : publicationTypes.length ? "media" : "baixa", abstract, publicationTypes.length ? "publication_types" : "abstract"),
       finding: make(findingSentence, findingSentence, resultsSection || conclusionSection ? "alta" : findingSentence ? "media" : "baixa", abstract),
       limitation: make(limitationSentence, limitationSentence, limitationSentence ? "media" : "baixa", abstract),
     };
