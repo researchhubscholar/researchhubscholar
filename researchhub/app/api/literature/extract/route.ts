@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { anchorEvidence, verifyEvidenceAnchor, normalizeEvidenceText, type EvidenceAnchor, type EvidenceOrigin } from "@/lib/literature/provenance";
 import { validateClaimAgainstEvidence, type ClaimValidation } from "@/lib/literature/claim-validation";
 import { extractStructuredEvidence } from "@/lib/literature/structured-extraction";
+import { extractDeepResultsEvidence } from "@/lib/literature/deep-results-evidence";
 import type { StudyDesign } from "@/lib/literature/matrix-template";
 
 type Suggestion = {
@@ -112,6 +113,9 @@ export async function POST(request: NextRequest) {
       suggestions,
       ...(process.env.SCHOLAR_AI05_STRUCTURED_EXTRACTION === "true"
         ? { structuredEvidence: extractStructuredEvidence(abstract, { title, publicationTypes, studyDesign: requestedDesign }) }
+        : {}),
+      ...(process.env.SCHOLAR_AI06_DEEP_RESULTS === "true"
+        ? { deepResultsEvidence: extractDeepResultsEvidence(abstract) }
         : {}),
       provenance: { scope: "abstract_only", normalizedAbstractLength: normalizedAbstract.length, verifiedExcerptCount: confirmed, fullTextAvailable: false, pageLevelAvailable: false },
       scientificValidation: { scope: "lexical_numeric_only", statisticallyVerified: false, requiresHumanReview: true },
