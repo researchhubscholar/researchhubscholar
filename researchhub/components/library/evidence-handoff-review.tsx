@@ -37,8 +37,9 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
 
   function edit(key: string, patch: Partial<Choice>) {
     setEntries(current => ({
-      ...current, [key]: { destination: current[key]?.destination || "literature_notes",
-        confirmed: current[key]?.confirmed || false, ...current[key], ...patch },
+      ...current, [key]: { ...current[key], destination: patch.destination ?? current[key]?.destination ?? "literature_notes",
+        confirmed: patch.confirmed ?? current[key]?.confirmed ?? false,
+        action: patch.action ?? current[key]?.action },
     }));
     setPreview(null);
     setError("");
