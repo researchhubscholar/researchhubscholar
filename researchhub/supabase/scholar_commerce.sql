@@ -208,12 +208,16 @@ begin
 end $$;
 
 create or replace function public.scholar_cancel_purchase_request(p_request uuid) returns boolean
-language plpgsql security definer set search_path=public as $$
+language plpgsql security definer set search_path=public as $
 begin
+  -- A linked Asaas checkout may still be payable even after the user leaves.
+  -- Cancellation here is allowed only before external checkout creation.
   update public.scholar_purchase_requests set status='cancelled',updated_at=now()
-    where id=p_request and requester_id=auth.uid() and status in ('requested','approved','payment_pending');
+    where id=p_request and requester_id=auth.uid()
+      and status in ('requested','approved')
+      and provider_checkout_id is null;
   return found;
-end $$;
+end $;
 
 create or replace function public.scholar_product_access_state() returns jsonb
 language plpgsql stable security definer set search_path=public as $$
