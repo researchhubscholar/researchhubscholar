@@ -1,6 +1,6 @@
 {
   "format": "scholar-migration-inventory-v1",
-  "generatedAt": "2026-11-05",
+  "generatedAt": "2026-11-18",
   "note": "Source inventory only, not database installation history. Never execute all files automatically.",
   "files": [
     {
@@ -305,6 +305,43 @@
         "scholar_advisor_plan_limits.sql"
       ],
       "repeatability": "safe-to-rerun"
+    },
+    {
+      "file": "scholar_ai_plan_usage_20261117.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_ai_budgets.sql",
+        "scholar_access.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review",
+      "sha256": "280a48f0eaa7f823e028973c8e827b8829c8aa2c92e24f6bc869330b3b53150f"
+    },
+    {
+      "file": "scholar_library_pdf.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_library_upgrade.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review",
+      "sha256": "f9c3866dce63238f7eb5d5cbc41269903a916aa1653302ec7a9e771948cc265d"
+    },
+    {
+      "file": "scholar_reservation_unlimited_repair_20261117.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_ai_budgets.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review",
+      "sha256": "9f585e69d862400c7a5d407068a1320bced54f43b57e5bd40b778d0e586b968f"
+    },
+    {
+      "file": "scholar_teste99_one_time_checkout_20261118.sql",
+      "kind": "manual-account-operation",
+      "dependsOn": [
+        "scholar_commerce.sql"
+      ],
+      "repeatability": "not-a-general-install-step",
+      "sha256": "9c3577848d9182dcf5e525f6a519e4da893f013a464949573d126dea5dc7f156"
     }
   ]
 }
