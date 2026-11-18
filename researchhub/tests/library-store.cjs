@@ -49,7 +49,15 @@ class Query {
     return { data, error: null };
   }
 }
-const db = { from: table => new Query(table), rpc: async (name, args) => {
+// Storage is a separate Supabase API and must be mocked alongside PostgREST.
+const removedPdfPaths = [];
+const db = { from: table => new Query(table), storage: {
+  from: bucket => ({ remove: async paths => {
+    assert.equal(bucket, "library-pdfs");
+    removedPdfPaths.push(...paths);
+    return { data: paths, error: null };
+  } }),
+}, rpc: async (name, args) => {
   if (name !== 'scholar_merge_library_duplicates') return { error: { code: 'PGRST202', message: 'missing function' } };
   const keep = tables.library_articles.find(row => row.id === args.p_keep && row.owner_id === 'owner-a');
   const duplicates = tables.library_articles.filter(row => args.p_remove.includes(row.id) && row.owner_id === 'owner-a');
@@ -114,6 +122,7 @@ const fixture = { pmid: '123', doi: '10.1234/SLEEP', title: 'Sleep in residents'
   assert.equal((await a.load()).notes[article.id].method, 'Revised method');
   await b.remove(article.id); assert.equal((await a.load()).articles.length, 2);
   await a.remove(article.id);
+  assert(removedPdfPaths.includes(`owner-a/${article.id}.pdf`), "removing an article also cleans up its PDF storage path");
   assert.equal((await a.load()).articles.length, 1); assert.equal((await a.load()).notes[article.id], undefined);
   tables.research_projects.push({ id: 'project-a2', owner_id: 'owner-a', title: 'Second project' });
   const unused = await a.saveArticle({ ...fixture, pmid: null, doi: '10.1234/unassigned' }, null);
