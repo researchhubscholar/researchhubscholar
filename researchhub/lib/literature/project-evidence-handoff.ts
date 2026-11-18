@@ -68,7 +68,7 @@ export function prepareProjectEvidenceHandoff(
   for (const choice of choices) {
     const articleId = typeof choice?.articleId === "string" ? choice.articleId : "";
     const cellIndex = choice?.cellIndex;
-    if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex >= 60) {
+    if (typeof cellIndex !== "number" || !Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex >= 60) {
       blocked.push({articleId, cellIndex:-1, reason:"Trecho de origem inválido."});
       continue;
     }
