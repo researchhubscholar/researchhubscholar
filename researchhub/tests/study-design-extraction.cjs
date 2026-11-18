@@ -67,6 +67,7 @@ const long=extractStructuredEvidence(longAbstract,{title:"Long cohort",studyDesi
 assert(long.candidates.some(item=>item.provenance.verification==="exact_excerpt"),"Long sentence evidence must be anchored");
 assert(long.candidates.every(item=>item.text.length<=520));
 assert(long.candidates.every(item=>prov.verifyEvidenceAnchor(longAbstract,item.provenance)));
+assert(long.candidates.some(item=>item.kind==="sample" && item.text.includes("220 participants")),"Classification must include cited matching marker");
 const response={NextResponse:{json:(data,options)=>new Response(JSON.stringify(data),{status:options?.status||200})}};
 const mod={exports:{}};
 new Function("require","module","exports","process",compile("app/api/literature/extract/route.ts"))(id=>{
