@@ -103,7 +103,7 @@ export default function CommercePage() {
     if (!userId || busy) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
+    const { data: requestId, error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
       p_kind: kind,
       p_plan: plan,
       p_billing_schedule: schedule,
@@ -113,15 +113,33 @@ export default function CommercePage() {
       p_target_license: null,
       p_coupon: coupon || null,
     });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message || "Não foi possível registrar a solicitação.");
+    if (error || typeof requestId !== "string") {
+      setBusy(false);
+      setMessage(error?.message || "Não foi possível registrar a solicitação.");
       return;
     }
-    setMessage(paymentsEnabled
-      ? "Solicitação criada. O checkout será aberto quando a integração de pagamento estiver concluída."
-      : "Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
-    await load();
+    if (!paymentsEnabled) {
+      setBusy(false);
+      setMessage("Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
+      await load();
+      return;
+    }
+    try {
+      const response = await fetch("/api/asaas/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      const result = await response.json() as { checkoutUrl?: string; error?: string };
+      if (!response.ok || !result.checkoutUrl) throw new Error(result.error || "Não foi possível iniciar o pagamento.");
+      // Payment is confirmed only by authenticated Asaas webhook, never by this redirect.
+      window.location.assign(result.checkoutUrl);
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Falha ao abrir checkout. Entre em contato com o suporte.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createRechargeRequest() {
