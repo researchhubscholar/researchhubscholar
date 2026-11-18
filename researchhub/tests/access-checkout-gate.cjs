@@ -1,0 +1,14 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
+const middleware=fs.readFileSync(path.resolve(__dirname,"../middleware.ts"),"utf8");
+const onboarding=fs.readFileSync(path.resolve(__dirname,"../app/scholar/onboarding/page.tsx"),"utf8");
+assert.match(middleware,/scholar_product_access_state/);
+assert.match(middleware,/target\.pathname = accessError \? "\/licenca" : "\/contratacao"/);
+assert.match(middleware,/paidWorkspaceRoutes/);
+assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/contratacao"/);
+assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/orientacao"/);
+assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/scholar\/onboarding"/);
+assert.match(onboarding,/supabase\.rpc\("scholar_product_access_state"\)/);
+assert.match(onboarding,/allowed \? "\/dashboard\?onboarding=concluido" : "\/contratacao"/);
+console.log("PASS: email confirmation cannot bypass license gate; contract, onboarding and advisor access remain reachable.");
