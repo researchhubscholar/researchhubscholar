@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anchorEvidence, verifyEvidenceAnchor, normalizeEvidenceText, type EvidenceAnchor, type EvidenceOrigin } from "@/lib/literature/provenance";
 import { validateClaimAgainstEvidence, type ClaimValidation } from "@/lib/literature/claim-validation";
+import { extractStructuredEvidence } from "@/lib/literature/structured-extraction";
 
 type Suggestion = {
   value: string;
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const abstract = String(body?.abstract ?? "").trim();
     const publicationTypes = Array.isArray(body?.publicationTypes) ? body.publicationTypes.map(String) : [];
+    const title = typeof body?.title === "string" ? body.title.slice(0, 300) : "";
+    const requestedDesign = body?.studyDesign;
 
     if (abstract.length < 40) {
       return NextResponse.json({ error: "Este artigo não possui abstract suficiente para pré-análise." }, { status: 400 });
@@ -106,6 +109,9 @@ export async function POST(request: NextRequest) {
     const normalizedAbstract = normalizeEvidenceText(abstract);
     return NextResponse.json({
       suggestions,
+      ...(process.env.SCHOLAR_AI05_STRUCTURED_EXTRACTION === "true"
+        ? { structuredEvidence: extractStructuredEvidence(abstract, { title, publicationTypes, studyDesign: requestedDesign }) }
+        : {}),
       provenance: { scope: "abstract_only", normalizedAbstractLength: normalizedAbstract.length, verifiedExcerptCount: confirmed, fullTextAvailable: false, pageLevelAvailable: false },
       scientificValidation: { scope: "lexical_numeric_only", statisticallyVerified: false, requiresHumanReview: true },
       note: "Pré-análise automática baseada apenas no abstract e no tipo de publicação. Confirme cada campo antes de incorporar à matriz.",
