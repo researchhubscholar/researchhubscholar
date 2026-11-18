@@ -76,11 +76,11 @@ jobs:
       - name: Asaas webhook validation
         run: node tests/asaas-webhook.cjs
 
-      - name: Tests
-        run: npm test
-
       - name: Production build
         run: npm run build
+
+      - name: Tests
+        run: npm test
 
       - name: Production smoke test
         run: npm run test:smoke
