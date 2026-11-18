@@ -3199,3 +3199,80 @@ body {
     background: #fff;
   }
 }
+
+/* Compact chat framed as a distinct, floating ResearchHub workspace.
+   The earlier fixes only targeted --expanded, while the real screenshot was compact. */
+.project-guide-window.project-guide-window--clean {
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: min(29rem, calc(100vw - 2rem));
+  height: min(42rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
+  border: 2px solid #9fb6a8;
+  border-left: 3px solid #688b79;
+  border-radius: 1.1rem;
+  background: #ffffff;
+  box-shadow: 0 26px 70px rgba(17,48,36,.27), 0 6px 20px rgba(17,48,36,.12);
+  isolation: isolate;
+}
+.project-guide-window--clean .project-guide-header {
+  background: #f8faf7;
+  border-bottom: 1px solid #d9e4dc;
+  padding: .85rem 1rem .75rem;
+}
+.project-guide-window--clean .project-guide-thread {
+  background: #ffffff;
+  padding: 1rem 1rem 1.35rem;
+}
+.project-guide-window--clean .project-guide-footer {
+  background: #f8faf7;
+  border-top: 1px solid #d9e4dc;
+  padding: .75rem 1rem .9rem;
+}
+.project-guide-window--clean .project-guide-context {
+  color: #63766c;
+}
+.project-guide-window--clean .project-guide-question {
+  background: #e5eee8;
+  color: #234738;
+  padding: .7rem .85rem;
+}
+.project-guide-window--clean .project-guide-answer-row {
+  padding: .3rem 0;
+}
+.project-guide-window--clean .project-guide-compose {
+  background: #fff;
+  border: 1px solid #b3cbbd;
+  border-radius: .85rem;
+}
+/* When the panel is open, its close control is in the header.
+   Avoid the overlapping floating "Fechar assistente" button. */
+.project-guide-toggle:has(+ .project-guide-window--clean) {
+  display: none;
+}
+@media (min-width: 700px) {
+  .project-guide-window.project-guide-window--clean.project-guide-window--expanded {
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    width: min(43rem, calc(100vw - 2rem));
+    height: auto;
+    max-height: calc(100dvh - 2rem);
+    border: 2px solid #9fb6a8;
+    border-left: 3px solid #688b79;
+    box-shadow: 0 26px 70px rgba(17,48,36,.27), 0 6px 20px rgba(17,48,36,.12);
+  }
+}
+@media (max-width: 699px) {
+  .project-guide-window.project-guide-window--clean,
+  .project-guide-window.project-guide-window--clean.project-guide-window--expanded {
+    top: max(.65rem, env(safe-area-inset-top));
+    right: max(.65rem, env(safe-area-inset-right));
+    bottom: max(.65rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1.3rem);
+    height: auto;
+    max-height: calc(100dvh - 1.3rem);
+    border: 1.5px solid #9fb6a8;
+    box-shadow: 0 14px 38px rgba(17,48,36,.22);
+  }
+}
