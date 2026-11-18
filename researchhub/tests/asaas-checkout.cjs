@@ -63,5 +63,6 @@ assert.match(cancelSql, /provider_checkout_id IS NULL/);
 assert.match(cancelSql, /status IN \('requested','approved'\)/);
 assert.doesNotMatch(cancelSql, /status IN \('requested','approved','payment_pending'\)/);
 assert.match(checkoutUi, /pending\.status === "payment_pending"/);
+assert.match(checkoutUi, /wasCancelled !== true/);
 assert.doesNotMatch(checkoutUi, /\["requested", "approved", "payment_pending"\]\.includes\(item\.status\)/);
 console.log("PASS: webhook routes converge; linked checkouts cannot be cancelled; late payments remain reconcilable.");
