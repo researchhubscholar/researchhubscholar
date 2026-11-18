@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildEvidenceMatrixPreview, type MatrixSource } from "@/lib/literature/evidence-matrix-preview";
 import { type EvidenceReviewDecision } from "@/lib/literature/evidence-review";
 import {
@@ -31,6 +31,7 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
     try { return { value: buildEvidenceMatrixPreview(sources), error: "" }; }
     catch { return { value: null, error: "Não foi possível preparar as evidências. Revise os artigos selecionados." }; }
   }, [sources]);
+  useEffect(() => { setEntries({}); setPreview(null); setError(""); }, [projectId, sources]);
   const cells = useMemo(() => matrix.value?.rows.flatMap(row =>
     row.cells.map((cell, index) => ({ row, cell, index, key: row.articleId + ":" + index }))) ?? [], [matrix]);
 
