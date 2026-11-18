@@ -84,10 +84,12 @@ export function extractStructuredEvidence(
   const candidates: StructuredEvidence[] = [];
   for (const sentence of excerpts(abstract).slice(0, 100)) {
     for (const kind of KINDS) {
-      if (!markers[kind].test(sentence)) continue;
-      // Multiple kinds can share a sentence but must always cite that sentence.
-      // A long sentence still yields an anchored excerpt; never cite beyond the bound.
-      const excerpt = sentence.slice(0, 520).trim();
+      const marker = markers[kind].exec(sentence);
+      if (!marker) continue;
+      // A long sentence needs a bounded window containing the matching term.
+      // Never classify a passage using a marker absent from its quoted evidence.
+      const offset = Math.max(0, marker.index - 120);
+      const excerpt = sentence.slice(offset, offset + 520).trim();
       const provenance = anchorEvidence(abstract, excerpt);
       if (!verifyEvidenceAnchor(abstract, provenance)) continue;
       const numericalUnit = /\b\d+\s+(?:studies|trials)\b/i.test(excerpt)
