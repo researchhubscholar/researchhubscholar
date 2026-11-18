@@ -13,7 +13,7 @@ assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/orientacao"
 assert.match(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/scholar\/onboarding"/);
 assert.match(onboarding,/supabase\.rpc\("scholar_product_access_state"\)/);
 assert.match(onboarding,/allowed \? "\/dashboard\?onboarding=concluido" : "\/contratacao"/);
-console.log("PASS: email confirmation cannot bypass license gate; contract, onboarding and advisor access remain reachable.");
+console.log("PASS: email confirmation cannot bypass license gate; contract and advisor access remain reachable; onboarding requires a license.");
 
 assert.match(login,/supabase\.rpc\("scholar_product_access_state"\)/);
 assert.match(login,/router\.push\(accessError \? "\/licenca" : "\/contratacao"\)/);
