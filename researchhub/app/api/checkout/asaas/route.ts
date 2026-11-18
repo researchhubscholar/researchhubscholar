@@ -95,10 +95,10 @@ export async function POST(request: Request) {
       console.error("[asaas:checkout] create failed", { status: response.status, requestId: purchaseId });
       return NextResponse.json({ error: "Não foi possível abrir o checkout. Tente novamente." }, { status: 502 });
     }
-    const { error: updateError } = await admin.from("scholar_purchase_requests").update({
+    const { data: linked, error: updateError } = await admin.from("scholar_purchase_requests").update({
       provider_checkout_id: checkout.id, status: "payment_pending", updated_at: new Date().toISOString(),
-    }).eq("id", purchaseId).eq("requester_id", user.id).eq("status", "requested");
-    if (updateError) {
+    }).eq("id", purchaseId).eq("requester_id", user.id).eq("status", "requested").select("id").maybeSingle();
+    if (updateError || !linked) {
       console.error("[asaas:checkout] checkout created but not linked", { requestId: purchaseId, code: updateError.code });
       return NextResponse.json({ error: "Não foi possível confirmar o vínculo do checkout. Contate o suporte antes de pagar." }, { status: 503 });
     }
