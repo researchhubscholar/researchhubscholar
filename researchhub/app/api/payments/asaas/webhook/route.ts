@@ -42,6 +42,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Evento incompleto" }, { status: 400 });
   }
 
+  // A CREATED notification may be delivered while the Checkout POST is still
+  // persisting its ID; acknowledge it because it never authorizes fulfillment.
+  if (event.event === "CHECKOUT_CREATED") return NextResponse.json({ ok: true });
+
   const { id: checkoutId, externalReference: requestId, status } = event.checkout;
   const admin = supabaseAdmin();
   const { data: purchase, error: lookupError } = await admin
