@@ -15,6 +15,9 @@ type Purchase = {
   billing_schedule: string;
   total_amount_cents: number;
   provider_checkout_id: string | null;
+  coupon_code: string | null;
+  gross_amount_cents: number;
+  discount_cents: number;
 };
 
 export async function POST(request: Request) {
@@ -33,18 +36,50 @@ export async function POST(request: Request) {
   try {
     const apiKey = process.env.ASAAS_API_KEY;
     if (!apiKey) throw new Error("Chave do Asaas não configurada.");
-    // Do not open live payments until the Asaas webhook endpoint is configured and verified.
-    if (process.env.ASAAS_ENVIRONMENT?.toLowerCase() === "production" &&
-        process.env.RESEARCHHUB_ASAAS_CHECKOUT_READY !== "true")
-      return NextResponse.json({ error: "Pagamento temporariamente indisponível até a confirmação do webhook Asaas." }, { status: 503 });
+    const production = process.env.ASAAS_ENVIRONMENT?.toLowerCase() === "production";
+    const generalCheckoutEnabled = process.env.RESEARCHHUB_ASAAS_CHECKOUT_READY === "true";
     const admin = supabaseAdmin();
     const { data, error } = await admin.from("scholar_purchase_requests")
-      .select("id,requester_id,kind,plan,status,billing_schedule,total_amount_cents,provider_checkout_id")
+      .select("id,requester_id,kind,plan,status,billing_schedule,total_amount_cents,provider_checkout_id,coupon_code,gross_amount_cents,discount_cents")
       .eq("id", requestId).eq("requester_id", user.id).maybeSingle();
     if (error) throw error;
     const purchase = data as Purchase | null;
     if (!purchase || !["requested","approved","payment_pending"].includes(purchase.status))
       return NextResponse.json({ error: "Solicitação não disponível para pagamento." }, { status: 409 });
+    if (production && !generalCheckoutEnabled) {
+      // Enable ONLY the previously agreed, single-redemption Essencial test.
+      // Every other purchase remains blocked until checkout is explicitly enabled for all.
+      const validTestPurchase =
+        purchase.kind === "individual" &&
+        purchase.plan === "essential" &&
+        purchase.billing_schedule === "annual" &&
+        purchase.coupon_code === "TESTE99" &&
+        purchase.gross_amount_cents === 59900 &&
+        purchase.discount_cents === 59301 &&
+        purchase.total_amount_cents === 599;
+      if (!validTestPurchase)
+        return NextResponse.json({ error: "Novos checkouts estão em validação. Disponível somente o teste autorizado TESTE99." }, { status: 503 });
+
+      // Check the real coupon record, not only user-submitted text or monetary fields.
+      const { data: testCoupon, error: couponError } = await admin.from("scholar_coupon_codes")
+        .select("code,active,audience,plan,percent_off,amount_off_cents,max_redemptions,redemptions,valid_from,valid_until")
+        .eq("code", "TESTE99").maybeSingle();
+      if (couponError) throw couponError;
+      if (!testCoupon || !testCoupon.active || testCoupon.audience !== "individual" ||
+          testCoupon.plan !== "essential" || testCoupon.percent_off !== 99 ||
+          testCoupon.amount_off_cents !== 0 || testCoupon.max_redemptions !== 1 ||
+          testCoupon.redemptions !== 0 || Date.parse(testCoupon.valid_from) > Date.now() ||
+          (testCoupon.valid_until && Date.parse(testCoupon.valid_until) <= Date.now()))
+        return NextResponse.json({ error: "Cupom de teste não configurado ou já utilizado." }, { status: 503 });
+
+      // Prevent reopening a second test checkout while one is already pending.
+      const { data: pendingTest, error: pendingError } = await admin.from("scholar_purchase_requests")
+        .select("id").eq("coupon_code", "TESTE99").eq("status", "payment_pending")
+        .neq("id", purchase.id).limit(1);
+      if (pendingError) throw pendingError;
+      if (pendingTest?.length)
+        return NextResponse.json({ error: "Já existe um checkout de teste em andamento." }, { status: 409 });
+    }
     if (purchase.kind !== "individual" || !purchase.plan)
       return NextResponse.json({ error: "Checkout automático disponível inicialmente apenas para planos individuais." }, { status: 422 });
     if (!["annual", "12x"].includes(purchase.billing_schedule))
