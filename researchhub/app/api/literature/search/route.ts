@@ -3,6 +3,7 @@ import { analyzeLiterature } from "@/lib/literature/analyze";
 import { buildSearchStrategy, sanitizeTranslations, type SearchInput } from "@/lib/literature/query-strategy";
 import { searchLimits } from "@/lib/literature/search-limits";
 import { officialTerminologySuggestions } from "@/lib/literature/terminology";
+import { resolveDecsTerms } from "@/lib/literature/decs";
 export const maxDuration = 180;
 export async function POST(request: NextRequest) {
  try {
@@ -15,7 +16,19 @@ export async function POST(request: NextRequest) {
  const operator=body.operator==="OR"?"OR":"AND";
  const input: SearchInput={topic,mesh:String(body.mesh??"").trim(),population:String(body.populationTerm??"").trim(),outcome:String(body.outcomeTerm??"").trim(),operator,language,translations:sanitizeTranslations(body.translations)};
  if([input.mesh,input.population,input.outcome].some(value=>(value?.length||0)>searchLimits.field))return NextResponse.json({error:`Cada campo avançado aceita até ${searchLimits.field} caracteres.`},{status:400});
- const strategy=buildSearchStrategy(input);
+ const preliminary=buildSearchStrategy(input);
+ // Opt-in only: untouched production behavior until preview/API tests succeed.
+ let decsResolutions: Awaited<ReturnType<typeof resolveDecsTerms>>["resolutions"] = [];
+ if (process.env.SCHOLAR_DECS_AUTO_REFINE === "true"
+   && preliminary.mode === "interpreted" && preliminary.language === "pt"
+   && preliminary.unresolvedTerms.length > 0) {
+   const resolved = await resolveDecsTerms(
+     preliminary.unresolvedTerms.filter(term => !Object.hasOwn(input.translations || {}, term)),
+   );
+   input.translations = { ...resolved.translations, ...input.translations };
+   decsResolutions = resolved.resolutions.filter(item => input.translations?.[item.source] === item.english);
+ }
+ const strategy=decsResolutions.length ? buildSearchStrategy(input) : preliminary;
  const review = (suggestions: Record<string, string[]>, unresolvedTerms: string[]) =>
    NextResponse.json({error:"Confirme os conceitos que ainda não foram reconhecidos.",code:"TERMINOLOGY_REVIEW_REQUIRED",
      strategy:{...strategy,suggestions:{...suggestions,...strategy.suggestions},unresolvedTerms}},{status:422});
@@ -26,6 +39,6 @@ export async function POST(request: NextRequest) {
    const suggestions=await lookupTerms();
    if(Object.keys(suggestions).length)return review(suggestions,Object.keys(suggestions));
  }
- return NextResponse.json(result);
+ return NextResponse.json({...result, terminology:{source:"DeCS", verified:decsResolutions, automatic:decsResolutions.length>0}});
  }catch{return NextResponse.json({error:"Não foi possível consultar o PubMed agora. Tente novamente."},{status:502});}
 }
