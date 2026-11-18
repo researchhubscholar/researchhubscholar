@@ -16,9 +16,6 @@ function sameToken(received: string | null, configured: string) {
   const b = Buffer.from(configured, "utf8");
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function validUuid(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
 function moneyMatches(items: unknown, expectedCents: number) {
   if (!Array.isArray(items) || items.length === 0) return false;
   let total = 0;
