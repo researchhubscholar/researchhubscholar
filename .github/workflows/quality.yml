@@ -57,6 +57,9 @@ jobs:
       - name: Asaas webhook validation
         run: node tests/asaas-webhook.cjs
 
+      - name: Scientific AI Radar and source-grounding regression
+        run: node tests/guide-excerpt.cjs
+
       - name: Tests
         run: npm test
 

@@ -14,6 +14,16 @@ const normalized=(s:string)=>s.replace(/\s+/g," ").trim();
 export function guideSourceExcerpts(source:GuideSource,kind:"abstract"|"notes"):string[]{
  return normalized(source[kind]).match(/.{1,270}(?:\s|$)|.{1,270}/gu)?.map(part=>part.trim()).filter(part=>part.length>=12)||[];
 }
+// Quantitative claims must appear in the actual excerpt used as evidence.
+// A matching PMID alone is not enough to justify an invented effect size or p-value.
+export function quantitativeMarkers(value:string):string[]{
+ return [...value.matchAll(/\b\d+(?:[.,]\d+)?\s*%|\bp\s*[<=>]\s*\d+(?:[.,]\d+)?/gi)]
+  .map(match=>match[0].toLowerCase().replace(/\s+/g,"").replace(",","."));
+}
+function unsupportedQuantitativeClaim(claim:string,evidence:string):boolean{
+ const supported=new Set(quantitativeMarkers(evidence));
+ return quantitativeMarkers(claim).some(marker=>!supported.has(marker));
+}
 export function groundGuideSources(output:AssistantOutput,sources:GuideSource[],language:OutputLanguage="pt-BR",allowPartial=false):AssistantOutput{
  if(!sources.length)return output;
  const recommendations=output.recommendations.flatMap(r=>{
@@ -23,10 +33,17 @@ export function groundGuideSources(output:AssistantOutput,sources:GuideSource[],
  const source=sources.find(s=>s.label===evidence.id),kind=evidence.kind;
  if(source&&(kind==="abstract"||kind==="notes")&&Number.isInteger(evidence.excerpt)&&evidence.excerpt>0) evidence.quote=guideSourceExcerpts(source,kind)[evidence.excerpt-1];
  if(!source||!["abstract","notes"].includes(kind)||typeof evidence.quote!=="string"||evidence.quote.length<12||evidence.quote.length>300||!normalized(source[kind as "abstract"|"notes"]).includes(normalized(evidence.quote)))throw Error("Um trecho citado não corresponde ao material enviado. A resposta não foi aplicada.");
+ if(unsupportedQuantitativeClaim(r.content,evidence.quote))throw Error("A recomendação contém resultado quantitativo ausente do trecho citado.");
  return [{...r,targetField:"",source:`${source.label} · ${source.title} · ${language==="es"?(kind==="abstract"?aiSpanishCopy["Resumo do artigo"]:aiSpanishCopy["Anotações do pesquisador"]):(kind==="abstract"?"Resumo do artigo":"Anotações do pesquisador")}: “${evidence.quote}”`}];
  }catch(error){if(!allowPartial)throw error;return []; }
  });
- if(!allowPartial)return {...output,recommendations};
+ if(!allowPartial){
+  const citedEvidence=recommendations.map(r=>r.source).join(" ");
+  const summary=unsupportedQuantitativeClaim(output.summary,citedEvidence)
+    ? (language==="es"?"Revisa los puntos citados a continuación. Se omitieron cifras no verificables en la síntesis.":"Confira os pontos citados abaixo. Valores numéricos não verificáveis na síntese foram omitidos.")
+    : output.summary;
+  return {...output,summary,recommendations};
+ }
  const summary=language==="es"
   ? (recommendations.length?"Se muestran solo los puntos con citas verificadas. No se pudo confirmar el resto con los resúmenes o las notas disponibles.":"No se pudieron verificar citas en los resúmenes o las notas disponibles para esta comparación.")
   : (recommendations.length?"Mostramos apenas os pontos com citações verificadas. Não foi possível confirmar o restante com os resumos ou as anotações disponíveis.":"Não foi possível verificar citações nos resumos ou nas anotações disponíveis para esta comparação.");
