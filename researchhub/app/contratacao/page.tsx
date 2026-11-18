@@ -103,7 +103,7 @@ export default function CommercePage() {
     if (!userId || busy) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
+    const { data: purchaseId, error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
       p_kind: kind,
       p_plan: plan,
       p_billing_schedule: schedule,
@@ -113,14 +113,34 @@ export default function CommercePage() {
       p_target_license: null,
       p_coupon: coupon || null,
     });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message || "Não foi possível registrar a solicitação.");
+    if (error || !purchaseId) {
+      setBusy(false);
+      setMessage(error?.message || "Não foi possível registrar a solicitação.");
       return;
     }
-    setMessage(paymentsEnabled
-      ? "Solicitação criada. O checkout será aberto quando a integração de pagamento estiver concluída."
-      : "Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
+    if (paymentsEnabled && kind === "individual") {
+      try {
+        const checkoutResponse = await fetch("/api/asaas/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: purchaseId }),
+        });
+        const checkout = await checkoutResponse.json() as { url?: string; error?: string };
+        if (!checkoutResponse.ok || !checkout.url) {
+          setMessage(checkout.error || "Não foi possível abrir o checkout.");
+        } else {
+          window.location.assign(checkout.url);
+          return;
+        }
+      } catch {
+        setMessage("Não foi possível conectar ao pagamento. Tente novamente.");
+      }
+    } else if (paymentsEnabled) {
+      setMessage("Solicitação institucional registrada. A equipe entrará em contato para concluir a contratação.");
+    } else {
+      setMessage("Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
+    }
+    setBusy(false);
     await load();
   }
 
