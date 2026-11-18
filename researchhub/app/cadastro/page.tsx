@@ -57,7 +57,8 @@ export default function CadastroPage() {
       return;
     }
 
-    router.push(persona === "professor" ? "/orientacao" : `/scholar/onboarding?perfil=${persona}`);
+    // Even if sign-up creates a session immediately, checkout precedes onboarding.
+    router.push("/contratacao");
     router.refresh();
   }
 

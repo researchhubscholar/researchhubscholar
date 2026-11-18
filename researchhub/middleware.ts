@@ -83,10 +83,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Authentication does not itself grant a purchased ResearchHub license.
-  // Public enrollment, profile onboarding and the license/contract screens stay accessible.
+  // Public enrollment and license/contract screens remain accessible; onboarding requires a valid license.
   const paidWorkspaceRoutes = [
     "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho",
     "/documentos", "/resultados", "/manuscrito", "/geracoes",
+    "/scholar/onboarding",
   ];
   if (user && paidWorkspaceRoutes.some(path =>
     request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")

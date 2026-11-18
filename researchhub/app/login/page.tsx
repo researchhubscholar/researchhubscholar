@@ -41,6 +41,16 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    // Signing in is not a subscription. Route unpaid users directly to checkout
+    // before any private onboarding or research tool can render.
+    const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
+    const hasAccess = !accessError && access && typeof access === "object" &&
+      !Array.isArray(access) && access.allowed === true;
+    if (!hasAccess) {
+      router.push(accessError ? "/licenca" : "/contratacao");
+      router.refresh();
+      return;
+    }
     const { data: profile } = await supabase.from("profiles").select("onboarding_completed, user_type").eq("id", user.id).maybeSingle();
     if (!profile?.onboarding_completed && await isAdvisorOnly(supabase, user.id)) {
       router.push("/orientacao");
