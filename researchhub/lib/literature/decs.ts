@@ -27,8 +27,10 @@ function findRecords(value: unknown, depth = 0): UnknownObject[] {
 function entries(value: unknown, key: string): UnknownObject[] {
   if (Array.isArray(value)) return value.filter(object).slice(0, 30);
   if (!object(value)) return [];
+  if ((key === "descriptor" && typeof value.descriptor === "string")
+    || (key === "synonym" && typeof value.synonym === "string")) return [value];
   if (key in value) return entries(value[key], key);
-  if ("attr" in value || "descriptor" in value || "synonym" in value) return [value];
+  if ("attr" in value) return [value];
   return [];
 }
 function multilingualLabel(item: UnknownObject) {
