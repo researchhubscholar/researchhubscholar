@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       provider_checkout_id: checkout.id, status: "payment_pending", updated_at: new Date().toISOString(),
     }).eq("id", purchaseId).eq("requester_id", user.id).eq("status", "requested").select("id").maybeSingle();
     if (updateError || !linked) {
-      console.error("[asaas:checkout] checkout created but not linked", { requestId: purchaseId, code: updateError.code });
+      console.error("[asaas:checkout] checkout created but not linked", { requestId: purchaseId, code: updateError?.code || 'NO_UPDATED_ROW' });
       return NextResponse.json({ error: "Não foi possível confirmar o vínculo do checkout. Contate o suporte antes de pagar." }, { status: 503 });
     }
     return NextResponse.json({ requestId: purchaseId, url: checkoutUrl(checkout.id) });
