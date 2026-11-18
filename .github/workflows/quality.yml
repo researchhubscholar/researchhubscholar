@@ -7,6 +7,7 @@ on:
       - main
       - "codex/**"
       - "audit/**"
+      - "design/**"
   workflow_dispatch:
 
 permissions:
