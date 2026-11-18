@@ -1,0 +1,50 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const ts = require("typescript");
+const compile = file => ts.transpileModule(fs.readFileSync(file, "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+require.extensions[".ts"] = (module, file) => module._compile(compile(file), file);
+const provenance = require("../lib/literature/provenance.ts");
+const abstract = "OBJECTIVE: Assess sleep quality.\nMETHODS: We studied 100 medical residents.\nRESULTS: Sleep deprivation was associated with fatigue.\nCONCLUSIONS: More research is necessary.";
+const quote = "We studied 100 medical residents.";
+const anchor = provenance.anchorEvidence(abstract, quote);
+assert.equal(anchor.origin, "abstract");
+assert.equal(anchor.verification, "exact_excerpt");
+assert.equal(provenance.verifyEvidenceAnchor(abstract, anchor), true);
+assert.equal(provenance.normalizeEvidenceText(abstract).slice(anchor.start, anchor.end), quote);
+assert.equal(anchor.page, null); assert.equal(anchor.table, null); assert.equal(anchor.cell, null);
+assert.equal(provenance.verifyEvidenceAnchor("Different study text", anchor), false);
+assert.equal(provenance.anchorEvidence(abstract, "This text was not published").verification, "unverified");
+assert.equal(provenance.verifyEvidenceAnchor(abstract, provenance.anchorEvidence(abstract, "Clinical Trial", "publication_types")), false);
+const metadata = provenance.anchorEvidence(abstract, "Clinical Trial", "publication_types");
+assert.equal(metadata.verification, "metadata_only");
+assert.equal(metadata.start, null);
+const moduleRef = { exports: {} };
+const next = {NextResponse: {json: (payload, init) => new Response(JSON.stringify(payload), {status: init?.status || 200, headers: {"Content-Type": "application/json"}})}};
+new Function("require", "module", "exports", compile("app/api/literature/extract/route.ts"))(id => {
+  if (id === "next/server") return next;
+  if (id === "@/lib/literature/provenance") return provenance;
+  throw Error("unexpected import " + id);
+}, moduleRef, moduleRef.exports);
+const request = body => new Request("https://local/api/literature/extract", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+(async () => {
+  const response = await moduleRef.exports.POST(request({abstract, publicationTypes: ["Observational Study"]}));
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.provenance.scope, "abstract_only");
+  assert.equal(data.provenance.fullTextAvailable, false);
+  assert.equal(data.provenance.pageLevelAvailable, false);
+  assert.equal(data.suggestions.population.provenance.verification, "exact_excerpt");
+  assert.equal(provenance.verifyEvidenceAnchor(abstract, data.suggestions.population.provenance), true);
+  assert.equal(data.suggestions.finding.provenance.verification, "exact_excerpt");
+  assert(data.provenance.verifiedExcerptCount >= 2);
+  const plainAbstract = "The research question concerns sleep in trainees. The cohort included 100 residents. Observations were collected over one year.";
+  const second = await moduleRef.exports.POST(request({abstract: plainAbstract, publicationTypes: ["Clinical Trial"]}));
+  assert.equal(second.status, 200);
+  const value = await second.json();
+  assert.equal(value.suggestions.method.provenance.verification, "metadata_only");
+  assert.equal(value.suggestions.method.provenance.page, null);
+  assert.equal((await moduleRef.exports.POST(request({abstract: "Too short"}))).status, 400);
+  console.log("PASS: IA-03 abstract evidence offsets, source distinction, missing evidence and route metadata.");
+})().catch(error => {console.error(error);process.exitCode = 1;});
