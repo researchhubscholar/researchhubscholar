@@ -45,7 +45,9 @@ export async function POST(request: Request) {
   if (!Number.isSafeInteger(order.total_amount_cents) || order.total_amount_cents <= 0)
     return NextResponse.json({ error: "Valor de contratação inválido." }, { status: 422 });
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://researchhub.com.br";
+  const site = process.env.VERCEL_ENV === "preview"
+    ? request.url
+    : process.env.NEXT_PUBLIC_SITE_URL || "https://researchhub.com.br";
   const origin = new URL(site).origin;
   const amount = order.total_amount_cents / 100;
   const body = {
