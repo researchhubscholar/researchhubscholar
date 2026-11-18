@@ -8,6 +8,7 @@ require.extensions[".ts"] = (module, file) => module._compile(compile(file), fil
 const provenance = require("../lib/literature/provenance.ts");
 const claimValidation = require("../lib/literature/claim-validation.ts");
 const structuredExtraction = require("../lib/literature/structured-extraction.ts");
+const deepResults = require("../lib/literature/deep-results-evidence.ts");
 const abstract = "OBJECTIVE: Assess sleep quality.\nMETHODS: We studied 100 medical residents.\nRESULTS: Sleep deprivation was associated with fatigue.\nCONCLUSIONS: More research is necessary.";
 const quote = "We studied 100 medical residents.";
 const anchor = provenance.anchorEvidence(abstract, quote);
@@ -29,6 +30,7 @@ new Function("require", "module", "exports", compile("app/api/literature/extract
   if (id === "@/lib/literature/provenance") return provenance;
   if (id === "@/lib/literature/claim-validation") return claimValidation;
   if (id === "@/lib/literature/structured-extraction") return structuredExtraction;
+  if (id === "@/lib/literature/deep-results-evidence") return deepResults;
   throw Error("unexpected import " + id);
 }, moduleRef, moduleRef.exports);
 const request = body => new Request("https://local/api/literature/extract", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
