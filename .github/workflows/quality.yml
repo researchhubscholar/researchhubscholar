@@ -48,6 +48,9 @@ jobs:
       - name: AI reservation and financial regression
         run: node tests/financial.cjs
 
+      - name: Asaas payment webhook regression
+        run: node tests/asaas-webhook.cjs
+
       - name: Tests
         run: npm test
 

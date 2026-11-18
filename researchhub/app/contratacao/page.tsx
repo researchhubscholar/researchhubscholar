@@ -103,25 +103,40 @@ export default function CommercePage() {
     if (!userId || busy) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
-      p_kind: kind,
-      p_plan: plan,
-      p_billing_schedule: schedule,
-      p_seats: kind === "institutional" ? seats : 1,
-      p_quantity: 1,
-      p_organization_name: kind === "institutional" ? organizationName : null,
-      p_target_license: null,
-      p_coupon: coupon || null,
-    });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message || "Não foi possível registrar a solicitação.");
-      return;
+    try {
+      const { data: requestId, error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
+        p_kind: kind,
+        p_plan: plan,
+        p_billing_schedule: schedule,
+        p_seats: kind === "institutional" ? seats : 1,
+        p_quantity: 1,
+        p_organization_name: kind === "institutional" ? organizationName : null,
+        p_target_license: null,
+        p_coupon: coupon || null,
+      });
+      if (error) throw new Error(error.message || "Não foi possível registrar a solicitação.");
+      if (paymentsEnabled && kind === "individual") {
+        const response = await fetch("/api/payments/asaas/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ purchaseRequestId: requestId }),
+        });
+        const checkout = await response.json() as { url?: string; error?: string };
+        if (!response.ok || !checkout.url) throw new Error(checkout.error || "Checkout indisponível.");
+        window.location.assign(checkout.url);
+        return;
+      }
+      setMessage(paymentsEnabled && kind === "institutional"
+        ? "Solicitação institucional registrada. A equipe entrará em contato para formalizar a contratação."
+        : "Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível concluir a solicitação.");
+      await load();
+    } finally {
+      setBusy(false);
     }
-    setMessage(paymentsEnabled
-      ? "Solicitação criada. O checkout será aberto quando a integração de pagamento estiver concluída."
-      : "Solicitação registrada sem cobrança. A equipe poderá acompanhar o pedido no painel operacional.");
-    await load();
   }
 
   async function createRechargeRequest() {
