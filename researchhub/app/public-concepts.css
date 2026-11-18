@@ -227,3 +227,95 @@ body:has(.marketing-page,.auth-shell) .floating-plans {background:var(--public-g
  body:has(.marketing-page,.auth-shell) .mobile-nav {grid-column:1/-1;margin-bottom:-.9rem;}
  body:has(.marketing-page,.auth-shell) .app-content {font-size:1rem;}
 }
+
+
+/* ResearchHub checkout: stable hierarchy and legibility across desktop/mobile. */
+.public-commerce.commerce-page .purchase-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: clamp(1.25rem, 3.5vw, 2.75rem);
+  align-items: start;
+}
+.public-commerce.commerce-page .purchase-main {
+  min-width: 0;
+  margin-top: 1.5rem;
+  padding: clamp(1.25rem, 2.6vw, 2rem);
+  background: #fffdf8;
+  border: 1px solid var(--public-line);
+  border-radius: 18px;
+}
+.public-commerce.commerce-page .purchase-main label {
+  display: block;
+  color: var(--public-ink);
+  font-weight: 500;
+  min-width: 0;
+}
+.public-commerce.commerce-page .purchase-main :is(input,select) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  background: #fff;
+  color: var(--public-ink);
+  border-color: var(--public-line);
+  border-radius: 10px;
+  line-height: 1.4;
+}
+.public-commerce.commerce-page .purchase-main :is(input,select):focus-visible,
+.public-commerce.commerce-page .purchase-continue:focus-visible {
+  outline: 3px solid #8daea1;
+  outline-offset: 2px;
+}
+.public-commerce.commerce-page .purchase-continue {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.35;
+  background: var(--public-green);
+  border-radius: 10px;
+}
+.public-commerce.commerce-page .purchase-continue:hover:not(:disabled) { background: #103e35; }
+.public-commerce.commerce-page .purchase-summary {
+  position: sticky;
+  top: 1.25rem;
+  min-width: 0;
+  margin-top: 1.5rem;
+  padding: clamp(1.25rem, 2.6vw, 2rem);
+  border: 1px solid var(--public-line);
+  border-radius: 18px;
+  overflow-wrap: anywhere;
+}
+.public-commerce.commerce-page .purchase-summary .purchase-price {
+  font-size: clamp(2.1rem, 3.2vw, 3rem);
+  line-height: 1.15;
+}
+.public-commerce.commerce-page .purchase-discount {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: .75rem;
+  row-gap: .35rem;
+  color: var(--public-green);
+}
+.public-commerce.commerce-page .purchase-summary .grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.public-commerce.commerce-page .purchase-summary .grid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: .85rem 0;
+  border-bottom: 1px solid var(--public-line);
+}
+@media (max-width: 850px) {
+  .public-commerce.commerce-page .purchase-layout { grid-template-columns: minmax(0, 1fr); }
+  .public-commerce.commerce-page .purchase-summary { position: static; margin-top: 0; }
+}
+@media (max-width: 520px) {
+  .public-commerce.commerce-page .purchase-main { padding: 1.125rem; }
+  .public-commerce.commerce-page .purchase-main .grid { grid-template-columns: minmax(0, 1fr); }
+  .public-commerce.commerce-page .purchase-continue { width: 100%; }
+}
