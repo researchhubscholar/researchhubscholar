@@ -54,6 +54,18 @@ export async function middleware(request: NextRequest) {
   // O Scholar só precisa renovar a sessão. Não consulta tabelas do
   // ResearchHub institucional, pois usa um banco Supabase independente.
   const { data: { user } } = await supabase.auth.getUser();
+  const paidApiRoutes = [
+    "/api/literature", "/api/results", "/api/project-plan",
+    "/api/ai/ideas", "/api/ai/refine-idea", "/api/ai/assist", "/api/ai/guide",
+  ];
+  const paidApi = paidApiRoutes.some(path =>
+    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")
+  );
+  if (!user && paidApi) {
+    const denied = NextResponse.json({ error: "Entre na sua conta para usar as ferramentas." }, { status: 401 });
+    response.cookies.getAll().forEach(cookie => denied.cookies.set(cookie));
+    return denied;
+  }
   if (!user && request.nextUrl.pathname.startsWith("/api/literature/")) {
     const denied = NextResponse.json({error:"Entre na sua conta para usar as ferramentas. Experimente o Radar público sem cadastro."},{status:401});
     response.cookies.getAll().forEach(cookie => denied.cookies.set(cookie));
@@ -89,13 +101,22 @@ export async function middleware(request: NextRequest) {
     "/documentos", "/resultados", "/manuscrito", "/geracoes",
     "/scholar/onboarding",
   ];
-  if (user && paidWorkspaceRoutes.some(path =>
+  const paidWorkspace = paidWorkspaceRoutes.some(path =>
     request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")
-  )) {
+  );
+  if (user && (paidWorkspace || paidApi)) {
     const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
     const allowed = !accessError && access && typeof access === "object" &&
       !Array.isArray(access) && access.allowed === true;
     if (!allowed) {
+      if (paidApi) {
+        const denied = NextResponse.json(
+          { error: accessError ? "Não foi possível verificar sua licença." : "É necessária uma licença ativa para acessar esta ferramenta.", code: accessError ? "LICENSE_CHECK_UNAVAILABLE" : "LICENSE_REQUIRED" },
+          { status: accessError ? 503 : 403, headers: { "Cache-Control": "no-store" } }
+        );
+        response.cookies.getAll().forEach(cookie => denied.cookies.set(cookie));
+        return denied;
+      }
       const target = request.nextUrl.clone();
       // A database outage should not be mistaken for an unpaid account.
       target.pathname = accessError ? "/licenca" : "/contratacao";
@@ -129,6 +150,12 @@ export const config = {
     "/api/account/:path*",
     "/scholar/onboarding/:path*",
     "/api/literature/:path*",
+    "/api/ai/ideas/:path*",
+    "/api/ai/refine-idea/:path*",
+    "/api/ai/assist/:path*",
+    "/api/ai/guide/:path*",
+    "/api/results/:path*",
+    "/api/project-plan/:path*",
     "/admin/:path*",
     "/buscar/:path*",
     "/configuracao/:path*",

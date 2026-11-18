@@ -51,3 +51,18 @@ assert.match(checkoutRoute, /pendingTest\?\.length/);
 assert.match(checkoutRoute, /"payment_pending"/);
 assert.match(checkoutRoute, /"access_token": apiKey/);
 console.log("PASS: gated production checkout requires valid one-use Essencial TESTE99; other purchases remain disabled.");
+
+const legacyWebhook = fs.readFileSync(path.resolve(__dirname, "../app/api/webhooks/asaas/route.ts"), "utf8");
+const cancelSql = fs.readFileSync(path.resolve(__dirname, "../supabase/scholar_cancel_checkout_guard_20261118.sql"), "utf8");
+const checkoutUi = fs.readFileSync(path.resolve(__dirname, "../app/contratacao/page.tsx"), "utf8");
+assert.match(legacyWebhook, /export \{ POST, runtime, dynamic \} from "\.\.\/\.\.\/asaas\/webhook\/route"/);
+assert.match(webhook, /checkout\.externalReference !== purchase\.id/);
+assert.match(webhook, /status: 503/);
+assert.match(webhook, /Pagamento confirmado requer conciliação da compra/);
+assert.match(cancelSql, /provider_checkout_id IS NULL/);
+assert.match(cancelSql, /status IN \('requested','approved'\)/);
+assert.doesNotMatch(cancelSql, /status IN \('requested','approved','payment_pending'\)/);
+assert.match(checkoutUi, /pending\.status === "payment_pending"/);
+assert.match(checkoutUi, /wasCancelled !== true/);
+assert.doesNotMatch(checkoutUi, /\["requested", "approved", "payment_pending"\]\.includes\(item\.status\)/);
+console.log("PASS: webhook routes converge; linked checkouts cannot be cancelled; late payments remain reconcilable.");

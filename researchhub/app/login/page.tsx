@@ -41,6 +41,12 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    // Advisors have a separate free portal. Check this role before requiring a paid subscription.
+    if (await isAdvisorOnly(supabase, user.id)) {
+      router.push("/orientacao");
+      router.refresh();
+      return;
+    }
     // Signing in is not a subscription. Route unpaid users directly to checkout
     // before any private onboarding or research tool can render.
     const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");

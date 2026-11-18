@@ -36,9 +36,11 @@ assert.throws(() => parsePaidCheckout({ ...payload, checkout: { ...payload.check
 assert.equal(parsePaidCheckout({ ...payload, checkout: { ...payload.checkout,
   items: [{ quantity: 3, value: 12.33 }, { quantity: 2, value: 1.01 }] } }).chargedCents, 3901);
 
-const route = fs.readFileSync("app/api/webhooks/asaas/route.ts", "utf8");
+const legacyRoute = fs.readFileSync("app/api/webhooks/asaas/route.ts", "utf8");
+assert.match(legacyRoute, /export \{ POST, runtime, dynamic \} from "\.\.\/\.\.\/asaas\/webhook\/route"/);
+const route = fs.readFileSync("app/api/asaas/webhook/route.ts", "utf8");
 for (const required of ["asaas-access-token", "provider_checkout_id", "total_amount_cents", "scholar_fulfill_paid_request", "payment_pending", "alreadyActivated"]) {
-  assert(route.includes(required), required + " must be checked");
+  assert(route.includes(required), required + " must be checked by the canonical handler");
 }
 assert(!route.includes("ASAAS_API_KEY"), "Webhook must not authenticate with the API credential");
-console.log("PASS: webhook token, payment event status, cents matching, existing checkout binding, duplicate safeguards and licensing RPC.");
+console.log("PASS: both webhook paths share authenticated handler; payment validation, amount matching, duplicate safeguards and licensing RPC.");

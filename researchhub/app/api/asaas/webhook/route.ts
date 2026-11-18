@@ -40,7 +40,12 @@ export async function POST(request: Request) {
       .eq("provider_checkout_id", body.checkout.id)
       .maybeSingle();
     if (lookupError) throw lookupError;
-    if (!purchase) return NextResponse.json({ error: "Checkout não vinculado a uma compra" }, { status: 409 });
+    // A paid checkout may arrive before /api/asaas/checkout finishes linking the request.
+    // Retry rather than permanently reject a legitimate customer's payment.
+    if (!purchase) return NextResponse.json({ error: "Checkout ainda não vinculado à compra; tentar novamente" }, { status: 503 });
+    if (typeof body.checkout.externalReference === "string" &&
+        body.checkout.externalReference !== purchase.id)
+      return NextResponse.json({ error: "Referência do checkout divergente" }, { status: 409 });
     const amount = checkoutEventAmountCents(body);
     if (amount !== purchase.total_amount_cents)
       return NextResponse.json({ error: "Valor do checkout divergente" }, { status: 422 });
@@ -60,8 +65,14 @@ export async function POST(request: Request) {
     }
     if (purchase.status === "activated" && purchase.fulfilled_license_id)
       return NextResponse.json({ acknowledged: true, alreadyActivated: true });
-    if (!["approved", "payment_pending"].includes(purchase.status))
-      return NextResponse.json({ error: "Compra não elegível para ativação automática" }, { status: 409 });
+    if (!["approved", "payment_pending"].includes(purchase.status)) {
+      // Never forge a license for a refunded/cancelled order, but retain an
+      // explicit signal for payment reconciliation instead of silently acking it.
+      console.error("[asaas:checkout] paid order requires reconciliation", {
+        checkoutId: body.checkout.id, requestId: purchase.id, status: purchase.status,
+      });
+      return NextResponse.json({ error: "Pagamento confirmado requer conciliação da compra" }, { status: 409 });
+    }
 
     const { error: fulfillmentError } = await admin.rpc("scholar_fulfill_paid_request", {
       p_request: purchase.id,
