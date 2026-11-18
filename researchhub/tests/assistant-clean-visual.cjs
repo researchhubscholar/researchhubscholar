@@ -7,6 +7,10 @@ assert(guide.includes("project-guide-window--clean"));
 assert(inline.includes("assistant-inline-panel--clean"));
 assert(css.includes(".project-guide-window.project-guide-window--clean"));
 assert(css.includes(".assistant-inline-panel.assistant-inline-panel--clean"));
+assert(css.includes("Compact chat framed as a distinct"),"Compact state must have explicit frame.");
+assert(css.includes(".project-guide-toggle:has(+ .project-guide-window--clean)"),"Floating close button must not cover chat.");
+assert(css.includes("border-left: 3px solid #688b79"),"Panel needs a visible edge.");
+assert(css.includes("@media (min-width: 700px)"),"Expanded layout must work at shorter desktop heights.");
 for(const key of ["project-guide-header","project-guide-thread","project-guide-question","project-guide-answer","project-guide-compose","project-guide-footer","project-guide-starter","project-guide-next"]) {
  assert(css.includes(".project-guide-window--clean ."+key),"Missing restyle: "+key);
 }
