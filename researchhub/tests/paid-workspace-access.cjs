@@ -1,0 +1,30 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs"),ts=require("typescript");
+require.extensions[".ts"]=(module,file)=>module._compile(ts.transpileModule(fs.readFileSync(file,"utf8"),{
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
+}).outputText,file);
+const {hasWorkspaceLicense}=require("../lib/access/workspace-license.ts");
+const now=Date.parse("2026-11-19T15:00:00Z");
+const active={owner_id:"paid",organization_id:null,status:"active",starts_at:"2026-11-01T00:00:00Z",ends_at:"2027-01-01T00:00:00Z"};
+assert.equal(hasWorkspaceLicense("unpaid",[],[],now),false);
+assert.equal(hasWorkspaceLicense("unpaid",[active],[],now),false);
+assert.equal(hasWorkspaceLicense("paid",[active],[],now),true);
+assert.equal(hasWorkspaceLicense("paid",[{...active,status:"trial"}],[],now),true);
+assert.equal(hasWorkspaceLicense("paid",[{...active,status:"pending"}],[],now),false);
+assert.equal(hasWorkspaceLicense("paid",[{...active,status:"suspended"}],[],now),false);
+assert.equal(hasWorkspaceLicense("paid",[{...active,ends_at:"2026-11-01T00:00:00Z"}],[],now),false);
+assert.equal(hasWorkspaceLicense("paid",[{...active,starts_at:"2027-01-01T00:00:00Z"}],[],now),false);
+assert.equal(hasWorkspaceLicense("paid",[{...active,ends_at:"not-date"}],[],now),false);
+const organization={...active,owner_id:null,organization_id:"org-1"};
+assert.equal(hasWorkspaceLicense("member",[organization],[],now),false);
+assert.equal(hasWorkspaceLicense("member",[organization],[{organization_id:"org-1",active:false}],now),false);
+assert.equal(hasWorkspaceLicense("member",[organization],[{organization_id:"org-2",active:true}],now),false);
+assert.equal(hasWorkspaceLicense("member",[organization],[{organization_id:"org-1",active:true}],now),true);
+const middleware=fs.readFileSync("middleware.ts","utf8");
+assert(middleware.includes("hasWorkspaceLicense("),"Must check license rather than only the RPC beta flag");
+assert(middleware.includes('"scholar_licenses"'),"Must query license under RLS");
+assert(middleware.includes('"scholar_memberships"'),"Must confirm institutional membership");
+assert(middleware.includes('"/orientacao"'),"Orientation requires paid workspace entitlement");
+assert(middleware.includes('status: 503'),"Unconfigured paid workspace must fail closed");
+assert(middleware.includes('target.pathname = accessError || lookupError ? "/licenca" : "/contratacao"'),"Unpaid must see checkout, not workspace");
+console.log("PASS: unpaid beta accounts blocked; paid and entitled trial accounts retained; institutional membership required; no-config fail closed.");
