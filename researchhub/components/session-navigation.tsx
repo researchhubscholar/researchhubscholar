@@ -103,8 +103,14 @@ export default function SessionNavigation() {
   }, []);
 
   const isLandingPage = pathname === "/";
-  const isWorkspace = ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
-  const links = session.authenticated && isWorkspace ? [...privateLinks.filter(([href]) => !session.advisorOnly || href === "/orientacao" || href === "/conta"), ...(session.isAdmin ? adminLinks : [])] : session.authenticated && isLandingPage ? [] : [...publicLinks];
+  // Checkout is part of the authenticated product journey, not the public marketing site.
+  const isCheckout = isCurrent(pathname, "/contratacao");
+  const isWorkspace = ["/contratacao", "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
+  const links = session.authenticated && isWorkspace ? [
+    ...privateLinks.filter(([href]) => !session.advisorOnly || href === "/orientacao" || href === "/conta"),
+    ...(isCheckout ? ([["/contratacao", "Assinatura"]] as const) : []),
+    ...(session.isAdmin ? adminLinks : [])
+  ] : session.authenticated && isLandingPage ? [] : [...publicLinks];
   const renderLink = ([href, label]: (typeof links)[number], mobile = false) => {
     const name = session.advisorOnly && href === "/orientacao"
       ? (locale === "es" ? "Proyectos compartidos" : "Projetos compartilhados")
