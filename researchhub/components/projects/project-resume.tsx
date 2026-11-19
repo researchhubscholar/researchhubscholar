@@ -53,9 +53,9 @@ export function ResumeProject({ ownerId, projects }: { ownerId: string; projects
   const spanish = locale === "es";
   const stages = { protocol: "Protocolo", manuscript: "Manuscrito", results: "Resultados", documents: "Documentos" };
   return <div className="min-w-0">
-    <Link href={href(destination)} className="workspace-primary-action inline-block bg-white text-ink rounded-card px-5 py-3 font-medium">
+    <Link href={href(destination)} className="workspace-primary-action workspace-resume-action inline-flex items-center justify-center rounded-card px-5 py-3 font-medium">
       {previous ? (spanish ? "Continuar donde lo dejé" : "Continuar de onde parei") : (spanish ? "Abrir proyecto reciente" : "Abrir projeto recente")}
     </Link>
-    <p className="mt-2 text-sm text-white/70 break-words">{project.title} · {stages[destination.stage]}</p>
+    <p className="workspace-resume-caption mt-2 text-sm text-ink-soft break-words">{project.title} · {stages[destination.stage]}</p>
   </div>;
 }
