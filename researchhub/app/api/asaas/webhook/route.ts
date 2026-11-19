@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import {recordProviderEvent,type ProviderOutcome} from "@/lib/operations/provider-events";
 import { checkoutEventAmountCents, validPaidCheckout, type CheckoutEvent } from "@/lib/payments/asaas";
 
 export const runtime = "nodejs";
@@ -13,6 +14,11 @@ function secretMatches(actual: string | null, expected: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const receivedAt=Date.now();
+  async function result(body:Record<string,unknown>,status:number,outcome:ProviderOutcome){
+    await recordProviderEvent({service:"asaas",outcome,status_code:status,duration_ms:Math.min(300000,Date.now()-receivedAt)});
+    return NextResponse.json(body,{status});
+  }
   const secret = process.env.ASAAS_WEBHOOK_TOKEN;
   if (!secret || !secretMatches(request.headers.get("asaas-access-token"), secret))
     return NextResponse.json({ error: "Acesso não autorizado" }, { status: 401 });
@@ -20,17 +26,17 @@ export async function POST(request: Request) {
   let body: CheckoutEvent;
   try {
     const raw = await request.text();
-    if (raw.length > 100000) return NextResponse.json({ error: "Payload excessivo" }, { status: 413 });
+    if (raw.length > 100000) return result({ error: "Payload excessivo" },413,"invalid_payload");
     body = JSON.parse(raw) as CheckoutEvent;
   } catch {
-    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+    return result({ error: "Payload inválido" },400,"invalid_payload");
   }
   const event = body?.event;
   if (!["CHECKOUT_CREATED", "CHECKOUT_CANCELED", "CHECKOUT_EXPIRED", "CHECKOUT_PAID"].includes(String(event)))
-    return NextResponse.json({ acknowledged: true, ignored: true });
-  if (event !== "CHECKOUT_PAID") return NextResponse.json({ acknowledged: true, ignored: true });
+    return result({ acknowledged: true, ignored: true },200,"ignored");
+  if (event !== "CHECKOUT_PAID") return result({ acknowledged: true, ignored: true },200,"ignored");
   if (!validPaidCheckout(body))
-    return NextResponse.json({ error: "Checkout pago sem dados verificáveis" }, { status: 422 });
+    return result({ error: "Checkout pago sem dados verificáveis" },422,"invalid_payload");
 
   try {
     const admin = supabaseAdmin();
@@ -40,28 +46,28 @@ export async function POST(request: Request) {
       .eq("provider_checkout_id", body.checkout.id)
       .maybeSingle();
     if (lookupError) throw lookupError;
-    if (!purchase) return NextResponse.json({ error: "Checkout não vinculado a uma compra" }, { status: 409 });
+    if (!purchase) return result({ error: "Checkout não vinculado a uma compra" },409,"unlinked_checkout");
     const amount = checkoutEventAmountCents(body);
     if (amount !== purchase.total_amount_cents)
-      return NextResponse.json({ error: "Valor do checkout divergente" }, { status: 422 });
+      return result({ error: "Valor do checkout divergente" },422,"amount_mismatch");
     // Audit the correct provider even though older commerce.sql defaults to "stripe".
     const { data: existing, error: existingError } = await admin.from("scholar_payment_events")
       .select("purchase_request_id,provider").eq("provider_event_id", body.id).maybeSingle();
     if (existingError) throw existingError;
     if (existing && existing.purchase_request_id !== purchase.id)
-      return NextResponse.json({ error: "Identificador de evento reutilizado" }, { status: 409 });
+      return result({ error: "Identificador de evento reutilizado" },409,"invalid_payload");
     if (existing) {
       if (existing.provider !== "asaas") {
         const { error: auditError } = await admin.from("scholar_payment_events")
           .update({ provider: "asaas" }).eq("provider_event_id", body.id).eq("purchase_request_id", purchase.id);
         if (auditError) throw auditError;
       }
-      return NextResponse.json({ acknowledged: true, alreadyProcessed: true });
+      return result({ acknowledged: true, alreadyProcessed: true },200,"duplicate");
     }
     if (purchase.status === "activated" && purchase.fulfilled_license_id)
-      return NextResponse.json({ acknowledged: true, alreadyActivated: true });
+      return result({ acknowledged: true, alreadyActivated: true },200,"duplicate");
     if (!["approved", "payment_pending"].includes(purchase.status))
-      return NextResponse.json({ error: "Compra não elegível para ativação automática" }, { status: 409 });
+      return result({ error: "Compra não elegível para ativação automática" },409,"ineligible");
 
     const { error: fulfillmentError } = await admin.rpc("scholar_fulfill_paid_request", {
       p_request: purchase.id,
@@ -74,9 +80,9 @@ export async function POST(request: Request) {
       .update({ provider: "asaas" }).eq("provider_event_id", body.id).eq("purchase_request_id", purchase.id);
     if (auditError) throw auditError;
     console.info("[asaas:checkout] paid checkout activated", { checkoutId: body.checkout.id, requestId: purchase.id });
-    return NextResponse.json({ acknowledged: true, activated: true });
+    return result({ acknowledged: true, activated: true },200,"success");
   } catch (error) {
     console.error("[asaas:checkout] processing failed", { code: (error as { code?: string })?.code || "unknown" });
-    return NextResponse.json({ error: "Não foi possível confirmar a ativação" }, { status: 503 });
+    return result({ error: "Não foi possível confirmar a ativação" },503,"processing_failed");
   }
 }
