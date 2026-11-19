@@ -105,7 +105,7 @@ export default function SessionNavigation() {
   const isLandingPage = pathname === "/";
   // Checkout is part of the authenticated product journey, not the public marketing site.
   const isCheckout = isCurrent(pathname, "/contratacao");
-  const isWorkspace = ["/contratacao", "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
+  const isWorkspace = (session.authenticated || !isCheckout) && ["/contratacao", "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/manuscrito", "/orientacao", "/conta", "/operacao", "/resultados", "/documentos", "/residencia", "/scholar/onboarding", "/geracoes", "/licenca"].some(href => isCurrent(pathname, href));
   const links = session.authenticated && isWorkspace ? [
     ...privateLinks.filter(([href]) => !session.advisorOnly || href === "/orientacao" || href === "/conta"),
     ...(isCheckout ? ([["/contratacao", "Assinatura"]] as const) : []),
