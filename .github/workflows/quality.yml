@@ -9,6 +9,7 @@ on:
       - "audit/**"
       - "design/**"
       - "release/**"
+      - "fix/**"
   workflow_dispatch:
 
 permissions:
