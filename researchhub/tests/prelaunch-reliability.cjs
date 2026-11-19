@@ -1,0 +1,22 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const ts=require("typescript");
+const source=fs.readFileSync("lib/ai/config.ts","utf8");
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const moduleShim={exports:{}};
+const provider=()=>({kind:"fake-provider"});
+new Function("require","module","exports","process",compiled)(name=>{
+  if(name==="server-only")return {};
+  if(name==="ai")return {gateway:provider};
+  if(name==="@ai-sdk/google")return {google:provider};
+  throw Error("Unexpected module "+name);
+},moduleShim,moduleShim.exports,{env:{VERCEL_ENV:"production",SCHOLAR_AI_ENABLED:"true"}});
+const {retryWithFallback,providerErrorDiagnostic}=moduleShim.exports;
+assert.equal(retryWithFallback(new Error("Opaque provider failure")),true,"Generic provider errors should try the bounded fallback");
+assert.equal(retryWithFallback(Object.assign(new Error("overloaded"),{statusCode:503})),true);
+assert.equal(retryWithFallback(Object.assign(new Error("model not found"),{statusCode:404})),true);
+assert.equal(retryWithFallback(Object.assign(new Error("invalid payload"),{statusCode:400})),false);
+assert.equal(retryWithFallback(Object.assign(new Error("forbidden"),{statusCode:403})),false);
+assert.equal(retryWithFallback(new Error("insufficient balance")),false);
+assert.equal(providerErrorDiagnostic(new Error("Opaque provider failure")).retryable,true);
+console.log("PASS: AI Gateway unknown failures use one fallback; authentication, billing and invalid requests do not.");
