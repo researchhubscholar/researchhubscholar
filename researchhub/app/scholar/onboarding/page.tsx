@@ -93,8 +93,8 @@ export default function ScholarOnboardingPage() {
     router.refresh();
   }
 
-  if (loadingProfile) return <div className="max-w-4xl mx-auto py-20 text-center text-ink-soft"><InterfaceText message="screen.25a0d3aec5a5" /></div>;
-  return <div className="max-w-5xl mx-auto">
+  if (loadingProfile) return <div className="scholar-workspace onboarding-page max-w-4xl mx-auto py-20 text-center text-ink-soft"><InterfaceText message="screen.25a0d3aec5a5" /></div>;
+  return <div className="scholar-workspace onboarding-page max-w-5xl mx-auto">
     <div className="grid lg:grid-cols-[1fr_280px] gap-8 items-start">
       <div>
         <p className="text-xs uppercase tracking-widest text-teal font-semibold">Diagnóstico inicial</p>
