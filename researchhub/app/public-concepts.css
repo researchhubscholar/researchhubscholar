@@ -506,3 +506,54 @@ body:has(.marketing-page,.auth-shell) .floating-plans {background:var(--public-g
   .checkout-workspace > section { padding: 1.05rem; }
   .checkout-workspace .purchase-main .grid { grid-template-columns: minmax(0, 1fr); gap: .85rem; }
 }
+
+
+/* Design QA 2026-11-19 — subscription checkout belongs to the authenticated
+   ResearchHub workspace. Override generic workspace selectors only within
+   this payment view, preserving clear form boundaries and pricing hierarchy. */
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: 0 0 2rem;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .checkout-page-header {
+  border-bottom: 1px solid #dce5de;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-main,
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-summary,
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace > section.border {
+  background: #fffdfa !important;
+  border: 1px solid #dce5de !important;
+  border-radius: 14px;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-summary {
+  background: #edf2ec !important;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-main :is(select,input) {
+  background: #fff !important;
+  border: 1px solid #cbdad0 !important;
+  min-height: 44px;
+  border-radius: 10px;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-continue {
+  background: #194d41 !important;
+  color: #fff !important;
+  border-radius: 10px;
+  min-height: 47px;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-summary .grid > div {
+  background: transparent !important;
+  border-bottom: 1px solid #d9e3da;
+}
+body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-layout {
+  grid-template-columns: minmax(0, 1.4fr) minmax(17rem, .85fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+@media (max-width: 1050px) {
+  body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-summary {
+    position: static;
+  }
+}
