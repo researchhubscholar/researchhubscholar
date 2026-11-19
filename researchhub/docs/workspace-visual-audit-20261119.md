@@ -16,7 +16,8 @@ de layout de `concept-workspace.css` não eram aplicadas.
   `/meu-trabalho`, `/orientacao`: já têm wrapper `scholar-workspace` e
   classificação na navegação.
 - Trabalho científico: `/documentos`, `/resultados`, `/manuscrito`,
-  `/scholar/onboarding`: seguem o mesmo shell interno.
+  `/scholar/onboarding`: diagnóstico agora usa o wrapper `scholar-workspace`,
+  corrigido nesta auditoria.
 - Conta e apoio: `/conta`, `/licenca`, `/residencia`, `/operacao`:
   seguem o mesmo shell interno.
 - Contratação: corrigida para shell interno quando autenticado, com item
