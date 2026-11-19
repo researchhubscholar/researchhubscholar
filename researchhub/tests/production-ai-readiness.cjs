@@ -1,0 +1,17 @@
+const fs=require("node:fs"),assert=require("node:assert/strict");
+const config=fs.readFileSync("lib/ai/config.ts","utf8");
+const route=fs.readFileSync("app/api/ai/assist/route.ts","utf8");
+const webhook=fs.readFileSync("app/api/asaas/webhook/route.ts","utf8");
+const commerce=fs.readFileSync("supabase/scholar_commerce.sql","utf8");
+assert.match(config,/process\.env\.VERCEL_ENV === "preview" \|\|\s*process\.env\.VERCEL_ENV === "production"/,"Both Vercel environments must permit runtime OIDC");
+assert.match(config,/AI_GATEWAY_API_KEY/,"Explicit gateway keys remain supported");
+assert.match(config,/VERCEL_OIDC_TOKEN/,"Runtime OIDC remains supported");
+assert.match(config,/process\.env\.SCHOLAR_AI_ENABLED === "true"/,"AI stays gated by server-side enablement");
+assert.match(route,/if\(!scholarAIReady\)/,"AI remains fail closed if backend is disabled");
+assert.match(route,/await activeWallet\(user\.id/,"Never bypass license or wallet");
+assert.match(route,/await verifyFinancialEnvelope\(license\.mode\)/,"Keep spending protections");
+assert.match(webhook,/validPaidCheckout\(body\)/,"Only verified payments are fulfilled");
+assert.match(webhook,/scholar_fulfill_paid_request/,"Payment confirmation must provision entitlement");
+assert.match(commerce,/insert into public\.scholar_wallets\(license_id,user_id,allowance\)/,"New paid subscribers get a wallet");
+assert.match(commerce,/update public\.scholar_wallets set allowance=allowance\+req\.token_allowance/,"Renewals update wallet");
+console.log("PASS: production OIDC readiness aligns with preview; purchases and wallet accounting retain security gates.");
