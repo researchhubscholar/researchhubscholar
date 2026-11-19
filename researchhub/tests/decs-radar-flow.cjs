@@ -12,6 +12,7 @@ function route(decs) {
        "@/lib/literature/query-strategy":{buildSearchStrategy,sanitizeTranslations},
        "@/lib/literature/search-limits":{searchLimits},
        "@/lib/literature/decs":{resolveDecsTerms:decs},
+       "@/lib/operations/provider-events":{recordProviderEvent:async()=>{}},
        "@/lib/literature/terminology":{officialTerminologySuggestions:async()=>({})},
        "@/lib/literature/analyze":{analyzeLiterature:async input=>({query:buildSearchStrategy(input).pubmedQuery,sources:{pubmed:{total:2}}})},
      };
