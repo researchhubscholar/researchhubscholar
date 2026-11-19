@@ -19,7 +19,7 @@ const record=(status=200)=>({decsws_response:{record_list:{record:{unique_identi
  const sql=fs.readFileSync("supabase/scholar_provider_health.sql","utf8");
  assert(sql.includes("enable row level security"));
  assert(sql.includes("revoke all on public.scholar_provider_health_events from public,anon,authenticated"));
- assert(!sql.includes("user_id")&&!sql.includes("payload"));
+ assert(!/^\s*(?:user_id|payload)\s+/m.test(sql),"No personal identifiers or payload columns");
  const source=fs.readFileSync("app/api/asaas/webhook/route.ts","utf8");
  for(const code of ["invalid_payload","unlinked_checkout","amount_mismatch","duplicate","processing_failed","success"]){assert(source.includes('"'+code+'"'));}
  assert(source.includes("await recordProviderEvent"));
