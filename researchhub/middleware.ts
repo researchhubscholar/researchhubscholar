@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { hasWorkspaceLicense, type WorkspaceLicense, type WorkspaceMembership } from "./lib/access/workspace-license";
 
 export async function middleware(request: NextRequest) {
   const legacyPrefixes = [
@@ -34,7 +35,14 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // Se o ambiente ainda não estiver configurado, não derruba o site inteiro.
-  if (!url || !key) return response;
+  if (!url || !key) {
+    // An unconfigured environment must never expose paid pages.
+    const protectedPaths = ["/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho", "/orientacao", "/documentos", "/resultados", "/manuscrito", "/geracoes", "/scholar/onboarding"];
+    if (protectedPaths.some(path => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/"))) {
+      return NextResponse.json({ error: "Serviço temporariamente indisponível." }, { status: 503 });
+    }
+    return response;
+  }
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -86,19 +94,35 @@ export async function middleware(request: NextRequest) {
   // Public enrollment and license/contract screens remain accessible; onboarding requires a valid license.
   const paidWorkspaceRoutes = [
     "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho",
-    "/documentos", "/resultados", "/manuscrito", "/geracoes",
+    "/documentos", "/resultados", "/manuscrito", "/geracoes", "/orientacao",
     "/scholar/onboarding",
   ];
   if (user && paidWorkspaceRoutes.some(path =>
     request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")
   )) {
     const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
-    const allowed = !accessError && access && typeof access === "object" &&
+    // The legacy RPC can return allowed=true with reason="beta_access"
+    // when the commercial flag is off. This alone is NOT a paid entitlement.
+    // Query RLS-protected licenses and active memberships for this user.
+    const [licenseResult, membershipResult] = await Promise.all([
+      supabase.from("scholar_licenses")
+        .select("owner_id,organization_id,status,starts_at,ends_at")
+        .in("status", ["active", "trial"]),
+      supabase.from("scholar_memberships")
+        .select("organization_id,active").eq("user_id", user.id).eq("active", true),
+    ]);
+    const lookupError = licenseResult.error || membershipResult.error;
+    const validLicense = !lookupError && hasWorkspaceLicense(
+      user.id,
+      (licenseResult.data || []) as WorkspaceLicense[],
+      (membershipResult.data || []) as WorkspaceMembership[],
+    );
+    const rpcAllowed = !accessError && access && typeof access === "object" &&
       !Array.isArray(access) && access.allowed === true;
-    if (!allowed) {
+    if (!rpcAllowed || !validLicense) {
       const target = request.nextUrl.clone();
-      // A database outage should not be mistaken for an unpaid account.
-      target.pathname = accessError ? "/licenca" : "/contratacao";
+      // Database/network failures should not silently grant workspace entry.
+      target.pathname = accessError || lookupError ? "/licenca" : "/contratacao";
       target.search = "";
       const redirected = NextResponse.redirect(target);
       response.cookies.getAll().forEach(cookie => redirected.cookies.set(cookie));
