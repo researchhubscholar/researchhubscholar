@@ -2,7 +2,7 @@
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import type {HealthMetrics,HealthAlert} from "@/lib/operations/health";
-type Payload={asOf:string;partial:boolean;metrics:HealthMetrics;alerts:HealthAlert[];checks:Record<string,{state:string;label:string}>};
+type Payload={asOf:string;partial:boolean;metrics:HealthMetrics;alerts:HealthAlert[];checks:Record<string,{state:string;label:string}>;providers:{decs:{attempts24h:number|null;failures24h:number|null};asaas:{events24h:number|null;attention24h:number|null}}};
 const entries:{key:keyof HealthMetrics;label:string;subtitle:string}[]=[
  {key:"ai24h",label:"Solicitações de IA",subtitle:"Últimas 24 horas"},
  {key:"aiFailed24h",label:"Falhas da IA",subtitle:"Últimas 24 horas"},
@@ -42,6 +42,13 @@ export default function OperationalHealthPage(){
    <section className="bg-white border border-line rounded-2xl p-6 mt-6"><h2 className="font-display text-2xl">Alertas e atenção</h2>
     <div className="space-y-3 mt-4">{data.alerts.map(a=><div key={a.key} role={a.level==="critical"?"alert":"status"} className="border-b border-line pb-3">
       <div className="flex gap-2 items-center"><span aria-hidden="true" className={a.level==="critical"?"text-red-700":a.level==="warning"?"text-amber-700":"text-teal"}>●</span><strong className="text-sm">{a.label}</strong></div><p className="text-sm text-ink-soft mt-1">{a.detail}</p></div>)}</div>
+   </section>
+   <section className="bg-white border border-line rounded-2xl p-6 mt-6"><h2 className="font-display text-2xl">Serviços externos · últimas 24 horas</h2>
+    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{[
+      ["DeCS · consultas",data.providers.decs.attempts24h],["DeCS · falhas técnicas",data.providers.decs.failures24h],
+      ["Asaas · eventos recebidos",data.providers.asaas.events24h],["Asaas · eventos que exigem atenção",data.providers.asaas.attention24h]
+    ].map(([label,value])=><article key={String(label)} className="bg-paper border border-line rounded-card p-4"><p className="font-display text-2xl">{value===null?"—":Number(value).toLocaleString("pt-BR")}</p><p className="text-xs text-ink-soft mt-2">{label}</p></article>)}</div>
+    <p className="text-xs text-ink-soft mt-4">Contagens de registros recebidos, não testes de disponibilidade. Termos pesquisados e dados financeiros pessoais não são armazenados.</p>
    </section>
    <section className="bg-white border border-line rounded-2xl p-6 mt-6"><h2 className="font-display text-2xl">Cobertura do monitoramento</h2>
     <div className="space-y-2 mt-4">{Object.entries(data.checks).map(([key,value])=><p key={key} className="text-sm text-ink-soft">{value.label}</p>)}</div>

@@ -121,6 +121,15 @@
       "repeatability": "do-not-rerun-without-review"
     },
     {
+      "file": "scholar_provider_health.sql",
+      "sha256": "953abf014fbc24045a3d15a062f44a92d51cf0599f24e0a0c4723346ccdafe63",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_operations.sql"
+      ],
+      "repeatability": "safe-to-rerun"
+    },
+    {
       "file": "scholar_commerce.sql",
       "sha256": "250ae563818bde26729332f8e85ccbebbf937034ee078a7135c7759043f8b80c",
       "kind": "schema",

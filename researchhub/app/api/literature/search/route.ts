@@ -4,6 +4,7 @@ import { buildSearchStrategy, sanitizeTranslations, type SearchInput } from "@/l
 import { searchLimits } from "@/lib/literature/search-limits";
 import { officialTerminologySuggestions } from "@/lib/literature/terminology";
 import { resolveDecsTerms } from "@/lib/literature/decs";
+import {recordProviderEvent} from "@/lib/operations/provider-events";
 export const maxDuration = 180;
 export async function POST(request: NextRequest) {
  try {
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
    && preliminary.unresolvedTerms.length > 0) {
    const resolved = await resolveDecsTerms(
      preliminary.unresolvedTerms.filter(term => !Object.hasOwn(input.translations || {}, term)),
+     {onAttempt:async event => recordProviderEvent({service:"decs",outcome:event.outcome,status_code:event.statusCode,duration_ms:event.durationMs})},
    );
    input.translations = { ...resolved.translations, ...input.translations };
    decsResolutions = resolved.resolutions.filter(item => input.translations?.[item.source] === item.english);

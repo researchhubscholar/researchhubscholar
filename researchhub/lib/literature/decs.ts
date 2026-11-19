@@ -64,7 +64,7 @@ export function parseDecsExactResponse(payload: unknown, source: string): DecsRe
 
 export async function resolveDecsTerms(
   terms: string[],
-  options: { baseUrl?: string; timeoutMs?: number; fetchImpl?: typeof fetch } = {},
+  options: { baseUrl?: string; timeoutMs?: number; fetchImpl?: typeof fetch; onAttempt?: (event: { outcome: "success"|"http_error"|"network_error"|"timeout"|"parse_error"|"unmatched";statusCode?:number;durationMs:number }) => Promise<void>|void } = {},
 ): Promise<{ translations: Record<string, string>; resolutions: DecsResolution[] }> {
   const translations: Record<string, string> = {};
   const resolutions: DecsResolution[] = [];
@@ -74,7 +74,12 @@ export async function resolveDecsTerms(
   try { host = new URL(base); } catch { return { translations, resolutions }; }
   if (host.protocol !== "https:" || host.hostname !== "decs-api.bvsalud.org" || host.username || host.password || host.search || host.hash) return { translations, resolutions };
   const request = options.fetchImpl || fetch;
+  const note = async (outcome: "success"|"http_error"|"network_error"|"timeout"|"parse_error"|"unmatched", started:number,statusCode?:number) => {
+    try { await options.onAttempt?.({outcome,statusCode,durationMs:Math.min(300000,Math.max(0,Date.now()-started))}); } catch { /* Never change search results for telemetry. */ }
+  };
   for (const term of [...new Set(terms)].filter(safeSource).slice(0, 4)) {
+    const started=Date.now();
+    let phase:"network"|"parse"="network";
     try {
       const url = new URL("/api/thesaurus/term/", host);
       url.searchParams.set("words", term);
@@ -84,14 +89,21 @@ export async function resolveDecsTerms(
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(Math.min(Math.max(options.timeoutMs || 2800, 500), 5000)),
       });
-      if (!response.ok || (Number(response.headers.get("content-length")) || 0) > 150000) continue;
+      if (!response.ok) { await note("http_error",started,response.status);continue; }
+      if ((Number(response.headers.get("content-length")) || 0) > 150000) {await note("parse_error",started);continue;}
+      phase="parse";
       const body = await response.text();
-      if (body.length > 150000) continue;
+      if (body.length > 150000) {await note("parse_error",started);continue;}
       const match = parseDecsExactResponse(JSON.parse(body) as unknown, term);
-      if (!match) continue;
+      if (!match) {await note("unmatched",started);continue;}
       translations[term] = match.english;
       resolutions.push(match);
-    } catch { /* DeCS outage means existing human-review fallback, not a fabricated translation. */ }
+      await note("success",started,response.status);
+    } catch(error) {
+      const timedOut=error instanceof Error && /abort|timeout/i.test(error.name+" "+error.message);
+      await note(timedOut?"timeout":phase==="parse"?"parse_error":"network_error",started);
+      // DeCS outages still require human review; no fabricated terminology.
+    }
   }
   return { translations, resolutions };
 }
