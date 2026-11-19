@@ -25,6 +25,8 @@ assert(middleware.includes("hasWorkspaceLicense("),"Must check license rather th
 assert(middleware.includes('"scholar_licenses"'),"Must query license under RLS");
 assert(middleware.includes('"scholar_memberships"'),"Must confirm institutional membership");
 assert(middleware.includes('"/orientacao"'),"Orientation requires paid workspace entitlement");
+assert(middleware.includes('"/api/literature"'),"Literature API also requires paid workspace entitlement");
+assert(middleware.includes('"SUBSCRIPTION_REQUIRED"'),"Unlicensed API calls must respond with 403, not checkout HTML");
 assert(middleware.includes('status: 503'),"Unconfigured paid workspace must fail closed");
 assert(middleware.includes('target.pathname = accessError || lookupError ? "/licenca" : "/contratacao"'),"Unpaid must see checkout, not workspace");
 console.log("PASS: unpaid beta accounts blocked; paid and entitled trial accounts retained; institutional membership required; no-config fail closed.");

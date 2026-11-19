@@ -96,6 +96,7 @@ export async function middleware(request: NextRequest) {
     "/dashboard", "/ideias", "/descobrir", "/biblioteca", "/meu-trabalho",
     "/documentos", "/resultados", "/manuscrito", "/geracoes", "/orientacao",
     "/scholar/onboarding",
+    "/api/literature",
   ];
   if (user && paidWorkspaceRoutes.some(path =>
     request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + "/")
@@ -120,6 +121,18 @@ export async function middleware(request: NextRequest) {
     const rpcAllowed = !accessError && access && typeof access === "object" &&
       !Array.isArray(access) && access.allowed === true;
     if (!rpcAllowed || !validLicense) {
+      // API requests must receive an API error, not an HTML checkout redirect.
+      // Authentication alone must never grant access to paid literature searches.
+      if (request.nextUrl.pathname.startsWith("/api/literature/")) {
+        const denied = NextResponse.json({
+          error: accessError || lookupError
+            ? "Não foi possível verificar sua licença agora."
+            : "É necessária uma assinatura ativa para usar a pesquisa científica.",
+          code: accessError || lookupError ? "LICENSE_CHECK_UNAVAILABLE" : "SUBSCRIPTION_REQUIRED",
+        }, { status: accessError || lookupError ? 503 : 403 });
+        response.cookies.getAll().forEach(cookie => denied.cookies.set(cookie));
+        return denied;
+      }
       const target = request.nextUrl.clone();
       // Database/network failures should not silently grant workspace entry.
       target.pathname = accessError || lookupError ? "/licenca" : "/contratacao";

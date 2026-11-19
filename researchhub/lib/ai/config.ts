@@ -79,7 +79,18 @@ export function providerErrorDiagnostic(error: unknown): { name: string; status?
 
 export function retryWithFallback(error: unknown) {
   const raw = providerErrorText(error);
-  return /high demand|temporar|unavailable|overloaded|timeout|timed out|abort|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format/i.test(raw);
+  const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const status = typeof value.statusCode === "number" ? value.statusCode
+    : typeof value.status === "number" ? value.status : undefined;
+  // Never try another model for authentication, billing, policy or malformed requests.
+  if (/api.?key|unauthenticated|permission.?denied|forbidden|invalid.?credential|billing|insufficient.?balance|content.?policy|safety.?block/i.test(raw)) return false;
+  if (status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 409 && status !== 429 && status !== 404) return false;
+  if (status === 408 || status === 409 || status === 429 || status === 404 || (status !== undefined && status >= 500)) return true;
+  if (/high demand|temporar|unavailable|overloaded|timeout|timed out|abort|resource.?exhausted|quota|rate.?limit|429|503|404|not.?found|no longer available|unsupported model|invalid argument|schema|structured output|response.?format|network|fetch failed|connection reset|econnreset|etimedout/i.test(raw)) return true;
+  // Some AI Gateway provider failures are surfaced as generic Error with no
+  // HTTP status. Make one bounded alternate-model attempt inside the existing
+  // wallet reservation, rather than failing immediately.
+  return error instanceof Error && error.name === "Error" && status === undefined;
 }
 
 export function estimatedCost(inputTokens: number, outputTokens: number, modelId: string = scholarAI.model) {
