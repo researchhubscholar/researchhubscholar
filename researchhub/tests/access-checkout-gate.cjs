@@ -6,14 +6,15 @@ const onboarding=fs.readFileSync(path.resolve(__dirname,"../app/scholar/onboardi
 const login=fs.readFileSync(path.resolve(__dirname,"../app/login/page.tsx"),"utf8");
 const signup=fs.readFileSync(path.resolve(__dirname,"../app/cadastro/page.tsx"),"utf8");
 assert.match(middleware,/scholar_product_access_state/);
-assert.match(middleware,/target\.pathname = accessError \? "\/licenca" : "\/contratacao"/);
+assert.match(middleware,/target\.pathname = accessError \|\| lookupError \? "\/licenca" : "\/contratacao"/);
+assert.match(middleware,/hasWorkspaceLicense\(/);
 assert.match(middleware,/paidWorkspaceRoutes/);
 assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/contratacao"/);
-assert.doesNotMatch(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/orientacao"/);
+assert.match(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/orientacao"/);
 assert.match(middleware,/paidWorkspaceRoutes\s*=\s*\[[^\]]*"\/scholar\/onboarding"/);
 assert.match(onboarding,/supabase\.rpc\("scholar_product_access_state"\)/);
 assert.match(onboarding,/allowed \? "\/dashboard\?onboarding=concluido" : "\/contratacao"/);
-console.log("PASS: email confirmation cannot bypass license gate; contract and advisor access remain reachable; onboarding requires a license.");
+console.log("PASS: email confirmation cannot bypass license gate; contract pages remain reachable; advisor and onboarding workspaces require a license.");
 
 assert.match(login,/supabase\.rpc\("scholar_product_access_state"\)/);
 assert.match(login,/router\.push\(accessError \? "\/licenca" : "\/contratacao"\)/);
