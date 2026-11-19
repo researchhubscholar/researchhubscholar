@@ -593,3 +593,72 @@ body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-pr
 body:has(.primary-nav[data-workspace="true"]) .app-content :is(button,a)[aria-selected="true"]:not(.bg-teal):not(.bg-ink) {
   background-color: #dce7d8;
 }
+
+
+/* 2026-11-19 visual QA: approved cream + green system.
+   Scoped to the three confirmed UI regressions; never affect data or actions. */
+
+/* Dashboard: remove obsolete white-on-white hero treatment. */
+body:has(.primary-nav[data-workspace="true"]) .dashboard-page .workspace-resume-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.85rem;
+  padding: .72rem 1.15rem;
+  border: 1px solid var(--workspace-green);
+  border-radius: .7rem;
+  background: var(--workspace-green) !important;
+  color: #fff !important;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) .dashboard-page .workspace-resume-action:hover {
+  background: #123d32 !important;
+}
+body:has(.primary-nav[data-workspace="true"]) .dashboard-page .workspace-resume-caption {
+  color: var(--workspace-muted) !important;
+}
+
+/* Orientation: one continuous warm-cream workspace, not white islands. */
+body:has(.primary-nav[data-workspace="true"]) .advising-page :is(
+  .advising-access,.advising-comments,.advising-meetings,.advising-versions
+) {
+  background: #fbfaf6 !important;
+  border: 1px solid var(--workspace-line) !important;
+  border-radius: .85rem;
+  box-shadow: none;
+}
+body:has(.primary-nav[data-workspace="true"]) .advising-page .advising-history-grid {
+  align-items: start;
+}
+body:has(.primary-nav[data-workspace="true"]) .advising-page .advising-comments > form {
+  background: transparent;
+}
+body:has(.primary-nav[data-workspace="true"]) .advising-page :is(textarea,select,input:not([type="checkbox"])) {
+  background: #fffefa !important;
+  border: 1px solid #cbd8cd !important;
+  color: var(--workspace-ink);
+}
+
+/* Biblioteca: selection is indicated only by the outer row surface.
+   The internal clickable title never gets another green box. */
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-row.is-selected {
+  background: #e5ede6;
+  border-inline-start: 3px solid var(--workspace-green);
+  padding-inline-start: calc(.75rem - 3px);
+}
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-choice,
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-choice[aria-pressed="true"] {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+  color: inherit;
+}
+body:has(.primary-nav[data-workspace="true"]) .library-page .library-reading-choice:focus-visible {
+  outline: 2px solid #356f54;
+  outline-offset: 3px;
+  border-radius: .25rem;
+}
