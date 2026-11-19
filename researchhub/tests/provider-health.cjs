@@ -1,0 +1,30 @@
+const fs=require("node:fs"),assert=require("node:assert/strict"),ts=require("typescript");
+require.extensions[".ts"]=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {resolveDecsTerms}=require("../lib/literature/decs.ts");
+const record=(status=200)=>({decsws_response:{record_list:{record:{unique_identifier_nlm:"D000123",descriptor_list:[{descriptor:"Microplásticos",attr:{lang:"pt"}},{descriptor:"Microplastics",attr:{lang:"en"}}]}}}});
+(async()=>{
+ const events=[];
+ const normal=await resolveDecsTerms(["microplasticos"],{fetchImpl:async()=>new Response(JSON.stringify(record()),{status:200}),onAttempt:async event=>events.push(event)});
+ assert.equal(normal.translations.microplasticos,"Microplastics");
+ assert.deepEqual(events.map(e=>e.outcome),["success"]);
+ const bad=[];
+ await resolveDecsTerms(["microplasticos"],{fetchImpl:async()=>new Response("down",{status:503}),onAttempt:e=>bad.push(e)});
+ assert.equal(bad[0].outcome,"http_error");assert.equal(bad[0].statusCode,503);
+ const malformed=[];
+ await resolveDecsTerms(["microplasticos"],{fetchImpl:async()=>new Response("{not json",{status:200}),onAttempt:e=>malformed.push(e)});
+ assert.equal(malformed[0].outcome,"parse_error");
+ const network=[];
+ await resolveDecsTerms(["microplasticos"],{fetchImpl:async()=>{throw new Error("network disconnected")},onAttempt:e=>network.push(e)});
+ assert.equal(network[0].outcome,"network_error");
+ const sql=fs.readFileSync("supabase/scholar_provider_health.sql","utf8");
+ assert(sql.includes("enable row level security"));
+ assert(sql.includes("revoke all on public.scholar_provider_health_events from public,anon,authenticated"));
+ assert(!sql.includes("user_id")&&!sql.includes("payload"));
+ const source=fs.readFileSync("app/api/asaas/webhook/route.ts","utf8");
+ for(const code of ["invalid_payload","unlinked_checkout","amount_mismatch","duplicate","processing_failed","success"]){assert(source.includes('"'+code+'"'));}
+ assert(source.includes("await recordProviderEvent"));
+ const api=fs.readFileSync("app/api/operations/health/route.ts","utf8");
+ assert(api.includes("scholar_provider_health_events")&&api.includes("providers,alerts"));
+ assert(api.includes('["owner","analyst"]'));
+ console.log("PASS: DeCS classification, safe webhook categories, aggregated admin-only data and privacy schema.");
+})().catch(e=>{console.error(e);process.exit(1)});
