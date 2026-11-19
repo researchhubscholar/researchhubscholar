@@ -13,10 +13,12 @@ const providerConfigured = useGateway
   ? Boolean(
       process.env.AI_GATEWAY_API_KEY ||
       process.env.VERCEL_OIDC_TOKEN ||
-      // Preview Functions can authenticate via the Vercel runtime's implicit OIDC
-      // even when the token isn't exposed to process.env during readiness checks.
-      // Allow the request to reach Gateway, which still validates authentication.
-      process.env.VERCEL_ENV === "preview"
+      // Vercel's AI Gateway may use deployment-scoped OIDC without exposing
+      // VERCEL_OIDC_TOKEN to this readiness check. Preview and Production
+      // must use the same credential discovery path. This does not bypass
+      // Gateway auth: each actual request still authenticates with Vercel.
+      process.env.VERCEL_ENV === "preview" ||
+      process.env.VERCEL_ENV === "production"
     )
   : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const modelIds = useGateway
