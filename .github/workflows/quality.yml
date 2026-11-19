@@ -10,6 +10,7 @@ on:
       - "design/**"
       - "release/**"
       - "fix/**"
+      - "refine/**"
   workflow_dispatch:
 
 permissions:
