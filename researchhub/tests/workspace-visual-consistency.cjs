@@ -23,5 +23,5 @@ assert(css.includes('body:has(.primary-nav[data-workspace="true"]) .checkout-wor
 assert(css.includes("background: #fffdfa !important"),"Maintain contrast between workspace and checkout cards");
 assert(css.includes("min-height: 44px"),"Form controls should have accessible target sizes");
 assert(css.includes("@media (max-width: 1050px)"),"Two-column form must collapse in narrower workspace");
-assert(workspace.includes("--workspace-card-radius"));
+assert(workspace.includes("body:has(.primary-nav[data-workspace=\"true\"])"),"Main authenticated workspace stylesheet must remain enabled");
 console.log("PASS: authenticated checkout uses workspace layout, anonymous payment layout preserved, mobile form and checkout contracts intact.");
