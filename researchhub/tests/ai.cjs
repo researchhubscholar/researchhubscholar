@@ -103,18 +103,51 @@ const vm = require('node:vm');
 const configurationModule = {exports:{}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/ai/config.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
  module:configurationModule,exports:configurationModule.exports,
- process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',VERCEL_OIDC_TOKEN:'test-only',GOOGLE_GENERATIVE_AI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
- require:name=>name==='server-only'?{}:name==='ai'?{gateway:id=>({modelId:id})}:name==='@ai-sdk/google'?{google:id=>({modelId:id})}:(()=>{throw new Error(name)})(),
+ process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',VERCEL_OIDC_TOKEN:'test-only',OPENAI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
+ require:name=>name==='server-only'?{}:name==='@ai-sdk/openai'?{createOpenAI:()=>({responses:id=>({modelId:id})})}:(()=>{throw new Error(name)})(),
 });
 const configuration=configurationModule.exports;
-assert.equal(configuration.scholarAI.model,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModel.modelId,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModels.length,2);
-assert.equal(configuration.scholarAIModels[0].id,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModels[1].id,'google/gemini-2.5-flash');
+assert.equal(configuration.scholarAI.model,'gpt-6-luna');
+assert.equal(configuration.scholarAIModel.modelId,'gpt-6-luna');
+assert.equal(configuration.scholarAIModels.length,1);
+assert.equal(configuration.scholarAIModels[0].id,'gpt-6-luna');
+assert.equal(configuration.scholarAI.provider,'openai');
+assert.equal(configuration.scholarAIProviderOptions.openai.store,false);
+assert.equal(configuration.scholarAIProviderOptions.openai.serviceTier,'default');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
 assert.equal(configuration.scholarAI.reasoning,"none");
 for (const route of ["ideas","assist","refine-idea"]) assert.match(fs.readFileSync(`app/api/ai/${route}/route.ts`,"utf8"), /reasoning:\s*scholarAI.reasoning/);
-assert.equal(configuration.estimatedCost(1000,1000),0.00016);
-console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides with an explicit backup model and no stale environment override.');
+assert.equal(configuration.estimatedCost(1000,1000),0.0006);
+console.log('PASS: AI routes share direct OpenAI GPT-6 Luna, standard pricing and no alternate provider.');
+
+const {resolveIdeaWorkType}=require('../lib/ideas/generate.ts');
+const {matchesRequestedIdeaFormat}=require('../lib/ai/ideas.ts');
+assert.equal(resolveIdeaWorkType('open','Quero fazer um relato de caso sobre dor no ombro'), 'case');
+assert.equal(resolveIdeaWorkType('review','Relato de caso sobre dor no ombro'), 'review');
+assert.equal(resolveIdeaWorkType('open','Não quero fazer um relato de caso'), 'open');
+assert.match(automaticIdeasPrompt({...context,workType:'case'}),/As três propostas devem ser relatos de caso individual/);
+assert.equal(matchesRequestedIdeaFormat('Relato de caso','case'),true);
+assert.equal(matchesRequestedIdeaFormat('Reporte de caso','case'),true);
+assert.equal(matchesRequestedIdeaFormat('Estudo transversal','case'),false);
+assert.equal(matchesRequestedIdeaFormat('Série de casos','case'),false);
+console.log('PASS: selected and explicit case-report requests preserve the requested format.');
+
+const {requestedIdeaDesign,matchesRequestedIdeaDesign}=require('../lib/ai/ideas.ts');
+for (const [interest, accepted, rejected] of [
+  ['Quero fazer uma coorte retrospectiva sobre diabetes', 'Estudo de coorte retrospectiva', 'Coorte prospectiva'],
+  ['Estudo transversal sobre sono', 'Estudo transversal', 'Coorte'],
+  ['Quero fazer um estudo caso-controle sobre tabagismo', 'Caso-controle', 'Estudo transversal'],
+  ['Revisão sistemática sobre adesão ao tratamento', 'Revisão sistemática com meta-análise', 'Revisão narrativa'],
+  ['Quiero hacer una revisión de alcance sobre atención primaria', 'Revisión de alcance', 'Revisión sistemática'],
+]) {
+  const request = {...context, workType:'open', interest};
+  assert(requestedIdeaDesign(request), interest);
+  assert(matchesRequestedIdeaDesign(accepted, request), accepted);
+  assert(!matchesRequestedIdeaDesign(rejected, request), rejected);
+  assert.match(automaticIdeasPrompt(request),/DESENHO OBRIGATÓRIO DAS TRÊS PROPOSTAS/);
+}
+for (const interest of ['Não quero fazer coorte', 'Quero comparar coorte e estudo transversal', 'Resultados publicados de uma coorte']) {
+  assert.equal(requestedIdeaDesign({...context, workType:'open', interest}),undefined,interest);
+}
+console.log('PASS: named research designs preserve subtype and handle comparative and negative requests.');

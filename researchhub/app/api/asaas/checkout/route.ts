@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import { scholarAIReady } from "@/lib/ai/config";
 import { asaasBaseUrl, checkoutUrl } from "@/lib/payments/asaas";
 
 export const runtime = "nodejs";
@@ -18,6 +19,8 @@ type Purchase = {
   coupon_code: string | null;
   gross_amount_cents: number;
   discount_cents: number;
+  target_license_id: string | null;
+  token_allowance: number;
 };
 
 export async function POST(request: Request) {
@@ -36,11 +39,13 @@ export async function POST(request: Request) {
   try {
     const apiKey = process.env.ASAAS_API_KEY;
     if (!apiKey) throw new Error("Chave do Asaas não configurada.");
+    if (!scholarAIReady)
+      return NextResponse.json({ error: "A assistência está em preparação. O pagamento será liberado após a configuração." }, { status: 503 });
     const production = process.env.ASAAS_ENVIRONMENT?.toLowerCase() === "production";
     const generalCheckoutEnabled = process.env.RESEARCHHUB_ASAAS_CHECKOUT_READY === "true";
     const admin = supabaseAdmin();
     const { data, error } = await admin.from("scholar_purchase_requests")
-      .select("id,requester_id,kind,plan,status,billing_schedule,total_amount_cents,provider_checkout_id,coupon_code,gross_amount_cents,discount_cents")
+      .select("id,requester_id,kind,plan,status,billing_schedule,total_amount_cents,provider_checkout_id,coupon_code,gross_amount_cents,discount_cents,target_license_id,token_allowance")
       .eq("id", requestId).eq("requester_id", user.id).maybeSingle();
     if (error) throw error;
     const purchase = data as Purchase | null;
@@ -80,8 +85,28 @@ export async function POST(request: Request) {
       if (pendingTest?.length)
         return NextResponse.json({ error: "Já existe um checkout de teste em andamento." }, { status: 409 });
     }
-    if (purchase.kind !== "individual" || !purchase.plan)
-      return NextResponse.json({ error: "Checkout automático disponível inicialmente apenas para planos individuais." }, { status: 422 });
+    if (purchase.kind !== "individual" && purchase.kind !== "recharge")
+      return NextResponse.json({ error: "Checkout automático disponível para planos individuais e recargas." }, { status: 422 });
+    if (purchase.kind === "individual" && !purchase.plan)
+      return NextResponse.json({ error: "Plano inválido." }, { status: 422 });
+    if (purchase.kind === "recharge") {
+      if (!purchase.target_license_id || purchase.billing_schedule !== "annual" ||
+          !Number.isSafeInteger(purchase.token_allowance) || purchase.token_allowance <= 0)
+        return NextResponse.json({ error: "Recarga inválida." }, { status: 422 });
+      // RLS applies the same owner/director rule used by the purchase RPC.
+      const { data: license, error: licenseError } = await session.from("scholar_licenses")
+        .select("id,status,starts_at,ends_at").eq("id", purchase.target_license_id).maybeSingle();
+      if (licenseError) throw licenseError;
+      const now = Date.now();
+      if (!license || !["active", "trial"].includes(license.status) ||
+          !(Date.parse(license.starts_at) <= now && Date.parse(license.ends_at) >= now))
+        return NextResponse.json({ error: "A licença precisa estar ativa para comprar tokens extras." }, { status: 409 });
+    }
+    const { data: commerce, error: commerceError } = await admin.from("scholar_commerce_settings")
+      .select("payments_enabled,ai_enabled").eq("id", true).maybeSingle();
+    if (commerceError) throw commerceError;
+    if (!commerce?.payments_enabled || !commerce.ai_enabled)
+      return NextResponse.json({ error: "Pagamentos e assistência estão em preparação. Tente novamente em breve." }, { status: 503 });
     if (!["annual", "12x"].includes(purchase.billing_schedule))
       return NextResponse.json({ error: "Forma de pagamento inválida." }, { status: 422 });
     if (purchase.provider_checkout_id)
@@ -99,13 +124,15 @@ export async function POST(request: Request) {
       minutesToExpire: 60,
       externalReference: purchase.id,
       callback: {
-        successUrl: site + "/licenca",
-        cancelUrl: site + "/contratacao",
-        expiredUrl: site + "/contratacao",
+        successUrl: site + "/contratacao?pedido=" + purchase.id + "&pagamento=retorno",
+        cancelUrl: site + "/contratacao?pedido=" + purchase.id + "&pagamento=cancelado",
+        expiredUrl: site + "/contratacao?pedido=" + purchase.id + "&pagamento=expirado",
       },
       items: [{
-        name: "ResearchHub - plano " + purchase.plan,
-        description: "Acesso anual à plataforma ResearchHub",
+        name: purchase.kind === "recharge" ? "ResearchHub - tokens extras" : "ResearchHub - plano " + purchase.plan,
+        description: purchase.kind === "recharge"
+          ? purchase.token_allowance.toLocaleString("pt-BR") + " tokens; validade até o término da licença atual"
+          : "Acesso anual à plataforma ResearchHub",
         quantity: 1,
         value: purchase.total_amount_cents / 100,
       }],
