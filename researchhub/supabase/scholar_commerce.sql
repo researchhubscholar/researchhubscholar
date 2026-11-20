@@ -308,7 +308,7 @@ create or replace function public.scholar_fulfill_paid_request(
   p_request uuid,p_provider_event text,p_provider_payment text default null,p_provider_subscription text default null
 ) returns uuid
 language plpgsql security definer set search_path=public as $$
-declare req public.scholar_purchase_requests; settings public.scholar_commerce_settings; license_id uuid;
+declare req public.scholar_purchase_requests; settings public.scholar_commerce_settings; paid_license_id uuid;
   existing public.scholar_licenses; starts timestamptz; finish timestamptz;
 begin
   select * into settings from public.scholar_commerce_settings where id=true;
@@ -320,25 +320,25 @@ begin
   if req.id is null or req.status not in ('approved','payment_pending') then raise exception 'Solicitação indisponível'; end if;
 
   if req.kind='recharge' then
-    perform public.scholar_recharge(req.id,req.target_license_id,req.token_allowance);license_id:=req.target_license_id;
+    perform public.scholar_recharge(req.id,req.target_license_id,req.token_allowance);paid_license_id:=req.target_license_id;
   elsif req.kind='individual' then
     select * into existing from public.scholar_licenses where owner_id=req.requester_id for update;
     starts:=now();finish:=case when existing.id is null or existing.ends_at<now() then now()+interval '1 year' else existing.ends_at+interval '1 year' end;
     if existing.id is null then
       insert into public.scholar_licenses(owner_id,plan,status,mode,starts_at,ends_at,seats,token_allowance)
       values(req.requester_id,req.plan,'active',case when settings.ai_enabled then 'live' else 'simulation' end,starts,finish,1,req.token_allowance)
-      returning id into license_id;
-      insert into public.scholar_wallets(license_id,user_id,allowance) values(license_id,req.requester_id,req.token_allowance);
+      returning id into paid_license_id;
+      insert into public.scholar_wallets(license_id,user_id,allowance) values(paid_license_id,req.requester_id,req.token_allowance);
     else
-      license_id:=existing.id;
+      paid_license_id:=existing.id;
       update public.scholar_licenses set plan=req.plan,status='active',mode=case when settings.ai_enabled then 'live' else 'simulation' end,
-        ends_at=finish,token_allowance=token_allowance+req.token_allowance where id=license_id;
-      update public.scholar_wallets set allowance=allowance+req.token_allowance where license_id=license_id and user_id=req.requester_id;
+        ends_at=finish,token_allowance=token_allowance+req.token_allowance where id=paid_license_id;
+      update public.scholar_wallets set allowance=allowance+req.token_allowance where license_id=paid_license_id and user_id=req.requester_id;
     end if;
   else
-    license_id:=public.scholar_provision(req.requester_id,req.plan,req.organization_name,req.seats);
+    paid_license_id:=public.scholar_provision(req.requester_id,req.plan,req.organization_name,req.seats);
     update public.scholar_licenses set status='active',mode=case when settings.ai_enabled then 'live' else 'simulation' end,
-      ends_at=now()+interval '1 year' where id=license_id;
+      ends_at=now()+interval '1 year' where id=paid_license_id;
   end if;
 
   insert into public.scholar_payment_events(purchase_request_id,provider_event_id,provider_payment_id,amount_cents,status)
@@ -348,9 +348,9 @@ begin
       values(req.coupon_code,req.id,req.requester_id) on conflict do nothing;
     update public.scholar_coupon_codes set redemptions=redemptions+1 where code=req.coupon_code;
   end if;
-  update public.scholar_purchase_requests set status='activated',fulfilled_license_id=license_id,
+  update public.scholar_purchase_requests set status='activated',fulfilled_license_id=paid_license_id,
     provider_subscription_id=p_provider_subscription,updated_at=now() where id=req.id;
-  return license_id;
+  return paid_license_id;
 end $$;
 
 revoke all on function public.scholar_commerce_quote(text,text,integer,integer,text) from public;
@@ -376,3 +376,4 @@ grant execute on function public.scholar_admin_upsert_coupon(text,text,text,inte
 grant execute on function public.scholar_fulfill_paid_request(uuid,text,text,text) to service_role;
 
 commit;
+
