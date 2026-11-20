@@ -6,7 +6,7 @@ import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, Output, jsonSchema, type JSONSchema7 } from "ai";
-import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback, providerErrorDiagnostic } from "@/lib/ai/config";
+import { scholarAI, scholarAIProviderOptions, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback, providerErrorDiagnostic } from "@/lib/ai/config";
 import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -79,7 +79,7 @@ async function generateStructured<T>(schema: JSONSchema7, prompt: string, maxOut
     if (remaining < 10_000) throw new Error("A geração atingiu o prazo máximo de espera. Tente novamente em instantes.");
     try {
       const result = await generateText({
-        model: candidate.model, reasoning: scholarAI.reasoning,
+        model: candidate.model, reasoning: scholarAI.reasoning, providerOptions: scholarAIProviderOptions,
         output: Output.object({ schema: jsonSchema<T>(schema) }),
         instructions: "Produza planejamento científico responsável. Nunca invente referências, resultados, instrumentos validados ou autorizações.",
         maxOutputTokens: budget,

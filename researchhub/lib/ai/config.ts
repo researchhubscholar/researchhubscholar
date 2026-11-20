@@ -1,55 +1,45 @@
 import "server-only";
-import { google } from "@ai-sdk/google";
-import { gateway } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 
+// User decision, 20/11/2026: direct OpenAI GPT-6 Luna in every environment.
+// Construct a provider object explicitly so the AI SDK never routes through Gateway.
+const selectedModel = "gpt-6-luna";
+const provider = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const previewEnabled = process.env.VERCEL_ENV === "preview" && process.env.SCHOLAR_AI_ENABLED !== "false";
-// Qwen 3.7 Flash already completed live Preview requests via AI Gateway.
-// Use the same production-tested integration with Vercel OIDC in production.
-// The direct Google model was repeatedly returning UNAVAILABLE / high demand.
-const useGateway = process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production";
-const selectedModel = useGateway ? "alibaba/qwen3.7-flash" : "gemini-3.6-flash";
-const providerConfigured = useGateway
-  // OIDC is injected in both Preview and Production Vercel Functions.
-  ? Boolean(
-      process.env.AI_GATEWAY_API_KEY ||
-      process.env.VERCEL_OIDC_TOKEN ||
-      // Vercel's AI Gateway may use deployment-scoped OIDC without exposing
-      // VERCEL_OIDC_TOKEN to this readiness check. Preview and Production
-      // must use the same credential discovery path. This does not bypass
-      // Gateway auth: each actual request still authenticates with Vercel.
-      process.env.VERCEL_ENV === "preview" ||
-      process.env.VERCEL_ENV === "production"
-    )
-  : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const modelIds = useGateway
-  ? [selectedModel, "google/gemini-2.5-flash"]
-  : [selectedModel, "gemini-2.5-flash"];
 
 export const scholarAI = {
   enabled: process.env.SCHOLAR_AI_ENABLED === "true" || previewEnabled,
   backendConfigured: Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
-    providerConfigured,
+    process.env.OPENAI_API_KEY,
   ),
-  provider: useGateway ? "gateway" as const : "google" as const,
+  provider: "openai" as const,
   model: selectedModel,
   structuredOutput: "native" as const,
-  // Qwen structured output requires non-thinking mode.
-  reasoning: useGateway ? "none" as const : undefined,
+  reasoning: "none" as const,
   promptVersion: "ideas.v7-opportunity-map",
   reservedTokens: 10_000,
   maxIdeasOutputTokens: 6_000,
   maxAssistOutputTokens: 4_000,
-  // Use the highest configured model candidate tariff for the financial envelope.
-  // Qwen is cheaper, so gateway costUsd is a conservative estimate when it succeeds.
-  inputUsdPerToken: useGateway ? 0.0000003 : Number(process.env.SCHOLAR_AI_INPUT_USD_PER_TOKEN || "0"),
-  outputUsdPerToken: useGateway ? 0.0000025 : Number(process.env.SCHOLAR_AI_OUTPUT_USD_PER_TOKEN || "0"),
+  // Standard processing, prompts below 10k tokens. Cached input is conservatively
+  // costed at the uncached rate. No paid tools or automatic provider switching.
+  inputUsdPerToken: 0.0000001,
+  outputUsdPerToken: 0.0000005,
 } as const;
 
-const createModel = (id: string) => useGateway ? gateway(id) : google(id);
-export const scholarAIModel = createModel(selectedModel);
-export const scholarAIModels = modelIds.map(id => ({ id, model: createModel(id) }));
+export const scholarAIProviderOptions = {
+  openai: {
+    store: false,
+    reasoningEffort: "none" as const,
+    serviceTier: "default" as const,
+    // Existing schemas include optional fields. Keep native structured output
+    // and the application's scientific validators without changing their contract.
+    strictJsonSchema: false,
+  },
+};
+export const scholarAIModel = provider.responses(selectedModel);
+export const scholarAIModels = [{ id: selectedModel, model: scholarAIModel }];
 export const scholarAIReady = scholarAI.enabled && scholarAI.backendConfigured;
 
 export function providerErrorText(error: unknown): string {
@@ -83,10 +73,6 @@ export function retryWithFallback(error: unknown) {
 }
 
 export function estimatedCost(inputTokens: number, outputTokens: number, modelId: string = scholarAI.model) {
-  // Estimate the model actually used, not the conservative maximum for fallback admission.
-  // Gateway pricing: Qwen 3.7 Flash <=32k tokens, Gemini 2.5 Flash standard.
-  const googleFallback = useGateway && modelId === "google/gemini-2.5-flash";
-  const inputRate = useGateway && !googleFallback ? 0.00000003 : scholarAI.inputUsdPerToken;
-  const outputRate = useGateway && !googleFallback ? 0.00000013 : scholarAI.outputUsdPerToken;
-  return Number((inputTokens * inputRate + outputTokens * outputRate).toFixed(8));
+  if (modelId !== scholarAI.model) throw new Error("Modelo sem tarifa configurada.");
+  return Number((inputTokens * scholarAI.inputUsdPerToken + outputTokens * scholarAI.outputUsdPerToken).toFixed(8));
 }

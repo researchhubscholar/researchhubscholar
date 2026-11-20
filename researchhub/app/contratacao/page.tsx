@@ -62,10 +62,9 @@ export default function CommercePage() {
   const [quoteError, setQuoteError] = useState("");
 
   const quote = useMemo(() => localQuote(kind, plan, seats), [kind, plan, seats]);
-  const rechargeQuote = useMemo(
-    () => localQuote("recharge", "essential", 1, rechargeQuantity),
-    [rechargeQuantity]
-  );
+  const [rechargeQuote, setRechargeQuote] = useState<{ totalAmountCents: number; tokenAllowance: number } | null>(null);
+  const [rechargeQuoteLoading, setRechargeQuoteLoading] = useState(false);
+  const [rechargeQuoteError, setRechargeQuoteError] = useState("");
 
   async function load() {
     const db = supabaseBrowser();
@@ -102,6 +101,49 @@ export default function CommercePage() {
 
   useEffect(() => { void load(); }, []);
 
+  // Callback navigation never grants access. Only a fulfilled order under RLS
+  // can redirect the buyer to their active workspace or credited wallet.
+  useEffect(() => {
+    if (!userId) return;
+    const params = new URL(window.location.href).searchParams;
+    const orderId = params.get("pedido"), outcome = params.get("pagamento");
+    if (!orderId || !/^[a-f0-9-]{36}$/i.test(orderId)) return;
+    const es = formatLocale === "es";
+    if (outcome === "cancelado" || outcome === "expirado") {
+      setMessage(es ? "El pago no se completó. Consulta tu pedido antes de intentarlo de nuevo." : "O pagamento não foi concluído. Confira seu pedido antes de tentar novamente.");
+      return;
+    }
+    if (outcome !== "retorno") return;
+    let active = true;
+    const deadline = Date.now() + 90_000;
+    let checking = false;
+    setMessage(es ? "Esperando la confirmación del pago. La activación es automática." : "Aguardando a confirmação do pagamento. A ativação é automática.");
+    const check = async () => {
+      if (!active || checking) return;
+      checking = true;
+      try {
+        const { data, error } = await supabaseBrowser().from("scholar_purchase_requests")
+          .select("status,fulfilled_license_id,kind").eq("id", orderId).eq("requester_id", userId).maybeSingle();
+        if (!active) return;
+        if (!error && data?.status === "activated" && data.fulfilled_license_id) {
+          active = false;
+          window.location.assign(data.kind === "recharge" ? "/licenca" : "/dashboard");
+        } else if (Date.now() >= deadline) {
+          active = false;
+          setMessage(es ? "El pago sigue en confirmación. Tu pedido está guardado; consulta Mi licencia en unos minutos." : "O pagamento continua em confirmação. Seu pedido está salvo; confira Minha licença em alguns minutos.");
+        }
+      } catch {
+        if (active && Date.now() >= deadline) {
+          active = false;
+          setMessage(es ? "Consulta Mi licencia para verificar la confirmación del pago." : "Confira Minha licença para verificar a confirmação do pagamento.");
+        }
+      } finally { checking = false; }
+    };
+    void check();
+    const timer = setInterval(() => { void check(); }, 3_000);
+    return () => { active = false; clearInterval(timer); };
+  }, [userId, formatLocale]);
+
   // Preview exactly the same authoritative server quote used when creating a purchase.
   // Never display an unverified discount or let a stale quote authorize checkout.
   useEffect(() => {
@@ -129,6 +171,28 @@ export default function CommercePage() {
     }, 300);
     return () => { active = false; clearTimeout(handle); };
   }, [kind, plan, seats, coupon]);
+
+  useEffect(() => {
+    if (!rechargeLicense) return;
+    let active = true;
+    setRechargeQuoteLoading(true);
+    setRechargeQuote(null);
+    setRechargeQuoteError("");
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabaseBrowser().rpc("scholar_commerce_quote", {
+        p_kind: "recharge", p_plan: null, p_seats: 1,
+        p_quantity: rechargeQuantity, p_coupon: coupon.trim() || null,
+      });
+      if (!active) return;
+      if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+        setRechargeQuoteError(error?.message || (formatLocale === "es" ? "No se pudo calcular la recarga." : "Não foi possível calcular a recarga."));
+      } else {
+        setRechargeQuote({ totalAmountCents: Number(data.totalAmountCents), tokenAllowance: Number(data.tokenAllowance) });
+      }
+      setRechargeQuoteLoading(false);
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [rechargeLicense, rechargeQuantity, coupon, formatLocale]);
 
   async function createRequest() {
     if (!userId || busy || quoteLoading || quoteError || !quotePreview) return;
@@ -176,10 +240,10 @@ export default function CommercePage() {
   }
 
   async function createRechargeRequest() {
-    if (!rechargeLicense || busy) return;
+    if (!rechargeLicense || busy || rechargeQuoteLoading || rechargeQuoteError || !rechargeQuote) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
+    const { data: purchaseId, error } = await supabaseBrowser().rpc("scholar_create_purchase_request", {
       p_kind: "recharge",
       p_plan: null,
       p_billing_schedule: "annual",
@@ -189,12 +253,31 @@ export default function CommercePage() {
       p_target_license: rechargeLicense,
       p_coupon: coupon || null,
     });
-    setBusy(false);
-    if (error) setMessage(error.message || "Não foi possível solicitar a recarga.");
-    else {
-      setMessage("Recarga solicitada sem cobrança. Nenhum saldo foi alterado nesta etapa.");
-      await load();
+    if (error || !purchaseId) {
+      setBusy(false);
+      setMessage(error?.message || "Não foi possível solicitar a recarga.");
+      return;
     }
+    if (paymentsEnabled) {
+      try {
+        const response = await fetch("/api/asaas/checkout", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: purchaseId }),
+        });
+        const checkout = await response.json() as { url?: string; error?: string };
+        if (response.ok && checkout.url) {
+          window.location.assign(checkout.url);
+          return;
+        }
+        setMessage(checkout.error || "Não foi possível abrir o pagamento da recarga.");
+      } catch {
+        setMessage("Não foi possível conectar ao pagamento da recarga. Tente novamente.");
+      }
+    } else {
+      setMessage("Recarga registrada. O pagamento ainda não está disponível.");
+    }
+    setBusy(false);
+    await load();
   }
 
   async function cancelRequest(id: string) {
@@ -288,8 +371,8 @@ export default function CommercePage() {
           <input type="number" min={1} max={100} value={rechargeQuantity} onChange={event => setRechargeQuantity(Number(event.target.value))} className="mt-2 block w-full rounded-card border p-3" />
         </label>
       </div>
-      <p className="mt-4 text-sm"><strong>{money(rechargeQuote.grossAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString(intlLocale(formatLocale))} tokens</p>
-      <button type="button" disabled={busy || !rechargeLicense} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50"><InterfaceText message="screen.cb0f2ff8c822" /></button>
+      {rechargeQuote ? <p className="mt-4 text-sm"><strong>{money(rechargeQuote.totalAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString(intlLocale(formatLocale))} tokens</p> : <p role="status" className="mt-4 text-sm">{rechargeQuoteError || (formatLocale === "es" ? "Calculando recarga..." : "Calculando recarga...")}</p>}
+      <button type="button" disabled={busy || !rechargeLicense || rechargeQuoteLoading || Boolean(rechargeQuoteError) || !rechargeQuote} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50">{busy ? (formatLocale === "es" ? "Preparando..." : "Preparando...") : (formatLocale === "es" ? "Comprar tokens adicionales" : "Comprar tokens extras")}</button>
     </section> : null}
 
     <section className="mt-7 rounded-2xl border border-line bg-white p-5">

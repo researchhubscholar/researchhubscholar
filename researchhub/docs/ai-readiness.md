@@ -1,70 +1,31 @@
-# IA atual — ResearchHub Scholar
+# IA OpenAI — decisão de 20/11/2026
 
-Todas as operações de IA usam exclusivamente gemini-3.6-flash pelo Google AI SDK.
-O código ignora overrides antigos SCHOLAR_AI_MODEL e não troca para outro modelo.
-Geração, refinamento e assistentes exibem o mesmo dialog acessível com tempo de
-espera, texto contextual e fechamento automático no sucesso ou na falha. Não é uma conexão
-com a assinatura ChatGPT do usuário nem, atualmente, com o AI Gateway.
+O modelo de todas as operações é `gpt-6-luna`, pela API Responses da OpenAI.
+A Vercel hospeda o aplicativo. Nenhuma operação passa pelo AI Gateway.
+`OPENAI_API_KEY` é segredo de servidor, sem prefixo NEXT_PUBLIC.
+A disponibilidade exige a chave, Supabase e SCHOLAR_AI_ENABLED=true.
 
-## Fluxos existentes
+Configuração padrão: reasoning none, service tier default e store=false.
+Os esquemas estruturados e os validadores científicos existentes são preservados.
+Não há troca automática para modelos ou provedores diferentes.
 
-- Ideias: três propostas científicas, geração automática e refinamento com PubMed.
-- Radar: estratégia de busca revisável.
-- Protocolo: sugestões por campo, aplicadas pelo usuário.
-- Biblioteca: apoio de leitura e comparação na matriz a partir do material disponível.
-- Orientação: preparação de reunião com o contexto fornecido.
-- Manuscrito: assistência por seção, comparação e snapshot antes da aplicação.
+Tarifas Standard verificadas em 20/11: US$0,10/M entrada e US$0,50/M saída.
+Entrada em cache é contabilizada conservadoramente como entrada comum.
+Até 10.000 tokens por operação, incluindo entrada e saída, com reserva e liquidação.
+Franquias anuais: Essencial 3M, Plus 6M, Premium 12M.
+Recarga: R$79 por 1M tokens, com a validade da licença atual.
 
-Acesso depende de sessão autenticada, licença válida e carteira do próprio usuário.
-A escolha em Minha licença é respeitada. Não há troca silenciosa de carteira
-quando a selecionada perde saldo. Com várias carteiras, a escolha é obrigatória.
-Sem escolha e com apenas uma carteira elegível, essa carteira pode ser usada.
+A confirmação do Asaas é obrigatória para creditar licença ou recarga.
+O retorno do navegador só consulta o pedido e aguarda o estado activated.
+A compra não é aberta quando pagamentos/IA estão desligados no banco ou a
+conexão de IA está incompleta no servidor.
 
-## Consumo e orçamento
+Instalação: configurar OPENAI_API_KEY como variável sensível em Preview e Production,
+aplicar scholar_paid_license_renewal_20261120.sql após conferência do banco,
+e verificar o diagnóstico operacional e a carteira da conta compradora.
+Manter RESEARCHHUB_ASAAS_CHECKOUT_READY desligado até testar pagamento real,
+confirmação, liberação e recarga sem duplicações. A flag habilita vendas normais.
 
-Reserva de até 10.000 tokens por operação, orçamento de saída, registro de uso
-informado pelo provedor, devolução de franquia em falhas e versões de prompts.
-O registro atual de tokens/custos de geração concluída cobre a resposta final;
-tentativas anteriores que falham podem ser cobradas pelo provedor sem aparecer
-integralmente no ledger. A fatura do provedor continua sendo a fonte financeira.
-
-Migration incremental: supabase/scholar_ai_budgets.sql. É repetível e não apaga
-material. Cria envelopes diários em USD globais e por licença, com lock global
-na admissão de operações. Falhas continuam consumindo envelope diário; retries
-com o mesmo ID não duplicam a admissão. Simulações não usam orçamento financeiro.
-
-Os limites começam DESATIVADOS para preservar os testes existentes no Preview.
-Valores iniciais de configuração, não estimativas de preço do modelo:
-US$2/dia global, US$1/dia por licença e US$0,25 de envelope por operação.
-
-Antes de ativar, configurar SCHOLAR_AI_INPUT_USD_PER_TOKEN e
-SCHOLAR_AI_OUTPUT_USD_PER_TOKEN na Vercel. Usar tarifas conservadoras cobrindo o
-modelo mais caro entre principal e alternativas, inclusive tokens de raciocínio.
-O guard exige valores positivos e envelope suficiente para quatro tentativas de
-até 10.000 tokens. Depois, pelo SQL Editor:
-
-```sql
-update public.scholar_ai_budget_settings set enabled=true where id=true;
-```
-
-Produção exige migration, orçamento ativo e tarifas configuradas. Preview permite
-continuar o piloto com controle financeiro desligado. Esses envelopes são controle
-de admissão estimado, não garantia de teto exato da fatura do provedor.
-
-## Validação pendente
-
-- Confirmar tarifas reais e consumo de alternativas/falhas antes da venda.
-- Validar navegador autenticado e celular com contas individuais e institucionais.
-- Comparar qualidade em casos científicos reais; feedback existe em Ideias e Minha licença.
-- Validar checkout, renovação e e-mails após configuração da Stripe brasileira.
-
-## Troca em 15/10/2026
-
-Os logs do Preview confirmaram high demand no Gemini 3.8 Flash. O modelo central
-foi alterado para `gemini-3.6-flash`, listado pela documentação oficial do Google
-com suporte a saídas estruturadas. Todas as rotas continuam usando o provedor
-Google já conectado, com uma única tentativa de modelo por operação; sem fallback
-que possa duplicar o envelope financeiro. Prompts, limites, schema e validação
-permanecem os mesmos. A disponibilidade para esta chave precisa ser confirmada
-em uma chamada autenticada no Preview. Tarifas configuradas são estimativas e
-devem corresponder ao modelo selecionado.
+Implementado, instalado e validado são estados separados.
+Uma resposta do endpoint de status confirma configuração, não qualidade científica.
+Os testes com banco isolado não comprovam a instalação no Supabase de Production.

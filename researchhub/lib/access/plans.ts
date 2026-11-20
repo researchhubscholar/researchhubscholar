@@ -5,7 +5,7 @@ export const plans = {
 } as const;
 export const policy = { maxOperationTokens: 10000, dailyOperations: 20, concurrentOperations: 1, rechargeCents: 7900, rechargeTokens: 1000000 } as const;
 export const institutional = { seats: 30, annualCents: 1440000, tokens: 90000000, directorsIncluded: 1 } as const;
-export const initialModels = { ideas: "gpt-5.6-terra", assistance: "gpt-5.6-luna" } as const;
+export const initialModels = { ideas: "gpt-6-luna", assistance: "gpt-6-luna" } as const;
 export type PlanKey = keyof typeof plans;
 export function usageAlert(used: number, granted: number): string {
   if (!granted) return "Sem franquia ativa";

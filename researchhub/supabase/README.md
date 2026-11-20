@@ -27,6 +27,13 @@ Para um projeto Supabase vazio, execute no SQL Editor, uma vez e nesta ordem:
 
 Não rode novamente a sequência inteira. Alguns arquivos usam `create table` e foram desenhados para execução única. Registre quais migrações já foram aplicadas e execute somente uma migração nova, depois de revisar sua dependência e testar em Preview.
 
+### Ativação paga — atualização de 20/11/2026
+
+Após a instalação comercial, aplicar apenas `scholar_paid_license_renewal_20261120.sql`
+para corrigir a renovação de licença e carteira. O script confere a definição atual
+antes de substituí-la e pode ser repetido quando a função já estiver corrigida.
+Não reexecutar `scholar_commerce.sql`, que contém seeds antigos de catálogo.
+
 ## Verificação mínima após uma migração
 
 1. o SQL Editor deve retornar `Success`;

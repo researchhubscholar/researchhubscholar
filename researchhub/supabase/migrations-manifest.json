@@ -1,6 +1,6 @@
 {
   "format": "scholar-migration-inventory-v1",
-  "generatedAt": "2026-11-18",
+  "generatedAt": "2026-11-20",
   "note": "Source inventory only, not database installation history. Never execute all files automatically.",
   "files": [
     {
@@ -342,6 +342,15 @@
       ],
       "repeatability": "not-a-general-install-step",
       "sha256": "9c3577848d9182dcf5e525f6a519e4da893f013a464949573d126dea5dc7f156"
+    },
+    {
+      "file": "scholar_paid_license_renewal_20261120.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_commerce.sql"
+      ],
+      "repeatability": "guarded-idempotent",
+      "sha256": "702ae5eea76ae4173c0dddb0842dc2505a2b9b87fe86ce146ee9094e36a25ab7"
     }
   ]
 }

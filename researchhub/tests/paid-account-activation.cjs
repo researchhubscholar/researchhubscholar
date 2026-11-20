@@ -35,6 +35,9 @@ async function seedOrder(user=uid){const id=crypto.randomUUID(),ch='ch_isolated_
  const access=fs.readFileSync('supabase/scholar_access.sql','utf8').split('-- SECURITY DEFINER')[0].replace('begin;','');
  const commerce=fs.readFileSync('supabase/scholar_commerce.sql','utf8').split('alter table public.scholar_commerce_settings enable')[0].replace('begin;','');
  await db.exec(access);await db.exec(commerce);
+ const accessSource=fs.readFileSync('supabase/scholar_access.sql','utf8');
+ await db.exec(accessSource.match(/create table if not exists public\.scholar_recharges \([\s\S]*?\);/)[0]);
+ await db.exec(accessSource.match(/create or replace function public\.scholar_recharge\([\s\S]*?end \$\$;/)[0]);
  const fn=fs.readFileSync('supabase/scholar_commerce.sql','utf8').match(/create or replace function public\.scholar_fulfill_paid_request\([\s\S]*?end \$\$;/)[0];
  // Exercise the migration against the previous function as well as its already-fixed state.
  await db.exec(fn.replaceAll('paid_license_id','license_id'));
@@ -97,11 +100,33 @@ async function seedOrder(user=uid){const id=crypto.randomUUID(),ch='ch_isolated_
   assert.equal(granted.plan,plan);assert.equal(granted.mode,'live');assert.equal(Number(granted.allowance),tokens);
   outputs.push('PASS '+plan+' purchase grants its own plan and token allowance');
  }
+ const beforeRecharge=(await db.query('select * from scholar_licenses where owner_id=$1',[uid])).rows[0];
+ [oid,checkout]=[crypto.randomUUID(),'ch_recharge_'+crypto.randomUUID()];
+ await db.query(`insert into scholar_purchase_requests(id,requester_id,kind,plan,target_license_id,quantity,unit_amount_cents,gross_amount_cents,total_amount_cents,token_allowance,status,provider_checkout_id)
+  values($1,$2,'recharge',null,$3,2,7900,15800,15800,2000000,'payment_pending',$4)`,[oid,uid,beforeRecharge.id,checkout]);
+ const recharge=event('evt_paid_recharge');recharge.checkout.items=[{quantity:1,value:158}];
+ assert.equal(Number((await db.query('select allowance from scholar_wallets where user_id=$1',[uid])).rows[0].allowance),6000000);
+ assert.equal((await send({...recharge,event:'CHECKOUT_CREATED'})).body.ignored,true);
+ assert.equal((await send(recharge)).body.activated,true);
+ const afterRecharge=(await db.query('select l.plan,l.ends_at,l.token_allowance,w.allowance,w.used,w.reserved from scholar_licenses l join scholar_wallets w on w.license_id=l.id where l.owner_id=$1',[uid])).rows[0];
+ assert.equal(afterRecharge.plan,beforeRecharge.plan);assert.equal(String(afterRecharge.ends_at),String(beforeRecharge.ends_at));
+ assert.equal(Number(afterRecharge.allowance),8000000);assert.equal(Number(afterRecharge.token_allowance),8000000);
+ assert.equal(Number(afterRecharge.used),1200);assert.equal(Number(afterRecharge.reserved),2000);
+ assert.equal((await send(recharge)).body.alreadyActivated,true);
+ assert.equal(await count('scholar_recharges'),1);
+ assert.equal(Number((await db.query('select allowance from scholar_wallets where user_id=$1',[uid])).rows[0].allowance),8000000);
+ outputs.push('PASS paid recharge adds the purchased tokens exactly once, preserves use, plan and expiration');
  const user2=crypto.randomUUID();await db.query('insert into auth.users values($1)',[user2]);[oid,checkout]=await seedOrder(user2);
  await db.exec('update scholar_commerce_settings set ai_enabled=false where id=true');
  const sim=await send(event('evt_isolated_no_live_flag'));assert.equal(sim.body.activated,true);
- const simLic=(await db.query('select mode from scholar_licenses where owner_id=$1',[user2])).rows[0];assert.equal(simLic.mode,'simulation');
- outputs.push('PASS reproduced configuration risk: payment with ai_enabled=false creates simulation license');
+ const simLic=(await db.query('select mode from scholar_licenses where owner_id=$1',[user2])).rows[0];assert.equal(simLic.mode,'live');
+ outputs.push('PASS a confirmed payment never produces a simulation license when the global flag changes');
+ const legacyUser=crypto.randomUUID();await db.query('insert into auth.users values($1)',[legacyUser]);
+ await db.query(`insert into scholar_licenses(owner_id,plan,status,mode,ends_at,token_allowance) values($1,'essential','trial','simulation',now()+interval '30 days',0)`,[legacyUser]);
+ [oid,checkout]=await seedOrder(legacyUser);
+ assert.equal((await send(event('evt_restore_missing_wallet'))).body.activated,true);
+ assert.equal(Number((await db.query('select allowance from scholar_wallets where user_id=$1',[legacyUser])).rows[0].allowance),3000000);
+ outputs.push('PASS payment repairs an existing license without a wallet and grants the purchased allowance');
  await db.exec(fn.replace('declare req','-- unexpected independent change\ndeclare req'));
  await assert.rejects(db.exec(migration),/difere da versão revisada/);await db.exec('rollback');
  outputs.push('PASS migration rejects unexpected database definitions instead of overwriting them');

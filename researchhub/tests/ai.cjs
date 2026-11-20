@@ -103,18 +103,20 @@ const vm = require('node:vm');
 const configurationModule = {exports:{}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/ai/config.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
  module:configurationModule,exports:configurationModule.exports,
- process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',VERCEL_OIDC_TOKEN:'test-only',GOOGLE_GENERATIVE_AI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
- require:name=>name==='server-only'?{}:name==='ai'?{gateway:id=>({modelId:id})}:name==='@ai-sdk/google'?{google:id=>({modelId:id})}:(()=>{throw new Error(name)})(),
+ process:{env:{VERCEL_ENV:'preview',SCHOLAR_AI_MODEL:'gemini-3.8-flash',VERCEL_OIDC_TOKEN:'test-only',OPENAI_API_KEY:'test-only',NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'test-only'}},
+ require:name=>name==='server-only'?{}:name==='@ai-sdk/openai'?{createOpenAI:()=>({responses:id=>({modelId:id})})}:(()=>{throw new Error(name)})(),
 });
 const configuration=configurationModule.exports;
-assert.equal(configuration.scholarAI.model,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModel.modelId,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModels.length,2);
-assert.equal(configuration.scholarAIModels[0].id,'alibaba/qwen3.7-flash');
-assert.equal(configuration.scholarAIModels[1].id,'google/gemini-2.5-flash');
+assert.equal(configuration.scholarAI.model,'gpt-6-luna');
+assert.equal(configuration.scholarAIModel.modelId,'gpt-6-luna');
+assert.equal(configuration.scholarAIModels.length,1);
+assert.equal(configuration.scholarAIModels[0].id,'gpt-6-luna');
+assert.equal(configuration.scholarAI.provider,'openai');
+assert.equal(configuration.scholarAIProviderOptions.openai.store,false);
+assert.equal(configuration.scholarAIProviderOptions.openai.serviceTier,'default');
 assert.equal(configuration.scholarAIReady,true);
 assert.equal(configuration.scholarAI.reservedTokens,10000);
 assert.equal(configuration.scholarAI.reasoning,"none");
 for (const route of ["ideas","assist","refine-idea"]) assert.match(fs.readFileSync(`app/api/ai/${route}/route.ts`,"utf8"), /reasoning:\s*scholarAI.reasoning/);
-assert.equal(configuration.estimatedCost(1000,1000),0.00016);
-console.log('PASS: Preview AI routes share Gateway Qwen 3.7 Flash, ignoring stale model overrides with an explicit backup model and no stale environment override.');
+assert.equal(configuration.estimatedCost(1000,1000),0.0006);
+console.log('PASS: AI routes share direct OpenAI GPT-6 Luna, standard pricing and no alternate provider.');

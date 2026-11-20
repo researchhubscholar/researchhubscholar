@@ -5,7 +5,7 @@ import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
 import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
+import { scholarAI, scholarAIProviderOptions, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
 import { groundRefinementSources, completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
 import { outputLanguage } from "@/lib/ai/language";
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     for (const candidate of scholarAIModels) {
       try {
         const candidateResult = await generateText({
-          model: candidate.model, reasoning: scholarAI.reasoning,
+          model: candidate.model, reasoning: scholarAI.reasoning, providerOptions: scholarAIProviderOptions,
           instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos. Responda exclusivamente no formato estruturado solicitado.",
           maxOutputTokens,
           maxRetries: 0,
