@@ -120,3 +120,15 @@ assert.equal(configuration.scholarAI.reasoning,"none");
 for (const route of ["ideas","assist","refine-idea"]) assert.match(fs.readFileSync(`app/api/ai/${route}/route.ts`,"utf8"), /reasoning:\s*scholarAI.reasoning/);
 assert.equal(configuration.estimatedCost(1000,1000),0.0006);
 console.log('PASS: AI routes share direct OpenAI GPT-6 Luna, standard pricing and no alternate provider.');
+
+const {resolveIdeaWorkType}=require('../lib/ideas/generate.ts');
+const {matchesRequestedIdeaFormat}=require('../lib/ai/ideas.ts');
+assert.equal(resolveIdeaWorkType('open','Quero fazer um relato de caso sobre dor no ombro'), 'case');
+assert.equal(resolveIdeaWorkType('review','Relato de caso sobre dor no ombro'), 'review');
+assert.equal(resolveIdeaWorkType('open','Não quero fazer um relato de caso'), 'open');
+assert.match(automaticIdeasPrompt({...context,workType:'case'}),/As três propostas devem ser relatos de caso individual/);
+assert.equal(matchesRequestedIdeaFormat('Relato de caso','case'),true);
+assert.equal(matchesRequestedIdeaFormat('Reporte de caso','case'),true);
+assert.equal(matchesRequestedIdeaFormat('Estudo transversal','case'),false);
+assert.equal(matchesRequestedIdeaFormat('Série de casos','case'),false);
+console.log('PASS: selected and explicit case-report requests preserve the requested format.');

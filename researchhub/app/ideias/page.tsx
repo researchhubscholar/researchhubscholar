@@ -21,7 +21,7 @@ import IdeaHistory from "@/components/ideas/history";
 import type { IdeaRefinement } from "@/lib/ai/refine-idea";
 import type { OutputLanguage } from "@/lib/ai/language";
 import { historyError, type SavedIdea } from "@/lib/ideas/history";
-import { type Context, type Idea, generate, ideaBrief, initial, referenceSignature } from "@/lib/ideas/generate";
+import { type Context, type Idea, generate, resolveIdeaWorkType, ideaBrief, initial, referenceSignature } from "@/lib/ideas/generate";
 import { transferKey } from "@/lib/ideas/transfer";
 import { ideaRadarQuery } from "@/lib/ideas/radar";
 import { useLibrary } from "@/lib/literature/use-library";
@@ -158,6 +158,7 @@ export default function IdeasPage() {
   }
 
   function generationContext(): Context {
+    if (creationMode === "theme") return { ...context, workType: resolveIdeaWorkType(context.workType, context.interest) };
     if (creationMode !== "automatic") return { ...context };
     const area = context.specialty.trim();
     const reality = context.setting.trim();

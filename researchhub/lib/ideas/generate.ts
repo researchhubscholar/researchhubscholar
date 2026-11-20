@@ -2,6 +2,17 @@ import { diagnose } from "../research/checks";
 import type { LibraryArticle, EvidenceNote } from "../literature/library-store";
 
 export type WorkType = "open" | "tcc" | "original" | "review" | "case" | "residency";
+// A dropdown selection wins. Recognize explicit case-report requests when the
+// user leaves the format open, including the Portuguese and Spanish forms.
+export function resolveIdeaWorkType(workType: WorkType | undefined, interest: string): WorkType {
+  if (workType && workType !== "open") return workType;
+  const text = interest.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/\b(?:relatos? de casos?|reportes? de casos?|case reports?)\b/.test(text) &&
+      /^(?:um |una? |a )?(?:relatos? de casos?|reportes? de casos?|case reports?)\b|\b(?:quero|gostaria de|hacer|quiero|write|prepare|formato|tipo|como)\b[^.!?]{0,60}\b(?:relatos? de casos?|reportes? de casos?|case reports?)\b/.test(text) &&
+      !/\b(?:nao|sem|no|without|not)\b[^.!?]{0,35}\b(?:relatos? de casos?|reportes? de casos?|case reports?)\b/.test(text)) return "case";
+  return "open";
+}
+
 export type Context = { theme: string; specialty: string; interest: string; population: string; stage: string; months: string; access: string; exposure: string; measure: string; setting: string; workType?: WorkType; uncertainty?: string; startingQuestion?: string; instrument?: string; support?: string; availableSample?: string; authorization?: string; requirements?: string };
 type BaseIdea = { id: string; title: string; question: string; objective: string; studyType: string; population: string; outcome: string; resources: string; difficulty: string; feasibility: string; steps: string; radar: string; methods: string; analysis: string; variables: string };
 export type EvaluationItem = { score: number; label: "Baixa" | "Moderada" | "Alta"; reason: string };

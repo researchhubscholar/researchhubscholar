@@ -330,7 +330,22 @@ REGRAS DE QUALIDADE
 - A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
+export function matchesRequestedIdeaFormat(studyType: string, workType: Context["workType"]) {
+  const label = studyType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (workType === "case") return /^(?:relato (?:de caso|clinico)|reporte (?:de caso|clinico)|caso clinico|(?:clinical )?case report)$/.test(label);
+  if (workType === "review") return /\b(?:revisao|revision|review)\b/.test(label);
+  return true;
+}
+
 export function automaticIdeasPrompt(context: Context, language: OutputLanguage = "pt-BR") {
+  const formats = {
+    case: 'As três propostas devem ser relatos de caso individual. Use em studyType exatamente "Relato de caso" (pt-BR), "Reporte de caso" (es) ou "Case report" (en). Varie o foco clínico, diagnóstico ou evolutivo. Use objetivo descritivo e análise narrativa, sem comparador ou estimativa populacional. Não invente pacientes ou achados. Se o acesso ao caso não foi informado, indique que precisa ser confirmado.',
+    review: "As três propostas devem ser revisões de literatura, com perguntas de síntese distintas.",
+    original: "As três propostas devem ser estudos originais compatíveis com o acesso informado.",
+    tcc: "As três propostas devem ser viáveis como trabalho de conclusão de curso.",
+    open: "", residency: "",
+  };
+  const format = formats[context.workType ?? "open"];
   return `Você é um pesquisador sênior em epidemiologia clínica, metodologia científica e bioestatística aplicada à saúde. Converta as condições informadas em três propostas de pesquisa completas, específicas e defensáveis perante um orientador ou banca.
 
 ${sharedRules(language)}
@@ -339,6 +354,7 @@ CONDIÇÕES REAIS DO USUÁRIO
 ${JSON.stringify(context)}
 
 PROCESSO OBRIGATÓRIO
+${format ? `- FORMATO OBRIGATÓRIO: ${format} Varie os recortes dentro desse formato.` : ""}
 - Antes de escrever, avalie internamente pelo menos cinco direções plausíveis: frequência, fatores associados, experiência, diagnóstico, prognóstico, organização do cuidado, intervenção ou síntese de evidências. Não apresente esse rascunho na resposta.
 - Descarte caminhos triviais, duplicados, amplos demais, incompatíveis com o acesso ou inviáveis no prazo.
 - Entregue exatamente três propostas substancialmente distintas: MAIS VIÁVEL, MAIS RELEVANTE e MAIS INOVADORA, nesta ordem.
