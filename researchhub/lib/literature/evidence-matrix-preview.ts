@@ -1,6 +1,6 @@
 import type { StudyDesign } from "./matrix-template";
 import { resolveExtractionDesign } from "./structured-extraction";
-import { extractDeepResultsEvidence, type ReportedResultKind } from "./deep-results-evidence";
+import { extractDeepResultsEvidence, reportedResultKinds, type ReportedResultKind } from "./deep-results-evidence";
 import { verifyEvidenceAnchor, type EvidenceAnchor } from "./provenance";
 
 /**
@@ -50,7 +50,6 @@ export type EvidenceMatrixPreview = {
 
 const safeId = (value: string): boolean => /^[a-zA-Z0-9:_-]{1,90}$/.test(value);
 const safeTitle = (value: string): boolean => value.trim().length >= 2 && value.length <= 500;
-const kinds: ReportedResultKind[] = ["denominator", "unit", "group", "timepoint", "effect_adjustment", "effect_estimate", "missingness"];
 
 export function buildEvidenceMatrixPreview(articles: MatrixSource[]): EvidenceMatrixPreview {
   if (!Array.isArray(articles) || articles.length > 12) throw new Error("Selecione até 12 artigos para comparação.");
@@ -88,7 +87,7 @@ export function buildEvidenceMatrixPreview(articles: MatrixSource[]): EvidenceMa
       pmid: typeof article.pmid === "string" ? article.pmid.slice(0, 30) : null,
       doi: typeof article.doi === "string" ? article.doi.slice(0, 150) : null,
       studyDesign, sourceScope: "published_abstract", cells,
-      missing: kinds.filter(kind => !found.has(kind)),
+      missing: reportedResultKinds.filter(kind => !found.has(kind)),
       humanConfirmed: false,
     });
   }

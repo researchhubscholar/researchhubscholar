@@ -6,7 +6,7 @@ import { anchorEvidence, verifyEvidenceAnchor, type EvidenceAnchor } from "./pro
  * These are source quotations for review, not normalized study data.
  */
 export type ReportedResultKind =
-  "denominator" | "unit" | "group" | "timepoint" | "effect_adjustment" | "effect_estimate" | "missingness";
+  "denominator" | "unit" | "group" | "timepoint" | "effect_adjustment" | "effect_estimate" | "confidence_interval" | "rate" | "missingness";
 export type ReportedResultFragment = {
   kind: ReportedResultKind;
   raw: string;
@@ -37,17 +37,19 @@ const patterns: Record<ReportedResultKind, RegExp> = {
   group: /\b(?:intervention group|control group|placebo group|treatment group|exposed group|unexposed group|cases|controls)\b/gi,
   timepoint: /\b(?:baseline|follow[- ]up|at\s+\d+\s*(?:days?|weeks?|months?|years?)|after\s+\d+\s*(?:days?|weeks?|months?|years?))\b/gi,
   effect_adjustment: /\b(?:adjusted|multivariable|multivariate|unadjusted|crude)\s+(?:odds ratio|hazard ratio|risk ratio|relative risk|estimate|analysis|model|OR|HR|RR)\b/gi,
-  effect_estimate: /\b(?:aOR|aHR|aRR|OR|HR|RR)\s*[=:]?\s*\d+(?:[.,]\d+)?\b/gi,
+  effect_estimate: /\b(?:adjusted odds ratio|adjusted hazard ratio|adjusted risk ratio|odds ratio|hazard ratio|risk ratio|relative risk|aOR|aHR|aRR|OR|HR|RR)\s*[,=:]?\s*\d+(?:[.,]\d+)?\b/gi,
+  confidence_interval: /\b\d+(?:[.,]\d+)?\s*%\s*(?:confidence interval(?:\s*\[CI\])?|CI)\s*[,=:]?\s*[[(]?\s*[+−-]?\d+(?:[.,]\d+)?\s*(?:to|[–—-]|[,;])\s*[+−-]?\d+(?:[.,]\d+)?\b/gi,
+  rate: /\b\d+(?:[.,]\d+)?\s*%\s*(?:per|\/)\s*(?:person[- ]?)?(?:days?|weeks?|months?|years?)\b/gi,
   missingness: /\b(?:missing data|missing values|lost to follow[- ]up|attrition|dropouts?|excluded due to missing|incomplete records)\b/gi,
 };
 
-const kinds = Object.keys(patterns) as ReportedResultKind[];
+export const reportedResultKinds = Object.keys(patterns) as readonly ReportedResultKind[];
 
 /** Never use a fragment outside the provided abstract as valid evidence. */
 export function extractDeepResultsEvidence(abstract: string): DeepResultsEvidence {
   const normalized = abstract.normalize("NFKC").replace(/\s+/g, " ").trim().slice(0, 18000);
   const fragments: ReportedResultFragment[] = [];
-  for (const kind of kinds) {
+  for (const kind of reportedResultKinds) {
     const expression = new RegExp(patterns[kind].source, patterns[kind].flags);
     let match: RegExpExecArray | null;
     while ((match = expression.exec(normalized)) !== null && fragments.length < 100) {
@@ -66,7 +68,7 @@ export function extractDeepResultsEvidence(abstract: string): DeepResultsEvidenc
   return {
     scope: "published_abstract",
     fragments,
-    notIdentifiedInAbstract: kinds.filter(kind => !found.has(kind)),
+    notIdentifiedInAbstract: reportedResultKinds.filter(kind => !found.has(kind)),
     limitations: {
       originalResearchDataImported: false,
       individualPatientDataAvailable: false,

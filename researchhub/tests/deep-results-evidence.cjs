@@ -65,3 +65,21 @@ const request=()=>new Request("https://local/api/literature/extract",{method:"PO
   else process.env.SCHOLAR_AI06_DEEP_RESULTS=previous;
  }
 })().catch(err=>{console.error(err);process.exitCode=1});
+
+// Two adjacent outcomes in the SPRINT follow-up report (PMID 34010531).
+const sprint = "RESULTS: Primary outcome, 1.77% per year vs. 2.40% per year; hazard ratio, 0.73; 95% confidence interval [CI], 0.63 to 0.86; all-cause mortality, 1.06% per year vs. 1.41% per year; hazard ratio, 0.75; 95% CI, 0.61 to 0.92.";
+const sprintFragments = extractDeepResultsEvidence(sprint).fragments;
+const reported = kind => sprintFragments.filter(fragment => fragment.kind === kind).map(fragment => fragment.raw);
+assert.deepEqual(reported("rate"), ["1.77% per year", "2.40% per year", "1.06% per year", "1.41% per year"]);
+assert.deepEqual(reported("effect_estimate"), ["hazard ratio, 0.73", "hazard ratio, 0.75"]);
+assert.deepEqual(reported("confidence_interval"), ["95% confidence interval [CI], 0.63 to 0.86", "95% CI, 0.61 to 0.92"]);
+for (const fragment of sprintFragments) {
+  assert(provenance.verifyEvidenceAnchor(sprint, fragment.provenance));
+  assert.equal(fragment.associationStatus, "unresolved");
+}
+const { buildEvidenceMatrixPreview } = require("../lib/literature/evidence-matrix-preview.ts");
+const [sprintRow] = buildEvidenceMatrixPreview([{ articleId: "34010531", title: "SPRINT final report", abstract: sprint }]).rows;
+assert.equal(sprintRow.cells.filter(cell => cell.kind === "confidence_interval").length, 2);
+assert(sprintRow.cells.every(cell => cell.status === "pending_human_review"));
+assert(!sprintRow.missing.includes("rate"));
+console.log("PASS: SPRINT rates, effect estimates and confidence intervals reach matrix review with verified sources.");
