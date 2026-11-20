@@ -132,3 +132,22 @@ assert.equal(matchesRequestedIdeaFormat('Reporte de caso','case'),true);
 assert.equal(matchesRequestedIdeaFormat('Estudo transversal','case'),false);
 assert.equal(matchesRequestedIdeaFormat('Série de casos','case'),false);
 console.log('PASS: selected and explicit case-report requests preserve the requested format.');
+
+const {requestedIdeaDesign,matchesRequestedIdeaDesign}=require('../lib/ai/ideas.ts');
+for (const [interest, accepted, rejected] of [
+  ['Quero fazer uma coorte retrospectiva sobre diabetes', 'Estudo de coorte retrospectiva', 'Coorte prospectiva'],
+  ['Estudo transversal sobre sono', 'Estudo transversal', 'Coorte'],
+  ['Quero fazer um estudo caso-controle sobre tabagismo', 'Caso-controle', 'Estudo transversal'],
+  ['Revisão sistemática sobre adesão ao tratamento', 'Revisão sistemática com meta-análise', 'Revisão narrativa'],
+  ['Quiero hacer una revisión de alcance sobre atención primaria', 'Revisión de alcance', 'Revisión sistemática'],
+]) {
+  const request = {...context, workType:'open', interest};
+  assert(requestedIdeaDesign(request), interest);
+  assert(matchesRequestedIdeaDesign(accepted, request), accepted);
+  assert(!matchesRequestedIdeaDesign(rejected, request), rejected);
+  assert.match(automaticIdeasPrompt(request),/DESENHO OBRIGATÓRIO DAS TRÊS PROPOSTAS/);
+}
+for (const interest of ['Não quero fazer coorte', 'Quero comparar coorte e estudo transversal', 'Resultados publicados de uma coorte']) {
+  assert.equal(requestedIdeaDesign({...context, workType:'open', interest}),undefined,interest);
+}
+console.log('PASS: named research designs preserve subtype and handle comparative and negative requests.');

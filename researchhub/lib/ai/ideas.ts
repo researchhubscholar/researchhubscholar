@@ -143,10 +143,26 @@ export function isAIIdeasDraft(value: unknown): value is AIIdeasDraft {
       && draftFields.every(field => typeof (proposal as Record<string, unknown>)[field] === "string" && String((proposal as Record<string, unknown>)[field]).trim().length >= 8));
 }
 
-export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[]): AIIdeasOutput {
+function languageNeutralDesignSupport(proposal: AIIdeaDraftProposal): Partial<AIProposal> {
+  return {
+    justification: proposal.objective,
+    feasibility: proposal.methods,
+    limitations: proposal.eligibility,
+    resources: proposal.methods,
+    difficulty: proposal.eligibility,
+    steps: proposal.methods,
+    refinements: [proposal.question, proposal.outcome],
+    unresolved: [proposal.eligibility ?? proposal.population, proposal.variables],
+    plan: [proposal.methods, proposal.analysis],
+  };
+}
+
+export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[], context?: Context): AIIdeasOutput {
   if (!current.length) throw new Error("Não há propostas-base para completar a geração.");
   const proposals = draft.proposals.map((proposal, index): AIProposal => {
     const base = current[index] || current[0];
+    const specific = context && requestedIdeaDesign(context);
+    const guidance = specific ? languageNeutralDesignSupport(proposal) : {};
     return {
       ...proposal,
       radar: ideaRadarQuery(proposal.radar),
@@ -161,6 +177,7 @@ export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[]): AIId
       refinements: base.refinements,
       unresolved: base.unresolved,
       plan: base.plan,
+      ...guidance,
     };
   });
   const output = { proposals, caution: draft.caution };
@@ -330,6 +347,59 @@ REGRAS DE QUALIDADE
 - A cautela final deve exigir validação metodológica, ética, bibliográfica e do orientador.`;
 }
 
+const specificDesigns = [
+  { pattern: /\b(?:coorte retrospectiva|cohorte retrospectiva|retrospective cohort)\b/, group: "original", guidance: "Defina a exposição e a data inicial em registros existentes, com desfecho documentado posteriormente." },
+  { pattern: /\b(?:coorte prospectiva|cohorte prospectiva|prospective cohort)\b/, group: "original", guidance: "Defina a exposição inicial, o seguimento futuro e a janela de observação do desfecho." },
+  { pattern: /\b(?:coorte|cohorte|cohort)\b/, group: "original", guidance: "Defina uma população inicial, a exposição, a sequência temporal e a janela de seguimento." },
+  { pattern: /\b(?:caso[ -]controle|casos? (?:y|e|com) controles?|case[ -]control)\b/, group: "original", guidance: "Selecione casos e controles a partir da mesma população de origem e defina como recuperar a exposição anterior." },
+  { pattern: /\b(?:transversal|cross[ -]sectional)\b/, group: "original", guidance: "Meça exposição e desfecho em um mesmo recorte temporal e evite inferência causal." },
+  { pattern: /\b(?:(?:revisao|revision) sistematica|systematic review)\b/, group: "review", guidance: "Defina elegibilidade, busca, seleção e risco de viés. Meta-análise depende da comparabilidade dos estudos." },
+  { pattern: /\b(?:(?:revisao|revision) de (?:escopo|alcance)|scoping review)\b/, group: "review", guidance: "Mapeie conceitos, características e lacunas da literatura com critérios explícitos de inclusão." },
+  { pattern: /\b(?:(?:revisao|revision) integrativa|integrative review)\b/, group: "review", guidance: "Defina busca, seleção e síntese de evidências de desenhos variados." },
+  { pattern: /\b(?:(?:revisao|revision) narrativa|narrative review)\b/, group: "review", guidance: "Delimite o escopo e explicite como as fontes serão escolhidas e sintetizadas." },
+  { pattern: /\b(?:ensaio (?:clinico )?(?:controlado )?randomizado|ensayo (?:clinico )?(?:controlado )?aleatorizado|randomized (?:controlled |clinical )?trial)\b/, group: "original", guidance: "Defina intervenção, comparador, randomização e desfecho. Confirme acesso, equipe, viabilidade e aprovação ética." },
+  { pattern: /\b(?:(?:estudo |estudio )?qualitativ[oa]|qualitative (?:study|research))\b/, group: "original", guidance: "Defina amostragem intencional, coleta qualitativa e método de análise interpretativa." },
+] as const;
+
+function normalizedDesignText(text: string) {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[–—]/g, "-").trim();
+}
+
+export function requestedIdeaDesign(context: Context) {
+  const interest = normalizedDesignText(context.interest);
+  const matches = specificDesigns.flatMap(design => {
+    const match = design.pattern.exec(interest);
+    if (!match) return [];
+    const before = interest.slice(0, match.index).split(/[.!?;\n]/).at(-1) ?? "";
+    if (/\b(?:nao|sem|no|not|without|evitar)\b[^.!?;]{0,55}$/.test(before)) return [];
+    const explicit = /^(?:(?:uma?|un[ao]?|a|an)\s+)?(?:(?:estudo|estudio|study)(?:\s+de)?)?$/.test(before.trim()) ||
+      /\b(?:quero|gostaria de|fazer|propor|formato|desenho|tipo|como|via|quiero|hacer|diseno|write|design|conduct)\b[^.!?;]{0,65}$/.test(before);
+    if (!explicit || context.workType === "case" ||
+        (context.workType === "review" && design.group !== "review") ||
+        (context.workType === "original" && design.group !== "original")) return [];
+    return [{ ...design, label: match[0], index: match.index }];
+  });
+  matches.sort((a, b) => a.index - b.index || b.label.length - a.label.length);
+  const first = matches[0];
+  // A specific subtype can also match its parent at the same location.
+  if (!first || matches.some(item => item.index >= first.index + first.label.length)) return undefined;
+  return first;
+}
+
+export function matchesRequestedIdeaDesign(studyType: string, context: Context) {
+  const design = requestedIdeaDesign(context);
+  if (!design) return true;
+  const label = normalizedDesignText(studyType);
+  const match = design.pattern.exec(label);
+  if (!match || /\b(?:ou|or|alternativa|option)\b|\//.test(label)) return false;
+  return !specificDesigns.some(other => {
+    if (other.pattern === design.pattern) return false;
+    const competing = other.pattern.exec(label);
+    return competing && (other.group !== design.group || competing.index < match.index ||
+      competing.index >= match.index + match[0].length);
+  });
+}
+
 export function matchesRequestedIdeaFormat(studyType: string, workType: Context["workType"]) {
   const label = studyType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   if (workType === "case") return /^(?:relato (?:de caso|clinico)|reporte (?:de caso|clinico)|caso clinico|(?:clinical )?case report)$/.test(label);
@@ -346,6 +416,7 @@ export function automaticIdeasPrompt(context: Context, language: OutputLanguage 
     open: "", residency: "",
   };
   const format = formats[context.workType ?? "open"];
+  const design = requestedIdeaDesign(context);
   return `Você é um pesquisador sênior em epidemiologia clínica, metodologia científica e bioestatística aplicada à saúde. Converta as condições informadas em três propostas de pesquisa completas, específicas e defensáveis perante um orientador ou banca.
 
 ${sharedRules(language)}
@@ -355,6 +426,7 @@ ${JSON.stringify(context)}
 
 PROCESSO OBRIGATÓRIO
 ${format ? `- FORMATO OBRIGATÓRIO: ${format} Varie os recortes dentro desse formato.` : ""}
+${design ? `- DESENHO OBRIGATÓRIO DAS TRÊS PROPOSTAS: ${design.label}. Use seu nome no campo studyType no idioma da saída. Mantenha desenho, pergunta, métodos e análise coerentes. ${design.guidance} Se faltarem dados ou acesso, indique o que confirmar em cada proposta, sem trocar o desenho.` : ""}
 - Antes de escrever, avalie internamente pelo menos cinco direções plausíveis: frequência, fatores associados, experiência, diagnóstico, prognóstico, organização do cuidado, intervenção ou síntese de evidências. Não apresente esse rascunho na resposta.
 - Descarte caminhos triviais, duplicados, amplos demais, incompatíveis com o acesso ou inviáveis no prazo.
 - Entregue exatamente três propostas substancialmente distintas: MAIS VIÁVEL, MAIS RELEVANTE e MAIS INOVADORA, nesta ordem.

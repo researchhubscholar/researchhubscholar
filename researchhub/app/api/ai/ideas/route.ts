@@ -7,7 +7,7 @@ import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wal
 import { NextResponse } from "next/server";
 import { generateText, Output, jsonSchema, type JSONSchema7 } from "ai";
 import { scholarAI, scholarAIProviderOptions, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback, providerErrorDiagnostic } from "@/lib/ai/config";
-import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, matchesRequestedIdeaFormat, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
+import { aiIdeasDraftJsonSchema, automaticIdeasPrompt, matchesRequestedIdeaFormat, matchesRequestedIdeaDesign, requestedIdeaDesign, completeAIIdeasDraft, isAIProposal, isAIIdeasDraft, isAIIdeasOutput, mergeAIProposals, proposalQualityIssues, proposalStructureIssues, type AIIdeasOutput, validateIdeasRequest } from "@/lib/ai/ideas";
 import { outputBudget, promptForJson } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -134,6 +134,9 @@ export async function POST(request: Request) {
     if (artifactError) throw artifactError;
 
     if (license.mode === "simulation") {
+      if (requestedIdeaDesign(input.context) && input.ideas.some(idea => !matchesRequestedIdeaDesign(idea.studyType, input.context))) {
+        throw new Error("Este desenho específico precisa de uma geração com IA para criar propostas coerentes.");
+      }
       const simulated = { proposals: input.ideas, caution: localizeInterfaceCopy(input.language==="es"?"es":"pt-BR", "Simulação concluída: o fluxo, a franquia e o histórico foram validados sem enviar dados a um modelo de IA.") };
       const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: simulated }).eq("usage_id", operationId);
       if (updateError) throw updateError;
@@ -144,10 +147,10 @@ export async function POST(request: Request) {
     }
 
     const generation = await generateStructured(aiIdeasDraftJsonSchema, automaticIdeasPrompt(input.context, input.language), 4_300, isAIIdeasDraft, value => { metering = providerMetering(value) || metering; });
-    const output: AIIdeasOutput = completeAIIdeasDraft(generation.output, input.ideas);
+    const output: AIIdeasOutput = completeAIIdeasDraft(generation.output, input.ideas, input.context);
     if (!Array.isArray(output.proposals) || output.proposals.length !== 3) throw new Error("A IA não retornou as três propostas esperadas.");
     for (const proposal of output.proposals) {
-      if (!matchesRequestedIdeaFormat(proposal.studyType, input.context.workType)) throw new Error("A IA não respeitou o formato de pesquisa solicitado. Tente novamente.");
+      if (!matchesRequestedIdeaFormat(proposal.studyType, input.context.workType) || !matchesRequestedIdeaDesign(proposal.studyType, input.context)) throw new Error("A IA não respeitou o formato de pesquisa solicitado. Tente novamente.");
       const structureIssues = proposalStructureIssues(proposal);
       if (structureIssues.length || !isAIProposal(proposal)) throw new Error(`A IA deixou um campo científico incompleto: ${structureIssues[0] || "formato inválido"}`);
     }
