@@ -1,0 +1,15 @@
+export const campaignPhoneCountries = [
+  { country: "BR", label: "Brasil", code: "+55" },
+  { country: "AR", label: "Argentina", code: "+54" },
+  { country: "BO", label: "Bolívia", code: "+591" },
+  { country: "CL", label: "Chile", code: "+56" },
+  { country: "CO", label: "Colômbia", code: "+57" },
+  { country: "EC", label: "Equador", code: "+593" },
+  { country: "GY", label: "Guiana", code: "+592" },
+  { country: "GF", label: "Guiana Francesa", code: "+594" },
+  { country: "PY", label: "Paraguai", code: "+595" },
+  { country: "PE", label: "Peru", code: "+51" },
+  { country: "SR", label: "Suriname", code: "+597" },
+  { country: "UY", label: "Uruguai", code: "+598" },
+  { country: "VE", label: "Venezuela", code: "+58" },
+] as const;
