@@ -351,6 +351,24 @@
       ],
       "repeatability": "guarded-idempotent",
       "sha256": "702ae5eea76ae4173c0dddb0842dc2505a2b9b87fe86ce146ee9094e36a25ab7"
+    },
+    {
+      "file": "scholar_campaigns.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_commerce.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review",
+      "sha256": "31e3163f920b9bc8e5b0c2401c25b3ab00e0b646eeb8e969153a146d8354b2ba"
+    },
+    {
+      "file": "scholar_campaign_international_phone.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_campaigns.sql"
+      ],
+      "repeatability": "do-not-rerun-without-review",
+      "sha256": "6b2e64922bc641fadf571d98ab674422d6adc48fc80c3f2ebdba0223599b902d"
     }
   ]
 }
