@@ -287,14 +287,14 @@ export default function MeuTrabalhoPage() {
     <aside className="project-sidebar lg:sticky lg:top-24 self-start"><Link href="/dashboard" className="text-sm text-teal"><InterfaceText message="screen.66078a571c89" /></Link><p className="text-xs uppercase tracking-widest text-teal mt-6"><InterfaceText message="screen.1812f6cfbce8" /></p><h1 className="font-display text-2xl mt-2"><InterfaceText message="screen.5df5d223d15f" /></h1>
       <div className="mt-5 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal transition-all" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{progress}<InterfaceText message="screen.27cd64751050" /></p><p className="text-xs text-ink-soft mt-1"><InterfaceText message="screen.7d8d134c839c" /></p>
       <div role="status" className={`mt-4 rounded-card p-3 text-xs ${saveState === "saved" ? "bg-teal-soft text-teal" : saveState === "error" ? "bg-red-50 text-red-700" : "bg-white border border-line"}`}>{saveState === "loading" ? copy.waiting : dirty ? uiText("screen.da5585beca57") : saveState === "saved" ? copy.saved : saveState === "local" ? uiText("screen.caa4ae7d2e23") : loggedIn ? projectId ? copy.loaded : copy.draft : copy.signIn}</div>
-      <div className="mt-3 hidden lg:block"><button type="button" onClick={saveDraft} disabled={saveUnavailable} className="min-h-11 rounded-card bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saveAction}</button></div>
+      <div className="mt-2 hidden lg:block"><button type="button" onClick={saveDraft} disabled={saveUnavailable} className="min-h-11 rounded-card border border-line px-3 py-2 text-sm font-medium text-teal hover:bg-teal-soft disabled:opacity-50">{saveAction}</button></div>
       <nav aria-label={uiText("screen.8896ce31717e")} className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-1">{groups.map((g, i) => <a key={g.id} href={`#${g.id}`} className="text-sm rounded-card p-2 hover:bg-teal-soft"><span className="text-teal mr-2">{g.keys.every(k => draft[k].trim()) ? "✓" : String(i + 1).padStart(2, "0")}</span><AuthoredText text={g.title} /></a>)}</nav>{projectId && <Link href={radarHref} className="block text-sm text-teal mt-4"><InterfaceText message="screen.5f89d9da8dd0" /></Link>}<Link href="/biblioteca" className="block text-sm text-teal mt-3"><InterfaceText message="screen.238923bb78ef" /></Link>
     </aside>
     <div className="project-content">{loadedOwner && projectId && <RememberProjectStage ownerId={loadedOwner} projectId={projectId} stage="protocol" />}
       {loggedIn && !loadBlocked && (projectId || dirty) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
         <div className="min-w-0">
           <p role="status" className="font-semibold text-teal">{saveState === "loading" ? saveLabel.loading : saveFailed ? saveLabel.error : dirty ? saveLabel.pending : saveLabel.saved}</p>
-          <p className="mt-1 break-words text-sm text-ink-soft">{draft.theme}</p>
+          
         </div>
         {saveFailed && <button type="button" onClick={() => void saveDraft()} disabled={!draft.theme.trim()} className="min-h-11 rounded-card bg-teal px-4 py-2 font-semibold text-white disabled:opacity-50">
           {saveLabel.retry}
@@ -305,20 +305,21 @@ export default function MeuTrabalhoPage() {
         // Ask before switching all project-scoped tools together.
         requestWorkspaceNavigation(()=>window.location.assign(id ? `/meu-trabalho?id=${encodeURIComponent(id)}` : "/ideias"));
       }} />
-      <header id="project-save" className="scroll-mt-28 break-words rounded-2xl border border-line bg-white p-5 md:p-6">
+      <header id="project-save" className="scroll-mt-28 break-words rounded-t-2xl border border-b-0 border-line bg-white px-4 pb-4 pt-5 md:px-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-teal"><InterfaceText message="screen.3031ccff174b" /></p>
-        <h2 className="mt-2 font-display text-2xl text-ink md:text-3xl">{draft.theme || uiText("screen.7646d03e4108")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">{draft.question || uiText("screen.527e21e2234d")}</p>
+        <h2 className="mt-2 max-w-3xl font-display text-2xl leading-tight text-ink md:text-3xl">{draft.theme || uiText("screen.7646d03e4108")}</h2>
+        <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-soft">{draft.question || uiText("screen.527e21e2234d")}</p>
       </header>
-      <div style={{ top: headerHeight }} className="sticky z-30 mb-5 flex flex-wrap items-center gap-2 rounded-card border border-line bg-paper p-2 shadow-sm lg:relative lg:!top-auto lg:shadow-none">
+      <div style={{ top: headerHeight }} className="sticky z-30 mb-5 flex flex-wrap items-center gap-2 rounded-b-2xl border border-line bg-white px-3 py-2 shadow-sm lg:relative lg:!top-auto lg:shadow-none">
         <button type="button" onClick={saveDraft} disabled={saveUnavailable} className="min-h-11 rounded-card bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saveAction}</button>
         {projectId && <div className="hidden flex-wrap items-center gap-2 lg:flex">
           <Link href={radarHref} className="inline-flex min-h-11 items-center rounded-card border border-line bg-white px-3 text-sm text-teal"><InterfaceText message="screen.f16c50168fd4" /></Link>
           <Link href={`/manuscrito?projeto=${projectId}`} className="inline-flex min-h-11 items-center rounded-card border border-line bg-white px-3 text-sm text-teal"><InterfaceText message="screen.a7d6933f76d3" /></Link>
         </div>}
-        <details className="ml-auto">
-          <summary className="min-h-11 cursor-pointer rounded-card border border-line bg-white px-3 py-3 text-sm font-medium text-teal">
+        <details className="group ml-auto">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-card border border-line bg-white px-3 text-sm font-medium text-teal hover:bg-teal-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal [&::-webkit-details-marker]:hidden">
             {locale === "es" ? "Más herramientas" : "Mais ferramentas"}
+            <span aria-hidden="true" className="-mt-1 size-2 rotate-45 border-b border-r border-current group-open:mt-1 group-open:rotate-[225deg]" />
           </summary>
           <div className="absolute right-0 z-40 mt-1 max-h-[55dvh] w-72 max-w-full overflow-y-auto rounded-card border border-line bg-white p-2 shadow-lg">
             {projectId && <>
