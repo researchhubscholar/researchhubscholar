@@ -57,6 +57,16 @@ export default function MeuTrabalhoPage() {
   const copy = locale === "es"
     ? { waiting: "Espera…", saved: "✓ Guardado en tu cuenta", loaded: "Proyecto cargado", draft: "Nuevo borrador", signIn: "Inicia sesión para guardar en tu cuenta" }
     : { waiting: "Aguarde…", saved: "✓ Salvo na conta", loaded: "Projeto carregado", draft: "Novo rascunho", signIn: "Entre para salvar na conta" };
+  const [headerHeight, setHeaderHeight] = useState(0);
+  useEffect(() => {
+    const header = document.querySelector(".app-header");
+    if (!header) return;
+    const measure = () => setHeaderHeight(getComputedStyle(header).position === "sticky" ? header.clientHeight + 1 : 0);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const savingLock = useRef(false);
   const savedRevision = useRef<number|null>(null);
   const [loadBlocked,setLoadBlocked] = useState(false);
@@ -300,7 +310,7 @@ export default function MeuTrabalhoPage() {
         <h2 className="mt-2 font-display text-2xl text-ink md:text-3xl">{draft.theme || uiText("screen.7646d03e4108")}</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">{draft.question || uiText("screen.527e21e2234d")}</p>
       </header>
-      <div className="sticky top-0 z-30 mb-5 flex flex-wrap items-center gap-2 rounded-card border border-line bg-paper p-2 shadow-sm lg:relative lg:top-auto lg:shadow-none">
+      <div style={{ top: headerHeight }} className="sticky z-30 mb-5 flex flex-wrap items-center gap-2 rounded-card border border-line bg-paper p-2 shadow-sm lg:relative lg:!top-auto lg:shadow-none">
         <button type="button" onClick={saveDraft} disabled={saveUnavailable} className="min-h-11 rounded-card bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saveAction}</button>
         {projectId && <div className="hidden flex-wrap items-center gap-2 lg:flex">
           <Link href={radarHref} className="inline-flex min-h-11 items-center rounded-card border border-line bg-white px-3 text-sm text-teal"><InterfaceText message="screen.f16c50168fd4" /></Link>
