@@ -369,6 +369,15 @@
       ],
       "repeatability": "do-not-rerun-without-review",
       "sha256": "6b2e64922bc641fadf571d98ab674422d6adc48fc80c3f2ebdba0223599b902d"
+    },
+    {
+      "file": "scholar_review_mode.sql",
+      "kind": "schema",
+      "dependsOn": [
+        "scholar_safe_saves.sql"
+      ],
+      "repeatability": "guarded-idempotent",
+      "sha256": "c4d005e5d1b4e8ce708360f5958381e6a8ad84346f0029b48b8028b986b33652"
     }
   ]
 }

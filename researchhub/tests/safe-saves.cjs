@@ -19,6 +19,17 @@ const {saveError}=require('../lib/projects/save-errors.ts');assert(saveError({me
  const saved=await scalar('select scholar_save_protocol($1,$2,$3::jsonb)',[p.id,p.revision,'{"title":"Aba A"}']);
  await assert.rejects(db.query('select scholar_save_protocol($1,$2,$3::jsonb)',[p.id,p.revision,'{"title":"Aba B antiga"}']),/SCHOLAR_SAVE_CONFLICT/);assert.equal(await scalar('select title from research_projects where id=$1',[p.id]),'Aba A');
  await db.query("update research_projects set title='Cliente antigo' where id=$1",[p.id]);await assert.rejects(db.query('select scholar_save_protocol($1,$2,$3::jsonb)',[p.id,saved.revision,'{"title":"Não sobrescrever"}']),/SCHOLAR_SAVE_CONFLICT/);
+ await db.exec('reset role');
+ const reviewMigration=fs.readFileSync('supabase/scholar_review_mode.sql','utf8');
+ await db.exec(reviewMigration);
+ await db.exec(reviewMigration);
+ await as(U);
+ const review=await scalar('select scholar_save_protocol(null,null,$1::jsonb)',[JSON.stringify({title:'Revisão',study_type:'Estudos caso-controle',review_mode:'systematic'})]);
+ assert.deepEqual((await db.query('select study_type,review_mode from research_projects where id=$1',[review.id])).rows[0],{study_type:'Estudos caso-controle',review_mode:'systematic'});
+ const legacy=await scalar('select scholar_save_protocol($1,$2,$3::jsonb)',[review.id,review.revision,JSON.stringify({title:'Revisão editada',study_type:'Estudos caso-controle'})]);
+ assert.equal(await scalar('select review_mode from research_projects where id=$1',[review.id]),'systematic');
+ await assert.rejects(db.query('select scholar_save_protocol($1,$2,$3::jsonb)',[review.id,legacy.revision,JSON.stringify({title:'Revisão',review_mode:'invalid'})]),/check constraint/);
+ assert.equal(await scalar('select review_mode from research_projects where id=$1',[review.id]),'systematic');
  const results=await scalar('select scholar_save_results($1,null,$2::jsonb)',[p.id,'{"notes":"A"}']);
  await assert.rejects(db.query('select scholar_save_results($1,null,$2::jsonb)',[p.id,'{"notes":"B: pensava estar vazio"}']),/SCHOLAR_SAVE_CONFLICT/);
  const next=await scalar('select scholar_save_results($1,$2,$3::jsonb)',[p.id,results.revision,'{"notes":"A2"}']);assert(next.revision>results.revision);

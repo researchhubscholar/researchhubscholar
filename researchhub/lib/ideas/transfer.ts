@@ -1,4 +1,6 @@
-const fields = ["theme", "question", "objective", "studyType", "population", "outcome", "hypothesis", "inclusion", "exclusion", "variables", "methods", "analysis", "ethics", "manuscript"] as const;
+import { reviewModes } from "../research/study-format";
+
+const fields = ["theme", "question", "objective", "studyType", "reviewMode", "population", "outcome", "hypothesis", "inclusion", "exclusion", "variables", "methods", "analysis", "ethics", "manuscript"] as const;
 export type TransferDraft = Partial<Record<typeof fields[number], string>>;
 export type TransferOrigin = {
   sourceType: "idea";
@@ -21,6 +23,7 @@ export function readIdeaTransfer(storage: Pick<Storage, "getItem">, ownerId: str
   if (data.ownerId !== ownerId || !data.draft || typeof data.draft !== "object") throw new Error("Esta proposta não pertence à conta atual.");
   const draft: TransferDraft = {};
   for (const field of fields) {
+    if (field === "reviewMode" && !reviewModes.some(mode => mode === data.draft[field])) continue;
     if (typeof data.draft[field] === "string") {
       if (data.draft[field].length > (field === "manuscript" ? 100000 : 30000)) throw new Error("A proposta está muito extensa. Reduza os textos no Ideias antes de transferir.");
       draft[field] = data.draft[field];

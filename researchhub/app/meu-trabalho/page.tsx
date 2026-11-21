@@ -32,9 +32,9 @@ import { buildProtocolDoc } from "@/lib/exports/scientific";
 import { protocolChecks } from "@/lib/research/checks";
 import { diagnoseProjectDraft, initialProjectMilestones, projectOriginRow } from "@/lib/projects/creation";
 
-type Draft = { theme: string; question: string; objective: string; studyType: string; population: string; outcome: string; hypothesis: string; inclusion: string; exclusion: string; variables: string; methods: string; analysis: string; ethics: string; manuscript: string };
+type Draft = { theme: string; question: string; objective: string; studyType: string; reviewMode: string; population: string; outcome: string; hypothesis: string; inclusion: string; exclusion: string; variables: string; methods: string; analysis: string; ethics: string; manuscript: string };
 type SaveState = "loading" | "idle" | "saved" | "local" | "error";
-const empty: Draft = { theme: "", question: "", objective: "", studyType: "Observacional transversal", population: "", outcome: "", hypothesis: "", inclusion: "", exclusion: "", variables: "", methods: "", analysis: "", ethics: "", manuscript: "" };
+const empty: Draft = { theme: "", question: "", objective: "", studyType: "Observacional transversal", reviewMode: "", population: "", outcome: "", hypothesis: "", inclusion: "", exclusion: "", variables: "", methods: "", analysis: "", ethics: "", manuscript: "" };
 const groups: { id: string; title: string; keys: (keyof Draft)[] }[] = [
   { id: "pergunta", title: "Tema e pergunta", keys: ["theme", "question"] },
   { id: "objetivos", title: "Objetivo e hipótese", keys: ["objective"] },
@@ -43,8 +43,8 @@ const groups: { id: string; title: string; keys: (keyof Draft)[] }[] = [
   { id: "metodos", title: "Métodos, análise e ética", keys: ["methods", "analysis", "ethics"] },
   { id: "manuscrito", title: "Planejamento do manuscrito", keys: ["manuscript"] },
 ];
-const labels: Record<keyof Draft, string> = { theme: "Tema do trabalho", question: "Pergunta de pesquisa", objective: "Objetivo geral", studyType: "Desenho do estudo", population: "População", outcome: "Desfecho principal", hypothesis: "Hipótese ou pressuposto (quando aplicável)", inclusion: "Critérios de inclusão", exclusion: "Critérios de exclusão", variables: "Variáveis e formas de medir", methods: "Procedimentos e coleta de dados", analysis: "Plano de análise", ethics: "Considerações éticas", manuscript: "Plano e notas do manuscrito" };
-const columns: Record<keyof Draft, string> = { theme: "theme", question: "research_question", objective: "objective", studyType: "study_type", population: "population", outcome: "primary_outcome", hypothesis: "hypothesis", inclusion: "inclusion_criteria", exclusion: "exclusion_criteria", variables: "variables", methods: "methods", analysis: "analysis_plan", ethics: "ethics_notes", manuscript: "manuscript_notes" };
+const labels: Record<keyof Draft, string> = { theme: "Tema do trabalho", question: "Pergunta de pesquisa", objective: "Objetivo geral", studyType: "Desenho do estudo", reviewMode: "Modalidade de revisão", population: "População", outcome: "Desfecho principal", hypothesis: "Hipótese ou pressuposto (quando aplicável)", inclusion: "Critérios de inclusão", exclusion: "Critérios de exclusão", variables: "Variáveis e formas de medir", methods: "Procedimentos e coleta de dados", analysis: "Plano de análise", ethics: "Considerações éticas", manuscript: "Plano e notas do manuscrito" };
+const columns: Record<keyof Draft, string> = { theme: "theme", question: "research_question", objective: "objective", studyType: "study_type", reviewMode: "review_mode", population: "population", outcome: "primary_outcome", hypothesis: "hypothesis", inclusion: "inclusion_criteria", exclusion: "exclusion_criteria", variables: "variables", methods: "methods", analysis: "analysis_plan", ethics: "ethics_notes", manuscript: "manuscript_notes" };
 const selection = "*";
 function fromRecord(record: Record<string, unknown>): Draft {
   const draft = { ...empty };
@@ -207,6 +207,12 @@ export default function MeuTrabalhoPage() {
       const creatingProject = !projectId;
       const payload: Record<string, unknown> = { owner_id: auth.user.id, title: draft.theme.trim(), progress, status: projectStatus };
       (Object.keys(columns) as (keyof Draft)[]).forEach(key => { payload[columns[key]] = draft[key].trim() || null; });
+      if (draft.reviewMode) {
+        const { error: schemaError } = await db.from("research_projects").select("review_mode").limit(0);
+        if (schemaError) throw new Error(locale === "es"
+          ? "La modalidad de revisión requiere la actualización de la base de datos."
+          : "A modalidade de revisão requer a atualização do banco de dados.");
+      }
       const { data, error } = await db.rpc("scholar_save_protocol", {p_project:projectId,p_expected:savedRevision.current,p_data:payload});
       if(error || !data) throw saveError(error);
       savedRevision.current=data.revision;
@@ -279,7 +285,8 @@ export default function MeuTrabalhoPage() {
     ...(["review", "systematic"].includes(studyFormat(draft.studyType)) ? ["Na revisão, defina bases, estratégia de busca, critérios de seleção e avaliação crítica."] : ["No estudo com dados ou participantes, registre autorizações, proteção dos dados e avaliação ética aplicável."]),
     "Confira com o orientador se pergunta, objetivo, desfecho e método respondem à mesma questão.",
   ];
-  const reviewMode = explicitReviewMode(draft.studyType);
+  const selectedReviewMode = reviewModes.find(mode => mode === draft.reviewMode);
+  const reviewMode = selectedReviewMode || explicitReviewMode(draft.studyType);
   const radarHref = projectId ? projectRadarHref(projectId, draft.theme, draft.question) : "/descobrir";
   if(needsSelection || loadBlocked) return <div className="scholar-workspace max-w-4xl mx-auto"><h1 className="font-display text-3xl"><InterfaceText message="screen.bd7ac23aaa63" /></h1><p role={loadBlocked?"alert":"status"} className="my-4 text-sm">{message||uiText("screen.ebd983933c92")}</p><ProjectSwitcher emptyLabel="Selecione um projeto" ownerId={loadedOwner} projectId={null} title="" busy={false} dirty={false} onSave={()=>{}} onSelect={id=>requestWorkspaceNavigation(()=>window.location.assign(id?`/meu-trabalho?id=${encodeURIComponent(id)}`:"/ideias"))}/></div>;
   const saveUnavailable = loadBlocked || saveState === "loading";
@@ -337,14 +344,14 @@ export default function MeuTrabalhoPage() {
       <section className="my-4 rounded-card border border-line bg-paper p-4">
         <label className="block text-sm font-medium">
           {locale === "es" ? "Modalidad de revisión" : "Modalidade de revisão"}
-          <select className="mt-2 block min-h-11 rounded-card border border-line bg-white px-3" value={reviewMode || ""}
+          <select className="mt-2 block min-h-11 rounded-card border border-line bg-white px-3" value={selectedReviewMode || ""}
             disabled={saveUnavailable} onChange={event => {
               const mode = reviewModes.find(value => value === event.target.value);
-              if (!mode || mode === reviewMode) return;
-              if (draft.studyType.trim() && !window.confirm(locale === "es" ? "¿Cambiar el diseño a esta modalidad de revisión?" : "Alterar o desenho para esta modalidade de revisão?")) return;
-              change("studyType", reviewModeLabel(mode, "pt-BR"));
+              if ((mode || "") === draft.reviewMode) return;
+              if (selectedReviewMode && !window.confirm(locale === "es" ? "¿Cambiar la modalidad de revisión?" : "Alterar a modalidade de revisão?")) return;
+              change("reviewMode", mode || "");
             }}>
-            <option value="" disabled>{locale === "es" ? "Selecciona si tu proyecto es una revisión" : "Selecione se o projeto for uma revisão"}</option>
+            <option value="">{locale === "es" ? "Selecciona si tu proyecto es una revisión" : "Selecione se o projeto for uma revisão"}</option>
             {reviewModes.map(mode => <option key={mode} value={mode}>{reviewModeLabel(mode, locale)}</option>)}
           </select>
         </label>
