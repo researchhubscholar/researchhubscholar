@@ -1,4 +1,7 @@
 "use client";
+import { EvidenceHandoffReview } from "@/components/library/evidence-handoff-review";
+import { verifyEvidenceAnchor } from "@/lib/literature/provenance";
+import type { ProjectEvidenceDraft } from "@/lib/literature/project-evidence-handoff";
 import MethodReview from "@/components/research/method-review";
 import { manuscriptReview } from "@/lib/research/method-review";
 import { studyFormat } from "@/lib/research/study-format";
@@ -81,6 +84,9 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
  const {locale:formatLocale}=useLanguage();
 
   const { t: uiText, locale } = useLanguage();
+  const [reviewArticleId, setReviewArticleId] = useState("");
+  const reviewSources = useMemo(() => articles.filter(article => article.id === reviewArticleId && article.abstract)
+    .map(article => ({ articleId: article.id, title: article.title, abstract: article.abstract || "", pmid: article.pmid, doi: article.doi })), [articles, reviewArticleId]);
   const [includeStudyTable, setIncludeStudyTable] = useState(false);
   const studyType = project.study_type || "";
   const systematicReview = studyFormat(studyType) === "systematic";
@@ -266,6 +272,34 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     setSections(snapshot.sections as Section[]); setDirty(true); setMessage(`A versão “${version.label}” foi carregada. Salve para confirmar a restauração.`);
   }
 
+  function applyReviewedEvidence(drafts: ProjectEvidenceDraft[]) {
+    if (!canEdit || currentUserId !== ownerId || saving) return false;
+    const current = stateRef.current;
+    const nextIds = [...current.citationIds];
+    const nextSections = current.sections.map(section => ({ ...section }));
+    for (const draft of drafts) {
+      const article = articles.find(item => item.id === draft.articleId);
+      const key = draft.destination === "introduction_background" ? "introduction"
+        : draft.destination === "discussion_evidence" ? "discussion" : null;
+      const section = nextSections.find(item => item.section_key === key);
+      if (draft.projectId !== project.id || !section || !article?.abstract
+        || draft.quote !== draft.provenance.excerpt || !verifyEvidenceAnchor(article.abstract, draft.provenance)) return false;
+      if (!nextIds.includes(article.id)) nextIds.push(article.id);
+      const citation = current.citationStyle === "vancouver" ? `[${nextIds.indexOf(article.id) + 1}]`
+        : `(${firstAuthor(article)} et al., ${article.publication_year || "s.d."})`;
+      const paragraph = `“${draft.quote}” ${citation}`;
+      if (!section.content.split("\n").includes(paragraph)) {
+        section.content += (section.content ? "\n\n" : "") + paragraph;
+      }
+    }
+    discardedEdits.current = false;
+    setSections(nextSections);
+    setCitationIds(nextIds);
+    setDirty(true);
+    setMessage("Evidências inseridas. O salvamento automático está ativo.");
+    return true;
+  }
+
   function cite(article: Article) {
     const nextIds = citationIds.includes(article.id) ? citationIds : [...citationIds, article.id];
     const number = nextIds.indexOf(article.id) + 1;
@@ -416,7 +450,16 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : (locale === "es" ? "Modo tutor" : "Modo orientador")}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? uiText("screen.6424012e691b") : uiText("screen.0b9e5ce314ac")}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? uiText("screen.308caaa0071a") : uiText("screen.e5176e8da85c")}</p></section>
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c9bbe9cc2ae9" /></p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} <InterfaceText message="screen.8f3948a298a3" /></p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.f662cb9a3b0a" /></p><p role="status" aria-live="polite" className="mt-1"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p></div></aside>
 
-    <div className="min-w-0 space-y-5">{canEdit ? <section className="bg-white border border-line rounded-2xl p-5 md:p-7"><div className="grid md:grid-cols-2 gap-4"><label className="md:col-span-2 text-sm font-medium">Título científico<input disabled={!canEdit} value={title} onChange={event => markMetadata(setTitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper text-lg disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium">Subtítulo — opcional<input disabled={!canEdit} value={subtitle} onChange={event => markMetadata(setSubtitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium"><InterfaceText message="screen.f52a850c03ed" /><textarea disabled={!canEdit} rows={3} value={authors} onChange={event => markMetadata(setAuthors, event.target.value)} placeholder={uiText("screen.ee1a720dc6d2")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium"><InterfaceText message="screen.46d243b94d8f" /><textarea disabled={!canEdit} rows={3} value={affiliations} onChange={event => markMetadata(setAffiliations, event.target.value)} placeholder={uiText("screen.2d84d8ac6ac8")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium"><InterfaceText message="screen.8cb5dd5f1884" /><input disabled={!canEdit} value={keywords} onChange={event => markMetadata(setKeywords, event.target.value)} placeholder={uiText("screen.a40639e5b1ef")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium">Tipo de manuscrito<select disabled={!canEdit} value={articleType} onChange={event => markMetadata(setArticleType, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70"><option value="original"><InterfaceText message="screen.404d8200a903" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case-report"><InterfaceText message="screen.60a84ae8356a" /></option><option value="brief-report"><InterfaceText message="screen.4484d881cafb" /></option></select></label><label className="text-sm font-medium"><InterfaceText message="screen.a4d0e398273d" /><input disabled={!canEdit} value={targetJournal} onChange={event => markMetadata(setTargetJournal, event.target.value)} placeholder={uiText("screen.bb2d5272a8e8")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label></div></section> : <header className="border-b border-line pb-5"><h2 className="font-display text-2xl">{title}</h2>{subtitle&&<p className="mt-2">{subtitle}</p>}{authors&&<p className="mt-2 text-sm text-ink-soft whitespace-pre-line">{authors}</p>}</header>}
+    <div className="min-w-0 space-y-5">{canEdit && articles.some(article => article.abstract?.trim()) && <details className="rounded-2xl border border-line bg-white p-5">
+      <summary className="cursor-pointer font-medium">Inserir evidências da literatura</summary>
+      <label className="mt-4 block text-sm">Artigo vinculado ao projeto
+        <select className="mt-2 block w-full rounded-card border border-line bg-paper p-2" value={reviewArticleId} onChange={event => setReviewArticleId(event.target.value)}>
+          <option value="">Selecione um artigo</option>
+          {articles.filter(article => article.abstract?.trim()).map(article => <option key={article.id} value={article.id}>{article.title}</option>)}
+        </select>
+      </label>
+      {reviewSources.length > 0 && <div className="mt-4"><EvidenceHandoffReview key={reviewArticleId} projectId={project.id} sources={reviewSources} disabled={saving} onApply={applyReviewedEvidence} /></div>}
+    </details>}{canEdit ? <section className="bg-white border border-line rounded-2xl p-5 md:p-7"><div className="grid md:grid-cols-2 gap-4"><label className="md:col-span-2 text-sm font-medium">Título científico<input disabled={!canEdit} value={title} onChange={event => markMetadata(setTitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper text-lg disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium">Subtítulo — opcional<input disabled={!canEdit} value={subtitle} onChange={event => markMetadata(setSubtitle, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium"><InterfaceText message="screen.f52a850c03ed" /><textarea disabled={!canEdit} rows={3} value={authors} onChange={event => markMetadata(setAuthors, event.target.value)} placeholder={uiText("screen.ee1a720dc6d2")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium"><InterfaceText message="screen.46d243b94d8f" /><textarea disabled={!canEdit} rows={3} value={affiliations} onChange={event => markMetadata(setAffiliations, event.target.value)} placeholder={uiText("screen.2d84d8ac6ac8")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="md:col-span-2 text-sm font-medium"><InterfaceText message="screen.8cb5dd5f1884" /><input disabled={!canEdit} value={keywords} onChange={event => markMetadata(setKeywords, event.target.value)} placeholder={uiText("screen.a40639e5b1ef")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label><label className="text-sm font-medium">Tipo de manuscrito<select disabled={!canEdit} value={articleType} onChange={event => markMetadata(setArticleType, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70"><option value="original"><InterfaceText message="screen.404d8200a903" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case-report"><InterfaceText message="screen.60a84ae8356a" /></option><option value="brief-report"><InterfaceText message="screen.4484d881cafb" /></option></select></label><label className="text-sm font-medium"><InterfaceText message="screen.a4d0e398273d" /><input disabled={!canEdit} value={targetJournal} onChange={event => markMetadata(setTargetJournal, event.target.value)} placeholder={uiText("screen.bb2d5272a8e8")} className="block w-full mt-2 border border-line rounded-card p-3 bg-paper disabled:opacity-70" /></label></div></section> : <header className="border-b border-line pb-5"><h2 className="font-display text-2xl">{title}</h2>{subtitle&&<p className="mt-2">{subtitle}</p>}{authors&&<p className="mt-2 text-sm text-ink-soft whitespace-pre-line">{authors}</p>}</header>}
       {sections.map(section => {
         const sectionComments = comments.filter(comment => comment.section_key === section.section_key);
         const sectionOpen = sectionComments.filter(comment => comment.status === "open").length;

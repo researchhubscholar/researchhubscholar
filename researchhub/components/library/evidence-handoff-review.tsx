@@ -5,25 +5,20 @@ import { buildEvidenceMatrixPreview, type MatrixSource } from "@/lib/literature/
 import { type EvidenceReviewDecision } from "@/lib/literature/evidence-review";
 import {
   prepareProjectEvidenceHandoff, type LiteratureDestination,
-  type ProjectHandoffChoice, type ProjectHandoffPreview,
+  type ProjectHandoffChoice, type ProjectHandoffPreview, type ProjectEvidenceDraft,
 } from "@/lib/literature/project-evidence-handoff";
 
-/**
- * IA-10: controlled, preview-only review workspace. It deliberately has
- * no write callback, network request, or result/manuscript mutation.
- * Parent must load and authorize project-owned sources before rendering.
- */
 const destinationOptions: { value: LiteratureDestination; label: string }[] = [
   { value: "literature_notes", label: "Notas da literatura" },
   { value: "introduction_background", label: "Contextualização da introdução" },
   { value: "discussion_evidence", label: "Evidências para a discussão" },
 ];
 
-type Props = { projectId: string; sources: MatrixSource[]; disabled?: boolean };
+type Props = { projectId: string; sources: MatrixSource[]; disabled?: boolean; onApply?: (drafts: ProjectEvidenceDraft[]) => boolean };
 type Decision = "accept_quote" | "reject_quote";
 type Choice = { action?: Decision; destination: LiteratureDestination; confirmed: boolean };
 
-export function EvidenceHandoffReview({ projectId, sources, disabled = false }: Props) {
+export function EvidenceHandoffReview({ projectId, sources, disabled = false, onApply }: Props) {
   const [entries, setEntries] = useState<Record<string, Choice>>({});
   const [preview, setPreview] = useState<ProjectHandoffPreview | null>(null);
   const [error, setError] = useState("");
@@ -32,12 +27,14 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
     catch { return { value: null, error: "Não foi possível preparar as evidências. Revise os artigos selecionados." }; }
   }, [sources]);
   useEffect(() => { setEntries({}); setPreview(null); setError(""); }, [projectId, sources]);
+  const destinations = onApply ? destinationOptions.slice(1) : destinationOptions;
+  const defaultDestination = destinations[0].value;
   const cells = useMemo(() => matrix.value?.rows.flatMap(row =>
     row.cells.map((cell, index) => ({ row, cell, index, key: row.articleId + ":" + index }))) ?? [], [matrix]);
 
   function edit(key: string, patch: Partial<Choice>) {
     setEntries(current => ({
-      ...current, [key]: { ...current[key], destination: patch.destination ?? current[key]?.destination ?? "literature_notes",
+      ...current, [key]: { ...current[key], destination: patch.destination ?? current[key]?.destination ?? defaultDestination,
         confirmed: patch.confirmed ?? current[key]?.confirmed ?? false,
         action: patch.action ?? current[key]?.action },
     }));
@@ -86,7 +83,7 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
     </div>
     <div className="space-y-4">
       {cells.map(item => {
-        const current = entries[item.key] || { destination: "literature_notes", confirmed: false };
+        const current = entries[item.key] || { destination: defaultDestination, confirmed: false };
         return <article key={item.key} className="rounded-card border border-line bg-paper p-4 space-y-3">
           <div className="flex flex-wrap justify-between gap-2">
             <p className="font-medium text-sm text-ink">{item.row.title}</p>
@@ -102,7 +99,7 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
           {current.action === "accept_quote" && <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor={"dest-" + item.key}>Destino proposto (somente literatura)</label>
             <select id={"dest-" + item.key} disabled={disabled} value={current.destination} onChange={event => edit(item.key, { destination: event.target.value as LiteratureDestination, confirmed: false })} className="w-full rounded-card border border-line bg-white px-3 py-2 text-sm text-ink">
-              {destinationOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              {destinations.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
             <label className="flex items-start gap-2 text-xs text-ink-soft"><input type="checkbox" disabled={disabled} checked={current.confirmed} onChange={event => edit(item.key, { confirmed: event.target.checked })}/> Confirmo o destino da evidência publicada. Ela não será tratada como resultado original da minha pesquisa.</label>
           </div>}
@@ -121,7 +118,14 @@ export function EvidenceHandoffReview({ projectId, sources, disabled = false }: 
           <span className="block mt-1">{draft.quote}</span>
         </li>)}
       </ul>
-      <p className="text-xs text-ink-soft">A confirmação final e o salvamento autenticado ainda não foram habilitados. Revise as interpretações científicas antes de utilizar qualquer conteúdo.</p>
+      {onApply && <button type="button" disabled={disabled || !preview.drafts.length || !!preview.blocked.length}
+        onClick={() => {
+          if (onApply(preview.drafts)) { setPreview(null); setEntries({}); }
+          else setError("Não foi possível inserir os trechos. Confira as fontes vinculadas ao projeto.");
+        }}
+        className="rounded-card bg-teal px-4 py-2 text-sm text-white disabled:opacity-50">
+        Confirmar e inserir no manuscrito
+      </button>}
     </div>}
   </section>;
 }
