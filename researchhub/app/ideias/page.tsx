@@ -1,6 +1,6 @@
 "use client";
+import { explicitReviewMode, reviewModeLabel, reviewModes, studyFormatText, type ReviewMode } from "@/lib/research/study-format";
 import { appliedPubmedStrategy } from "@/lib/literature/search-limits";
-import { studyFormatText } from "@/lib/research/study-format";
 import { intlLocale } from "@/lib/i18n/format";
 
 import { dialogCopy } from "@/lib/i18n/interface-copy";
@@ -260,13 +260,13 @@ export default function IdeasPage() {
     setIdeaOrigins({ [row.proposal.id]: { sourceKey: `idea-version:${row.id}` } });
   }
 
-  function transfer(idea: Idea, savedVersion?: SavedIdea) {
+  function transfer(idea: Idea, savedVersion?: SavedIdea, reviewMode?: ReviewMode) {
     if ((!savedVersion && stale) || library.loading) return;
     try {
       const token = crypto.randomUUID();
       const tracked = ideaOrigins[idea.id];
       const sourceKey = savedVersion ? `idea-version:${savedVersion.id}` : tracked?.sourceKey || `idea:${proposalFingerprint(idea)}`;
-      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: tracked?.language, radarQuery: ideaRadarQuery(idea.radar) } }));
+      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: reviewMode && reviewMode !== explicitReviewMode(idea.studyType) ? reviewModeLabel(reviewMode, "pt-BR") : idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: tracked?.language, radarQuery: ideaRadarQuery(idea.radar) } }));
       router.push(`/meu-trabalho?origem=ideias&proposta=${encodeURIComponent(token)}`);
     } catch { setMessage("Não foi possível preparar a proposta. Tente novamente."); }
   }
@@ -373,7 +373,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label={uiText("screen.527c4fcb7372")}>
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.68ecf8d47262" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.ead99db1a928" /></p></div><span className="text-sm text-teal">{selected.length}<InterfaceText message="screen.a78859242313" /></span></div>
-      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={(expandedIdea ?? ideas[0].id) === idea.id} onExpand={() => setExpandedIdea(idea.id)} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={(expandedIdea ?? ideas[0].id) === idea.id} onExpand={() => setExpandedIdea(idea.id)} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={mode => transfer(idea, undefined, mode)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -382,7 +382,10 @@ export default function IdeasPage() {
   </div>;
 }
 
-function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; expanded: boolean; onExpand: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; index: number; expanded: boolean; onExpand: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: (mode?: ReviewMode) => void; onSave: () => void; onDownload: () => void }) {
+  const [chosenReview, setChosenReview] = useState<ReviewMode>();
+  const suggestedReview = explicitReviewMode(idea.studyType);
+  const literatureReview = /revisão|revisión|review/i.test(idea.studyType) && !/prontuário|registros|records|chart/i.test(idea.studyType);
   const { t: uiText, locale } = useLanguage();
   const pathLabels = ["MAIS VIÁVEL", "MAIS RELEVANTE", "MAIS INOVADORA"];
   const contentId = `idea-proposal-${index}`;
@@ -420,7 +423,15 @@ function IdeaCard({ idea, index, expanded, onExpand, qualityIssues, selected, ed
     <div className="idea-proposal-actions">
       <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : (locale === "es" ? "Refinar y buscar literatura" : "Refinar e buscar literatura")}</button>
       <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
-      <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
+      {literatureReview && <label className="text-sm text-ink-soft">
+        {locale === "es" ? "Modalidad de revisión" : "Modalidade de revisão"}
+        <select className="ml-2 min-h-11 rounded-card border border-line bg-white px-3" value={chosenReview || suggestedReview || ""}
+          onChange={event => setChosenReview(reviewModes.find(mode => mode === event.target.value))}>
+          <option value="">{locale === "es" ? "Usar el diseño de la propuesta" : "Usar o desenho da proposta"}</option>
+          {reviewModes.map(mode => <option key={mode} value={mode}>{reviewModeLabel(mode, locale)}</option>)}
+        </select>
+      </label>}
+      <button type="button" disabled={stale || saving} onClick={() => onTransfer(literatureReview ? chosenReview : undefined)}><InterfaceText message="screen.17d65baee7a0" /></button>
       <details className="idea-proposal-more">
         <summary>{locale === "es" ? "Más acciones" : "Mais ações"} <span aria-hidden="true">⋯</span></summary>
         <div className="idea-proposal-more-options">

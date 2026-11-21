@@ -1,7 +1,7 @@
 "use client";
 import MethodReview from "@/components/research/method-review";
 import { protocolReview } from "@/lib/research/method-review";
-import { studyFormat, studyFormatText } from "@/lib/research/study-format";
+import { explicitReviewMode, reviewModeLabel, reviewModes, reviewProtocolGuidance, studyFormat, studyFormatText } from "@/lib/research/study-format";
 import { RememberProjectStage } from "@/components/projects/project-resume";
 import { dialogCopy } from "@/lib/i18n/interface-copy";
 
@@ -279,6 +279,7 @@ export default function MeuTrabalhoPage() {
     ...(["review", "systematic"].includes(studyFormat(draft.studyType)) ? ["Na revisão, defina bases, estratégia de busca, critérios de seleção e avaliação crítica."] : ["No estudo com dados ou participantes, registre autorizações, proteção dos dados e avaliação ética aplicável."]),
     "Confira com o orientador se pergunta, objetivo, desfecho e método respondem à mesma questão.",
   ];
+  const reviewMode = explicitReviewMode(draft.studyType);
   const radarHref = projectId ? projectRadarHref(projectId, draft.theme, draft.question) : "/descobrir";
   if(needsSelection || loadBlocked) return <div className="scholar-workspace max-w-4xl mx-auto"><h1 className="font-display text-3xl"><InterfaceText message="screen.bd7ac23aaa63" /></h1><p role={loadBlocked?"alert":"status"} className="my-4 text-sm">{message||uiText("screen.ebd983933c92")}</p><ProjectSwitcher emptyLabel="Selecione um projeto" ownerId={loadedOwner} projectId={null} title="" busy={false} dirty={false} onSave={()=>{}} onSelect={id=>requestWorkspaceNavigation(()=>window.location.assign(id?`/meu-trabalho?id=${encodeURIComponent(id)}`:"/ideias"))}/></div>;
   const saveUnavailable = loadBlocked || saveState === "loading";
@@ -333,6 +334,27 @@ export default function MeuTrabalhoPage() {
       {incoming && <section className="project-incoming mt-6 bg-teal-soft border border-teal/20 rounded-2xl p-5"><p className="text-xs text-teal uppercase"><InterfaceText message="screen.b0491cf2299d" /></p><h3 className="font-display text-2xl mt-2">{incoming.theme}</h3><p className="text-sm text-ink-soft mt-3"><InterfaceText message="screen.86a7d567a2ac" /></p>{incomingReferences.length > 0 && <p className="text-sm text-ink-soft mt-3">{incomingReferences.length} <InterfaceText message="screen.76950400d917" /></p>}<div className="flex flex-wrap gap-3 mt-4"><button disabled={loadBlocked || saveState === "loading"} onClick={() => void applyIncoming()} className="bg-teal text-white rounded-card px-4 py-2 disabled:opacity-50"><InterfaceText message="screen.383d9db57b71" /></button><button onClick={() => { setIncoming(null); setIncomingReferences([]); setIncomingOrigin(null); }} className="border border-line rounded-card px-4 py-2"><InterfaceText message="screen.5940c63c2a24" /></button></div></section>}
       {referenceIds.length > 0 && <p className="mt-4 bg-teal-soft rounded-card p-4 text-sm">{referenceIds.length} <InterfaceText message="screen.42c68293e49e" /></p>}
       {message && <p role={saveState === "error" ? "alert" : "status"} className="mt-5 bg-white border border-line rounded-card p-4 text-sm"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/meu-trabalho?id=${projectId}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p>}
+      <section className="my-4 rounded-card border border-line bg-paper p-4">
+        <label className="block text-sm font-medium">
+          {locale === "es" ? "Modalidad de revisión" : "Modalidade de revisão"}
+          <select className="mt-2 block min-h-11 rounded-card border border-line bg-white px-3" value={reviewMode || ""}
+            disabled={saveUnavailable} onChange={event => {
+              const mode = reviewModes.find(value => value === event.target.value);
+              if (!mode || mode === reviewMode) return;
+              if (draft.studyType.trim() && !window.confirm(locale === "es" ? "¿Cambiar el diseño a esta modalidad de revisión?" : "Alterar o desenho para esta modalidade de revisão?")) return;
+              change("studyType", reviewModeLabel(mode, "pt-BR"));
+            }}>
+            <option value="" disabled>{locale === "es" ? "Selecciona si tu proyecto es una revisión" : "Selecione se o projeto for uma revisão"}</option>
+            {reviewModes.map(mode => <option key={mode} value={mode}>{reviewModeLabel(mode, locale)}</option>)}
+          </select>
+        </label>
+        {reviewMode && <>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-soft">
+            {reviewProtocolGuidance(reviewMode, locale).map(item => <li key={item}>{item}</li>)}
+          </ul>
+          <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? "Registrar el plan no confirma que la búsqueda, la selección o la síntesis se hayan realizado." : "Registrar o plano não confirma a execução da busca, da seleção ou da síntese."}</p>
+        </>}
+      </section>
       <p className="my-4 text-sm">{studyFormatText(draft.studyType, locale)}</p>{!loadBlocked && saveState !== "loading" && draft.theme.trim() && <MethodReview alerts={protocolReview(draft, locale)} locale={locale} />}<ProjectJourney protocolSaved={Boolean(projectId && !dirty && !saveFailed && saveState !== "loading")} projectId={projectId} ownerId={loadedOwner} studyType={draft.studyType} draft={draft} radarHref={radarHref} reviewNotes={notes} disabled={loadBlocked || saveState === "loading"} />
       {projectId&&<details className="workspace-disclosure my-5"><summary><InterfaceText message="screen.3b17f6e2e61a" /></summary><div className="pt-4"><TaskPlan key={projectId} projectId={projectId}/></div></details>}
       <details className="workspace-disclosure"><summary><InterfaceText message="screen.90bfb045cd50" /></summary><AssistantPanel feature="protocol" title={uiText("screen.2401eb54dd98")} description={uiText("screen.31935f3866aa")} context={draft} projectId={projectId} onApply={item=>{const aliases: Record<string,keyof Draft> = {research_question:"question",study_type:"studyType",primary_outcome:"outcome",inclusion_criteria:"inclusion",exclusion_criteria:"exclusion",analysis_plan:"analysis",ethics_notes:"ethics",manuscript_notes:"manuscript",method:"methods",eligibility:"inclusion",title:"theme"}; const key = aliases[item.targetField] || item.targetField; if(key in draft){change(key as keyof Draft,item.content); setMessage(`Sugestão aplicada em ${labels[key as keyof Draft]}. Salve as alterações para registrar na conta.`); document.getElementById(groups.find(group=>group.keys.includes(key as keyof Draft))?.id || "objetivos")?.scrollIntoView({behavior:"smooth",block:"start"});} else {setMessage(`A sugestão não indicou um campo reconhecido (${item.targetField}). Copie o texto para o bloco apropriado.`);}}} /></details>
