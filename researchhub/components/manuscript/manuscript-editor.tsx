@@ -296,7 +296,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     setSections(nextSections);
     setCitationIds(nextIds);
     setDirty(true);
-    setMessage("Evidências inseridas. O salvamento automático está ativo.");
+    setMessage(locale === "es" ? "Evidencia insertada. El guardado automático está activo." : "Evidências inseridas. O salvamento automático está ativo.");
     return true;
   }
 
