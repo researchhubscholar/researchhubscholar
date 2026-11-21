@@ -451,10 +451,10 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c9bbe9cc2ae9" /></p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} <InterfaceText message="screen.8f3948a298a3" /></p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.f662cb9a3b0a" /></p><p role="status" aria-live="polite" className="mt-1"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p></div></aside>
 
     <div className="min-w-0 space-y-5">{canEdit && articles.some(article => article.abstract?.trim()) && <details className="rounded-2xl border border-line bg-white p-5">
-      <summary className="cursor-pointer font-medium">Inserir evidências da literatura</summary>
-      <label className="mt-4 block text-sm">Artigo vinculado ao projeto
-        <select className="mt-2 block w-full rounded-card border border-line bg-paper p-2" value={reviewArticleId} onChange={event => setReviewArticleId(event.target.value)}>
-          <option value="">Selecione um artigo</option>
+      <summary className="cursor-pointer font-display text-xl">{locale === "es" ? "Insertar evidencias de la literatura" : "Inserir evidências da literatura"}</summary>
+      <label className="mt-4 block text-sm">{locale === "es" ? "Artículo vinculado al proyecto" : "Artigo vinculado ao projeto"}
+        <select className="mt-2 block min-h-11 w-full min-w-0 rounded-card border border-line bg-paper p-2" value={reviewArticleId} onChange={event => setReviewArticleId(event.target.value)}>
+          <option value="">{locale === "es" ? "Selecciona un artículo" : "Selecione um artigo"}</option>
           {articles.filter(article => article.abstract?.trim()).map(article => <option key={article.id} value={article.id}>{article.title}</option>)}
         </select>
       </label>
