@@ -294,7 +294,6 @@ export default function MeuTrabalhoPage() {
       {loggedIn && !loadBlocked && (projectId || dirty) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/20 bg-teal-soft p-4">
         <div className="min-w-0">
           <p role="status" className="font-semibold text-teal">{saveState === "loading" ? saveLabel.loading : saveFailed ? saveLabel.error : dirty ? saveLabel.pending : saveLabel.saved}</p>
-          
         </div>
         {saveFailed && <button type="button" onClick={() => void saveDraft()} disabled={!draft.theme.trim()} className="min-h-11 rounded-card bg-teal px-4 py-2 font-semibold text-white disabled:opacity-50">
           {saveLabel.retry}
@@ -317,14 +316,14 @@ export default function MeuTrabalhoPage() {
           <Link href={`/manuscrito?projeto=${projectId}`} className="inline-flex min-h-11 items-center rounded-card border border-line bg-white px-3 text-sm text-teal"><InterfaceText message="screen.a7d6933f76d3" /></Link>
         </div>}
         <details className="group ml-auto">
-          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-card border border-line bg-white px-3 text-sm font-medium text-teal hover:bg-teal-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal [&::-webkit-details-marker]:hidden">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-card border border-line bg-[#fffdfa] px-3 text-sm font-medium text-teal hover:bg-teal-soft group-open:border-teal group-open:bg-teal-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal [&::-webkit-details-marker]:hidden">
             {locale === "es" ? "Más herramientas" : "Mais ferramentas"}
             <span aria-hidden="true" className="-mt-1 size-2 rotate-45 border-b border-r border-current group-open:mt-1 group-open:rotate-[225deg]" />
           </summary>
-          <div className="absolute right-0 z-40 mt-1 max-h-[55dvh] w-72 max-w-full overflow-y-auto rounded-card border border-line bg-white p-2 shadow-lg">
+          <div className="absolute right-0 z-40 mt-2 max-h-[55dvh] w-72 max-w-full overflow-y-auto rounded-card border-2 border-[#387161] bg-[#fffdfa] p-2 shadow-[0_12px_30px_rgba(25,61,52,0.22)] [&>a]:w-full">
             {projectId && <>
-              <Link href={radarHref} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft lg:hidden"><InterfaceText message="screen.f16c50168fd4" /></Link>
-              <Link href={`/manuscrito?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft lg:hidden"><InterfaceText message="screen.a7d6933f76d3" /></Link>
+              <Link href={radarHref} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft lg:!hidden"><InterfaceText message="screen.f16c50168fd4" /></Link>
+              <Link href={`/manuscrito?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft lg:!hidden"><InterfaceText message="screen.a7d6933f76d3" /></Link>
               <Link href={`/biblioteca?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft"><InterfaceText message="screen.cacdb56fc4f3" /></Link><Link href={`/resultados?projeto=${projectId}#coleta`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft"><InterfaceText message="screen.a28632993009" /></Link><Link href={`/resultados?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft"><InterfaceText message="screen.8631846ae294" /></Link><Link href={`/documentos?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft">Documentos</Link><Link href={`/orientacao?projeto=${projectId}`} className="block min-h-11 rounded-card px-3 py-2 text-sm hover:bg-teal-soft"><InterfaceText message="screen.3126f23d71e8" /></Link>
             </>}
             <button type="button" onClick={exportProtocol} disabled={loadBlocked || saveState === "loading" || !draft.theme.trim()} className="w-full min-h-11 rounded-card px-3 py-2 text-left text-sm hover:bg-teal-soft disabled:opacity-50"><InterfaceText message="screen.164e2d28ef03" /></button>
