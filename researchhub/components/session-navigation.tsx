@@ -14,9 +14,8 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 type SessionState = { authenticated: boolean; displayName: string | null; isAdmin: boolean; advisorOnly?: boolean; userId?: string };
 
 const publicLinks = [
-  ["/radar-demo", "Testar Radar"],
   ["/como-funciona", "Como funciona"],
-  ["/para-residencias", "Residências"],
+  ["/para-residencias", "Residências e planos institucionais"],
   ["/planos", "Planos"],
 ] as const;
 
@@ -35,7 +34,7 @@ const navigationMessages: Record<string, MessageKey> = {
   "/dashboard":"nav.workspace", "/ideias":"nav.ideas", "/descobrir":"nav.radar",
   "/biblioteca":"nav.library", "/meu-trabalho":"nav.project", "/orientacao":"nav.advising",
   "/conta":"nav.account", "/operacao":"nav.operations", "/radar-demo":"nav.testRadar",
-  "/como-funciona":"nav.how", "/para-residencias":"nav.residencies", "/planos":"nav.plans",
+  "/como-funciona":"nav.how", "/planos":"nav.plans",
 };
 
 const workspaceIcons: Record<string, string> = {
@@ -114,7 +113,7 @@ export default function SessionNavigation() {
   const renderLink = ([href, label]: (typeof links)[number], mobile = false) => {
     const name = session.advisorOnly && href === "/orientacao"
       ? (locale === "es" ? "Proyectos compartidos" : "Projetos compartilhados")
-      : uiText(navigationMessages[href]) || label;
+      : href === "/para-residencias" && locale === "es" ? "Residencias y planes institucionales" : uiText(navigationMessages[href]) || label;
     const icon = compact && !mobile && isWorkspace && workspaceIcons[href];
     return (
       <Link
