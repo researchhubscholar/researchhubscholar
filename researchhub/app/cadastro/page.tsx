@@ -105,7 +105,7 @@ export default function CadastroPage() {
           </div>
         </fieldset>
 
-        <label className="flex gap-3 text-sm text-ink-soft"><input name="termsAccepted" type="checkbox" required className="mt-1" /><span><InterfaceText message="auth.readTerms" /> <Link href="/termos" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.terms" /></Link> <InterfaceText message="auth.andPrivacy" /> <Link href="/privacidade" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.privacy" /></Link> <InterfaceText message="auth.testingSuffix" /></span></label>
+        <label className="flex gap-3 text-sm text-ink-soft"><input name="termsAccepted" type="checkbox" required className="mt-1" /><span><InterfaceText message="auth.readTerms" /> <Link href="/termos" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.terms" /></Link> <InterfaceText message="auth.andPrivacy" /> <Link href="/privacidade" target="_blank" rel="noreferrer" className="text-teal underline"><InterfaceText message="auth.privacy" /></Link></span></label>
 
         {error && <p role="alert" className="text-sm text-red-600"><AuthoredText text={error} /></p>}
         <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-3 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? uiText("auth.creating") : uiText("auth.create")}</button>
