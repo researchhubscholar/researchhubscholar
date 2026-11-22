@@ -557,3 +557,64 @@ body:has(.primary-nav[data-workspace="true"]) .checkout-workspace .purchase-layo
     position: static;
   }
 }
+
+.marketing-page .plan-extras {
+  display: grid;
+  gap: 1rem;
+  margin-top: clamp(2rem, 5vw, 4rem);
+}
+.marketing-page .plan-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1.35rem, 3vw, 2.5rem);
+  border: 1px solid var(--public-line);
+  border-radius: 1rem;
+}
+.marketing-page .plan-extra h2 {
+  color: var(--public-green);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.45rem, 2.3vw, 2rem);
+  line-height: 1.15;
+}
+.marketing-page .plan-extra p { margin: 0; line-height: 1.55; }
+.marketing-page .plan-extra-recharge { background: #fffdfa; }
+.marketing-page .plan-extra .plan-extra-price {
+  display: grid;
+  gap: .25rem;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--public-line);
+}
+.marketing-page .plan-extra-price strong {
+  color: var(--public-green);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.85rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+.marketing-page .plan-extra-institutional {
+  background: var(--public-green);
+  border-color: var(--public-green);
+  color: var(--public-paper);
+}
+.marketing-page .plan-extra-institutional :is(h2,p,li) { color: var(--public-paper); }
+.marketing-page .plan-extra-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.2rem;
+  list-style: disc inside;
+  font-size: .875rem;
+}
+.marketing-page .plan-extra-institutional .public-button {
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: auto;
+  background: var(--public-paper);
+  color: var(--public-green);
+}
+@media (min-width: 800px) {
+  .marketing-page .plan-extras { grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); }
+}
