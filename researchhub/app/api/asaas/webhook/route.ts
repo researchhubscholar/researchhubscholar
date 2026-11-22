@@ -28,6 +28,18 @@ export async function POST(request: Request) {
   const event = body?.event;
   if (!["CHECKOUT_CREATED", "CHECKOUT_CANCELED", "CHECKOUT_EXPIRED", "CHECKOUT_PAID"].includes(String(event)))
     return NextResponse.json({ acknowledged: true, ignored: true });
+  if (event === "CHECKOUT_CANCELED" || event === "CHECKOUT_EXPIRED") {
+    const checkoutId = body.checkout?.id;
+    const expected = event === "CHECKOUT_CANCELED" ? "CANCELED" : "EXPIRED";
+    if (typeof checkoutId !== "string" || body.checkout?.status !== expected)
+      return NextResponse.json({ acknowledged: true, ignored: true });
+    const { error } = await supabaseAdmin().from("scholar_purchase_requests")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("provider_checkout_id", checkoutId).eq("status", "payment_pending");
+    return error
+      ? NextResponse.json({ error: "Não foi possível sincronizar o checkout." }, { status: 503 })
+      : NextResponse.json({ acknowledged: true });
+  }
   if (event !== "CHECKOUT_PAID") return NextResponse.json({ acknowledged: true, ignored: true });
   if (!validPaidCheckout(body))
     return NextResponse.json({ error: "Checkout pago sem dados verificáveis" }, { status: 422 });

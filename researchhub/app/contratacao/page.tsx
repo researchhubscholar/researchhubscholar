@@ -305,12 +305,20 @@ export default function CommercePage() {
   async function cancelRequest(id: string) {
     if (busy) return;
     setBusy(true);
-    const { error } = await supabaseBrowser().rpc("scholar_cancel_purchase_request", { p_request: id });
-    setBusy(false);
-    if (error) setMessage("Não foi possível cancelar a solicitação.");
-    else {
-      setMessage("Solicitação cancelada.");
+    try {
+      const response = await fetch("/api/asaas/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId: id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.cancelled) throw new Error(result.error || "Não foi possível cancelar a solicitação.");
+      setMessage(formatLocale === "es" ? "Solicitud cancelada." : "Solicitação cancelada.");
       await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível cancelar a solicitação.");
+    } finally {
+      setBusy(false);
     }
   }
 
