@@ -47,7 +47,7 @@ export function analyze(dataset: Dataset, config: AnalysisConfig): AnalysisResul
 }
 export function analysisRows(result: AnalysisResult, locale:Locale="pt-BR") {
 const copy=(source:string)=>statCopy(locale,source);
-  return [["Motor",copy("Scholar inference v1 · jStat 1.9.6")],[copy("Método"),copy(result.method)],[copy("Variável 1"),result.columns[0]],[copy("Variável 2"),result.columns[1]],[copy("N completo"),result.n],[copy("Linhas excluídas por dados ausentes"),result.excluded],[copy("Estatística"),result.statistic],[copy("Graus de liberdade"),result.df],[result.method.startsWith("Qui-quadrado")?copy("Valor de p de associação"):copy("Valor de p bilateral"),result.p],[analysisEffect(result,locale),result.estimate],[copy("IC95% inferior"),result.ci?.[0]??copy("Não disponível")],[copy("IC95% superior"),result.ci?.[1]??copy("Não disponível")],...analysisDetails(result,locale).map(d=>[copy("Observação"),copy(d)])];
+  return [["Motor",copy("ResearchHub inference v1 · jStat 1.9.6")],[copy("Método"),copy(result.method)],[copy("Variável 1"),result.columns[0]],[copy("Variável 2"),result.columns[1]],[copy("N completo"),result.n],[copy("Linhas excluídas por dados ausentes"),result.excluded],[copy("Estatística"),result.statistic],[copy("Graus de liberdade"),result.df],[result.method.startsWith("Qui-quadrado")?copy("Valor de p de associação"):copy("Valor de p bilateral"),result.p],[analysisEffect(result,locale),result.estimate],[copy("IC95% inferior"),result.ci?.[0]??copy("Não disponível")],[copy("IC95% superior"),result.ci?.[1]??copy("Não disponível")],...analysisDetails(result,locale).map(d=>[copy("Observação"),copy(d)])];
 }
 
 // Presentation views leave the numeric analysis and original category labels intact.

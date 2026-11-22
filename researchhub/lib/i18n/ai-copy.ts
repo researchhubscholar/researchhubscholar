@@ -67,7 +67,7 @@ export const aiSpanishCopy = {
   "Descartar proposta": "Descartar propuesta",
   "Aguardando a resposta do modelo.": "Esperando la respuesta del modelo.",
   "Preparando suas ideias de pesquisa": "Preparando tus ideas de investigación",
-  "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o Scholar confere a estrutura antes de exibi-las.": "La IA está elaborando tres propuestas con pregunta, diseño y métodos. Al recibir la respuesta, Scholar verifica la estructura antes de mostrarlas.",
+  "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o ResearchHub confere a estrutura antes de exibi-las.": "La IA está elaborando tres propuestas con pregunta, diseño y métodos. Al recibir la respuesta, ResearchHub verifica la estructura antes de mostrarlas.",
   "de espera": "de espera",
   "Está demorando mais que o esperado. A solicitação continua em andamento; uma falha será informada na tela.": "Está tardando más de lo esperado. La solicitud sigue en curso; cualquier fallo se informará en la pantalla.",
   "Aguarde sem recarregar. Esta janela fecha automaticamente ao concluir ou informar uma falha.": "Espera sin recargar. Esta ventana se cierra automáticamente al terminar o informar de un fallo.",

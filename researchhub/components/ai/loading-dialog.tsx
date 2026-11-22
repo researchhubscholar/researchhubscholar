@@ -4,7 +4,7 @@ import AuthoredText from "@/components/i18n/authored-text";
 
 import { useEffect, useId, useRef, useState } from "react";
 
-export default function AILoadingDialog({ open, statusText = "Aguardando a resposta do modelo.", title = "Preparando suas ideias de pesquisa", description = "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o Scholar confere a estrutura antes de exibi-las." }: { open: boolean; title?: string; description?: string; statusText?: string }) {
+export default function AILoadingDialog({ open, statusText = "Aguardando a resposta do modelo.", title = "Preparando suas ideias de pesquisa", description = "A IA está elaborando três propostas com pergunta, desenho e métodos. Ao receber a resposta, o ResearchHub confere a estrutura antes de exibi-las." }: { open: boolean; title?: string; description?: string; statusText?: string }) {
  const copy=useInterfaceCopy();
 
   const id = useId();
