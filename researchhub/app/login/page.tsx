@@ -1,4 +1,5 @@
 "use client";
+import { purchaseHref, readPurchaseAuthIntent, type PurchaseIntent } from "@/lib/access/purchase-journey";
 import { isAdvisorOnly } from "@/lib/access/advisor-mode";
 import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
@@ -20,6 +21,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [purchase, setPurchase] = useState<PurchaseIntent>();
+  useEffect(() => { setPurchase(readPurchaseAuthIntent(new URLSearchParams(window.location.search))); }, []);
   const router = useRouter();
 
   useEffect(() => { setConfirmed(new URLSearchParams(window.location.search).get("confirmed") === "1"); }, []);
@@ -46,6 +49,11 @@ export default function LoginPage() {
     const { data: access, error: accessError } = await supabase.rpc("scholar_product_access_state");
     const hasAccess = !accessError && access && typeof access === "object" &&
       !Array.isArray(access) && access.allowed === true;
+    if (purchase) {
+      router.push(purchaseHref("/contratacao", purchase));
+      router.refresh();
+      return;
+    }
     if (!hasAccess) {
       router.push(accessError ? "/licenca" : "/contratacao");
       router.refresh();
@@ -76,7 +84,7 @@ export default function LoginPage() {
         {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-card p-3"><AuthoredText text={error} /></p>}
         <button type="submit" disabled={loading} className="auth-submit disabled:opacity-50">{loading ? uiText("auth.entering") : uiText("auth.enter")}</button>
       </form>
-      <p className="auth-switch"><InterfaceText message="auth.noAccount" /> <Link href="/cadastro" className="text-teal font-medium hover:underline"><InterfaceText message="nav.signup" /></Link></p>
+      <p className="auth-switch"><InterfaceText message="auth.noAccount" /> <Link href={purchaseHref("/cadastro", purchase)} className="text-teal font-medium hover:underline"><InterfaceText message="nav.signup" /></Link></p>
     </section>
   </AuthFrame>;
 }

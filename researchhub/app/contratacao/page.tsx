@@ -1,4 +1,5 @@
 "use client";
+import { purchaseHref, readPurchaseIntent, type PurchaseIntent } from "@/lib/access/purchase-journey";
 import { publicDesignCopy } from "@/lib/i18n/public-design-copy";
 import { advisorCopy } from "@/lib/i18n/advisor-copy";
 import { intlLocale } from "@/lib/i18n/format";
@@ -42,6 +43,7 @@ export default function CommercePage() {
  const c=publicDesignCopy(formatLocale);const advisor=advisorCopy(formatLocale);
 
   const { t: uiText } = useLanguage();
+  const [purchase, setPurchase] = useState<PurchaseIntent>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [kind, setKind] = useState<Exclude<CommerceKind, "recharge">>("individual");
   const [plan, setPlan] = useState<PlanKey>("essential");
@@ -99,7 +101,13 @@ export default function CommercePage() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const intent = readPurchaseIntent(new URLSearchParams(window.location.search));
+    setPurchase(intent);
+    if (intent.plan) setPlan(intent.plan);
+    if (intent.coupon) setCoupon(intent.coupon);
+    void load();
+  }, []);
 
   // Callback navigation never grants access. Only a fulfilled order under RLS
   // can redirect the buyer to their active workspace or credited wallet.
@@ -194,6 +202,35 @@ export default function CommercePage() {
     return () => { active = false; clearTimeout(timer); };
   }, [rechargeLicense, rechargeQuantity, coupon, formatLocale]);
 
+  async function openCheckout(purchaseId: string) {
+      try {
+        const checkoutResponse = await fetch("/api/asaas/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: purchaseId }),
+        });
+        const checkout = await checkoutResponse.json() as { url?: string; error?: string };
+        if (!checkoutResponse.ok || !checkout.url) {
+          setMessage(checkout.error || "Não foi possível abrir o checkout.");
+        } else {
+          window.location.assign(checkout.url);
+          return true;
+        }
+      } catch {
+        setMessage("Não foi possível conectar ao pagamento. Tente novamente.");
+      }
+    return false;
+  }
+
+  async function resumeCheckout(purchaseId: string) {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    if (await openCheckout(purchaseId)) return;
+    setBusy(false);
+    await load();
+  }
+
   async function createRequest() {
     if (!userId || busy || quoteLoading || quoteError || !quotePreview) return;
     setBusy(true);
@@ -214,22 +251,7 @@ export default function CommercePage() {
       return;
     }
     if (paymentsEnabled && kind === "individual") {
-      try {
-        const checkoutResponse = await fetch("/api/asaas/checkout", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ requestId: purchaseId }),
-        });
-        const checkout = await checkoutResponse.json() as { url?: string; error?: string };
-        if (!checkoutResponse.ok || !checkout.url) {
-          setMessage(checkout.error || "Não foi possível abrir o checkout.");
-        } else {
-          window.location.assign(checkout.url);
-          return;
-        }
-      } catch {
-        setMessage("Não foi possível conectar ao pagamento. Tente novamente.");
-      }
+      if (await openCheckout(purchaseId)) return;
     } else if (paymentsEnabled) {
       setMessage("Solicitação institucional registrada. A equipe entrará em contato para concluir a contratação.");
     } else {
@@ -295,7 +317,10 @@ export default function CommercePage() {
   if (loading) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto"><p role="status"><InterfaceText message="screen.2c1aafb83914" /></p></div>;
   if (!userId) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
     <h1 className="font-display text-4xl"><InterfaceText message="screen.083cff630878" /></h1>
-    <Link href="/login" className="inline-block mt-5 text-teal underline"><InterfaceText message="screen.1fdff273ce1e" /></Link>
+    <div className="mt-5 flex flex-wrap gap-4">
+      <Link href={purchaseHref("/cadastro", purchase)} className="public-button"><InterfaceText message="nav.signup" /></Link>
+      <Link href={purchaseHref("/login", purchase)} className="inline-flex items-center text-teal underline"><InterfaceText message="nav.login" /></Link>
+    </div>
   </div>;
 
   return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
@@ -347,6 +372,7 @@ export default function CommercePage() {
 
       <p className="mt-3 text-xs text-ink-soft">{formatLocale === "es" ? "El valor final se valida antes de abrir el pago." : "O valor final será validado antes de abrir o pagamento."}</p>
       {quoteError ? <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p> : null}
+      {message && <p className="mb-3 text-sm text-ink-soft"><AuthoredText text={message} /></p>}
       <button type="button" disabled={busy || quoteLoading || !quotePreview || Boolean(quoteError) || (kind === "institutional" && organizationName.trim().length < 2)} onClick={createRequest} className="purchase-continue mt-5 rounded-card bg-teal px-5 py-3 text-white font-semibold disabled:opacity-50">
         {busy ? (formatLocale === "es" ? "Preparando..." : "Preparando...") : kind === "institutional" ? (formatLocale === "es" ? "Solicitar contratación institucional" : "Solicitar contratação institucional") : (formatLocale === "es" ? "Continuar al pago seguro" : "Continuar para pagamento seguro")}
       </button>
@@ -386,7 +412,12 @@ export default function CommercePage() {
             <td className="p-2">{item.kind === "recharge" ? `${item.quantity} pacote(s)` : `${item.plan ? plans[item.plan].name : "—"} · ${item.seats} vaga(s)`}</td>
             <td className="p-2">{money(item.total_amount_cents)}</td>
             <td className="p-2">{requestStatus(item.status)}</td>
-            <td className="p-2">{["requested", "approved", "payment_pending"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => cancelRequest(item.id)} className="text-teal underline">Cancelar</button> : "—"}</td>
+            <td className="p-2">
+              {paymentsEnabled && item.kind !== "institutional" && ["requested", "approved", "payment_pending"].includes(item.status) &&
+                <button type="button" disabled={busy} onClick={() => void resumeCheckout(item.id)} className="mr-3 text-teal underline">
+                  {formatLocale === "es" ? "Reanudar pago" : "Retomar pagamento"}
+                </button>}
+              {["requested", "approved", "payment_pending"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => cancelRequest(item.id)} className="text-teal underline">Cancelar</button> : "—"}</td>
           </tr>)}</tbody>
         </table>
       </div>

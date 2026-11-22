@@ -18,6 +18,6 @@ console.log("PASS: email confirmation cannot bypass license gate; contract pages
 
 assert.match(login,/supabase\.rpc\("scholar_product_access_state"\)/);
 assert.match(login,/router\.push\(accessError \? "\/licenca" : "\/contratacao"\)/);
-assert.match(signup,/router\.push\("\/contratacao"\)/);
+assert.match(signup,/router\.push\(purchaseHref\("\/contratacao", purchase\)\)/);
 assert.doesNotMatch(signup,/router\.push\(persona === "professor"/);
 console.log("PASS: login and signup direct unpaid users to checkout before diagnosis.");

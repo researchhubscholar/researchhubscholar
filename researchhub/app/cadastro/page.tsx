@@ -1,4 +1,5 @@
 "use client";
+import { purchaseHref, readPurchaseAuthIntent, type PurchaseIntent } from "@/lib/access/purchase-journey";
 import AuthFrame from "@/components/public/auth-frame";
 import AuthoredText from "@/components/i18n/authored-text";
 
@@ -8,7 +9,7 @@ import InterfaceText from "@/components/i18n/interface-text";
 
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -23,6 +24,8 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [purchase, setPurchase] = useState<PurchaseIntent>();
+  useEffect(() => { setPurchase(readPurchaseAuthIntent(new URLSearchParams(window.location.search))); }, []);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,7 +34,7 @@ export default function CadastroPage() {
     setError(null);
 
     const supabase = supabaseBrowser();
-    const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
+    const emailRedirectTo = `${window.location.origin}${purchaseHref("/login", purchase, true)}`;
 
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
@@ -58,7 +61,7 @@ export default function CadastroPage() {
     }
 
     // Even if sign-up creates a session immediately, checkout precedes onboarding.
-    router.push("/contratacao");
+    router.push(purchaseHref("/contratacao", purchase));
     router.refresh();
   }
 
@@ -108,7 +111,7 @@ export default function CadastroPage() {
         <button type="submit" disabled={loading} className="w-full bg-teal text-white font-medium py-3 rounded-card hover:bg-teal/90 transition-colors disabled:opacity-50">{loading ? uiText("auth.creating") : uiText("auth.create")}</button>
       </form>
 
-      <p className="text-sm text-ink-soft mt-6 text-center"><InterfaceText message="auth.hasAccount" /> <a href="/login" className="text-teal font-medium hover:underline"><InterfaceText message="nav.login" /></a></p>
+      <p className="text-sm text-ink-soft mt-6 text-center"><InterfaceText message="auth.hasAccount" /> <a href={purchaseHref("/login", purchase)} className="text-teal font-medium hover:underline"><InterfaceText message="nav.login" /></a></p>
     </AuthFrame>
   );
 }

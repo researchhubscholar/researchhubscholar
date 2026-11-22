@@ -97,7 +97,7 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
           {code}
         </p>
         <div className="mt-5 grid gap-3">
-          <Link href={"/planos"} className={primary} onClick={() => track("plans")}>Ver planos anuais</Link>
+          <Link href={`/planos?cupom=${encodeURIComponent(code)}`} className={primary} onClick={() => track("plans")}>Ver planos anuais</Link>
           <button type="button" className="min-h-11 text-sm font-medium text-[var(--public-green)] underline underline-offset-4" onClick={copyCode}>Copiar cupom</button>
         </div>
         <p role="status" className="mt-3 text-sm text-ink">{feedback}</p>
