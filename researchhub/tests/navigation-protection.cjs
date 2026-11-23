@@ -3,7 +3,7 @@ const compile=f=>ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{
 require.extensions['.ts']=(m,f)=>m._compile(compile(f),f);const guards=require('../lib/navigation/unsaved.ts');
 const listeners=new Map(),state=[],effects=[];let cursor=0;
 const react={useState(v){const i=cursor++;if(!(i in state))state[i]=v;return[state[i],n=>state[i]=typeof n==='function'?n(state[i]):n];},useRef(v){const i=cursor++;return state[i]||={current:v};},useEffect(fn,deps){const i=cursor++,old=state[i];if(!old||deps.some((v,j)=>v!==old.deps[j]))effects.push(()=>{old?.cleanup?.();state[i]={deps,cleanup:fn()};});}};
-class Element{closest(){return this.anchor;}}class HTMLElement extends Element{focus(){}}class HTMLFormElement extends HTMLElement{};
+class Element{closest(){return this.anchor;}}class HTMLElement extends Element{focus(){}}class HTMLFormElement extends HTMLElement{hasAttribute(name){return name===this.marker;}};
 const emit=(type,event={})=>{event.preventDefault||=(function(){this.defaultPrevented=true});event.stopImmediatePropagation||=(function(){this.stopped=true});listeners.get(type)?.(event);return event;};
 const location={href:'https://local/current',origin:'https://local',pathname:'/current',search:'',assign(url){this.assigned=url;}};
 const entries=[{state:{__NA:true},url:'/first'}];let position=0;
@@ -21,6 +21,9 @@ const click=()=>{const target=new Element();target.anchor={href:'https://local/n
  render();assert(click().defaultPrevented);render();assert(shown);press('Continuar editando');render();assert(!shown);assert(!location.assigned);assert(dirty);
  click();render();press('Salvar e sair');await tick();render();assert(shown);assert(text(render()).includes('Não foi possível confirmar'));assert(!location.assigned);assert.equal(saved,1);press('Continuar editando');render();
  history.pushState({__NA:true},'', '/second');assert.equal(position,1);history.go(-1);render();assert.equal(position,1);assert(shown);assert.equal(history.state.__NA,true);press('Continuar editando');render();assert.equal(position,1);assert(dirty);
+ const localForm=new HTMLFormElement();localForm.method='get';localForm.marker='data-local-submit';
+ assert(!emit('submit',{target:localForm}).defaultPrevented);render();assert(!shown);assert(dirty);
+ assert.match(fs.readFileSync('components/clinical/collection-panel.tsx','utf8'),/<form data-local-submit="" onSubmit=\{saveRecord\}/);
  const form=new HTMLFormElement();form.method='get';form.action='https://local/manuscrito';form.rows=[['projeto','B']];assert(emit('submit',{target:form}).defaultPrevented);render();assert(shown);busy=true;press('Descartar e sair');render();assert(!location.assigned);assert.equal(discarded,0);busy=false;
  fail=false;press('Salvar e sair');await tick();render();assert.equal(location.assigned,'https://local/manuscrito?projeto=B');assert.equal(saved,2);assert(!dirty);remove();assert.equal(guards.pendingGuards().length,0);
  console.log('PASS: actual dialog protects links, project GET forms, back/forward, failed saves and busy/discard guards; successful save leaves with Next state preserved.');
