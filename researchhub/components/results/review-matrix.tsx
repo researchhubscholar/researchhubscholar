@@ -73,6 +73,10 @@ export default function ReviewMatrix({ projectId, systematic }: { projectId: str
               {es ? "Guardar extracción" : "Salvar extração"}
             </button>
           </fieldset>
+          {!!article.abstract?.trim() && <Link className="mt-4 inline-block text-sm font-medium text-teal underline"
+            href={`/manuscrito?${new URLSearchParams({ projeto: projectId, evidencia: article.id })}#evidencias`}>
+            {es ? "Revisar evidencia para el manuscrito" : "Revisar evidência para o manuscrito"}
+          </Link>}
         </details>;
       })}
     </div>
