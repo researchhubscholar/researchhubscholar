@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { intlLocale } from "@/lib/i18n/format";
 import { searchLimits } from "@/lib/literature/search-limits";
 import { postAI } from "@/lib/ai/client-request";
@@ -75,10 +75,11 @@ function NarrowSearch({ query, busy, es, onSearch }: {
   </details>;
 }
 
-export function SearchDeepening({ query, articles, period, studyType, projectId, broad, busy, es, baseline, total, onSearch, onReset }: {
+export function SearchDeepening({ query, articles, period, studyType, projectId, broad, busy, es, baseline, total, activeLabel, timeline, onSearch, onReset }: {
   query: string; articles: Article[]; period: string; studyType: string; projectId: string | null;
   broad: boolean; busy: boolean; es: boolean; total: number; baseline?: number;
-  onSearch: (query: string) => void; onReset: () => void;
+  activeLabel?: string; timeline: ReactNode;
+  onSearch: (query: string, label?: string) => void; onReset: () => void;
 }) {
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
@@ -126,27 +127,36 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
     }
   }
 
-  return <section className={`min-w-0 rounded-2xl border p-4 md:p-5 ${broad ? "border-teal/30 bg-teal-soft" : "border-line bg-white"}`}>
+  return <section className="grid items-start gap-4 lg:grid-cols-2">
+    {timeline}
+    <div className={`min-w-0 rounded-2xl border p-4 md:p-5 ${broad ? "border-teal/30 bg-teal-soft" : "border-line bg-white"}`}>
     <h2 className="font-display text-xl">{es ? "Afinar el recorte" : "Aprofunde o recorte"}</h2>
     <p className="mt-2 text-sm text-ink-soft">{es ? "La IA propone recortes a partir de la consulta y una muestra de los artículos encontrados." : "A IA sugere recortes a partir da consulta e de uma amostra dos artigos encontrados."}</p>
     <button type="button" disabled={working || busy || !query} onClick={() => void suggest()} className="mt-3 min-h-11 rounded-card bg-teal px-4 text-sm font-medium text-white disabled:opacity-50">
       {working ? (es ? "Preparando sugerencias…" : "Preparando sugestões…") : (es ? "Afinar con IA" : "Aprofundar com IA")}
     </button>
     {message && <p role="status" className="mt-3 text-sm text-ink-soft">{message}</p>}
-    {suggestions.length > 0 && <ul className="mt-4 space-y-3" aria-label={es ? "Recortes sugeridos" : "Recortes sugeridos"}>
-      {suggestions.map(item => <li key={item.strategy} className="rounded-card border border-line bg-white p-3">
-        <h3 className="font-medium">{item.label}</h3>
-        <p className="mt-1 text-sm text-ink-soft">{item.rationale}</p>
-        {item.source && <a className="mt-2 block text-xs text-teal underline" href={`https://pubmed.ncbi.nlm.nih.gov/${item.source.pmid}/`} target="_blank" rel="noreferrer">{item.source.title}</a>}
-        <details className="mt-2"><summary className="cursor-pointer text-sm text-teal">{es ? "Ver consulta" : "Ver consulta"}</summary><p className="mt-1 break-words text-xs">{item.strategy}</p></details>
-        <button type="button" disabled={busy || working} onClick={() => onSearch(item.strategy)} className="mt-2 min-h-11 rounded-card border border-teal/30 px-3 text-sm text-teal disabled:opacity-50">{es ? "Buscar con este recorte" : "Buscar com este recorte"}</button>
-      </li>)}
-    </ul>}
-    {baseline !== undefined && <div className="mt-3 flex flex-wrap gap-3 text-sm">
-      <p>{es ? "Búsqueda original" : "Busca original"} · {number.format(baseline)} → {es ? "Actual" : "Atual"} · {number.format(total)}</p>
+    <NarrowSearch query={query} busy={busy || working} es={es} onSearch={onSearch} />
+    </div>
+    {suggestions.length > 0 && <section className="min-w-0 lg:col-span-2" aria-labelledby="radar-narrowing-options">
+      <h2 id="radar-narrowing-options" className="font-display text-xl">{es ? "Recortes sugeridos" : "Recortes sugeridos"}</h2>
+      <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {suggestions.map(item => <li key={item.strategy} className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-4">
+          <h3 className="font-medium text-ink">{item.label}</h3>
+          <p className="mt-2 break-words text-sm text-ink-soft">{item.rationale}</p>
+          <details className="my-3">
+            <summary className="cursor-pointer text-sm font-medium text-teal">{es ? "Ver detalles" : "Ver detalhes"}</summary>
+            <p className="mt-2 break-words text-xs text-ink-soft">{item.strategy}</p>
+            {item.source && <a className="mt-2 block break-words text-xs text-teal underline" href={`https://pubmed.ncbi.nlm.nih.gov/${item.source.pmid}/`} target="_blank" rel="noreferrer">{item.source.title}</a>}
+          </details>
+          <button type="button" disabled={busy || working} onClick={() => onSearch(item.strategy, item.label)} className="mt-auto min-h-11 self-start rounded-card bg-teal-soft px-3 text-sm font-medium text-teal disabled:opacity-50">{es ? "Buscar con este recorte" : "Buscar com este recorte"}</button>
+        </li>)}
+      </ul>
+    </section>}
+    {baseline !== undefined && <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-teal/20 bg-teal-soft px-4 py-3 text-sm lg:col-span-2">
+      <p className="min-w-0 break-words"><strong>{es ? "Recorte activo" : "Recorte ativo"}{activeLabel ? ` · ${activeLabel}` : ""}</strong> · {es ? "Resultados" : "Resultados"} {number.format(baseline)} → {number.format(total)}</p>
       <button type="button" disabled={busy || working} className="text-teal underline" onClick={onReset}>{es ? "Volver a la búsqueda original" : "Voltar à busca original"}</button>
     </div>}
-    <NarrowSearch query={query} busy={busy || working} es={es} onSearch={onSearch} />
   </section>;
 }
 
