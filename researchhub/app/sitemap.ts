@@ -5,7 +5,6 @@ const publicRoutes = [
   "/como-funciona",
   "/para-residencias",
   "/planos",
-  "/radar-demo",
   "/contato",
   "/termos",
   "/privacidade",
