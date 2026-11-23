@@ -473,20 +473,6 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
       <label className="idea-proposal-compare"><input type="checkbox" checked={selected} onChange={onCompare} /><InterfaceText message="screen.58d55554ece4" /></label>
     </header>
     <div id={contentId} hidden={!expanded} className="idea-proposal-content">
-    <details className="mb-4 text-sm">
-      <summary className="cursor-pointer text-teal font-medium">{es ? "Traducir idea" : "Traduzir ideia"}{translation && language ? ` · ${ideaLanguages[language]}` : ""}</summary>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" aria-pressed={!translation} onClick={() => { setLanguage(""); setTranslationError(""); }} className="rounded-card border border-line px-3 py-2">Original</button>
-        {Object.entries(ideaLanguages).map(([code, label]) => {
-          const next = code as OutputLanguage;
-          return <button key={code} type="button" aria-pressed={Boolean(translation && language === next)}
-            disabled={translating || (!original.translations?.[next] && (!loggedIn || editing || stale || saving || refining))}
-            onClick={() => void showTranslation(next)} className="rounded-card border border-line px-3 py-2 disabled:opacity-50 aria-pressed:bg-teal-soft">{label}</button>;
-        })}
-      </div>
-      {translating && <p role="status" className="mt-2">{es ? "Traduciendo la idea…" : "Traduzindo a ideia…"}</p>}
-      {translationError && <p role="alert" className="mt-2 text-red-700">{translationError}</p>}
-    </details>
     <div lang={translation ? language || undefined : undefined}>
     <div className="idea-proposal-overview"><Info label={uiText("screen.fdbf4a061cc6")} value={idea.question} /><Info label="Objetivo principal" value={idea.objective} /></div>
     <dl className="idea-proposal-metrics"><Badge label={uiText("screen.a415f1a5dcce")} value={idea.evaluation?.relevance.label || uiText("screen.27075d2834bc")} /><Badge label={uiText("screen.f5babe93eed8")} value={idea.evaluation?.feasibility.label || uiText("screen.27075d2834bc")} /><Badge label={uiText("screen.9e655bf84268")} value={idea.evaluation?.execution.label || uiText("screen.27075d2834bc")} /></dl>
@@ -508,20 +494,37 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
 
     </div>
     {translation && <p className="mt-4 text-xs text-ink-soft">{es ? "Vuelve al original para editar o usar la propuesta." : "Volte ao original para editar ou usar a proposta."}</p>}
-    {!translation && <div className="idea-proposal-actions">
+    <div className="idea-proposal-actions">
+      {!translation && <>
       <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : (locale === "es" ? "Refinar y buscar literatura" : "Refinar e buscar literatura")}</button>
       <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
       <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
+      </>}
       <details className="idea-proposal-more">
         <summary>{locale === "es" ? "Más acciones" : "Mais ações"} <span aria-hidden="true">⋯</span></summary>
         <div className="idea-proposal-more-options">
+          {!translation && <>
           <button type="button" disabled={saving} onClick={onEdit} aria-expanded={editing}>{editing ? uiText("screen.e13f598b5a95") : uiText("screen.2e6acb733179")}</button>
           <button type="button" disabled={stale || saving || !loggedIn} onClick={onSave}>{saving ? uiText("screen.6b5056724381") : uiText("screen.784f681fadeb")}</button>
           <button type="button" disabled={stale} onClick={onDownload}><InterfaceText message="screen.b45ae836a031" /></button>
+          </>}
+          <details className="px-2 py-2 text-sm">
+          <summary className="cursor-pointer text-teal font-medium">{es ? "Traducir idea" : "Traduzir ideia"}{translation && language ? ` · ${ideaLanguages[language]}` : ""}</summary>
+          <div className="mt-2 grid gap-1">
+          <button type="button" aria-pressed={!translation} onClick={() => { setLanguage(""); setTranslationError(""); }} className="rounded-card border border-line px-3 py-2">Original</button>
+          {Object.entries(ideaLanguages).map(([code, label]) => {
+          const next = code as OutputLanguage;
+          return <button key={code} type="button" aria-pressed={Boolean(translation && language === next)}
+          disabled={translating || (!original.translations?.[next] && (!loggedIn || editing || stale || saving || refining))}
+          onClick={() => void showTranslation(next)} className="rounded-card border border-line px-3 py-2 disabled:opacity-50 aria-pressed:bg-teal-soft">{label}</button>;
+          })}
+          </div>
+          {translating && <p role="status" className="mt-2">{es ? "Traduciendo la idea…" : "Traduzindo a ideia…"}</p>}
+          {translationError && <p role="alert" className="mt-2 text-red-700">{translationError}</p>}
+          </details>
         </div>
       </details>
     </div>
-    }
     {!translation && editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium"><AuthoredText text={label} /><textarea disabled={saving} maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
     {!translation && refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
     {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm"><AuthoredText text={refinementError} /></p>}
