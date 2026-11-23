@@ -22,7 +22,7 @@ import Link from "next/link";
 import { Article, articleKey, sameArticle } from "@/lib/literature/types";
 import { useLibrary } from "@/lib/literature/use-library";
 import SavedSearches, { SearchStrategy } from "@/components/radar/saved-searches";
-import { ArticleSearchReason, NarrowSearch, PublicationTimeline, useSearchTerms } from "@/components/radar/search-insights";
+import { ArticleSearchReason, SearchDeepening, PublicationTimeline, useSearchTerms } from "@/components/radar/search-insights";
 import SearchHistory from "@/components/radar/search-history";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { downloadResult, resultBibtex, resultCsv, resultRis } from "@/lib/literature/result-export";
@@ -70,7 +70,7 @@ const breadthLabels = {
   niche: "Nicho específico",
   scarce: "Literatura escassa",
 };
-const trendLabels = { growing: "Em crescimento", stable: "Estável", declining: "Em redução", insufficient: "Dados insuficientes" };
+
 
 
 export default function DiscoverPage() {
@@ -102,8 +102,8 @@ function DiscoverContent() {
   const [interpretationNotice, setInterpretationNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const searchLock = useRef(false);
-  const firstArticle = useRef<HTMLElement>(null);
-  const scrollToArticles = useRef(false);
+  const resultsOverview = useRef<HTMLElement>(null);
+  const scrollToResults = useRef(false);
   const queryInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [termReview, setTermReview] = useState<TermReview | null>(null);
@@ -133,9 +133,9 @@ function DiscoverContent() {
   const [originalSearch, setOriginalSearch] = useState<{ result: Result; articles: Article[]; source: string; sort: string; duplicateCount: number; sourceWarning: string | null } | null>(null);
 
   useEffect(() => {
-    if (loading || !scrollToArticles.current) return;
-    scrollToArticles.current = false;
-    firstArticle.current?.scrollIntoView({
+    if (loading || !scrollToResults.current) return;
+    scrollToResults.current = false;
+    resultsOverview.current?.scrollIntoView({
       block: "start",
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
@@ -211,7 +211,7 @@ function DiscoverContent() {
         setOriginalSearch(previous => previous ?? { result, articles, source, sort, duplicateCount, sourceWarning });
       }
       setResult(data);
-      scrollToArticles.current = !narrowing && data.articles.length > 0;
+      scrollToResults.current = !narrowing;
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
       setBrowseError(null);
       void recordSearch(data);
@@ -443,7 +443,7 @@ function DiscoverContent() {
             {result.strategy.warnings.map(warning => <p key={warning} role="status" className="text-xs text-amber-800 bg-amber-soft rounded-card p-3 mt-3"><AuthoredText text={warning} /></p>)}
             </>}
           </section>
-          <section className="radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <section ref={resultsOverview} className="scroll-mt-24 radar-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Metric value={result.sources.pubmed.total.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.fd259676797d")} />
             <Metric value={result.sources.pubmed.recent.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.84fde1dbd550")} />
             <Metric value={result.sources.pubmed.systematicReviews.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.e834a6e2ae4a")} />
@@ -451,8 +451,9 @@ function DiscoverContent() {
           </section>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <PublicationTimeline timeline={result.timeline} currentYear={new Date().getUTCFullYear()} es={formatLocale === "es"} />
-            <NarrowSearch key={result.strategy.pubmedQuery} query={result.strategy.pubmedQuery}
+            <PublicationTimeline timeline={result.timeline} currentYear={new Date().getUTCFullYear()} trend={result.signals.trend} es={formatLocale === "es"} />
+            <SearchDeepening key={JSON.stringify([result.strategy.pubmedQuery, result.filters.period, result.filters.studyType])}
+              query={result.strategy.pubmedQuery} articles={result.articles} period={result.filters.period} studyType={result.filters.studyType} projectId={projectId || null}
               broad={["broad", "very_broad"].includes(result.signals.breadth)} busy={loading || browsing} es={formatLocale === "es"}
               total={result.sources.pubmed.total} baseline={originalSearch?.result.sources.pubmed.total}
               onSearch={query => void runAnalysis({}, result.filters.period, appliedPubmedStrategy(query), result.filters)}
@@ -489,10 +490,10 @@ function DiscoverContent() {
               {browseError && <div role="alert" className="mt-3 text-sm text-red-700"><AuthoredText text={browseError} /><button className="ml-3 underline" onClick={() => browse(source, sort)}><InterfaceText message="screen.b9e10688be01" /></button></div>}
             </div>
             <div className="divide-y divide-line">
-              {articles.map((article, index) => {
+              {articles.map(article => {
                 const saved = savedArticles.some(a => sameArticle(a, article));
                 return (
-                  <article key={articleKey(article)} ref={index === 0 ? firstArticle : undefined} className="radar-article scroll-mt-24 p-6">
+                  <article key={articleKey(article)} className="radar-article scroll-mt-24 p-6">
                     <div className="flex flex-col md:flex-row md:justify-between gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -548,9 +549,6 @@ function DiscoverContent() {
               <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
                 <p className="text-xs uppercase tracking-wider text-teal"><InterfaceText message="screen.eebc284fab77" /></p>
                 <h2 className="font-display text-2xl mt-2"><AuthoredText text={breadthLabels[result.signals.breadth]} /></h2>
-                <p className="text-sm text-ink-soft mt-2">
-                  <InterfaceText message="screen.513a550f3e5e" /> <strong className="text-ink"><AuthoredText text={trendLabels[result.signals.trend]} /></strong>. Aproximadamente {Math.round(result.signals.recentRatio * 100)}<InterfaceText message="screen.b396429b152f" />
-                </p>
                 <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? uiText("screen.fa3c7627f6d5") : result.signals.breadth === "scarce" ? uiText("screen.f009350e978c") : result.signals.breadth === "niche" ? uiText("screen.db483239926a") : uiText("screen.2b15e79c8ed4")}</p>
                 <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? uiText("screen.182ae69e7108") : result.signals.trend === "insufficient" ? uiText("screen.28eb7c0557ee") : uiText("screen.9269fca87236")}</p>
                 <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.1c38c864184e" /></p>
