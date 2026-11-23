@@ -19,7 +19,7 @@ function hooks() {
   useRef(initial) { const i = cursor++; return state[i] ||= { current: initial }; },
   useMemo: calculate => calculate(),
   useEffect(effect, deps) { const i = cursor++, old = state[i]; if (!old || !deps || deps.some((value, index) => value !== old.deps[index])) effects.push(() => { old?.cleanup?.(); state[i] = { deps, cleanup: effect() }; }); },
- }, render(component) { cursor = 0; const tree = component(); while (effects.length) effects.shift()(); return tree; } };
+ }, render(component, offset = 0) { cursor = offset; const tree = component(); while (effects.length) effects.shift()(); return tree; } };
 }
 function ideasHarness(url = "https://local/ideias") {
  const h = hooks(), writes = [], destinations = [], events = [], pending = [];
@@ -60,7 +60,7 @@ function ideasHarness(url = "https://local/ideias") {
  const all = () => nodes(render());
  const idea = { ...generation.generate(generation.initial, [])[0], radar: '(burnout OR occupational stress) AND (nurses OR physicians)' };
  const row = { id: 'version-a', series_id: 'series-a', context: { ...generation.initial }, proposal: idea, evidence_signature: generation.referenceSignature([]), reason: 'Teste' };
- return { library, translations, generations, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
+ return { renderCard: card => h.render(() => card.type(card.props), 300), library, translations, generations, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
 }
 function radarHarness(query='tema=burnout&origem=ideias') {
  const h = hooks(), requests = [], aiRequests = [];
@@ -147,6 +147,18 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  assert.equal(translated.card().props.idea.translations.en.title, 'Translated title');
  translated.card().props.onChange('title', 'Edited');
  assert.equal(translated.card().props.idea.translations, undefined);
+
+ const display = ideasHarness(); display.render(); await tick(); display.restore();
+ const translatedCard = display.card();
+ translatedCard.props.idea.translations = { en: { title: 'Translated title' } };
+ const cardNodes = () => nodes(display.renderCard(translatedCard));
+ cardNodes().find(n => n.type === 'select' && /-language$/.test(n.props.id || '')).props.onChange({ target: { value: 'en' } });
+ await tick();
+ const translatedNodes = cardNodes();
+ assert(translatedNodes.some(n => n.props.children === 'Translated title'));
+ for (const onClick of [translatedCard.props.onRefine, translatedCard.props.onRadar, translatedCard.props.onTransfer]) {
+  assert(translatedNodes.some(n => n.type === 'button' && n.props.onClick === onClick), 'main actions stay visible after translation');
+ }
 
  const natural = radarHarness('tema=cancer+coloretal'); const naturalSearch = natural.search('');
  assert.equal(natural.aiRequests.length, 1); assert.equal(natural.requests.length, 0);
