@@ -75,6 +75,15 @@ function NarrowSearch({ query, busy, es, onSearch }: {
   </details>;
 }
 
+type NarrowingOption = { label: string; rationale: string; clause: string; strategy: string; source?: Article };
+
+function narrowingQuery(query: string, clause: string) {
+  const checked = validateSuggestionQuery(clause);
+  const tags = [...checked.matchAll(/\[([^\]]+)\]/g)].map(match => match[1].toLowerCase());
+  if (!tags.length || tags.some(tag => tag !== "title/abstract" && tag !== "publication type")) throw new Error("Invalid refinement fields");
+  return validateSuggestionQuery(`(${query}) AND (${checked})`);
+}
+
 export function SearchDeepening({ query, articles, period, studyType, projectId, broad, busy, es, baseline, total, activeLabel, timeline, onSearch, onReset }: {
   query: string; articles: Article[]; period: string; studyType: string; projectId: string | null;
   broad: boolean; busy: boolean; es: boolean; total: number; baseline?: number;
@@ -83,7 +92,9 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
 }) {
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
-  const [suggestions, setSuggestions] = useState<{ label: string; rationale: string; strategy: string; source?: Article }[]>([]);
+  const [suggestions, setSuggestions] = useState<NarrowingOption[]>([]);
+  const [refining, setRefining] = useState("");
+  const [refineFailure, setRefineFailure] = useState("");
   const pending = useRef(false);
   const number = new Intl.NumberFormat(intlLocale(es ? "es" : "pt-BR"));
 
@@ -93,6 +104,7 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
     setWorking(true);
     setMessage("");
     setSuggestions([]);
+    setRefineFailure("");
     try {
       const sample = articles.filter(article => article.pmid).slice(0, 5);
       const { data } = await postAI<{ mode?: string; output?: Partial<AssistantOutput> }>("/api/ai/assist", {
@@ -103,14 +115,12 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
       const proposed = data.mode === "simulation" ? [] : (data.output?.recommendations ?? []).slice(0, 3).flatMap(item => {
         if (item.targetField !== "radarNarrow" || item.confidence === "baixa") return [];
         try {
-          const clause = validateSuggestionQuery(item.content);
-          const tags = [...clause.matchAll(/\[([^\]]+)\]/g)].map(match => match[1].toLowerCase());
-          if (!tags.length || tags.some(tag => tag !== "title/abstract" && tag !== "publication type")) return [];
-          const strategy = validateSuggestionQuery(`(${query}) AND (${clause})`);
+          const clause = item.content.trim();
+          const strategy = narrowingQuery(query, clause);
           const key = strategy.toLowerCase().replace(/\s+/g, " ");
           if (seen.has(key)) return [];
           seen.add(key);
-          return [{ label: item.label, rationale: item.rationale, strategy, source: sample.find(article => article.pmid === item.source.trim()) }];
+          return [{ label: item.label, rationale: item.rationale, clause, strategy, source: sample.find(article => article.pmid === item.source.trim()) }];
         } catch {
           return [];
         }
@@ -127,16 +137,42 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
     }
   }
 
+  async function refineAndSearch(item: NarrowingOption) {
+    if (pending.current || busy) return;
+    pending.current = true;
+    setRefining(item.strategy);
+    setRefineFailure("");
+    try {
+      const { data } = await postAI<{ mode?: string; output?: Partial<AssistantOutput> }>("/api/ai/assist", {
+        feature: "radar", projectId, context: { searchGoal: "refine_selected_cut", query, clause: item.clause },
+      });
+      const recommendations = data.output?.recommendations ?? [];
+      const refined = recommendations[0];
+      if (data.mode !== "live" || recommendations.length !== 1 || refined?.targetField !== "radarNarrow" || refined.confidence === "baixa") {
+        throw new Error("Invalid refinement");
+      }
+      const clause = refined.content.trim();
+      const fixedScope = /\[publication type\]|\bNOT\b/i;
+      if ((fixedScope.test(item.clause) || fixedScope.test(clause)) && clause !== item.clause) throw new Error("Changed scope");
+      onSearch(narrowingQuery(query, clause), item.label);
+    } catch {
+      setRefineFailure(item.strategy);
+    } finally {
+      pending.current = false;
+      setRefining("");
+    }
+  }
+
   return <section className="grid items-start gap-4 lg:grid-cols-2">
     {timeline}
     <div className={`min-w-0 rounded-2xl border p-4 md:p-5 ${broad ? "border-teal/30 bg-teal-soft" : "border-line bg-white"}`}>
     <h2 className="font-display text-xl">{es ? "Afinar el recorte" : "Aprofunde o recorte"}</h2>
     <p className="mt-2 text-sm text-ink-soft">{es ? "La IA propone recortes a partir de la consulta y una muestra de los artículos encontrados." : "A IA sugere recortes a partir da consulta e de uma amostra dos artigos encontrados."}</p>
-    <button type="button" disabled={working || busy || !query} onClick={() => void suggest()} className="mt-3 min-h-11 rounded-card bg-teal px-4 text-sm font-medium text-white disabled:opacity-50">
+    <button type="button" disabled={working || busy || Boolean(refining) || !query} onClick={() => void suggest()} className="mt-3 min-h-11 rounded-card bg-teal px-4 text-sm font-medium text-white disabled:opacity-50">
       {working ? (es ? "Preparando sugerencias…" : "Preparando sugestões…") : (es ? "Afinar con IA" : "Aprofundar com IA")}
     </button>
     {message && <p role="status" className="mt-3 text-sm text-ink-soft">{message}</p>}
-    <NarrowSearch query={query} busy={busy || working} es={es} onSearch={onSearch} />
+    <NarrowSearch query={query} busy={busy || working || Boolean(refining)} es={es} onSearch={onSearch} />
     </div>
     {suggestions.length > 0 && <section className="min-w-0 lg:col-span-2" aria-labelledby="radar-narrowing-options">
       <h2 id="radar-narrowing-options" className="font-display text-xl">{es ? "Recortes sugeridos" : "Recortes sugeridos"}</h2>
@@ -149,13 +185,21 @@ export function SearchDeepening({ query, articles, period, studyType, projectId,
             <p className="mt-2 break-words text-xs text-ink-soft">{item.strategy}</p>
             {item.source && <a className="mt-2 block break-words text-xs text-teal underline" href={`https://pubmed.ncbi.nlm.nih.gov/${item.source.pmid}/`} target="_blank" rel="noreferrer">{item.source.title}</a>}
           </details>
-          <button type="button" disabled={busy || working} onClick={() => onSearch(item.strategy, item.label)} className="mt-auto min-h-11 self-start rounded-card bg-teal-soft px-3 text-sm font-medium text-teal disabled:opacity-50">{es ? "Buscar con este recorte" : "Buscar com este recorte"}</button>
+          <button type="button" disabled={busy || working || Boolean(refining)} onClick={() => void refineAndSearch(item)} className="mt-auto min-h-11 self-start rounded-card bg-teal-soft px-3 text-sm font-medium text-teal disabled:opacity-50">
+            {refining === item.strategy ? (es ? "Refinando…" : "Refinando…") : (es ? "Refinar y buscar" : "Refinar e buscar")}
+          </button>
+          {refineFailure === item.strategy && <div className="mt-2 text-sm">
+            <p role="status" className="text-ink-soft">{es ? "No se pudo aplicar el refinamiento de IA." : "Não foi possível aplicar o refinamento com IA."}</p>
+            <button type="button" disabled={busy || working || Boolean(refining)} className="mt-1 min-h-11 text-teal underline" onClick={() => onSearch(item.strategy, item.label)}>
+              {es ? "Buscar con el recorte sugerido" : "Buscar com o recorte sugerido"}
+            </button>
+          </div>}
         </li>)}
       </ul>
     </section>}
     {baseline !== undefined && <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-teal/20 bg-teal-soft px-4 py-3 text-sm lg:col-span-2">
       <p className="min-w-0 break-words"><strong>{es ? "Recorte activo" : "Recorte ativo"}{activeLabel ? ` · ${activeLabel}` : ""}</strong> · {es ? "Resultados" : "Resultados"} {number.format(baseline)} → {number.format(total)}</p>
-      <button type="button" disabled={busy || working} className="text-teal underline" onClick={onReset}>{es ? "Volver a la búsqueda original" : "Voltar à busca original"}</button>
+      <button type="button" disabled={busy || working || Boolean(refining)} className="text-teal underline" onClick={onReset}>{es ? "Volver a la búsqueda original" : "Voltar à busca original"}</button>
     </div>}
   </section>;
 }
