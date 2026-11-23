@@ -22,6 +22,7 @@ import Link from "next/link";
 import { Article, articleKey, sameArticle } from "@/lib/literature/types";
 import { useLibrary } from "@/lib/literature/use-library";
 import SavedSearches, { SearchStrategy } from "@/components/radar/saved-searches";
+import { ArticleSearchReason, NarrowSearch, PublicationTimeline, useSearchTerms } from "@/components/radar/search-insights";
 import SearchHistory from "@/components/radar/search-history";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { downloadResult, resultBibtex, resultCsv, resultRis } from "@/lib/literature/result-export";
@@ -128,7 +129,8 @@ function DiscoverContent() {
   const accessArticles = useMemo(() => lookupArticle ? [...articles, lookupArticle] : articles, [articles, lookupArticle]);
   const openAccess = useOpenAccess(accessArticles);
   const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
-  const maxTimeline = useMemo(() => Math.max(1, ...(result?.timeline.map((x) => x.count) ?? [1])), [result]);
+  const searchTerms = useSearchTerms(result?.strategy.pubmedQuery ?? "");
+  const [originalSearch, setOriginalSearch] = useState<{ result: Result; articles: Article[]; source: string; sort: string; duplicateCount: number; sourceWarning: string | null } | null>(null);
 
   useEffect(() => {
     if (loading || !scrollToArticles.current) return;
@@ -147,13 +149,13 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>) {
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>, narrowing?: Result["filters"]) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
     const finishAttempt = trackRadarAttempt();
     setLoading(true);
     setError(null);
-    setResult(null);
+    if (!narrowing) { setResult(null); setOriginalSearch(null); }
     setInterpretationNotice("");
     setTermReview(null);
     const requestSearch = async (parameters: Record<string, unknown>) => {
@@ -165,7 +167,7 @@ function DiscoverContent() {
       });
       return { response, data: await response.json() };
     };
-    const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType, translations, ...prepared };
+    const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType: narrowing?.studyType ?? studyType, translations, ...prepared };
     try {
       let { response, data } = await requestSearch(original);
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
@@ -205,8 +207,11 @@ function DiscoverContent() {
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       finishAttempt("completed");
       setTermReview(null);
+      if (narrowing && result) {
+        setOriginalSearch(previous => previous ?? { result, articles, source, sort, duplicateCount, sourceWarning });
+      }
       setResult(data);
-      scrollToArticles.current = data.articles.length > 0;
+      scrollToArticles.current = !narrowing && data.articles.length > 0;
       setArticles(data.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
       setBrowseError(null);
       void recordSearch(data);
@@ -445,6 +450,20 @@ function DiscoverContent() {
             <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.54a245bc407b")} />
           </section>
 
+          <div className="grid gap-4 lg:grid-cols-2">
+            <PublicationTimeline timeline={result.timeline} currentYear={new Date().getUTCFullYear()} es={formatLocale === "es"} />
+            <NarrowSearch key={result.strategy.pubmedQuery} query={result.strategy.pubmedQuery}
+              broad={["broad", "very_broad"].includes(result.signals.breadth)} busy={loading || browsing} es={formatLocale === "es"}
+              total={result.sources.pubmed.total} baseline={originalSearch?.result.sources.pubmed.total}
+              onSearch={query => void runAnalysis({}, result.filters.period, appliedPubmedStrategy(query), result.filters)}
+              onReset={() => {
+                if (!originalSearch) return;
+                setResult(originalSearch.result); setArticles(originalSearch.articles);
+                setSource(originalSearch.source); setSort(originalSearch.sort);
+                setDuplicateCount(originalSearch.duplicateCount); setSourceWarning(originalSearch.sourceWarning);
+                setBrowseError(null); setError(null); setOriginalSearch(null);
+              }} />
+          </div>
           {linkedProject && <ProjectLiteraturePath project={linkedProject} count={savedArticles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -488,6 +507,7 @@ function DiscoverContent() {
                         </p>
                         <p className="text-xs text-ink-soft/80 mt-1">{article.journal} {article.pmid ? `· PMID ${article.pmid}` : "· Crossref"}{article.doi ? ` · DOI ${article.doi}` : ""}</p>
 
+                        <ArticleSearchReason article={article} terms={searchTerms} source={source} sort={sort} es={formatLocale === "es"} />
                         {article.abstract ? (
                           <details className="mt-4 group">
                             <summary className="text-sm text-teal font-medium cursor-pointer"><InterfaceText message="screen.e0ac436e7868" /></summary>
@@ -523,20 +543,7 @@ function DiscoverContent() {
             </div>
           </section>
 
-<details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.ece7f03facd1" /></summary><div className="mt-5">          <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-5">
-            <div className="radar-chart-card bg-white border border-line rounded-2xl p-6">
-              <p className="text-xs uppercase tracking-widest text-ink-soft"><InterfaceText message="screen.7d4c17db7f73" /></p><p className="text-xs text-ink-soft mt-2"><InterfaceText message="screen.8d6e4b9ed077" /></p>
-              <div className="h-56 flex items-end gap-2 mt-6 border-b border-line pb-2">
-                {result.timeline.map((item) => (
-                  <div key={item.year} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
-                    <span className="text-[10px] text-ink-soft">{item.count}</span>
-                    <div className="w-full max-w-10 bg-teal rounded-t-sm" style={{ height: `${item.count === 0 ? 0 : Math.max(4, (item.count / maxTimeline) * 170)}px` }} />
-                    <span className="text-[10px] text-ink-soft">{item.year}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+<details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.ece7f03facd1" /></summary><div className="mt-5">          <section>
             <div className="space-y-4">
               <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
                 <p className="text-xs uppercase tracking-wider text-teal"><InterfaceText message="screen.eebc284fab77" /></p>
