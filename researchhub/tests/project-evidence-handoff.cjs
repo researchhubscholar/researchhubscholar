@@ -42,3 +42,35 @@ assert.equal(noSelection.drafts.length,0);
 assert.throws(()=>prepareProjectEvidenceHandoff("../other",sources,[review],[choice]),/Projeto/);
 assert.throws(()=>prepareProjectEvidenceHandoff("project-a",sources,[review],Array(61).fill(choice)),/60/);
 console.log("PASS: IA-09 reviewed-only literature handoff, tamper resistance, forbidden original results, double confirmation and no persistence.");
+
+const {insertReviewedEvidence}=require("../lib/projects/manuscript-evidence.ts");
+const {formattedCitedReferences}=require("../lib/projects/references.ts");
+const {manuscriptDocument}=require("../lib/projects/manuscript-export.ts");
+const study={...source,id:source.articleId,authors:["Silva A"],publication_year:2025,journal:"Revista de Demonstração"};
+const prior={...study,id:"prior",title:"Referência anterior",doi:null,pmid:"456"};
+const original=[
+  {section_key:"introduction",heading:"Introdução",content:"Contexto já escrito [1]."},
+  {section_key:"discussion",heading:"Discussão",content:"Discussão já escrita."},
+  {section_key:"references",heading:"Referências",content:""},
+];
+const label=(_,number)=>`[${number}]`;
+const insert=(drafts,sections=original,ids=["prior"])=>insertReviewedEvidence("project-a",sections,ids,[study,prior],drafts,label);
+const inserted=insert(ready.drafts);
+assert.deepEqual(inserted.citationIds,["prior",study.id]);
+assert.equal(inserted.sections[0].content,original[0].content);
+assert.equal(inserted.sections[1].content,`Discussão já escrita.\n\n“${ready.drafts[0].quote}” [2]`);
+assert.deepEqual(insert(ready.drafts,inserted.sections,inserted.citationIds),inserted);
+assert.equal(insert([...ready.drafts,{...ready.drafts[0],quote:"Trecho adulterado"}]),null);
+assert.equal(original[1].content,"Discussão já escrita.");
+const introductory=prepareProjectEvidenceHandoff("project-a",sources,[review],[{...choice,destination:"introduction_background"}]);
+assert.match(insert(introductory.drafts).sections[0].content,/Contexto já escrito \[1\]\.[\s\S]*\[2\]/);
+const references=formattedCitedReferences(inserted.citationIds,[study,prior],"vancouver");
+const bytes=manuscriptDocument({title:"Revisão de demonstração",subtitle:"",authors:"",affiliations:"",keywords:"",sections:inserted.sections,references},null);
+const archive=new TextDecoder().decode(bytes);
+const documentXml=archive.match(/<w:document\b[\s\S]*?<\/w:document>/)[0];
+assert(documentXml.includes("Contexto já escrito [1]."));
+assert(documentXml.includes("Discussão já escrita."));
+assert(documentXml.includes(`“${ready.drafts[0].quote}” [2]`));
+assert(documentXml.includes("2. Silva A. Trial on sleep."));
+assert(documentXml.includes("https://doi.org/10.1000/sleep"));
+console.log("PASS: reviewed matrix evidence is appended to the selected manuscript section and reaches DOCX with its matching reference.");
