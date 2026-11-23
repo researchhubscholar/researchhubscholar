@@ -3,6 +3,9 @@ const compile = source => ts.transpileModule(source, { compilerOptions: { module
 require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText, file);
 const generation = require('../lib/ideas/generate.ts'), radar = require('../lib/ideas/radar.ts');
 const limits = require('../lib/literature/search-limits.ts');
+const translation = require('../lib/ideas/translation.ts');
+const strategy = require('../lib/literature/query-strategy.ts');
+const suggestions = require('../lib/literature/suggestion-query.ts');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 let presentation;
 const jsx = (type, props) => presentation.jsx(type, props);
@@ -15,18 +18,19 @@ function hooks() {
   useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], value => { state[i] = typeof value === 'function' ? value(state[i]) : value; }]; },
   useRef(initial) { const i = cursor++; return state[i] ||= { current: initial }; },
   useMemo: calculate => calculate(),
-  useEffect(effect, deps) { const i = cursor++, old = state[i]; if (!old || deps.some((value, index) => value !== old.deps[index])) effects.push(() => { old?.cleanup?.(); state[i] = { deps, cleanup: effect() }; }); },
+  useEffect(effect, deps) { const i = cursor++, old = state[i]; if (!old || !deps || deps.some((value, index) => value !== old.deps[index])) effects.push(() => { old?.cleanup?.(); state[i] = { deps, cleanup: effect() }; }); },
  }, render(component) { cursor = 0; const tree = component(); while (effects.length) effects.shift()(); return tree; } };
 }
 function ideasHarness() {
  const h = hooks(), writes = [], destinations = [], events = [], pending = [];
+ const translations = [];
  const library = { userId: 'owner-a', loading: false, articles: [], notes: {}, projects: [] };
  let authOwner = 'owner-a';
  const client = { auth: { getUser: async () => ({ data: { user: { id: authOwner } }, error: null }) }, from(table) {
   return { select() { return { eq() { return { maybeSingle: async () => ({ data: null }) }; } }; }, insert(payload) { assert.equal(table, 'idea_versions'); writes.push(payload); events.push('insert'); const work = deferred(); pending.push(work); return work.promise; } };
  } };
  const module = { exports: {} };
- vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { search: '' }, confirm: () => true }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URL, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { href: 'https://local/ideias' }, confirm: () => true }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
@@ -37,7 +41,12 @@ function ideasHarness() {
   if (name === '@/lib/ideas/history') return { historyError: () => 'Falha no salvamento.' };
   if (name === '@/lib/literature/use-library') return { useLibrary: () => library };
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => client };
-  if (name === '@/lib/ai/client-request') return {};
+  if (name === '@/lib/ideas/translation') return translation;
+  if (name === '@/lib/ai/client-request') return { postAI: async (path, body) => {
+   assert.equal(path, '/api/ai/assist'); assert.equal(body.feature, 'idea_translation');
+   translations.push(body);
+   return { data: { mode: 'live', output: { recommendations: [{ content: JSON.stringify({ ...body.context.proposal, title: 'Translated title' }) }] } } };
+  } };
   if (name === '@/lib/ideas/transfer') return { transferKey: () => '' };
   if (name.startsWith('@/components/') || name === 'next/link') return { default: name };
   throw Error(name);
@@ -46,10 +55,10 @@ function ideasHarness() {
  const all = () => nodes(render());
  const idea = { ...generation.generate(generation.initial, [])[0], radar: '(burnout OR occupational stress) AND (nurses OR physicians)' };
  const row = { id: 'version-a', series_id: 'series-a', context: { ...generation.initial }, proposal: idea, evidence_signature: generation.referenceSignature([]), reason: 'Teste' };
- return { library, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
+ return { library, translations, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
 }
 function radarHarness(query='tema=burnout&origem=ideias') {
- const h = hooks(), requests = [];
+ const h = hooks(), requests = [], aiRequests = [];
  const module = { exports: {} };
  const source = fs.readFileSync('app/descobrir/page.tsx', 'utf8').replace('function DiscoverContent()', 'export function DiscoverContent()');
  vm.runInNewContext(compile(source), { module, exports: module.exports, AbortSignal, URLSearchParams, sessionStorage: {getItem: () => "hypertension AND exercise", removeItem() {}}, window: { scrollTo() {} }, fetch(path, options) { const work = deferred(); requests.push({ path, options, ...work }); return work.promise; }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
@@ -61,14 +70,19 @@ function radarHarness(query='tema=burnout&origem=ideias') {
   if (name === '@/lib/literature/use-library') return { useLibrary: () => ({ userId: null, articles: [], projects: [] }) };
   if (name === '@/lib/literature/use-open-access') return { useOpenAccess: () => ({ results: {}, loading: new Set() }) };
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }) };
-  if (name === '@/lib/ai/client-request' || name === '@/lib/literature/suggestion-query') return {};
+  if (name === '@/lib/literature/query-strategy') return strategy;
+  if (name === '@/components/radar/search-insights') return { useSearchTerms: () => ({ terms: [], loading: false }) };
+  if (name === '@/lib/literature/suggestion-query') return suggestions;
+  if (name === '@/lib/ai/client-request') return { postAI(path, body) {
+   const work = deferred(); aiRequests.push({ path, body, ...work }); return work.promise;
+  } };
   if (name === '@/lib/literature/types' || name === '@/lib/literature/result-export') return {};
   if (name.startsWith('@/components/') || name === 'next/link') return { default: name };
   throw Error(name);
  } });
  const render = () => h.render(() => module.exports.DiscoverContent());
  const all = () => nodes(render());
- return { requests, render, all, dialog: () => all().find(n => n.type === '@/components/ai/loading-dialog'), assistant: () => all().find(n => n.type === '@/components/ai/assistant-panel'), search: () => all().find(n => n.type === 'form' && n.props.className.includes('radar-search-panel')).props.onSubmit({ preventDefault() {} }) };
+ return { requests, aiRequests, render, all, dialog: () => all().find(n => n.type === '@/components/ai/loading-dialog'), assistant: () => all().find(n => n.type === '@/components/ai/assistant-panel'), search: (mode = 'manual') => all().find(n => n.type === 'form' && n.props.className.includes('radar-search-panel')).props.onSubmit({ preventDefault() {}, nativeEvent: { submitter: { getAttribute: () => mode } } }) };
 }
 (async () => {
  for(const locale of ['pt-BR','es']) {
@@ -97,10 +111,37 @@ function radarHarness(query='tema=burnout&origem=ideias') {
 
  const auto=radarHarness('origem=ideias&busca=test'); auto.render(); auto.render(); assert.equal(auto.requests.length,1); assert.equal(JSON.parse(auto.requests[0].options.body).topic,'hypertension AND exercise'); auto.requests[0].resolve({ok:false,status:500,json:async()=>({error:'Teste'})}); await tick();
  const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Tema da busca')).props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Idioma da busca')).props.value,'en');
- const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant().props.actionLabel, locale==='es'?'Refinar con IA':'Refinar com IA');
- assert.equal(r.assistant().props.actionLabel,locale==='es'?'Refinar con IA':'Refinar com IA');
- assert.equal(r.assistant().props.context.searchGoal, 'exploratory_broad');
- const search = r.search(); assert.equal(r.dialog().props.open, true); assert.equal(r.assistant().props.disabled, true); assert(!r.dialog().props.statusText.includes('modelo'));
+ const translated = ideasHarness(); translated.render(); await tick(); translated.restore();
+ const original = translated.card().props.idea;
+ const translationPromise = translated.card().props.onTranslate('en'); await tick();
+ assert.equal(translated.translations[0].context.proposal.radar, undefined);
+ assert.equal(translated.writes[0].proposal.title, original.title);
+ assert.equal(translated.writes[0].proposal.radar, original.radar);
+ assert.equal(translated.writes[0].proposal.references, original.references);
+ assert.equal(translated.writes[0].proposal.translations.en.title, 'Translated title');
+ translated.pending[0].resolve({ error: null }); assert.equal(await translationPromise, true);
+ assert.equal(translated.card().props.idea.translations.en.title, 'Translated title');
+ translated.card().props.onChange('title', 'Edited');
+ assert.equal(translated.card().props.idea.translations, undefined);
+
+ const natural = radarHarness(); const naturalSearch = natural.search('');
+ assert.equal(natural.aiRequests.length, 1); assert.equal(natural.requests.length, 0);
+ natural.aiRequests[0].resolve({ data: { mode: 'live', output: { recommendations: [
+  { targetField: 'pubmedQuery', confidence: 'alta', content: '("burnout"[Title/Abstract] OR "occupational stress"[Title/Abstract])' },
+ ] } } }); await tick();
+ assert.match(JSON.parse(natural.requests[0].options.body).topic, /occupational stress/);
+ natural.requests[0].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await tick();
+ assert.equal(JSON.parse(natural.requests[1].options.body).topic, 'burnout');
+ natural.requests[1].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await naturalSearch;
+
+ const exact = radarHarness('tema=hypertension+AND+exercise');
+ const exactSearch = exact.search('');
+ assert.equal(exact.aiRequests.length, 0);
+ assert.equal(JSON.parse(exact.requests[0].options.body).topic, 'hypertension AND exercise');
+ exact.requests[0].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await exactSearch;
+
+ const r = radarHarness(); assert.equal(r.dialog().props.open, false); assert.equal(r.assistant(), undefined);
+ const search = r.search(); assert.equal(r.dialog().props.open, true); assert.equal(r.aiRequests.length, 0); assert(!r.dialog().props.statusText.includes('modelo'));
  assert(r.requests[0].options.signal instanceof AbortSignal);
  r.requests[0].resolve({ ok: false, status: 500, json: async () => ({ error: 'Fonte indisponível' }) }); await search; assert.equal(r.dialog().props.open, false); assert(JSON.stringify(r.render()).includes('Fonte indisponível'));
  const retry = r.search(); r.requests[1].resolve({ ok: false, status: 422, json: async () => ({ code: 'TERMINOLOGY_REVIEW_REQUIRED', strategy: { unresolvedTerms: ['microplasticos'], concepts: [] } }) }); await retry;

@@ -1,4 +1,5 @@
 "use client";
+import { isAdvanced } from "@/lib/literature/query-strategy";
 import ProjectLiteraturePath from "@/components/projects/project-literature-path";
 import { intlLocale } from "@/lib/i18n/format";
 
@@ -150,7 +151,7 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>, narrowing?: Result["filters"], narrowingLabel?: string) {
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>, narrowing?: Result["filters"], narrowingLabel?: string, useAI = false) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
     const finishAttempt = trackRadarAttempt();
@@ -170,40 +171,49 @@ function DiscoverContent() {
     };
     const original = { topic, mesh, populationTerm, outcomeTerm, operator, language, period: searchPeriod, studyType: narrowing?.studyType ?? studyType, translations, ...prepared };
     try {
-      let { response, data } = await requestSearch(original);
+      let interpreted: { query: string; summary: string } | undefined;
+      if (useAI && !isAdvanced(topic.trim()) && ![mesh, populationTerm, outcomeTerm].some(field => field.trim())) {
+        setInterpreting(true);
+        try {
+          const { data: interpretation } = await postAI<{ mode?: string; output?: { summary?: string; recommendations?: Array<{ targetField: string; confidence: string; content: string }> } }>("/api/ai/assist", {
+            feature: "radar", projectId: projectId || null,
+            context: { searchGoal: "interpret_question", topic, language, period: searchPeriod, studyType },
+          });
+          const output = interpretation.output;
+          const item = output?.recommendations?.length === 1 ? output.recommendations[0] : undefined;
+          if (interpretation.mode === "live" && item?.targetField === "pubmedQuery" && item.confidence === "alta") {
+            const query = validateSuggestionQuery(normalizeSuggestionQuery(item.content));
+            const tags = [...query.matchAll(/\[([^\]]+)\]/g)].map(match => match[1].toLowerCase());
+            if (!tags.length || tags.some(tag => tag !== "title/abstract")) throw new Error("Consulta inválida");
+            interpreted = { query, summary: output?.summary || "" };
+          } else if (interpretation.mode === "live" && item?.confidence === "baixa" && !item.targetField && output?.summary) {
+            setInterpretationNotice(output.summary);
+            finishAttempt("review");
+            return;
+          }
+        } catch {
+          setInterpretationNotice(formatLocale === "es"
+            ? "La IA no pudo preparar la consulta. Se usará la búsqueda directa."
+            : "A IA não conseguiu preparar a consulta. A busca seguirá com os termos informados.");
+        } finally {
+          setInterpreting(false);
+        }
+      }
+      let { response, data } = await requestSearch(interpreted ? {
+        ...appliedPubmedStrategy(interpreted.query), period: searchPeriod, studyType,
+      } : original);
+      if (interpreted && !response.ok) {
+        interpreted = undefined;
+        ({ response, data } = await requestSearch(original));
+      }
       if (response.status === 422 && data?.code === "TERMINOLOGY_REVIEW_REQUIRED") {
-        const review = { strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, translations[term] ?? ""])) };
-        if (!Object.keys(translations).length && data.strategy.mode !== "advanced" && !/\[[^\]]+\]|\b(?:AND|OR|NOT)\b/.test(topic)) {
-          setInterpreting(true);
-          try {
-            const { data: interpretation } = await postAI<{ mode?: string; output?: { summary?: string; warnings?: string[]; recommendations?: Array<{ targetField: string; confidence: string; content: string; rationale: string }> } }>("/api/ai/assist", {
-              feature: "radar", projectId: projectId || null,
-              context: { searchGoal: "interpret_question", topic, mesh, population: populationTerm, outcome: outcomeTerm, operator, language, period: searchPeriod, studyType },
-            });
-            const output = interpretation.output;
-            const item = output?.recommendations?.length === 1 ? output.recommendations[0] : undefined;
-            if (interpretation.mode !== "simulation" && item?.targetField === "pubmedQuery" && item.confidence === "alta") {
-              const query = normalizeSuggestionQuery(item.content);
-              const tags = [...query.matchAll(/\[([^\]]+)\]/g)].map(match => match[1].toLowerCase());
-              if (!tags.length || tags.some(tag => tag !== "title/abstract")) throw new Error("Consulta inválida");
-              setInterpreting(false);
-              const retry = await requestSearch({ ...appliedPubmedStrategy(query), period: searchPeriod, studyType });
-              if (!retry.response.ok) throw new Error("Consulta interpretada indisponível");
-              response = retry.response;
-              data = { ...retry.data, topic: topic.trim(), filters: { ...retry.data.filters, mesh: mesh.trim(), population: populationTerm.trim(), outcome: outcomeTerm.trim(), operator, language },
-                aiInterpretation: { summary: output?.summary || "" } };
-            } else {
-              setInterpretationNotice(interpretation.mode !== "simulation" && output?.summary ? output.summary : (formatLocale === "es" ? "Revisa la pregunta para continuar." : "Revise a pergunta para continuar."));
-            }
-          } catch {
-            setInterpretationNotice(formatLocale === "es" ? "No se pudo interpretar automáticamente. Edita la pregunta o revisa los términos." : "Não foi possível interpretar automaticamente. Edite a pergunta ou revise os termos.");
-          } finally { setInterpreting(false); }
-        }
-        if (!response.ok) {
-          finishAttempt("review");
-          setTermReview(review);
-          return;
-        }
+        finishAttempt("review");
+        setTermReview({ strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, translations[term] ?? ""])) });
+        return;
+      }
+      if (interpreted && response.ok) {
+        data = { ...data, topic: topic.trim(), filters: { ...data.filters, operator, language },
+          aiInterpretation: { summary: interpreted.summary } };
       }
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       finishAttempt("completed");
@@ -225,7 +235,11 @@ function DiscoverContent() {
       setLoading(false);
     }
   }
-  async function analyze(e: React.FormEvent) { e.preventDefault(); await runAnalysis(); }
+  async function analyze(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    await runAnalysis({}, period, undefined, undefined, undefined, submitter?.getAttribute("value") !== "manual");
+  }
   async function confirmTerms(e: React.FormEvent) { e.preventDefault(); if (termReview) await runAnalysis(termReview.translations); }
   const handoff = params.get("origem") === "ideias" ? params.get("busca") : null;
   const usedHandoff = useRef<string | null>(null);
@@ -314,20 +328,10 @@ function DiscoverContent() {
       {linkedProject && <ProjectLiteraturePath project={linkedProject} count={library.articles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
 
       <form id="preparar-busca-ia" onSubmit={analyze} className="scroll-mt-24 module-commandbar radar-search-panel mt-8 bg-white border border-line rounded-2xl p-4 md:p-5 flex flex-wrap gap-3 shadow-sm">
-        <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input ref={queryInput} aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
+        <div className="radar-query-row"><div className="radar-query-field"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input ref={queryInput} disabled={loading || browsing} aria-label={uiText("screen.a10fc0e515dd")} required minLength={3} maxLength={searchLimits.query} value={topic} onChange={(e) => { setTopic(e.target.value); setTermReview(null); setInterpretationNotice(""); }} className="flex-1 border border-line rounded-card px-4 py-3 outline-none focus:border-teal" placeholder={uiText("screen.6e0d55e597f7")} />
 </div>
-      <AssistantPanel feature="radar" compact title={formatLocale==="es"?"Prepara tu estrategia de búsqueda":"Prepare sua estratégia de busca"} actionLabel={formatLocale==="es"?"Refinar con IA":"Refinar com IA"} disabled={loading || browsing || lookupLoading || topic.trim().length < 3} description={formatLocale==="es"?"Sugiere términos y sinónimos. Usa tu cuota de IA.":"Sugere termos e sinônimos. Usa sua franquia de IA."} context={{ topic, language, period, studyType, mesh, population: populationTerm, outcome: outcomeTerm, operator, searchGoal: "exploratory_broad" }} projectId={projectId||null} onAutoApply={items=>{
-        const item=items.find(candidate=>candidate.targetField==="pubmedQuery" && candidate.confidence!=="baixa");
-        if(!item || searchLock.current || queryInput.current?.value !== topic) return false;
-        try {
-          const prepared=appliedPubmedStrategy(validateSuggestionQuery(normalizeSuggestionQuery(item.content)));
-          setTopic(prepared.topic);setMesh("");setPopulationTerm("");setOutcomeTerm("");setOperator(prepared.operator);setLanguage(prepared.language);
-          void runAnalysis({},period,prepared);
-          return true;
-        } catch { return false; }
-      }} onApply={item=>{if(item.targetField==="pubmedQuery"){try{const next=appliedPubmedStrategy(item.content);setTopic(next.topic);setMesh(next.mesh);setPopulationTerm(next.populationTerm);setOutcomeTerm(next.outcomeTerm);setOperator(next.operator);setLanguage(next.language);setTermReview(null);setResult(null);setError(null);queryInput.current?.focus({preventScroll:true});}catch(error){setError(error instanceof Error?error.message:"Estratégia inválida.");}}}}/>
         <button disabled={loading || browsing} className="bg-teal text-white px-6 py-3 rounded-card font-medium disabled:opacity-50">
-          {loading ? "Consultando PubMed..." : uiText("screen.96767be14e59")}
+          {interpreting ? (formatLocale === "es" ? "Preparando la búsqueda…" : "Preparando a busca…") : loading ? uiText("screen.c98dca97594e") : uiText("screen.96767be14e59")}
         </button>
         <p className="radar-query-hint text-sm text-ink-soft">{formatLocale==="es"?"Escribe tu pregunta con tus propias palabras. Si hace falta, el Radar usa tu cuota de IA para interpretarla.":"Escreva sua pergunta com suas próprias palavras. Se necessário, o Radar usa sua franquia de IA para interpretá-la."}</p>
 </div>
@@ -337,11 +341,15 @@ function DiscoverContent() {
         <label className="text-xs text-ink-soft"><InterfaceText message="screen.d1703a5a5185" /><select disabled={loading || browsing} value={studyType} onChange={e => setStudyType(e.target.value)} className="block border border-line rounded-card px-3 py-2 bg-paper mt-1"><option value="all"><InterfaceText message="screen.88bfb93eb03e" /></option><option value="systematic"><InterfaceText message="screen.6e3232cec67c" /></option><option value="trial"><InterfaceText message="screen.774dd62a21e8" /></option><option value="observational"><InterfaceText message="screen.6529a74e7fb0" /></option><option value="review"><InterfaceText message="screen.f2e7f5487180" /></option><option value="case"><InterfaceText message="screen.60a84ae8356a" /></option></select></label>
 </div>
         <div className="radar-search-options">
-        <details><summary className="text-sm text-teal cursor-pointer">{formatLocale==="es"?"Búsqueda avanzada":"Busca avançada"}</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft"><InterfaceText message="screen.a67ea4995792" /><input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder={uiText("screen.94f1f4e1eb9a")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.22b2ba5d4d18" /><input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder={uiText("screen.b91a4112cff5")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.3e31015169f5" /><input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder={uiText("screen.c2af7282316e")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.4ccc9e28b467" /><select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR"><InterfaceText message="screen.0969997e4309" /></option></select></label></div><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.9b189eb267d7" /></p></details>
+        <details><summary className="text-sm text-teal cursor-pointer">{formatLocale==="es"?"Búsqueda avanzada":"Busca avançada"}</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft"><InterfaceText message="screen.a67ea4995792" /><input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder={uiText("screen.94f1f4e1eb9a")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.22b2ba5d4d18" /><input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder={uiText("screen.b91a4112cff5")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.3e31015169f5" /><input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder={uiText("screen.c2af7282316e")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.4ccc9e28b467" /><select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR"><InterfaceText message="screen.0969997e4309" /></option></select></label></div><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.9b189eb267d7" /></p><button type="submit" value="manual" disabled={loading || browsing} className="mt-3 text-sm text-teal underline disabled:opacity-50">{formatLocale === "es" ? "Buscar sin IA" : "Pesquisar sem IA"}</button></details>
         <details className="radar-search-help text-sm"><summary className="text-teal font-medium cursor-pointer">{formatLocale==="es"?"ⓘ Cómo funciona la búsqueda":"ⓘ Como a busca funciona"}</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li><InterfaceText message="screen.445351b59ad4" /></li><li><InterfaceText message="screen.847f1babeb29" /></li><li><InterfaceText message="screen.596a7d5cc5eb" /></li><li><InterfaceText message="screen.311ebca8bb47" /></li><li><InterfaceText message="screen.b29c68d5ecdf" /></li><li><InterfaceText message="screen.6f1c33e52dce" /></li></ol><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.825d3ed8f5c0" /></p></details>
         </div>
       </form>
       {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4"><InterfaceText message="screen.3a3817970c44" /></p>}
+      {interpretationNotice && !termReview && <div className="mt-4 rounded-card bg-amber-soft p-4 text-sm">
+        <p role="status">{interpretationNotice}</p>
+        {!result && !loading && <button type="button" className="mt-2 text-teal underline" onClick={() => queryInput.current?.focus()}>{formatLocale === "es" ? "Editar pregunta" : "Editar pergunta"}</button>}
+      </div>}
       {error && <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-700 p-4 rounded-card text-sm"><AuthoredText text={error} /></div>}
       {termReview && <form onSubmit={confirmTerms} className="mt-5 bg-amber-soft border border-amber-200 rounded-2xl p-5" aria-label={uiText("screen.10167fd7288d")}>
         <p className="text-xs uppercase tracking-widest text-amber-800 font-semibold"><InterfaceText message="screen.97efbb872032" /></p>
@@ -432,7 +440,7 @@ function DiscoverContent() {
         <div className="mt-10 space-y-6">
           <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label={uiText("screen.1552cf019613")}>
             <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.aef37a1b68b9" /></p>
-            <p className="font-medium mt-2">{result.aiInterpretation ? `Buscamos por: ${result.aiInterpretation.summary || result.strategy.interpreted}` : result.strategy.interpreted}</p>
+            <p className="font-medium mt-2">{result.aiInterpretation ? result.aiInterpretation.summary || result.strategy.interpreted : result.strategy.interpreted}</p>
             <details className="mt-3 text-sm">
               <summary className="cursor-pointer text-teal">{formatLocale === "es" ? "Ver o editar la estrategia de PubMed" : "Ver ou editar a estratégia do PubMed"}</summary>
               <code className="block mt-2 break-words">{result.filters.searchTerm}</code>

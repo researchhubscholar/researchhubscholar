@@ -135,7 +135,7 @@ function conceptQuery(concept: Concept) {
   return `(${[...terms, ...mesh].join(" OR ")})`;
 }
 
-function isAdvanced(value: string) {
+export function isAdvanced(value: string) {
   return /\[[^\]]+\]|(?:^|\s)(?:AND|OR|NOT)(?:\s|$)|^\([\s\S]*\)$|^"[^" ]+(?: [^" ]+)*"$/.test(value);
 }
 

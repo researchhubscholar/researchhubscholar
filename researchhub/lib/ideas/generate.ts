@@ -1,3 +1,4 @@
+import type { IdeaTranslations } from "./translation";
 import { diagnose } from "../research/checks";
 import type { LibraryArticle, EvidenceNote } from "../literature/library-store";
 
@@ -80,6 +81,7 @@ function generateBase(c: Context): BaseIdea[] {
 export type Evidence = { article: LibraryArticle; note: EvidenceNote };
 export type Reference = { id: string; label: string; title: string; year: number | null; identifier: string; url: string | null; hasAbstract: boolean; observations: string[] };
 export type Idea = BaseIdea & {
+  translations?: IdeaTranslations;
   justification: string;
   unresolved: string[];
   plan: string[];
