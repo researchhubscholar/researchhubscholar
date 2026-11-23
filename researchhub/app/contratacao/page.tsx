@@ -322,6 +322,15 @@ export default function CommercePage() {
     }
   }
 
+  useEffect(() => {
+    if (loading || !licenses.length || window.location.hash !== "#recarga") return;
+    const section = document.querySelector<HTMLDetailsElement>("#recarga");
+    if (section) {
+      section.open = true;
+      section.scrollIntoView();
+    }
+  }, [loading, licenses.length]);
+
   if (loading) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto"><p role="status"><InterfaceText message="screen.2c1aafb83914" /></p></div>;
   if (!userId) return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
     <h1 className="font-display text-4xl"><InterfaceText message="screen.083cff630878" /></h1>
@@ -331,15 +340,26 @@ export default function CommercePage() {
     </div>
   </div>;
 
+  const currentPlan = licenses.find(item => !item.organization_id && item.owner_id === userId && item.status === "active");
+  const pending = requests.find(item => item.kind !== "institutional" && item.status === "payment_pending");
   return <div className="scholar-workspace secondary-page commerce-page checkout-workspace max-w-5xl mx-auto">
     <header className="checkout-page-header">
       <p className="text-xs uppercase tracking-widest text-teal">{formatLocale === "es" ? "Contratación" : "Contratação"}</p>
-      <h1 className="font-display mt-2">{formatLocale === "es" ? "Elige tu suscripción" : "Escolha sua assinatura"}</h1>
+      <h1 className="font-display mt-2">{formatLocale === "es" ? "Suscripción" : "Assinatura"}</h1>
       <p className="text-ink-soft mt-2">
         {formatLocale === "es" ? "Selecciona tu plan, revisa el valor final y continúa al pago. Tu acceso se activará después de confirmar el pago." : "Selecione seu plano, confira o valor final e siga para o pagamento. Seu acesso será liberado após a confirmação."}
       </p>
     </header>
 
+    {currentPlan && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white p-4">
+      <p className="text-sm">{formatLocale === "es" ? "Plan actual" : "Plano atual"} · <strong>{plans[currentPlan.plan].name}</strong></p>
+      <Link href="/licenca" className="text-sm text-teal underline">{formatLocale === "es" ? "Ver mi licencia" : "Ver minha licença"}</Link>
+    </div>}
+    {pending && paymentsEnabled && <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/30 bg-teal-soft p-4">
+      <div><h2 className="font-medium">{formatLocale === "es" ? "Pago pendiente" : "Pagamento pendente"}</h2>
+        <p className="text-sm text-ink-soft">{pending.plan ? plans[pending.plan].name : "Recarga"} · {money(pending.total_amount_cents)}</p></div>
+      <button type="button" disabled={busy} onClick={() => void resumeCheckout(pending.id)} className="min-h-11 rounded-card bg-teal px-4 py-2 text-sm text-white disabled:opacity-50">{formatLocale === "es" ? "Reanudar pago" : "Retomar pagamento"}</button>
+    </section>}
     <div className="checkout-notice mt-5 text-sm" role="note">
       <span className="checkout-notice-dot" aria-hidden="true" />
       <p><strong>{paymentsEnabled ? (formatLocale === "es" ? "Pago seguro." : "Pagamento seguro.") : (formatLocale === "es" ? "Pago no disponible." : "Pagamento indisponível.")}</strong>{" "}
@@ -392,8 +412,8 @@ export default function CommercePage() {
       </div>
 {kind==="individual"?<p className="purchase-advisor">{advisor.benefit(plans[plan].advisorsPerProject)}</p>:null}</aside></div>
 
-    {licenses.length ? <section className="mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl">Recarga opcional</h2>
+    {licenses.length ? <details id="recarga" className="mt-7 scroll-mt-24 rounded-2xl border border-line bg-white p-5">
+      <summary className="cursor-pointer font-medium">{formatLocale === "es" ? "Comprar tokens adicionales" : "Comprar tokens extras"}</summary>
       <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.b5cacf9e1de6" /></p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="text-sm"><InterfaceText message="screen.70dfbb512f68" />
@@ -407,10 +427,10 @@ export default function CommercePage() {
       </div>
       {rechargeQuote ? <p className="mt-4 text-sm"><strong>{money(rechargeQuote.totalAmountCents)}</strong> · {rechargeQuote.tokenAllowance.toLocaleString(intlLocale(formatLocale))} tokens</p> : <p role="status" className="mt-4 text-sm">{rechargeQuoteError || (formatLocale === "es" ? "Calculando recarga..." : "Calculando recarga...")}</p>}
       <button type="button" disabled={busy || !rechargeLicense || rechargeQuoteLoading || Boolean(rechargeQuoteError) || !rechargeQuote} onClick={createRechargeRequest} className="mt-4 rounded-card border border-teal px-4 py-2 text-teal disabled:opacity-50">{busy ? (formatLocale === "es" ? "Preparando..." : "Preparando...") : (formatLocale === "es" ? "Comprar tokens adicionales" : "Comprar tokens extras")}</button>
-    </section> : null}
+    </details> : null}
 
-    <section className="mt-7 rounded-2xl border border-line bg-white p-5">
-      <h2 className="font-display text-2xl"><InterfaceText message="screen.609493ad3ecc" /></h2>
+    <details className="mt-7 rounded-2xl border border-line bg-white p-5">
+      <summary className="cursor-pointer font-medium"><InterfaceText message="screen.609493ad3ecc" /></summary>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead><tr><th className="p-2"><InterfaceText message="screen.cec3a9b89b2e" /></th><th className="p-2">Tipo</th><th className="p-2"><InterfaceText message="screen.5b41dbc68c28" /></th><th className="p-2"><InterfaceText message="screen.b2f530c46991" /></th><th className="p-2"><InterfaceText message="screen.920e413c7d41" /></th><th className="p-2"><InterfaceText message="screen.1dfbdde6410a" /></th></tr></thead>
@@ -430,7 +450,7 @@ export default function CommercePage() {
         </table>
       </div>
       {!requests.length ? <p className="mt-3 text-sm text-ink-soft"><InterfaceText message="screen.68842c1604b0" /></p> : null}
-    </section>
+    </details>
 
     <div className="checkout-links mt-6 flex flex-wrap gap-5 text-sm">
       <Link href="/licenca" className="text-teal underline"><InterfaceText message="screen.1ee0fcabfabd" /></Link>
