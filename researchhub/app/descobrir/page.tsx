@@ -130,6 +130,7 @@ function DiscoverContent() {
   const openAccess = useOpenAccess(accessArticles);
   const effectiveQuery = useMemo(() => result?.strategy.pubmedQuery || [topic.trim(), mesh.trim() && `\"${mesh.trim()}\"[MeSH Terms]`, populationTerm.trim(), outcomeTerm.trim()].filter(Boolean).join(` ${operator} `), [result, topic, mesh, populationTerm, outcomeTerm, operator]);
   const searchTerms = useSearchTerms(result?.strategy.pubmedQuery ?? "");
+  const [activeNarrowing, setActiveNarrowing] = useState<string>();
   const [originalSearch, setOriginalSearch] = useState<{ result: Result; articles: Article[]; source: string; sort: string; duplicateCount: number; sourceWarning: string | null } | null>(null);
 
   useEffect(() => {
@@ -149,13 +150,13 @@ function DiscoverContent() {
     } catch { /* O histórico nunca deve interromper uma busca válida. */ }
   }
 
-  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>, narrowing?: Result["filters"]) {
+  async function runAnalysis(translations: Record<string, string> = {}, searchPeriod = period, prepared?: ReturnType<typeof appliedPubmedStrategy>, narrowing?: Result["filters"], narrowingLabel?: string) {
     if (searchLock.current || loading || browsing) return;
     searchLock.current = true;
     const finishAttempt = trackRadarAttempt();
     setLoading(true);
     setError(null);
-    if (!narrowing) { setResult(null); setOriginalSearch(null); }
+    if (!narrowing) { setResult(null); setOriginalSearch(null); setActiveNarrowing(undefined); }
     setInterpretationNotice("");
     setTermReview(null);
     const requestSearch = async (parameters: Record<string, unknown>) => {
@@ -208,6 +209,7 @@ function DiscoverContent() {
       finishAttempt("completed");
       setTermReview(null);
       if (narrowing && result) {
+        setActiveNarrowing(narrowingLabel);
         setOriginalSearch(previous => previous ?? { result, articles, source, sort, duplicateCount, sourceWarning });
       }
       setResult(data);
@@ -450,21 +452,19 @@ function DiscoverContent() {
             <Metric value={result.sources.pubmed.clinicalTrials.toLocaleString(intlLocale(formatLocale))} label={uiText("screen.54a245bc407b")} />
           </section>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <PublicationTimeline timeline={result.timeline} currentYear={new Date().getUTCFullYear()} trend={result.signals.trend} es={formatLocale === "es"} />
-            <SearchDeepening key={JSON.stringify([result.strategy.pubmedQuery, result.filters.period, result.filters.studyType])}
+          <SearchDeepening key={JSON.stringify([result.strategy.pubmedQuery, result.filters.period, result.filters.studyType])}
               query={result.strategy.pubmedQuery} articles={result.articles} period={result.filters.period} studyType={result.filters.studyType} projectId={projectId || null}
               broad={["broad", "very_broad"].includes(result.signals.breadth)} busy={loading || browsing} es={formatLocale === "es"}
-              total={result.sources.pubmed.total} baseline={originalSearch?.result.sources.pubmed.total}
-              onSearch={query => void runAnalysis({}, result.filters.period, appliedPubmedStrategy(query), result.filters)}
+              total={result.sources.pubmed.total} baseline={originalSearch?.result.sources.pubmed.total} activeLabel={activeNarrowing}
+              timeline={<PublicationTimeline timeline={result.timeline} currentYear={new Date().getUTCFullYear()} trend={result.signals.trend} es={formatLocale === "es"} />}
+              onSearch={(query, label) => void runAnalysis({}, result.filters.period, appliedPubmedStrategy(query), result.filters, label)}
               onReset={() => {
                 if (!originalSearch) return;
                 setResult(originalSearch.result); setArticles(originalSearch.articles);
                 setSource(originalSearch.source); setSort(originalSearch.sort);
                 setDuplicateCount(originalSearch.duplicateCount); setSourceWarning(originalSearch.sourceWarning);
-                setBrowseError(null); setError(null); setOriginalSearch(null);
+                setBrowseError(null); setError(null); setOriginalSearch(null); setActiveNarrowing(undefined);
               }} />
-          </div>
           {linkedProject && <ProjectLiteraturePath project={linkedProject} count={savedArticles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
