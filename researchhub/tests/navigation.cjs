@@ -18,7 +18,6 @@ const publicPages = [
   "/para-residencias",
   "/planos",
   "/privacidade",
-  "/radar-demo",
   "/redefinir-senha",
   "/termos",
 ];
