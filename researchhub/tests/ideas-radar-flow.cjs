@@ -147,15 +147,23 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  translated.card().props.onChange('title', 'Edited');
  assert.equal(translated.card().props.idea.translations, undefined);
 
- const natural = radarHarness(); const naturalSearch = natural.search('');
+ const natural = radarHarness('tema=cancer+coloretal'); const naturalSearch = natural.search('');
  assert.equal(natural.aiRequests.length, 1); assert.equal(natural.requests.length, 0);
+ assert.equal(natural.aiRequests[0].body.context.searchGoal, 'exploratory_broad');
  natural.aiRequests[0].resolve({ data: { mode: 'live', output: { recommendations: [
-  { targetField: 'pubmedQuery', confidence: 'alta', content: '("burnout"[Title/Abstract] OR "occupational stress"[Title/Abstract])' },
+  { targetField: 'pubmedQuery', confidence: 'media', content: '("Colorectal Neoplasms"[MeSH Terms] OR colorectal cancer OR colorectal carcinoma)' },
+  { targetField: 'synonyms', confidence: 'alta', content: 'colon cancer' },
  ] } } }); await tick();
- assert.match(JSON.parse(natural.requests[0].options.body).topic, /occupational stress/);
- natural.requests[0].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await tick();
- assert.equal(JSON.parse(natural.requests[1].options.body).topic, 'burnout');
- natural.requests[1].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await naturalSearch;
+ const refined = JSON.parse(natural.requests[0].options.body);
+ assert.match(refined.topic, /colorectal carcinoma/);
+ assert.equal(refined.period, '5');
+ natural.requests[0].resolve({ ok: false, status: 502, json: async () => ({ error: 'Fonte indisponível' }) }); await naturalSearch;
+ assert.equal(natural.requests.length, 1, 'failed refined search must not silently run the raw query');
+
+ const unavailable = radarHarness('tema=cancer+coloretal'); const failedRefinement = unavailable.search('');
+ unavailable.aiRequests[0].reject(new Error('IA indisponível')); await failedRefinement;
+ assert.equal(unavailable.requests.length, 0);
+ assert(JSON.stringify(unavailable.render()).includes(locale === 'es' ? 'No se pudo refinar' : 'Não foi possível refinar'));
 
  const exact = radarHarness('tema=hypertension+AND+exercise');
  const exactSearch = exact.search('');
