@@ -51,13 +51,15 @@ const designs = [
 const literal = (value: string) => value.replace(/[^\p{L}\p{M}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
 
 function NarrowSearch({ query, busy, es, onSearch }: {
-  query: string; busy: boolean; es: boolean; onSearch: (query: string) => void;
+  query: string; busy: boolean; es: boolean; onSearch: (query: string, label: string) => void;
 }) {
   const [population, setPopulation] = useState("");
   const [outcome, setOutcome] = useState("");
   const [design, setDesign] = useState("");
   const clauses = [literal(population), literal(outcome)].filter(Boolean).map(term => `"${term}"[Title/Abstract]`);
-  const designClause = designs.find(option => option[0] === design)?.[3];
+  const selectedDesign = designs.find(option => option[0] === design);
+  const designClause = selectedDesign?.[3];
+  const label = [literal(population), literal(outcome), selectedDesign?.[es ? 2 : 1]].filter(Boolean).join(" · ");
   if (designClause) clauses.push(designClause);
   const preview = clauses.length ? `(${query}) AND ${clauses.join(" AND ")}` : "";
   return <details className="mt-4 rounded-card border border-line bg-white p-3">
@@ -71,7 +73,7 @@ function NarrowSearch({ query, busy, es, onSearch }: {
     <p className="mt-2 text-xs text-ink-soft">{es ? "Usa términos en inglés para buscar literalmente en títulos y resúmenes." : "Use termos em inglês para buscar literalmente em títulos e resumos."}</p>
     {preview && <div className="mt-3 rounded-card bg-white p-3"><p className="text-sm font-medium">{es ? "Vista previa de la estrategia" : "Prévia da estratégia"}</p><p className="mt-1 break-words text-xs text-ink-soft">{preview}</p></div>}
     {preview.length > searchLimits.query && <p className="mt-2 text-sm">{es ? "La estrategia supera el límite de longitud." : "A estratégia excede o limite de tamanho."}</p>}
-    <button type="button" className="mt-4 min-h-11 rounded-card bg-teal px-4 text-sm text-white disabled:opacity-50" disabled={busy || !preview || preview.length > searchLimits.query} onClick={() => onSearch(preview)}>{es ? "Buscar con este recorte" : "Buscar com este recorte"}</button>
+    <button type="button" className="mt-4 min-h-11 rounded-card bg-teal px-4 text-sm text-white disabled:opacity-50" disabled={busy || !preview || preview.length > searchLimits.query} onClick={() => onSearch(preview, label)}>{es ? "Buscar con este recorte" : "Buscar com este recorte"}</button>
   </details>;
 }
 

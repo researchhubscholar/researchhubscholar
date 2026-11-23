@@ -118,10 +118,11 @@ export default function IdeasPage() {
       pendingRadarGeneration.current = true;
     }
     if (theme) {
+      const scopedTheme = cut ? `${theme} — Recorte aplicado: ${cut}` : theme;
       setCreationMode("theme");
       setContext(current => ({
-        ...current, theme,
-        interest: theme.length < 10 ? (initialLocale.current === "es" ? `Ideas de investigación sobre ${theme}` : `Ideias de pesquisa sobre ${theme}`) : theme,
+        ...current, theme: scopedTheme,
+        interest: scopedTheme.length < 10 ? (initialLocale.current === "es" ? `Ideas de investigación sobre ${theme}` : `Ideias de pesquisa sobre ${theme}`) : scopedTheme,
         requirements: cut ? (initialLocale.current === "es" ? `Recorte elegido en el Radar: ${cut}` : `Recorte escolhido no Radar: ${cut}`) : current.requirements,
       }));
     }

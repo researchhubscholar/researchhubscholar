@@ -207,13 +207,16 @@ function DiscoverContent() {
         setTermReview({ strategy: data.strategy, translations: Object.fromEntries(data.strategy.unresolvedTerms.map((term: string) => [term, translations[term] ?? ""])) });
         return;
       }
-      const nextResult: Result = interpreted ? { ...data, topic: topic.trim(), filters: { ...data.filters, operator, language },
+      const nextResult: Result = narrowing && result ? {
+        ...data, topic: result.topic,
+        filters: { ...narrowing, searchTerm: data.filters.searchTerm, crossrefQuery: data.filters.crossrefQuery, endDate: data.filters.endDate },
+      } : interpreted ? { ...data, topic: topic.trim(), filters: { ...data.filters, operator, language },
         aiInterpretation: { summary: interpreted.summary } } : data;
       if (!response.ok) throw new Error(data?.error || "Erro na busca");
       finishAttempt("completed");
       setTermReview(null);
       if (narrowing && result) {
-        setActiveNarrowing(narrowingLabel);
+        setActiveNarrowing(previous => [previous, narrowingLabel].filter(Boolean).join(" · "));
         setOriginalSearch(previous => previous ?? { result, articles, source, sort, duplicateCount, sourceWarning });
       }
       setResult(nextResult);
@@ -338,6 +341,15 @@ function DiscoverContent() {
         <details><summary className="text-sm text-teal cursor-pointer">{formatLocale==="es"?"Búsqueda avanzada":"Busca avançada"}</summary><div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><label className="text-xs text-ink-soft"><InterfaceText message="screen.a67ea4995792" /><input value={mesh} maxLength={searchLimits.field} onChange={e=>setMesh(e.target.value)} placeholder={uiText("screen.94f1f4e1eb9a")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.22b2ba5d4d18" /><input value={populationTerm} maxLength={searchLimits.field} onChange={e=>setPopulationTerm(e.target.value)} placeholder={uiText("screen.b91a4112cff5")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.3e31015169f5" /><input value={outcomeTerm} maxLength={searchLimits.field} onChange={e=>setOutcomeTerm(e.target.value)} placeholder={uiText("screen.c2af7282316e")} className="block w-full border rounded-card px-3 py-2 mt-1"/></label><label className="text-xs text-ink-soft"><InterfaceText message="screen.4ccc9e28b467" /><select value={operator} onChange={e=>setOperator(e.target.value)} className="block w-full border rounded-card px-3 py-2 mt-1 bg-white"><option value="AND">AND · todos</option><option value="OR"><InterfaceText message="screen.0969997e4309" /></option></select></label></div><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.9b189eb267d7" /></p><button type="submit" value="manual" disabled={loading || browsing} className="mt-3 text-sm text-teal underline disabled:opacity-50">{formatLocale === "es" ? "Buscar sin IA" : "Pesquisar sem IA"}</button></details>
         <details className="radar-search-help text-sm"><summary className="text-teal font-medium cursor-pointer">{formatLocale==="es"?"ⓘ Cómo funciona la búsqueda":"ⓘ Como a busca funciona"}</summary><ol className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-ink-soft list-decimal pl-5"><li><InterfaceText message="screen.445351b59ad4" /></li><li><InterfaceText message="screen.847f1babeb29" /></li><li><InterfaceText message="screen.596a7d5cc5eb" /></li><li><InterfaceText message="screen.311ebca8bb47" /></li><li><InterfaceText message="screen.b29c68d5ecdf" /></li><li><InterfaceText message="screen.6f1c33e52dce" /></li></ol><p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.825d3ed8f5c0" /></p></details>
         </div>
+        {result && <section className="rounded-card border border-line bg-paper p-4 text-sm" aria-label={formatLocale === "es" ? "Consulta utilizada en PubMed" : "Consulta usada no PubMed"}>
+          <p className="font-medium">{formatLocale === "es" ? "Consulta utilizada en PubMed" : "Consulta usada no PubMed"}</p>
+          <code className="mt-2 block whitespace-pre-wrap break-words text-xs text-ink-soft">{result.filters.searchTerm}</code>
+          <button type="button" className="mt-3 text-teal underline" onClick={() => {
+            const next = appliedPubmedStrategy(result.strategy.pubmedQuery);
+            setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator(next.operator); setLanguage(next.language);
+            setPeriod(result.filters.period); setStudyType(result.filters.studyType); queryInput.current?.focus();
+          }}>{formatLocale === "es" ? "Editar en el formulario" : "Editar no formulário"}</button>
+        </section>}
       </form>
       {result && (result.topic !== topic.trim() || result.filters.mesh !== mesh.trim() || result.filters.population !== populationTerm.trim() || result.filters.outcome !== outcomeTerm.trim() || result.filters.operator !== operator || result.filters.language !== language || result.filters.period !== period || result.filters.studyType !== studyType) && <p role="status" className="mt-4 text-sm bg-amber-soft rounded-card p-4"><InterfaceText message="screen.3a3817970c44" /></p>}
       {interpretationNotice && !termReview && <div className="mt-4 rounded-card bg-amber-soft p-4 text-sm">
@@ -435,11 +447,6 @@ function DiscoverContent() {
           <section className="bg-white border border-teal/30 rounded-2xl p-5" aria-label={uiText("screen.1552cf019613")}>
             <p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.aef37a1b68b9" /></p>
             <p className="font-medium mt-2">{result.aiInterpretation ? result.aiInterpretation.summary || result.strategy.interpreted : result.strategy.interpreted}</p>
-            <details className="mt-3 text-sm">
-              <summary className="cursor-pointer text-teal">{formatLocale === "es" ? "Ver o editar la estrategia de PubMed" : "Ver ou editar a estratégia do PubMed"}</summary>
-              <code className="block mt-2 break-words">{result.filters.searchTerm}</code>
-              <button type="button" className="mt-2 text-teal underline" onClick={() => { const next = appliedPubmedStrategy(result.strategy.pubmedQuery); setTopic(next.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setOperator("AND"); setLanguage(next.language); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{formatLocale === "es" ? "Editar en el formulario" : "Editar no formulário"}</button>
-            </details>
             {!result.aiInterpretation && <>
             <p className="text-xs text-ink-soft mt-2">Idioma aplicado: {result.strategy.language === "pt" ? uiText("screen.e4bf48ea4a79") : result.strategy.language === "en" ? uiText("screen.85a560bc1af9") : uiText("screen.0fd98652103f")}</p>
             {!!result.strategy.concepts.length && <div className="flex flex-wrap gap-2 mt-3">{result.strategy.concepts.map(concept => <span key={concept} className="bg-teal-soft text-teal rounded-full px-3 py-1 text-xs">{concept}</span>)}</div>}
@@ -572,10 +579,10 @@ function DiscoverContent() {
                 <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.8bdd389e9ef0" /></p>
               </div>
               <Link prefetch={false} href={{ pathname: "/ideias", query: {
-                tema: (originalSearch?.result.topic ?? result.topic).slice(0, 1000),
+                tema: result.topic.slice(0, 1000),
                 gerar: "radar",
                 ...(projectId ? { projeto: projectId } : {}),
-                ...(activeNarrowing || originalSearch ? { recorte: (activeNarrowing || result.strategy.pubmedQuery).slice(0, 500) } : {}),
+                ...(activeNarrowing ? { recorte: activeNarrowing.slice(0, 500) } : {}),
               } }} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">
                 {formatLocale === "es" ? "Generar ideas con este tema →" : "Gerar ideias com este tema →"}
               </Link>

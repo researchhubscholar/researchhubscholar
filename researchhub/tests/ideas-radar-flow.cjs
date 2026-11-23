@@ -21,16 +21,16 @@ function hooks() {
   useEffect(effect, deps) { const i = cursor++, old = state[i]; if (!old || !deps || deps.some((value, index) => value !== old.deps[index])) effects.push(() => { old?.cleanup?.(); state[i] = { deps, cleanup: effect() }; }); },
  }, render(component) { cursor = 0; const tree = component(); while (effects.length) effects.shift()(); return tree; } };
 }
-function ideasHarness() {
+function ideasHarness(url = "https://local/ideias") {
  const h = hooks(), writes = [], destinations = [], events = [], pending = [];
- const translations = [];
+ const translations = [], generations = [];
  const library = { userId: 'owner-a', loading: false, articles: [], notes: {}, projects: [] };
  let authOwner = 'owner-a';
  const client = { auth: { getUser: async () => ({ data: { user: { id: authOwner } }, error: null }) }, from(table) {
   return { select() { return { eq() { return { maybeSingle: async () => ({ data: null }) }; } }; }, insert(payload) { assert.equal(table, 'idea_versions'); writes.push(payload); events.push('insert'); const work = deferred(); pending.push(work); return work.promise; } };
  } };
  const module = { exports: {} };
- vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URL, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { href: 'https://local/ideias' }, confirm: () => true, setTimeout() {} }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URL, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { href: url }, history: { replaceState() {} }, confirm: () => true, setTimeout() {} }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
@@ -44,6 +44,7 @@ function ideasHarness() {
   if (name === '@/lib/ideas/translation') return translation;
   if (name === '@/lib/ai/client-request') return { postAI: async (path, body) => {
    if (path === '/api/ai/ideas') {
+    generations.push(body.context);
     const [proposal] = body.ideas;
     return { data: { ideas: [1, 2, 3].map(id => ({ ...proposal, id: String(id) })) } };
    }
@@ -59,7 +60,7 @@ function ideasHarness() {
  const all = () => nodes(render());
  const idea = { ...generation.generate(generation.initial, [])[0], radar: '(burnout OR occupational stress) AND (nurses OR physicians)' };
  const row = { id: 'version-a', series_id: 'series-a', context: { ...generation.initial }, proposal: idea, evidence_signature: generation.referenceSignature([]), reason: 'Teste' };
- return { library, translations, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
+ return { library, translations, generations, writes, destinations, events, pending, render, all, row, setAuth: owner => { authOwner = owner; }, restore() { all().find(n => n.type === '@/components/ideas/history').props.restore(row); }, card: () => all().find(n => typeof n.type === 'function' && n.type.name === 'IdeaCard') };
 }
 function radarHarness(query='tema=burnout&origem=ideias') {
  const h = hooks(), requests = [], aiRequests = [];
@@ -75,7 +76,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
   if (name === '@/lib/literature/use-open-access') return { useOpenAccess: () => ({ results: {}, loading: new Set() }) };
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }) };
   if (name === '@/lib/literature/query-strategy') return strategy;
-  if (name === '@/components/radar/search-insights') return { useSearchTerms: () => ({ terms: [], loading: false }) };
+  if (name === '@/components/radar/search-insights') return { useSearchTerms: () => [], SearchDeepening: 'SearchDeepening' };
   if (name === '@/lib/literature/suggestion-query') return suggestions;
   if (name === '@/lib/ai/client-request') return { postAI(path, body) {
    const work = deferred(); aiRequests.push({ path, body, ...work }); return work.promise;
@@ -184,9 +185,31 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const success = r.search(); const payload = JSON.parse(r.requests[4].options.body);
  const result = { topic: payload.topic, filters: { period: payload.period, studyType: payload.studyType, mesh: '', population: '', outcome: '', operator: 'AND', language: 'auto', searchTerm: 'burnout', crossrefQuery: 'burnout', endDate: '2026-10-19' }, strategy: { interpreted: 'burnout', pubmedQuery: '(burnout)', mode: 'advanced', language: 'advanced', warnings: [], concepts: [], manualTranslations: [] }, sources: { pubmed: { total: 0, recent: 0, systematicReviews: 0, clinicalTrials: 0 }, crossref: { total: 0 } }, articles: [], timeline: [], signals: { breadth: 'scarce', trend: 'insufficient', recentRatio: 0 }, methodology: 'Teste' };
  r.requests[4].resolve({ ok: true, json: async () => result }); await success; assert.equal(r.dialog().props.open, false); r.render();
+ const initialHandoff = () => r.all().find(n => n.props.href?.pathname === '/ideias' && n.props.href.query?.gerar === 'radar').props.href.query;
+ const visibleQuery = () => r.all().find(n => n.type === 'section' && /Consulta (usada|utilizada)/.test(n.props['aria-label'] || ''));
+ assert(JSON.stringify(visibleQuery()).includes('burnout'));
+ assert.equal(initialHandoff().recorte, undefined);
+ const deepening = () => r.all().find(n => n.type === 'SearchDeepening').props;
+ const firstCut = 'Residentes de primeiro ano';
+ const refinedQuery = '(burnout) AND "first year residents"[Title/Abstract]';
+ deepening().onSearch(refinedQuery, firstCut);
+ assert.equal(initialHandoff().recorte, undefined, 'pending narrowing cannot change active handoff');
+ assert.equal(JSON.parse(r.requests[5].options.body).topic, refinedQuery);
+ r.requests[5].resolve({ ok: true, json: async () => ({...result, topic: refinedQuery, filters: {...result.filters, searchTerm: refinedQuery}, strategy: {...result.strategy, pubmedQuery: refinedQuery}}) }); await tick();
+ assert(JSON.stringify(visibleQuery()).includes('first year residents'));
+ const handoffQuery = initialHandoff();
+ assert.equal(handoffQuery.tema, 'burnout');
+ assert.equal(handoffQuery.recorte, firstCut);
+ const received = ideasHarness('https://local/ideias?' + new URLSearchParams(handoffQuery));
+ received.render(); await tick(); received.render(); await tick();
+ assert.equal(received.generations.length, 1);
+ assert(received.generations[0].interest.includes(firstCut));
+ deepening().onReset();
+ assert.equal(initialHandoff().recorte, undefined);
+ assert(!JSON.stringify(visibleQuery()).includes('first year residents'));
  const broaden = r.all().find(n => n.type === 'button' && JSON.stringify(n.props.children).includes(copy('Ampliar os filtros'))); broaden.props.onClick();
- const broadSearch = r.search(), broadPayload = JSON.parse(r.requests[5].options.body); assert.equal(broadPayload.period, 'all'); assert.equal(broadPayload.studyType, 'all'); assert.equal(broadPayload.topic, 'burnout');
- r.requests[5].resolve({ ok: false, json: async () => ({ error: 'Encerrar' }) }); await broadSearch;
+ const broadSearch = r.search(), broadPayload = JSON.parse(r.requests[6].options.body); assert.equal(broadPayload.period, 'all'); assert.equal(broadPayload.studyType, 'all'); assert.equal(broadPayload.topic, 'burnout');
+ r.requests[6].resolve({ ok: false, json: async () => ({ error: 'Encerrar' }) }); await broadSearch;
  const page = fs.readFileSync('app/meu-trabalho/page.tsx', 'utf8'); assert.match(page, /window\.location\.assign\(id \?[^;]+: "\/ideias"/);
  for (const file of ['app/dashboard/page.tsx', 'app/documentos/page.tsx', 'app/resultados/page.tsx', 'app/manuscrito/page.tsx']) assert(!fs.readFileSync(file, 'utf8').includes('/meu-trabalho?novo=1'));
  console.log(locale+' PASS: idea autosave before Radar, edits, duplicate clicks, failure/retry, account changes, search/lookup loading dialogs, terminology/timeouts, visible AI preparation, broader filters and new-project routing.');
