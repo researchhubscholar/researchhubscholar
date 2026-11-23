@@ -465,6 +465,24 @@ function DiscoverContent() {
                 setDuplicateCount(originalSearch.duplicateCount); setSourceWarning(originalSearch.sourceWarning);
                 setBrowseError(null); setError(null); setOriginalSearch(null); setActiveNarrowing(undefined);
               }} />
+          <details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal">{formatLocale === "es" ? "Lectura del tema y cobertura de las bases" : "Leitura do tema e cobertura das bases"}</summary><div className="mt-5"><section>
+            <div className="space-y-4">
+              <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
+                <p className="text-xs uppercase tracking-wider text-teal"><InterfaceText message="screen.eebc284fab77" /></p>
+                <h2 className="font-display text-2xl mt-2"><AuthoredText text={breadthLabels[result.signals.breadth]} /></h2>
+                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? uiText("screen.fa3c7627f6d5") : result.signals.breadth === "scarce" ? uiText("screen.f009350e978c") : result.signals.breadth === "niche" ? uiText("screen.db483239926a") : uiText("screen.2b15e79c8ed4")}</p>
+                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? uiText("screen.182ae69e7108") : result.signals.trend === "insufficient" ? uiText("screen.28eb7c0557ee") : uiText("screen.9269fca87236")}</p>
+                <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.1c38c864184e" /></p>
+              </div>
+              <div className="bg-white border border-line rounded-2xl p-5">
+                <p className="text-xs uppercase tracking-wider text-ink-soft"><InterfaceText message="screen.2fbeda492016" /></p>
+                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString(intlLocale(formatLocale))}</p>
+                <p className="text-sm text-ink-soft mt-1"><InterfaceText message="screen.3ee6f3589bb4" /></p>
+              </div>
+            </div>
+          </section>
+
+          </div></details>
           {linkedProject && <ProjectLiteraturePath project={linkedProject} count={savedArticles.filter(article => article.projectIds.includes(linkedProject.id)).length} locale={formatLocale} />}
           <section className="radar-results bg-white border border-line rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-line flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -544,24 +562,6 @@ function DiscoverContent() {
             </div>
           </section>
 
-<details className="radar-disclosure rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer text-sm font-medium text-teal"><InterfaceText message="screen.ece7f03facd1" /></summary><div className="mt-5">          <section>
-            <div className="space-y-4">
-              <div className="radar-insight-card bg-teal-soft border border-teal/20 rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-teal"><InterfaceText message="screen.eebc284fab77" /></p>
-                <h2 className="font-display text-2xl mt-2"><AuthoredText text={breadthLabels[result.signals.breadth]} /></h2>
-                <p className="text-sm mt-4 leading-relaxed">{result.signals.breadth === "very_broad" || result.signals.breadth === "broad" ? uiText("screen.fa3c7627f6d5") : result.signals.breadth === "scarce" ? uiText("screen.f009350e978c") : result.signals.breadth === "niche" ? uiText("screen.db483239926a") : uiText("screen.2b15e79c8ed4")}</p>
-                <p className="text-xs text-ink-soft mt-3">{result.signals.trend === "growing" ? uiText("screen.182ae69e7108") : result.signals.trend === "insufficient" ? uiText("screen.28eb7c0557ee") : uiText("screen.9269fca87236")}</p>
-                <p className="text-xs text-ink-soft mt-3"><InterfaceText message="screen.1c38c864184e" /></p>
-              </div>
-              <div className="bg-white border border-line rounded-2xl p-5">
-                <p className="text-xs uppercase tracking-wider text-ink-soft"><InterfaceText message="screen.2fbeda492016" /></p>
-                <p className="text-2xl font-semibold mt-2">{result.sources.crossref.total === null ? "—" : result.sources.crossref.total.toLocaleString(intlLocale(formatLocale))}</p>
-                <p className="text-sm text-ink-soft mt-1"><InterfaceText message="screen.3ee6f3589bb4" /></p>
-              </div>
-            </div>
-          </section>
-
-</div></details>
           <section className="radar-next-step bg-white border border-line rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
