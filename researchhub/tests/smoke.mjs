@@ -78,7 +78,6 @@ try {
     ["/como-funciona", /Como funciona|percurso/i],
     ["/para-residencias", /residência/i],
     ["/planos", /planos|licença/i],
-    ["/radar-demo", /Radar/],
     ["/contato", /contato/i],
     ["/termos", /termos/i],
     ["/privacidade", /privacidade/i],
@@ -115,7 +114,10 @@ try {
 
   const privateRadar = await request("/descobrir");
   assert.ok([307, 308].includes(privateRadar.status));
-  assert.equal(new URL(privateRadar.headers.get("location"), baseUrl).pathname, "/radar-demo");
+  assert.equal(new URL(privateRadar.headers.get("location"), baseUrl).pathname, "/login");
+  const legacyRadar = await request("/radar-demo");
+  assert.equal(legacyRadar.status, 308);
+  assert.equal(new URL(legacyRadar.headers.get("location"), baseUrl).pathname, "/descobrir");
 
   const legacyPage = await request("/projetos/novo");
   assert.equal(legacyPage.status, 308);
