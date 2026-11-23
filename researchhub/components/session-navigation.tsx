@@ -33,7 +33,7 @@ const adminLinks = [["/operacao", "Operação"]] as const;
 const navigationMessages: Record<string, MessageKey> = {
   "/dashboard":"nav.workspace", "/ideias":"nav.ideas", "/descobrir":"nav.radar",
   "/biblioteca":"nav.library", "/meu-trabalho":"nav.project", "/orientacao":"nav.advising",
-  "/conta":"nav.account", "/operacao":"nav.operations", "/radar-demo":"nav.testRadar",
+  "/conta":"nav.account", "/operacao":"nav.operations",
   "/como-funciona":"nav.how", "/planos":"nav.plans",
 };
 
