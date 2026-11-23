@@ -56,9 +56,11 @@ export default function IdeasPage() {
   const { t: uiText, locale } = useLanguage();
   const library = useLibrary();
   const router = useRouter();
+  const initialLocale = useRef(locale);
   const previousOwner = useRef<string | null>(null);
   const savingRef = useRef(false);
   const generationInFlight = useRef(false);
+  const pendingRadarGeneration = useRef(false);
   const refinementInFlight = useRef(false);
   const projectRequest = useRef(0);
   const series = useRef<Record<string, string>>({});
@@ -78,6 +80,7 @@ export default function IdeasPage() {
   const [evidenceSnapshot, setEvidenceSnapshot] = useState("");
   const [profileLoading, setProfileLoading] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiStatusReady, setAiStatusReady] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
   const [aiOperation, setAiOperation] = useState("");
@@ -100,8 +103,25 @@ export default function IdeasPage() {
   const stale = snapshot !== null && (JSON.stringify(context) !== JSON.stringify(snapshot) || evidenceSnapshot !== signature);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setContext(current => ({ ...current, theme: params.get("tema") || "" }));
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const theme = (params.get("tema") || "").trim().slice(0, 1000);
+    const cut = (params.get("recorte") || "").trim().slice(0, 500);
+    const startFromRadar = params.get("gerar") === "radar" && Boolean(theme);
+    if (startFromRadar) {
+      // Consume the intent before requesting AI so reload and history do not repeat it.
+      url.searchParams.delete("gerar");
+      window.history.replaceState(window.history.state, "", url);
+      pendingRadarGeneration.current = true;
+    }
+    if (theme) {
+      setCreationMode("theme");
+      setContext(current => ({
+        ...current, theme,
+        interest: theme.length < 10 ? (initialLocale.current === "es" ? `Ideas de investigación sobre ${theme}` : `Ideias de pesquisa sobre ${theme}`) : theme,
+        requirements: cut ? (initialLocale.current === "es" ? `Recorte elegido en el Radar: ${cut}` : `Recorte escolhido no Radar: ${cut}`) : current.requirements,
+      }));
+    }
     setProjectId(params.get("projeto") || "");
   }, []);
 
@@ -133,7 +153,7 @@ export default function IdeasPage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/ai/status", { cache: "no-store" }).then(response => response.ok ? response.json() : null).then(data => { if (active) setAiEnabled(Boolean(data?.enabled)); }).catch(() => undefined);
+    fetch("/api/ai/status", { cache: "no-store" }).then(response => response.ok ? response.json() : null).then(data => { if (active) setAiEnabled(Boolean(data?.enabled)); }).catch(() => undefined).finally(() => { if (active) setAiStatusReady(true); });
     return () => { active = false; };
   }, []);
 
@@ -199,6 +219,13 @@ export default function IdeasPage() {
       setAiMessage(error instanceof Error ? error.message : "Não foi possível criar as propostas.");
     } finally { generationInFlight.current = false; setAiLoading(false); }
   }
+
+  useEffect(() => {
+    if (!pendingRadarGeneration.current || library.loading || profileLoading || !aiStatusReady
+      || creationMode !== "theme" || !context.interest.trim()) return;
+    pendingRadarGeneration.current = false;
+    void createIdeasWithAI();
+  });
 
   async function saveVersion(idea: Idea, forRadar = false): Promise<boolean> {
     if (!library.userId || !snapshot || stale || savingRef.current || generationInFlight.current || refinementInFlight.current) return false;
