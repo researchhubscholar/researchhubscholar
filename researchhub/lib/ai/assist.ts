@@ -32,6 +32,21 @@ export function isAssistantOutput(value: unknown): value is AssistantOutput {
   });
 }
 
+/** Fill Radar presentation fields without changing the proposed query or its confidence. */
+export function normalizeRadarOutput(value: unknown, language: OutputLanguage): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const output = value as Record<string, unknown>;
+  const es = language === "es";
+  const label = (field: unknown, fallback: string) => field == null || (typeof field === "string" && !field.trim()) ? fallback : field;
+  return {
+    ...output,
+    title: label(output.title, es ? "Estrategia de búsqueda" : "Estratégia de busca"),
+    summary: label(output.summary, es ? "Revisa las sugerencias antes de buscar." : "Confira as sugestões antes de pesquisar."),
+    caution: label(output.caution, es ? "La consulta sugerida requiere revisión." : "Revise a consulta sugerida antes de usar."),
+    warnings: output.warnings ?? [],
+  };
+}
+
 const text = { type: "string", minLength: 1, maxLength: 6000 } as const;
 export const assistantJsonSchema: JSONSchema7 = {
   type: "object", additionalProperties: false,
