@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
     "/scholar/onboarding",
   ];
   if(!user && privateRoutes.some(path=>request.nextUrl.pathname===path||request.nextUrl.pathname.startsWith(path+"/"))) {
-    const target=request.nextUrl.clone();target.pathname=request.nextUrl.pathname==="/descobrir"?"/radar-demo":"/login";target.search="";
+    const target=request.nextUrl.clone();target.pathname="/login";target.search="";
     const redirected=NextResponse.redirect(target);response.cookies.getAll().forEach(cookie=>redirected.cookies.set(cookie));return redirected;
   }
 
