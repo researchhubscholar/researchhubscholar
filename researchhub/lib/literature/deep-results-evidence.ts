@@ -31,8 +31,11 @@ export type DeepResultsEvidence = {
   };
 };
 
+// Keep grouped counts verbatim, and never restart at the tail of a decimal or grouped number.
+const reportedCount = String.raw`(?<![\d.,])(?:\d{1,3}(?:,\d{3})+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?: \d{3})+|\d+)(?!\d|[.,]\d)`;
+
 const patterns: Record<ReportedResultKind, RegExp> = {
-  denominator: /\b(?:n\s*=\s*\d+|\d+\s*(?:\/|of)\s*\d+|\d+\s+(?:patients?|participants?|subjects?|studies|trials|cases|controls))\b/gi,
+  denominator: new RegExp(String.raw`\b(?:n\s*=\s*${reportedCount}|${reportedCount}\s*(?:/|of)\s*${reportedCount}|${reportedCount}\s+(?:patients?|participants?|subjects?|studies|trials|cases|controls))\b`, "gi"),
   unit: /\b\d+(?:[.,]\d+)?\s*(?:mg\/dL|mmol\/L|kg\/m2|kg|mmHg|mg|µg|mcg|mL|mm|cm)\b/gi,
   group: /\b(?:intervention group|control group|placebo group|treatment group|exposed group|unexposed group|cases|controls)\b/gi,
   timepoint: /\b(?:baseline|follow[- ]up|at\s+\d+\s*(?:days?|weeks?|months?|years?)|after\s+\d+\s*(?:days?|weeks?|months?|years?))\b/gi,
