@@ -7,7 +7,7 @@ import { returnNavigation } from "@/lib/navigation/return-link";
 
 const publicPages = new Set([
   "/", "/como-funciona", "/para-residencias", "/contato",
-  "/termos", "/privacidade", "/cancelamento", "/radar-demo",
+  "/termos", "/privacidade", "/cancelamento",
 ]);
 
 export default function SiteShortcuts() {
