@@ -83,3 +83,10 @@ assert.equal(sprintRow.cells.filter(cell => cell.kind === "confidence_interval")
 assert(sprintRow.cells.every(cell => cell.status === "pending_human_review"));
 assert(!sprintRow.missing.includes("rate"));
 console.log("PASS: SPRINT rates, effect estimates and confidence intervals reach matrix review with verified sources.");
+
+const groupedCounts = "The search identified 8,480 studies. We reviewed 2.500 participants, n = 1,200, and 66 of 8,480 studies. Another registry enrolled 12 345 patients. The mean was 3.14 patients per unit.";
+const [groupedRow] = buildEvidenceMatrixPreview([{ articleId: "39328321", title: "Grouped counts", abstract: groupedCounts }]).rows;
+assert.deepEqual(
+ groupedRow.cells.filter(cell => cell.kind === "denominator").map(cell => cell.matchedText),
+ ["8,480 studies", "2.500 participants", "n = 1,200", "66 of 8,480", "12 345 patients"],
+);
