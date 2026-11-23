@@ -72,7 +72,7 @@ export default function IdeasPage() {
   const [creationMode, setCreationMode] = useState<CreationMode>("automatic");
   const [snapshot, setSnapshot] = useState<Context | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [expandedIdea, setExpandedIdea] = useState<string | null>(null);
+  const [expandedIdeas, setExpandedIdeas] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
@@ -130,7 +130,7 @@ export default function IdeasPage() {
 
   useEffect(() => {
     if (previousOwner.current && previousOwner.current !== library.userId) {
-      setIdeas([]); setExpandedIdea(null); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
+      setIdeas([]); setExpandedIdeas([]); setSnapshot(null); setReferenceIds([]); setSelected([]); setProjectId("");
       setAiMessage(""); setAiOperation(""); setAiMode(""); setLastUsage(null); setQualityChecks([]); setIdeaOrigins({}); setMessage(""); setProjectError(""); setRefinements({}); setRefinementErrors({}); setRefiningId("");
       series.current = {}; touched.current.clear(); setContext({ ...blankContext });
     }
@@ -208,7 +208,7 @@ export default function IdeasPage() {
       const startingIdeas = generate(requestContext, evidence);
       const { data } = await postAI<{ ideas?: Idea[]; caution?: string; operationId?: string; mode?: "simulation" | "live"; usage?: AIUsage; qualityChecks?: QualityCheck[] }>("/api/ai/ideas", { creationMode, context: requestContext, ideas: startingIdeas, projectId: projectId || null, language: outputLanguage }, 150_000);
       if (!Array.isArray(data.ideas) || !data.ideas.length) throw new AIRequestError("A IA não retornou propostas válidas. Confira o registro antes de tentar novamente.", data.operationId);
-      setContext(requestContext); setIdeas(data.ideas); setExpandedIdea(null); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
+      setContext(requestContext); setIdeas(data.ideas); setExpandedIdeas([]); setSnapshot({ ...requestContext }); setEvidenceSnapshot(signature); setSelected([]); setEditing(null);
       setRefinements({}); setRefinementErrors({});
       setAiOperation(data.operationId || ""); setAiMode(data.mode || "live");
       setLastUsage(data.usage || null);
@@ -312,7 +312,7 @@ export default function IdeasPage() {
   function restoreVersion(row: SavedIdea) {
     if (translationInFlight.current) return;
     if (ideas.length && !window.confirm(dialogCopy("Retomar esta versão? As propostas atuais continuam disponíveis apenas se já foram salvas."))) return;
-    setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setExpandedIdea(null); setSelected([]); setEditing(null);
+    setContext(row.context); setSnapshot(row.context); setIdeas([row.proposal]); setExpandedIdeas([]); setSelected([]); setEditing(null);
     setReferenceIds(row.proposal.references.map(reference => reference.id)); setEvidenceSnapshot(row.evidence_signature);
     series.current = { [row.proposal.id]: row.series_id }; setAiMode("saved"); setMessage("Versão retomada do histórico.");
     setIdeaOrigins({ [row.proposal.id]: { sourceKey: `idea-version:${row.id}` } });
@@ -431,7 +431,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label={uiText("screen.527c4fcb7372")}>
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.68ecf8d47262" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.ead99db1a928" /></p></div><span className="text-sm text-teal">{selected.length}<InterfaceText message="screen.a78859242313" /></span></div>
-      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={(expandedIdea ?? ideas[0].id) === idea.id} onExpand={() => setExpandedIdea(idea.id)} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving || translating} translating={translating} onTranslate={language => translateIdea(idea, language)} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value, translations: undefined } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
+      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={expandedIdeas.includes(idea.id)} onToggle={() => setExpandedIdeas(current => current.includes(idea.id) ? current.filter(id => id !== idea.id) : [...current, idea.id])} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving || translating} translating={translating} onTranslate={language => translateIdea(idea, language)} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value, translations: undefined } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={() => download(idea)} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -442,7 +442,7 @@ export default function IdeasPage() {
 
 const ideaLanguages = { "pt-BR": "Português", es: "Español", en: "English" } as const;
 
-function IdeaCard({ idea: original, translating, onTranslate, index, expanded, onExpand, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; translating: boolean; onTranslate: (language: OutputLanguage) => Promise<boolean>; index: number; expanded: boolean; onExpand: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
+function IdeaCard({ idea: original, translating, onTranslate, index, expanded, onToggle, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; translating: boolean; onTranslate: (language: OutputLanguage) => Promise<boolean>; index: number; expanded: boolean; onToggle: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
   const { t: uiText, locale } = useLanguage();
   const [language, setLanguage] = useState<OutputLanguage | "">("");
   const [translationError, setTranslationError] = useState("");
@@ -462,7 +462,7 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
   return <article className="idea-proposal" data-expanded={expanded} data-selected={selected}>
     <header className="idea-proposal-header">
       <h3 className="min-w-0">
-        <button type="button" className="idea-proposal-heading" aria-expanded={expanded} aria-disabled={expanded || undefined} aria-controls={contentId} onClick={() => { if (!expanded) onExpand(); }}>
+        <button type="button" className="idea-proposal-heading" aria-expanded={expanded} aria-controls={contentId} onClick={onToggle}>
           <span className="idea-proposal-chevron" aria-hidden="true" />
           <span className="idea-proposal-path"><AuthoredText text={pathLabels[index] || `CAMINHO ${index + 1}`} /></span>
           <span className="idea-proposal-study">{translation ? idea.studyType : studyFormatText(idea.studyType, locale)}</span>

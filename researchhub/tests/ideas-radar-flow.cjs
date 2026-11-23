@@ -30,7 +30,7 @@ function ideasHarness() {
   return { select() { return { eq() { return { maybeSingle: async () => ({ data: null }) }; } }; }, insert(payload) { assert.equal(table, 'idea_versions'); writes.push(payload); events.push('insert'); const work = deferred(); pending.push(work); return work.promise; } };
  } };
  const module = { exports: {} };
- vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URL, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { href: 'https://local/ideias' }, confirm: () => true }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
+ vm.runInNewContext(compile(fs.readFileSync('app/ideias/page.tsx', 'utf8')), { module, exports: module.exports, URL, URLSearchParams, crypto: require('node:crypto').webcrypto, fetch: async () => ({ ok: true, json: async () => ({ enabled: true }) }), window: { location: { href: 'https://local/ideias' }, confirm: () => true, setTimeout() {} }, require(name) { const localized = presentation.dependency(name); if(localized) return localized;
   if (name === 'react') return h.react;
   if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
   if (name === 'next/navigation') return { useRouter: () => ({ push: href => { events.push('navigate'); destinations.push(href); } }) };
@@ -43,6 +43,10 @@ function ideasHarness() {
   if (name === '@/lib/supabase/browser') return { supabaseBrowser: () => client };
   if (name === '@/lib/ideas/translation') return translation;
   if (name === '@/lib/ai/client-request') return { postAI: async (path, body) => {
+   if (path === '/api/ai/ideas') {
+    const [proposal] = body.ideas;
+    return { data: { ideas: [1, 2, 3].map(id => ({ ...proposal, id: String(id) })) } };
+   }
    assert.equal(path, '/api/ai/assist'); assert.equal(body.feature, 'idea_translation');
    translations.push(body);
    return { data: { mode: 'live', output: { recommendations: [{ content: JSON.stringify({ ...body.context.proposal, title: 'Translated title' }) }] } } };
@@ -87,6 +91,25 @@ function radarHarness(query='tema=burnout&origem=ideias') {
 (async () => {
  for(const locale of ['pt-BR','es']) {
  presentation=require('./i18n-test-support.cjs').forLocale(locale);
+ const generated = ideasHarness(); generated.render(); await tick();
+ const generationForm = () => generated.all().find(n => n.type === 'form' && n.props.className.includes('ideas-main-form'));
+ for (const field of nodes(generationForm()).filter(n => n.type?.name === 'Text' && n.props.required)) field.props.change('Cardiologia ambulatorial');
+ const generate = async () => { generationForm().props.onSubmit({ preventDefault() {} }); await tick(); };
+ const cards = () => generated.all().filter(n => n.type?.name === 'IdeaCard');
+ const expanded = () => cards().map(n => n.props.expanded);
+ const toggle = index => {
+  const card = cards()[index];
+  nodes(card.type(card.props)).find(n => n.type === 'button' && n.props.className === 'idea-proposal-heading').props.onClick();
+ };
+ await generate();
+ assert.deepEqual(expanded(), [false, false, false]);
+ toggle(0); toggle(1);
+ assert.deepEqual(expanded(), [true, true, false]);
+ toggle(0);
+ assert.deepEqual(expanded(), [false, true, false]);
+ await generate();
+ assert.deepEqual(expanded(), [false, false, false]);
+
  const h = ideasHarness(); h.render(); await tick(); h.restore();
  const action = h.card().props.onRadar;
  action(); action(); await tick();
