@@ -1,6 +1,6 @@
 "use client";
 import { EvidenceHandoffReview } from "@/components/library/evidence-handoff-review";
-import { verifyEvidenceAnchor } from "@/lib/literature/provenance";
+import { insertReviewedEvidence } from "@/lib/projects/manuscript-evidence";
 import type { ProjectEvidenceDraft } from "@/lib/literature/project-evidence-handoff";
 import MethodReview from "@/components/research/method-review";
 import { manuscriptReview } from "@/lib/research/method-review";
@@ -78,13 +78,15 @@ function firstAuthor(article: Article) {
 function displayDate(value: string) { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value)); }
 function stringList(value: unknown) { return Array.isArray(value) ? value.filter(item => typeof item === "string") as string[] : []; }
 
-export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, commentTarget, project, initialManuscript, initialSections, initialVersions, initialComments, initialReplies, reviewAvailable, articles }: { currentUserId: string; ownerId: string; canEdit: boolean; commentTarget?: string; project: Project; initialManuscript: Manuscript; initialSections: Section[]; initialVersions: Version[]; initialComments: ManuscriptComment[]; initialReplies: CommentReply[]; reviewAvailable: boolean; articles: Article[] }) {
+export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, commentTarget, evidenceArticleId, project, initialManuscript, initialSections, initialVersions, initialComments, initialReplies, reviewAvailable, articles }: { currentUserId: string; ownerId: string; canEdit: boolean; commentTarget?: string; evidenceArticleId?: string; project: Project; initialManuscript: Manuscript; initialSections: Section[]; initialVersions: Version[]; initialComments: ManuscriptComment[]; initialReplies: CommentReply[]; reviewAvailable: boolean; articles: Article[] }) {
  const {locale:resultsLocale}=useLanguage();
 
  const {locale:formatLocale}=useLanguage();
 
   const { t: uiText, locale } = useLanguage();
-  const [reviewArticleId, setReviewArticleId] = useState("");
+  const initialReviewArticle = canEdit && articles.some(article => article.id === evidenceArticleId && article.abstract?.trim())
+    ? evidenceArticleId : undefined;
+  const [reviewArticleId, setReviewArticleId] = useState(initialReviewArticle ?? "");
   const reviewSources = useMemo(() => articles.filter(article => article.id === reviewArticleId && article.abstract)
     .map(article => ({ articleId: article.id, title: article.title, abstract: article.abstract || "", pmid: article.pmid, doi: article.doi })), [articles, reviewArticleId]);
   const [includeStudyTable, setIncludeStudyTable] = useState(false);
@@ -275,26 +277,14 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
   function applyReviewedEvidence(drafts: ProjectEvidenceDraft[]) {
     if (!canEdit || currentUserId !== ownerId || saving) return false;
     const current = stateRef.current;
-    const nextIds = [...current.citationIds];
-    const nextSections = current.sections.map(section => ({ ...section }));
-    for (const draft of drafts) {
-      const article = articles.find(item => item.id === draft.articleId);
-      const key = draft.destination === "introduction_background" ? "introduction"
-        : draft.destination === "discussion_evidence" ? "discussion" : null;
-      const section = nextSections.find(item => item.section_key === key);
-      if (draft.projectId !== project.id || !section || !article?.abstract
-        || draft.quote !== draft.provenance.excerpt || !verifyEvidenceAnchor(article.abstract, draft.provenance)) return false;
-      if (!nextIds.includes(article.id)) nextIds.push(article.id);
-      const citation = current.citationStyle === "vancouver" ? `[${nextIds.indexOf(article.id) + 1}]`
-        : `(${firstAuthor(article)} et al., ${article.publication_year || "s.d."})`;
-      const paragraph = `“${draft.quote}” ${citation}`;
-      if (!section.content.split("\n").includes(paragraph)) {
-        section.content += (section.content ? "\n\n" : "") + paragraph;
-      }
-    }
+    const updated = insertReviewedEvidence(project.id, current.sections, current.citationIds, articles, drafts,
+      (article, number) => current.citationStyle === "vancouver" ? `[${number}]`
+        : `(${firstAuthor(article)} et al., ${article.publication_year || "s.d."})`);
+    if (!updated) return false;
     discardedEdits.current = false;
-    setSections(nextSections);
-    setCitationIds(nextIds);
+    stateRef.current = { ...current, ...updated };
+    setSections(updated.sections);
+    setCitationIds(updated.citationIds);
     setDirty(true);
     setMessage(locale === "es" ? "Evidencia insertada. El guardado automático está activo." : "Evidências inseridas. O salvamento automático está ativo.");
     return true;
@@ -450,7 +440,7 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : (locale === "es" ? "Modo tutor" : "Modo orientador")}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? uiText("screen.6424012e691b") : uiText("screen.0b9e5ce314ac")}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? uiText("screen.308caaa0071a") : uiText("screen.e5176e8da85c")}</p></section>
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c9bbe9cc2ae9" /></p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} <InterfaceText message="screen.8f3948a298a3" /></p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.f662cb9a3b0a" /></p><p role="status" aria-live="polite" className="mt-1"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p></div></aside>
 
-    <div className="min-w-0 space-y-5">{canEdit && articles.some(article => article.abstract?.trim()) && <details className="rounded-2xl border border-line bg-white p-5">
+    <div className="min-w-0 space-y-5">{canEdit && articles.some(article => article.abstract?.trim()) && <details id="evidencias" open={Boolean(initialReviewArticle)} className="scroll-mt-28 rounded-2xl border border-line bg-white p-5">
       <summary className="cursor-pointer font-display text-xl">{locale === "es" ? "Insertar evidencias de la literatura" : "Inserir evidências da literatura"}</summary>
       <label className="mt-4 block text-sm">{locale === "es" ? "Artículo vinculado al proyecto" : "Artigo vinculado ao projeto"}
         <select className="mt-2 block min-h-11 w-full min-w-0 rounded-card border border-line bg-paper p-2" value={reviewArticleId} onChange={event => setReviewArticleId(event.target.value)}>
