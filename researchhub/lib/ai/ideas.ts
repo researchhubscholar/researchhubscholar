@@ -157,6 +157,21 @@ function languageNeutralDesignSupport(proposal: AIIdeaDraftProposal): Partial<AI
   };
 }
 
+const researchObjectiveVerb = /^(avaliar|analisar|comparar|descrever|estimar|identificar|investigar|examinar|verificar|sintetizar|determinar|explorar|mapear|caracterizar|quantificar|documentar|catalogar|classificar|mensurar|evaluar|analizar|describir|cartografiar|comparar|sintetizar|assess|evaluate|analyze|analyse|compare|describe|estimate|identify|investigate|examine|verify|synthesize|synthesise|determine|explore|map|characterize|characterise|quantify|document|catalogue|catalog|classify|measure)\b/i;
+
+export function normalizeResearchObjective(objective: string) {
+  const text = objective.trim();
+  const action = text.replace(/^(?:(?:objetivo(?: geral| general| principal)?|(?:main |primary )?objective|aim)\s*:\s*|(?:o objetivo (?:é|e)|el objetivo es|the (?:aim|objective) is to)\s+)/i, "");
+  if (researchObjectiveVerb.test(action)) return action[0].toUpperCase() + action.slice(1);
+  const nominal = action.match(/^(avaliação|análise|descrição|síntese|caracterização|mapeamento) (do|da|dos|das|de) (.+)$/isu);
+  if (!nominal) return text;
+  const verbs = { avaliação: "Avaliar", análise: "Analisar", descrição: "Descrever", síntese: "Sintetizar", caracterização: "Caracterizar", mapeamento: "Mapear" };
+  const articles = { do: "o ", da: "a ", dos: "os ", das: "as ", de: "" };
+  const noun = nominal[1].toLowerCase() as keyof typeof verbs;
+  const article = nominal[2].toLowerCase() as keyof typeof articles;
+  return verbs[noun] + " " + articles[article] + nominal[3];
+}
+
 export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[], context?: Context): AIIdeasOutput {
   if (!current.length) throw new Error("Não há propostas-base para completar a geração.");
   const proposals = draft.proposals.map((proposal, index): AIProposal => {
@@ -165,6 +180,7 @@ export function completeAIIdeasDraft(draft: AIIdeasDraft, current: Idea[], conte
     const guidance = specific ? languageNeutralDesignSupport(proposal) : {};
     return {
       ...proposal,
+      objective: normalizeResearchObjective(proposal.objective),
       radar: ideaRadarQuery(proposal.radar),
       ethics: base.ethics || "Submeter o protocolo à avaliação ética aplicável e proteger confidencialidade e dados pessoais.",
       limitations: base.limitations || base.difficulty,
@@ -509,7 +525,7 @@ export function proposalQualityIssues(proposal: AIProposal, context: Context, pr
   if (titleWords.length < 7) issues.push("O título está curto ou genérico; delimite fenômeno, população e relação investigada.");
   if (titleWords.length > 30) issues.push("O título está longo demais; preserve o recorte científico com redação mais direta.");
   if (!proposal.question.trim().endsWith("?")) issues.push("A pergunta de pesquisa deve ser formulada como pergunta explícita.");
-  if (!/^(avaliar|analisar|comparar|descrever|estimar|identificar|investigar|examinar|verificar|sintetizar|determinar|explorar|evaluar|analizar|describir|assess|evaluate|analyze|analyse|compare|describe|estimate|identify|investigate|examine|verify|synthesize|determine|explore)\b/i.test(proposal.objective.trim())) issues.push("O objetivo deve começar com um verbo de pesquisa adequado.");
+  if (!researchObjectiveVerb.test(proposal.objective.trim())) issues.push("O objetivo deve começar com um verbo de pesquisa adequado.");
   const joinedInputs = [context.interest, context.population, context.setting].filter(Boolean).join(" ");
   if (similarity(proposal.title, joinedInputs) > 0.86) issues.push("O título apenas recompõe os campos informados; formule uma relação científica e um desfecho mensurável.");
   if (previous.some(item => similarity(item.title, proposal.title) > 0.68)) issues.push("Esta proposta está muito parecida com uma proposta anterior; mude o recorte, a pergunta ou o desenho.");

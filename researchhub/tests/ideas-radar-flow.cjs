@@ -186,7 +186,7 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const result = { topic: payload.topic, filters: { period: payload.period, studyType: payload.studyType, mesh: '', population: '', outcome: '', operator: 'AND', language: 'auto', searchTerm: 'burnout', crossrefQuery: 'burnout', endDate: '2026-10-19' }, strategy: { interpreted: 'burnout', pubmedQuery: '(burnout)', mode: 'advanced', language: 'advanced', warnings: [], concepts: [], manualTranslations: [] }, sources: { pubmed: { total: 0, recent: 0, systematicReviews: 0, clinicalTrials: 0 }, crossref: { total: 0 } }, articles: [], timeline: [], signals: { breadth: 'scarce', trend: 'insufficient', recentRatio: 0 }, methodology: 'Teste' };
  r.requests[4].resolve({ ok: true, json: async () => result }); await success; assert.equal(r.dialog().props.open, false); r.render();
  const initialHandoff = () => r.all().find(n => n.props.href?.pathname === '/ideias' && n.props.href.query?.gerar === 'radar').props.href.query;
- const visibleQuery = () => r.all().find(n => n.type === 'section' && /Consulta (usada|utilizada)/.test(n.props['aria-label'] || ''));
+ const visibleQuery = () => r.all().find(n => n.type === 'details' && /Consulta (usada|utilizada)/.test(n.props['aria-label'] || ''));
  assert(JSON.stringify(visibleQuery()).includes('burnout'));
  assert.equal(initialHandoff().recorte, undefined);
  const deepening = () => r.all().find(n => n.type === 'SearchDeepening').props;

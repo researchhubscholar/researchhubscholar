@@ -1,6 +1,6 @@
 const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
-const {completeAIIdeasDraft,validateIdeasRequest,ideasPrompt,isAIIdeasDraft,isAIIdeasOutput,isResearchFrame,researchFramePrompt,scientificIdeasPrompt,automaticIdeasPrompt,ideaVariantPrompt,proposalQualityIssues,proposalStructureIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
+const {normalizeResearchObjective,completeAIIdeasDraft,validateIdeasRequest,ideasPrompt,isAIIdeasDraft,isAIIdeasOutput,isResearchFrame,researchFramePrompt,scientificIdeasPrompt,automaticIdeasPrompt,ideaVariantPrompt,proposalQualityIssues,proposalStructureIssues,mergeAIProposals}=require('../lib/ai/ideas.ts');
 const {validateAssistRequest,assistantPrompt,isAssistantOutput,ledgerFeature,simulatedOutput}=require('../lib/ai/assist.ts');
 const {completeIdeaRefinement,ideaRefinementJsonSchema,ideaRefinementPrompt,isIdeaRefinement,isIdeaRefinementDraft}=require('../lib/ai/refine-idea.ts');
 const {outputBudget,parseValidatedJson,promptForJson}=require('../lib/ai/structured-output.ts');
@@ -25,6 +25,10 @@ const merged=mergeAIProposals([base],{proposals:[proposal,proposal,proposal],cau
 const validProposal={...proposal,outcome:'Escore PSQI',resources:'Equipe local',difficulty:'Risco de viés'};
 assert.deepEqual(proposalStructureIssues(validProposal),[]);assert(proposalStructureIssues({...validProposal,plan:['Só um item']}).some(issue=>issue.includes('plan')));
 const scientificProposal={...validProposal,title:'Associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes',objective:'Avaliar a associação entre frequência de plantões noturnos e qualidade do sono em médicos residentes'};
+assert.equal(normalizeResearchObjective('Objetivo geral: mapear os métodos diagnósticos'), 'Mapear os métodos diagnósticos');
+assert.equal(normalizeResearchObjective('Caracterização dos métodos diagnósticos'), 'Caracterizar os métodos diagnósticos');
+assert(!proposalQualityIssues({...scientificProposal, objective:'Mapear os métodos diagnósticos'}, context).some(issue => issue.includes('verbo')));
+assert(proposalQualityIssues({...scientificProposal, objective:'Métodos diagnósticos'}, context).some(issue => issue.includes('verbo')));
 assert.deepEqual(proposalQualityIssues(scientificProposal,context,[]),[]);
 assert(proposalQualityIssues({...scientificProposal,title:'Qualidade do sono residentes programa residência'},context,[]).length>0);
 assert(proposalQualityIssues({...scientificProposal,title:'Associação entre plantões noturnos e sono em residentes médicos'},context,[scientificProposal]).some(issue=>issue.includes('parecida')));

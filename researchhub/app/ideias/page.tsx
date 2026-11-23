@@ -446,6 +446,7 @@ const ideaLanguages = { "pt-BR": "Português", es: "Español", en: "English" } a
 function IdeaCard({ idea: original, translating, onTranslate, index, expanded, onToggle, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; translating: boolean; onTranslate: (language: OutputLanguage) => Promise<boolean>; index: number; expanded: boolean; onToggle: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: () => void }) {
   const { t: uiText, locale } = useLanguage();
   const [language, setLanguage] = useState<OutputLanguage | "">("");
+  const [showLanguages, setShowLanguages] = useState(false);
   const [translationError, setTranslationError] = useState("");
   const translation = language ? original.translations?.[language] : undefined;
   const idea = translation ? { ...original, ...translation } : original;
@@ -508,20 +509,25 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
           <button type="button" disabled={stale || saving || !loggedIn} onClick={onSave}>{saving ? uiText("screen.6b5056724381") : uiText("screen.784f681fadeb")}</button>
           <button type="button" disabled={stale} onClick={onDownload}><InterfaceText message="screen.b45ae836a031" /></button>
           </>}
-          <details className="px-2 py-2 text-sm">
-          <summary className="cursor-pointer text-teal font-medium">{es ? "Traducir idea" : "Traduzir ideia"}{translation && language ? ` · ${ideaLanguages[language]}` : ""}</summary>
-          <div className="mt-2 grid gap-1">
-          <button type="button" aria-pressed={!translation} onClick={() => { setLanguage(""); setTranslationError(""); }} className="rounded-card border border-line px-3 py-2">Original</button>
-          {Object.entries(ideaLanguages).map(([code, label]) => {
-          const next = code as OutputLanguage;
-          return <button key={code} type="button" aria-pressed={Boolean(translation && language === next)}
-          disabled={translating || (!original.translations?.[next] && (!loggedIn || editing || stale || saving || refining))}
-          onClick={() => void showTranslation(next)} className="rounded-card border border-line px-3 py-2 disabled:opacity-50 aria-pressed:bg-teal-soft">{label}</button>;
-          })}
+          <button type="button" aria-expanded={showLanguages} aria-controls={`${contentId}-languages`} onClick={() => setShowLanguages(open => !open)}>
+            {es ? "Traducir idea" : "Traduzir ideia"}{translation && language ? ` · ${ideaLanguages[language]}` : ""}
+          </button>
+          <div id={`${contentId}-languages`} hidden={!showLanguages} className="border-t border-line px-2 py-2 text-sm">
+            <label htmlFor={`${contentId}-language`} className="block">{es ? "Idioma de la idea" : "Idioma da ideia"}</label>
+            <select id={`${contentId}-language`} value={translation ? language : ""} disabled={translating}
+              className="mt-1 w-full rounded-card border border-line bg-white p-2"
+              onChange={event => {
+                const next = event.target.value as OutputLanguage | "";
+                if (next) void showTranslation(next);
+                else { setLanguage(""); setTranslationError(""); }
+              }}>
+              <option value="">Original</option>
+              {Object.entries(ideaLanguages).map(([code, label]) => <option key={code} value={code}
+                disabled={!original.translations?.[code as OutputLanguage] && (!loggedIn || editing || stale || saving || refining)}>{label}</option>)}
+            </select>
+            {translating && <p role="status" className="mt-2">{es ? "Traduciendo la idea…" : "Traduzindo a ideia…"}</p>}
+            {translationError && <p role="alert" className="mt-2 text-red-700">{translationError}</p>}
           </div>
-          {translating && <p role="status" className="mt-2">{es ? "Traduciendo la idea…" : "Traduzindo a ideia…"}</p>}
-          {translationError && <p role="alert" className="mt-2 text-red-700">{translationError}</p>}
-          </details>
         </div>
       </details>
     </div>
