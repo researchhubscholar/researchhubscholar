@@ -4,13 +4,13 @@ import { settleFailedReservation, reservationNotice, providerMetering, type Prov
 import { verifyFinancialEnvelope } from "@/lib/ai/financial-guard";
 import { chooseWallet, walletsForOperation, requestedWallet } from "@/lib/ai/wallet-selection";
 import { NextResponse } from "next/server";
-import { generateText, jsonSchema, Output } from "ai";
-import { scholarAI, scholarAIProviderOptions, scholarAIModels, scholarAIReady, estimatedCost, retryWithFallback } from "@/lib/ai/config";
+import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
+import { scholarAI, scholarAIProviderOptions, scholarAIModels, scholarAIReady, retryWithFallback } from "@/lib/ai/config";
 import { isAIProposal, type AIProposal } from "@/lib/ai/ideas";
 import { groundRefinementSources, completeIdeaRefinement, ideaRefinementJsonSchema, ideaRefinementPrompt, isIdeaRefinementDraft, type IdeaRefinement, type IdeaRefinementDraft } from "@/lib/ai/refine-idea";
 import { outputLanguage } from "@/lib/ai/language";
 import { ideaRadarQuery } from "@/lib/ideas/radar";
-import { outputBudget } from "@/lib/ai/structured-output";
+import { outputBudget, parseValidatedJson } from "@/lib/ai/structured-output";
 import { fetchArticleDetails, pubmedSearch } from "@/lib/literature/pubmed";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -34,6 +34,7 @@ function safeMessage(error: unknown) {
   if (/NCBI|PubMed/i.test(raw)) return "O PubMed não respondeu ao refinamento agora. tente novamente em instantes.";
   if (/quota|rate.?limit|resource.?exhausted|429/i.test(raw)) return "O limite temporário do modelo foi atingido. tente novamente em alguns minutos.";
   if (/high demand|temporar|unavailable|overloaded|503/i.test(raw)) return "Os modelos estão temporariamente sobrecarregados. tente novamente em alguns minutos.";
+  if (NoObjectGeneratedError.isInstance(error) || /resposta estruturada/i.test(raw)) return "A IA retornou um refinamento incompleto. Tente novamente.";
   return raw.length < 260 ? raw : "Não foi possível concluir o refinamento agora.";
 }
 
@@ -107,43 +108,55 @@ export async function POST(request: Request) {
     if (license.mode === "simulation") throw new Error("O refinamento com literatura exige uma licença de IA ao vivo.");
 
     const prompt = ideaRefinementPrompt(input.idea, search.count, articleContext, input.language);
-    let result: Awaited<ReturnType<typeof generateText>> | null = null;
+    let completedUsage: ProviderMetering | null = null;
     let output: IdeaRefinement | null = null;
     let lastError: unknown;
-    const maxOutputTokens = outputBudget(prompt, ideaRefinementJsonSchema, 3_600, scholarAI.reservedTokens, 2_200);
+    const maxOutputTokens = outputBudget(prompt, ideaRefinementJsonSchema, 4_800, scholarAI.reservedTokens, 2_200);
     for (const candidate of scholarAIModels) {
+      let draft: IdeaRefinementDraft;
+      let attemptUsage: ProviderMetering | null;
       try {
         const candidateResult = await generateText({
           model: candidate.model, reasoning: scholarAI.reasoning, providerOptions: scholarAIProviderOptions,
-          instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos. Responda exclusivamente no formato estruturado solicitado.",
+          instructions: "Refine a proposta com rigor metodológico e rastreabilidade aos artigos fornecidos. Responda exclusivamente no formato estruturado solicitado, com campos concisos e sem repetir informações.",
           maxOutputTokens,
           maxRetries: 0,
           abortSignal: AbortSignal.timeout(timeoutMs),
           output: Output.object({ schema: jsonSchema<IdeaRefinementDraft>(ideaRefinementJsonSchema) }),
           prompt,
         });
-        metering = providerMetering(candidateResult);
-        const draft = candidateResult.output;
-        if (!isIdeaRefinementDraft(draft)) throw new Error("A resposta estruturada não corresponde ao refinamento científico esperado.");
-        result = candidateResult;
-        output = groundRefinementSources(completeIdeaRefinement(input.idea, draft), articleContext);
-        break;
+        attemptUsage = providerMetering(candidateResult);
+        metering = attemptUsage || metering;
+        draft = candidateResult.output;
       } catch (error) {
-        metering = providerMetering(error) || metering;
+        attemptUsage = providerMetering(error);
+        metering = attemptUsage || metering;
         lastError = error;
-        const raw = error instanceof Error ? error.message : String(error);
-        if (/No object generated|could not parse|JSON|objeto.*completo|formato científico|resposta estruturada/i.test(raw)) continue;
-        if (!retryWithFallback(error)) throw error;
+        if (!NoObjectGeneratedError.isInstance(error)) {
+          if (!retryWithFallback(error)) throw error;
+          continue;
+        }
+        if (!error.text || error.finishReason !== "stop" || !attemptUsage) continue;
+        try {
+          draft = parseValidatedJson(error.text, isIdeaRefinementDraft);
+        } catch {
+          continue;
+        }
       }
+      if (!isIdeaRefinementDraft(draft)) {
+        lastError = new Error("A resposta estruturada não corresponde ao refinamento científico esperado.");
+        continue;
+      }
+      if (!attemptUsage) throw new Error("Não foi possível confirmar o consumo dentro do limite da operação.");
+      output = groundRefinementSources(completeIdeaRefinement(input.idea, draft), articleContext);
+      completedUsage = attemptUsage;
+      break;
     }
-    if (!result || !output) throw lastError || new Error("Nenhum modelo está disponível agora.");
-    const inputTokens = result.usage.inputTokens || 0;
-    const outputTokens = result.usage.outputTokens || 0;
-    if (inputTokens + outputTokens > scholarAI.reservedTokens) throw new Error("O refinamento excedeu o limite de consumo da operação.");
-    const costUsd = estimatedCost(inputTokens, outputTokens);
+    if (!completedUsage || !output) throw lastError || new Error("Nenhum modelo está disponível agora.");
+    const { inputTokens, outputTokens, costUsd, providerId } = completedUsage;
     const { error: updateError } = await admin.from("scholar_generation_artifacts").update({ output_snapshot: { ...output, pubmedQuery: query, pubmedTotal: search.count } }).eq("usage_id", operationId);
     if (updateError) throw updateError;
-    const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: result.response.id || null });
+    const { error: settleError } = await admin.rpc("scholar_settle", { p_request: operationId, p_input: inputTokens, p_output: outputTokens, p_cost: costUsd, p_failed: false, p_provider_id: providerId });
     if (settleError) throw settleError;
     reserved = false;
     return reply(request,{ operationId, language:input.language, output, pubmedQuery: query, pubmedTotal: search.count, usage: { inputTokens, outputTokens, costUsd } });
