@@ -30,7 +30,9 @@ export default function NavigationProtection(){
    if(ask(()=>window.location.assign(url.href))){event.preventDefault();event.stopImmediatePropagation();}
   }
   function submit(event:SubmitEvent){
-   const form=event.target;if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=="get"||(form.target&&form.target!=="_self"))return;
+   const form=event.target;
+   if(event.defaultPrevented || !(form instanceof HTMLFormElement) || form.hasAttribute("data-local-submit")
+      || form.method.toLowerCase()!=="get" || (form.target&&form.target!=="_self"))return;
    const url=new URL(form.action||location.href,location.href),query=new URLSearchParams();
    for(const [key,value] of new FormData(form))if(typeof value==="string")query.append(key,value);
    const button=event.submitter as HTMLButtonElement|null;if(button?.name)query.append(button.name,button.value);url.search=query.toString();
