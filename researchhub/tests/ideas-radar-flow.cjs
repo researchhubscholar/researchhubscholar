@@ -112,26 +112,26 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  assert.deepEqual(expanded(), [false, false, false]);
 
  const h = ideasHarness(); h.render(); await tick(); h.restore();
- const action = h.card().props.onRadar;
+ const action = () => h.card().props.onRadar(h.card().props.idea);
  action(); action(); await tick();
  assert.equal(h.writes.length, 1, 'double clicks must not save two versions');
  assert.equal(h.destinations.length, 0, 'navigation must wait for the database');
  assert.equal(h.writes[0].owner_id, 'owner-a'); assert.equal(h.writes[0].series_id, 'series-a');
  assert.equal(h.writes[0].proposal, h.row.proposal); assert.equal(h.writes[0].context, h.row.context);
  assert.match(h.writes[0].reason, /automático/);
- const card = h.card(); const busyButton = nodes(card.type(card.props)).find(n => n.type === 'button' && n.props.onClick === card.props.onRadar);
- assert(busyButton.props.disabled);
+ const card = h.card(); const busyButton = nodes(card.type(card.props)).find(n => n.type === 'button' && n.props.className === 'idea-proposal-primary' && n.props.children === copy('Salvando…'));
+ assert(busyButton?.props.disabled ?? nodes(card.type(card.props)).filter(n => n.props.className === 'idea-proposal-primary').every(n => n.props.disabled));
  h.pending[0].resolve({ error: null }); await tick();
  assert.deepEqual(h.events, ['insert', 'navigate']);
  const target = new URL(h.destinations[0], 'https://local'); assert.equal(target.pathname, '/descobrir'); assert.equal(target.searchParams.get('tema'), h.row.proposal.radar);
- h.card().props.onChange('title', 'Proposta editada'); h.card().props.onRadar(); await tick();
+ h.card().props.onChange('title', 'Proposta editada'); h.card().props.onRadar(h.card().props.idea); await tick();
  assert.equal(h.writes[1].proposal.title, 'Proposta editada', 'automatic saves must contain edits');
  h.pending[1].resolve({ error: { code: 'UNAVAILABLE' } }); await tick();
  assert.equal(h.destinations.length, 1); assert(JSON.stringify(h.render()).includes(copy('A proposta não foi salva e o Radar não foi aberto. Falha no salvamento.')));
- h.card().props.onRadar(); await tick(); h.pending[2].resolve({ error: null }); await tick(); assert.equal(h.destinations.length, 2, 'retry must recover after a save failure');
- const changed = ideasHarness(); changed.render(); await tick(); changed.restore(); changed.setAuth('owner-b'); changed.card().props.onRadar(); await tick(); assert.equal(changed.writes.length, 0); assert.equal(changed.destinations.length, 0);
- const stale = ideasHarness(); stale.render(); await tick(); stale.restore(); stale.all().find(n => typeof n.type === 'function' && n.props.label === copy('Sua especialidade ou área')).props.change('Outra área'); stale.card().props.onRadar(); await tick(); assert.equal(stale.writes.length, 0);
- const account = ideasHarness(); account.render(); await tick(); account.restore(); account.card().props.onRadar(); await tick(); account.library.userId = 'owner-b'; account.render(); account.pending[0].resolve({ error: null }); await tick(); assert.equal(account.destinations.length, 0, 'account switches must prevent stale navigation');
+ h.card().props.onRadar(h.card().props.idea); await tick(); h.pending[2].resolve({ error: null }); await tick(); assert.equal(h.destinations.length, 2, 'retry must recover after a save failure');
+ const changed = ideasHarness(); changed.render(); await tick(); changed.restore(); changed.setAuth('owner-b'); changed.card().props.onRadar(changed.card().props.idea); await tick(); assert.equal(changed.writes.length, 0); assert.equal(changed.destinations.length, 0);
+ const stale = ideasHarness(); stale.render(); await tick(); stale.restore(); stale.all().find(n => typeof n.type === 'function' && n.props.label === copy('Sua especialidade ou área')).props.change('Outra área'); stale.card().props.onRadar(stale.card().props.idea); await tick(); assert.equal(stale.writes.length, 0);
+ const account = ideasHarness(); account.render(); await tick(); account.restore(); account.card().props.onRadar(account.card().props.idea); await tick(); account.library.userId = 'owner-b'; account.render(); account.pending[0].resolve({ error: null }); await tick(); assert.equal(account.destinations.length, 0, 'account switches must prevent stale navigation');
 
  const auto=radarHarness('origem=ideias&busca=test'); auto.render(); auto.render(); assert.equal(auto.requests.length,1); assert.equal(JSON.parse(auto.requests[0].options.body).topic,'hypertension AND exercise'); auto.requests[0].resolve({ok:false,status:500,json:async()=>({error:'Teste'})}); await tick();
  const handoff=radarHarness('tema=hypertension+AND+exercise&origem=assistente');handoff.render();assert.equal(handoff.requests.length,0,'assistant handoff must not auto-search');assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Tema da busca')).props.value,'hypertension AND exercise');assert(handoff.all().some(n=>n.type==='select'&&n.props.value==='all'));assert.equal(handoff.all().find(n=>n.props?.['aria-label']===copy('Idioma da busca')).props.value,'en');
@@ -151,14 +151,20 @@ function radarHarness(query='tema=burnout&origem=ideias') {
  const display = ideasHarness(); display.render(); await tick(); display.restore();
  const translatedCard = display.card();
  translatedCard.props.idea.translations = { en: { title: 'Translated title' } };
+ const actions = [];
+ for (const key of ['onRefine', 'onRadar', 'onTransfer']) translatedCard.props[key] = (...args) => actions.push([key, ...args]);
  const cardNodes = () => nodes(display.renderCard(translatedCard));
  cardNodes().find(n => n.type === 'select' && /-language$/.test(n.props.id || '')).props.onChange({ target: { value: 'en' } });
  await tick();
  const translatedNodes = cardNodes();
  assert(translatedNodes.some(n => n.props.children === 'Translated title'));
- for (const onClick of [translatedCard.props.onRefine, translatedCard.props.onRadar, translatedCard.props.onTransfer]) {
-  assert(translatedNodes.some(n => n.type === 'button' && n.props.onClick === onClick), 'main actions stay visible after translation');
- }
+ const mainActions = translatedNodes.find(n => n.props.className === 'idea-proposal-actions').props.children;
+ for (const button of mainActions.slice(0, 3)) button.props.onClick();
+ assert.deepEqual(actions.map(([key, version, language]) => [key, version.title, version.radar, language]), [
+  ['onRefine', 'Translated title', translatedCard.props.idea.radar, 'en'],
+  ['onRadar', 'Translated title', translatedCard.props.idea.radar, undefined],
+  ['onTransfer', 'Translated title', translatedCard.props.idea.radar, 'en'],
+ ]);
 
  const natural = radarHarness('tema=cancer+coloretal'); const naturalSearch = natural.search('');
  assert.equal(natural.aiRequests.length, 1); assert.equal(natural.requests.length, 0);

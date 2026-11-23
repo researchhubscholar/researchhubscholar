@@ -231,8 +231,8 @@ export default function IdeasPage() {
     void createIdeasWithAI();
   });
 
-  async function saveVersion(idea: Idea, forRadar = false, reason?: string): Promise<boolean> {
-    if (!library.userId || !snapshot || stale || savingRef.current || generationInFlight.current || refinementInFlight.current) return false;
+  async function saveVersion(idea: Idea, forRadar = false, reason?: string, afterRefinement = false): Promise<boolean> {
+    if (!library.userId || !snapshot || stale || savingRef.current || generationInFlight.current || (refinementInFlight.current && !afterRefinement)) return false;
     const owner = library.userId;
     savingRef.current = true; setSaving(true); setMessage("");
     try {
@@ -277,25 +277,25 @@ export default function IdeasPage() {
     }
   }
 
-  async function validateInRadar(idea: Idea) {
-    if (!await saveVersion(idea, true)) return;
-    router.push(`/descobrir?${new URLSearchParams({ tema: ideaRadarQuery(idea.radar), ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`);
+  async function validateInRadar(idea: Idea, original = idea) {
+    if (!await saveVersion(original, true)) return;
+    router.push(`/descobrir?${new URLSearchParams({ tema: ideaRadarQuery(idea.radar), ...(idea !== original ? { temaIdeia: idea.title, recorteIdeia: idea.question } : {}), ...(projectId ? { projeto: projectId } : {}), origem: "ideias" }).toString()}`);
   }
 
-  async function refineWithLiterature(idea: Idea) {
+  async function refineWithLiterature(idea: Idea, language = outputLanguage, original = idea) {
     if (refiningId || refinementInFlight.current || generationInFlight.current || translationInFlight.current) return;
     refinementInFlight.current = true;
     setRefiningId(idea.id);
     setRefinementErrors(current => ({ ...current, [idea.id]: "" }));
     try {
-      const { data } = await postAI<{ output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage }>("/api/ai/refine-idea", { idea, projectId: projectId || null, language: outputLanguage });
+      const { data } = await postAI<{ output?: IdeaRefinement; operationId?: string; pubmedQuery?: string; pubmedTotal?: number; usage?: AIUsage }>("/api/ai/refine-idea", { idea, projectId: projectId || null, language });
       if (!data.output) throw new AIRequestError("A IA não retornou um refinamento válido. Confira o registro antes de tentar novamente.", data.operationId);
-      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage, language: outputLanguage } }));
+      setRefinements(current => ({ ...current, [idea.id]: { output: data.output!, operationId: data.operationId || "", pubmedQuery: data.pubmedQuery || idea.radar, pubmedTotal: data.pubmedTotal || 0, usage: data.usage, language } }));
       const query = appliedPubmedStrategy(data.pubmedQuery || "").topic;
-      if (!await saveVersion(idea, true)) return;
+      if (!await saveVersion(original, true, "Salvamento automático antes de abrir o Radar", true)) return;
       const handoff = crypto.randomUUID();
       sessionStorage.setItem(`scholar-radar-refinement:${handoff}`, query);
-      router.push(`/descobrir?${new URLSearchParams({ origem: "ideias", busca: handoff, ...(projectId ? { projeto: projectId } : {}) })}`);
+      router.push(`/descobrir?${new URLSearchParams({ origem: "ideias", busca: handoff, ...(idea !== original ? { temaIdeia: idea.title, recorteIdeia: idea.question } : {}), ...(projectId ? { projeto: projectId } : {}) })}`);
     } catch (error) {
       setRefinementErrors(current => ({ ...current, [idea.id]: error instanceof Error ? `${error.message}${error instanceof AIRequestError && error.operationId ? ` Código da operação: ${error.operationId}.` : ""}` : "Não foi possível refinar esta proposta." }));
     } finally { refinementInFlight.current = false; setRefiningId(""); }
@@ -319,13 +319,13 @@ export default function IdeasPage() {
     setIdeaOrigins({ [row.proposal.id]: { sourceKey: `idea-version:${row.id}` } });
   }
 
-  function transfer(idea: Idea, savedVersion?: SavedIdea) {
+  function transfer(idea: Idea, savedVersion?: SavedIdea, language?: OutputLanguage) {
     if ((!savedVersion && stale) || library.loading) return;
     try {
       const token = crypto.randomUUID();
       const tracked = ideaOrigins[idea.id];
       const sourceKey = savedVersion ? `idea-version:${savedVersion.id}` : tracked?.sourceKey || `idea:${proposalFingerprint(idea)}`;
-      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: tracked?.language, radarQuery: ideaRadarQuery(idea.radar) } }));
+      sessionStorage.setItem(transferKey(library.userId, token), JSON.stringify({ ownerId: library.userId, draft: { theme: idea.title, question: idea.question, objective: idea.objective, studyType: idea.studyType, population: idea.population, outcome: idea.outcome, hypothesis: idea.hypothesis || "", inclusion: idea.eligibility || "", exclusion: "", variables: idea.variables, methods: idea.methods, analysis: idea.analysis, ethics: idea.ethics || "", manuscript: ideaBrief(idea) }, referenceIds: idea.references.map(reference => reference.id), origin: { sourceType: "idea", sourceKey, ideaVersionId: savedVersion?.id, seriesId: savedVersion?.series_id || series.current[idea.id], generationId: tracked?.generationId, language: language || tracked?.language, radarQuery: ideaRadarQuery(idea.radar) } }));
       router.push(`/meu-trabalho?origem=ideias&proposta=${encodeURIComponent(token)}`);
     } catch { setMessage("Não foi possível preparar a proposta. Tente novamente."); }
   }
@@ -432,7 +432,7 @@ export default function IdeasPage() {
 
     {ideas.length > 0 && <section id="propostas-geradas" className="mt-10 scroll-mt-24" aria-label={uiText("screen.527c4fcb7372")}>
       <div className="flex flex-wrap justify-between gap-3 items-end"><div><p className="text-xs uppercase tracking-widest text-teal font-semibold">Resultado</p><h2 className="font-display text-3xl mt-2"><InterfaceText message="screen.68ecf8d47262" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.ead99db1a928" /></p></div><span className="text-sm text-teal">{selected.length}<InterfaceText message="screen.a78859242313" /></span></div>
-      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={expandedIdeas.includes(idea.id)} onToggle={() => setExpandedIdeas(current => current.includes(idea.id) ? current.filter(id => id !== idea.id) : [...current, idea.id])} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving || translating} translating={translating} onTranslate={language => translateIdea(idea, language)} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value, translations: undefined } : item))} onRadar={() => void validateInRadar(idea)} onRefine={() => void refineWithLiterature(idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={() => transfer(idea)} onSave={() => void saveVersion(idea)} onDownload={download} />)}</div>
+      <div className="space-y-3 mt-6">{ideas.map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} expanded={expandedIdeas.includes(idea.id)} onToggle={() => setExpandedIdeas(current => current.includes(idea.id) ? current.filter(id => id !== idea.id) : [...current, idea.id])} qualityIssues={qualityChecks.find(check => check.proposalIndex === index)?.issues || []} selected={selected.includes(idea.id)} editing={editing === idea.id} stale={stale} saving={saving || translating} translating={translating} onTranslate={language => translateIdea(idea, language)} loggedIn={Boolean(library.userId)} refining={refiningId === idea.id} refinement={refinements[idea.id]} refinementError={refinementErrors[idea.id] || ""} onCompare={() => toggleComparison(idea.id)} onEdit={() => setEditing(current => current === idea.id ? null : idea.id)} onChange={(key, value) => setIdeas(current => current.map(item => item.id === idea.id ? { ...item, [key]: value, translations: undefined } : item))} onRadar={version => void validateInRadar(version, idea)} onRefine={(version, language) => void refineWithLiterature(version, language || ideaOrigins[idea.id]?.language || outputLanguage, idea)} onApplyRefinement={() => applyRefinement(idea.id)} onTransfer={(version, language) => transfer(version, undefined, language)} onSave={() => void saveVersion(idea)} onDownload={download} />)}</div>
     </section>}
 
     {selectedIdeas.length >= 2 && <Comparison ideas={selectedIdeas} />}
@@ -443,7 +443,7 @@ export default function IdeasPage() {
 
 const ideaLanguages = { "pt-BR": "Português", es: "Español", en: "English" } as const;
 
-function IdeaCard({ idea: original, translating, onTranslate, index, expanded, onToggle, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; translating: boolean; onTranslate: (language: OutputLanguage) => Promise<boolean>; index: number; expanded: boolean; onToggle: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: () => void; onRefine: () => void; onApplyRefinement: () => void; onTransfer: () => void; onSave: () => void; onDownload: (idea: Idea) => void }) {
+function IdeaCard({ idea: original, translating, onTranslate, index, expanded, onToggle, qualityIssues, selected, editing, stale, saving, loggedIn, refining, refinement, refinementError, onCompare, onEdit, onChange, onRadar, onRefine, onApplyRefinement, onTransfer, onSave, onDownload }: { idea: Idea; translating: boolean; onTranslate: (language: OutputLanguage) => Promise<boolean>; index: number; expanded: boolean; onToggle: () => void; qualityIssues: string[]; selected: boolean; editing: boolean; stale: boolean; saving: boolean; loggedIn: boolean; refining: boolean; refinement?: RefinementResult; refinementError: string; onCompare: () => void; onEdit: () => void; onChange: (key: "title" | "question" | "objective" | "outcome" | "methods" | "analysis", value: string) => void; onRadar: (idea: Idea) => void; onRefine: (idea: Idea, language?: OutputLanguage) => void; onApplyRefinement: () => void; onTransfer: (idea: Idea, language?: OutputLanguage) => void; onSave: () => void; onDownload: (idea: Idea) => void }) {
   const { t: uiText, locale } = useLanguage();
   const [language, setLanguage] = useState<OutputLanguage | "">("");
   const [showLanguages, setShowLanguages] = useState(false);
@@ -495,9 +495,9 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
 
     </div>
     <div className="idea-proposal-actions">
-      <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={onRefine} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : (locale === "es" ? "Refinar y buscar literatura" : "Refinar e buscar literatura")}</button>
-      <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={onRadar} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
-      <button type="button" disabled={stale || saving} onClick={onTransfer}><InterfaceText message="screen.17d65baee7a0" /></button>
+      <button type="button" disabled={!loggedIn || stale || refining || saving} onClick={() => onRefine(idea, translation ? language || undefined : undefined)} className="idea-proposal-primary">{refining ? uiText("screen.363d5d503f2d") : (locale === "es" ? "Refinar y buscar literatura" : "Refinar e buscar literatura")}</button>
+      <button type="button" disabled={stale || saving || !loggedIn || refining} onClick={() => onRadar(idea)} className="idea-proposal-primary">{saving ? uiText("screen.6b5056724381") : uiText("screen.c2a0c49f638c")}</button>
+      <button type="button" disabled={stale || saving} onClick={() => onTransfer(idea, translation ? language || undefined : undefined)}><InterfaceText message="screen.17d65baee7a0" /></button>
       <details className="idea-proposal-more">
         <summary>{locale === "es" ? "Más acciones" : "Mais ações"} <span aria-hidden="true">⋯</span></summary>
         <div className="idea-proposal-more-options">
@@ -526,7 +526,7 @@ function IdeaCard({ idea: original, translating, onTranslate, index, expanded, o
         </div>
       </details>
     </div>
-    {translation && <p className="mt-3 text-xs text-ink-soft">{es ? "La búsqueda, el refinamiento y el proyecto usan la propuesta original." : "A busca, o refinamento e o projeto usam a proposta original."}</p>}
+    {translation && <p className="mt-3 text-xs text-ink-soft">{es ? "Versión activa" : "Versão ativa"} · {language && ideaLanguages[language]}</p>}
     {!translation && editing && <div className="mt-4 bg-paper border border-line rounded-card p-4 grid md:grid-cols-2 gap-4">{([ ["Título", "title"], ["Pergunta", "question"], ["Objetivo", "objective"], ["Desfecho", "outcome"], ["Métodos", "methods"], ["Análise", "analysis"] ] as const).map(([label, key]) => <label key={key} className="text-sm font-medium"><AuthoredText text={label} /><textarea disabled={saving} maxLength={3000} rows={3} value={idea[key]} onChange={event => onChange(key, event.target.value)} className="block w-full mt-2 border border-line rounded-card p-3 font-normal" /></label>)}</div>}
     {refinement && <RefinementPanel result={refinement} apply={onApplyRefinement} />}
     {refinementError && <p role="alert" className="mt-4 rounded-card bg-amber-soft p-3 text-sm"><AuthoredText text={refinementError} /></p>}

@@ -31,6 +31,7 @@ import { useOpenAccess } from "@/lib/literature/use-open-access";
 import { OpenAccessStatus } from "@/components/library/open-access-status";
 
 type Result = {
+  ideaContext?: { topic: string; scope?: string | null };
   aiInterpretation?: { summary: string };
   topic: string;
   filters: { period: string; studyType: string; searchTerm: string; crossrefQuery: string; endDate: string; mesh: string; population: string; outcome: string; operator: string; language: string };
@@ -98,6 +99,9 @@ function DiscoverContent() {
   const incomingStudy = params.get("desenho") || "";
   const [studyType, setStudyType] = useState(incomingStudy.toLowerCase().includes("revisão sistemática") ? "systematic" : incomingStudy.toLowerCase().includes("revisão") ? "review" : incomingStudy.toLowerCase().includes("ensaio") ? "trial" : incomingStudy.toLowerCase().includes("observacional") || incomingStudy.toLowerCase().includes("coorte") || incomingStudy.toLowerCase().includes("caso-controle") || incomingStudy.toLowerCase().includes("transversal") ? "observational" : incomingStudy.toLowerCase().includes("relato") ? "case" : "all");
   const [language, setLanguage] = useState(params.get("origem")==="assistente"?"en":"auto");
+  const incomingIdeaTopic = params.get("origem") === "ideias" ? params.get("temaIdeia")?.slice(0, 1000) : undefined;
+  const incomingIdeaScope = incomingIdeaTopic ? params.get("recorteIdeia")?.slice(0, 500) : undefined;
+  const ideaQuery = useRef(params.get("tema") || "");
   const [result, setResult] = useState<Result | null>(null);
   const [interpreting, setInterpreting] = useState(false);
   const [interpretationNotice, setInterpretationNotice] = useState("");
@@ -219,7 +223,9 @@ function DiscoverContent() {
         setActiveNarrowing(previous => [previous, narrowingLabel].filter(Boolean).join(" · "));
         setOriginalSearch(previous => previous ?? { result, articles, source, sort, duplicateCount, sourceWarning });
       }
-      setResult(nextResult);
+      const carriesIdea = incomingIdeaTopic && (prepared?.topic || topic.trim()) === ideaQuery.current;
+      const ideaContext = narrowing ? result?.ideaContext : carriesIdea ? { topic: incomingIdeaTopic, scope: incomingIdeaScope } : undefined;
+      setResult({ ...nextResult, ideaContext });
       scrollToResults.current = !narrowing;
       setArticles(nextResult.articles); setSource("pubmed"); setSort("relevance"); setDuplicateCount(0); setSourceWarning(null);
       setBrowseError(null);
@@ -247,6 +253,7 @@ function DiscoverContent() {
       const key = `scholar-radar-refinement:${handoff}`;
       const prepared = appliedPubmedStrategy(sessionStorage.getItem(key) || "");
       sessionStorage.removeItem(key);
+      ideaQuery.current = prepared.topic;
       setTopic(prepared.topic); setMesh(""); setPopulationTerm(""); setOutcomeTerm("");
       setOperator(prepared.operator); setLanguage(prepared.language);
       void runAnalysis({}, period, prepared);
@@ -581,10 +588,10 @@ function DiscoverContent() {
                 <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.8bdd389e9ef0" /></p>
               </div>
               <Link prefetch={false} href={{ pathname: "/ideias", query: {
-                tema: result.topic.slice(0, 1000),
+                tema: (result.ideaContext?.topic || result.topic).slice(0, 1000),
                 gerar: "radar",
                 ...(projectId ? { projeto: projectId } : {}),
-                ...(activeNarrowing ? { recorte: activeNarrowing.slice(0, 500) } : {}),
+                ...((result.ideaContext?.scope || activeNarrowing) ? { recorte: [activeNarrowing, result.ideaContext?.scope].filter(Boolean).join(" · ").slice(0, 500) } : {}),
               } }} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">
                 {formatLocale === "es" ? "Generar ideas con este tema →" : "Gerar ideias com este tema →"}
               </Link>
