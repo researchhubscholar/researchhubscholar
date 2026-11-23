@@ -13,7 +13,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function ManuscriptPage({ searchParams }: { searchParams: Promise<{ projeto?: string; comentario?: string }> }) {
+export default async function ManuscriptPage({ searchParams }: { searchParams: Promise<{ projeto?: string; comentario?: string; evidencia?: string }> }) {
   const requestLocale = await getRequestLocale();
   const uiText = (key: MessageKey) => translate(requestLocale, key);
   const db = await supabaseServer();
@@ -55,6 +55,6 @@ export default async function ManuscriptPage({ searchParams }: { searchParams: P
 
   return <main className="scholar-workspace manuscript-page max-w-7xl mx-auto">{isOwner && <RememberProjectStage ownerId={user.id} projectId={project.id} stage="manuscript" />}
     <header className="module-intro grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_minmax(13rem,18rem)]"><div className="min-w-0"><Link href={isOwner ? `/meu-trabalho?id=${project.id}` : `/orientacao?projeto=${project.id}`} className="text-sm text-teal">{isOwner ? <InterfaceText message="screen.997879846ae5" /> : uiText("nav.advising")}</Link><p className="text-xs uppercase tracking-widest text-teal mt-5"><InterfaceText message="screen.85dd6475b1a8" /></p><h1 className="font-display mt-3">{isOwner ? (requestLocale === "es" ? "Editor del manuscrito" : "Editor de manuscrito") : (requestLocale==="es"?"Revisión del manuscrito":"Revisão do manuscrito")}</h1><p className="text-ink-soft mt-3 max-w-2xl">{isOwner ? <InterfaceText message="screen.a24567ecb3ee" /> : requestLocale==="es"?"Lee el texto y comenta por sección.":"Leia o texto e deixe comentários por seção."}</p></div><ActiveProjectPicker area="manuscrito" key={project.id} currentId={project.id} options={(projects || []).map(item => ({ id: item.id, label: item.title || item.theme || uiText("screen.53d02a124b87") }))} /></header>
-    <ManuscriptEditor key={project.id} commentTarget={isOwner && typeof params.comentario === "string" ? params.comentario : undefined} currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
+    <ManuscriptEditor key={project.id} evidenceArticleId={isOwner && typeof params.evidencia === "string" ? params.evidencia : undefined} commentTarget={isOwner && typeof params.comentario === "string" ? params.comentario : undefined} currentUserId={user.id} ownerId={project.owner_id} canEdit={isOwner} project={project} initialManuscript={manuscript} initialSections={sections || []} initialVersions={versions || []} initialComments={comments} initialReplies={replies || []} reviewAvailable={reviewAvailable} articles={writingArticles} />
   </main>;
 }
