@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/como-funciona", "/para-residencias", "/planos", "/radar-demo", "/contato", "/termos", "/privacidade", "/cancelamento"],
+      allow: ["/", "/como-funciona", "/para-residencias", "/planos", "/contato", "/termos", "/privacidade", "/cancelamento"],
       disallow: ["/dashboard", "/descobrir", "/ideias", "/biblioteca", "/meu-trabalho", "/documentos", "/orientacao", "/licenca", "/residencia", "/scholar"],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
