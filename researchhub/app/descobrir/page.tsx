@@ -569,7 +569,14 @@ function DiscoverContent() {
                 <h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.6a3b044dbc56" /></h2>
                 <p className="mt-2 text-sm text-ink-soft"><InterfaceText message="screen.8bdd389e9ef0" /></p>
               </div>
-              <Link href={`/ideias?tema=${encodeURIComponent(result.topic)}`} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center"><InterfaceText message="screen.591825296b17" /></Link>
+              <Link prefetch={false} href={{ pathname: "/ideias", query: {
+                tema: (originalSearch?.result.topic ?? result.topic).slice(0, 1000),
+                gerar: "radar",
+                ...(projectId ? { projeto: projectId } : {}),
+                ...(activeNarrowing || originalSearch ? { recorte: (activeNarrowing || result.strategy.pubmedQuery).slice(0, 500) } : {}),
+              } }} className="bg-ink text-white px-5 py-2.5 rounded-card text-sm font-medium text-center">
+                {formatLocale === "es" ? "Generar ideas con este tema →" : "Gerar ideias com este tema →"}
+              </Link>
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-5">
               <button type="button" onClick={() => { setMesh(""); setPopulationTerm(""); setOutcomeTerm(""); setStudyType("all"); setPeriod("all"); setTermReview(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-left border border-line rounded-card p-4 hover:border-teal hover:bg-teal-soft transition-colors">
