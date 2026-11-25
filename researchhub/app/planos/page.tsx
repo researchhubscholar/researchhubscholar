@@ -9,7 +9,7 @@ import { translate } from "@/lib/i18n/locale";
 import type { MessageKey } from "@/lib/i18n/catalog";
 import PageHeading from "@/components/public/page-heading";
 import Link from "next/link";
-import { plans, money, policy } from "@/lib/access/plans";
+import { plans, money } from "@/lib/access/plans";
 export default async function Plans({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }){
  const formatLocale=await getRequestLocale();
  const c=publicDesignCopy(formatLocale);
@@ -24,10 +24,6 @@ export default async function Plans({ searchParams }: { searchParams: Promise<Re
     <section className="plan-extra plan-extra-recharge">
       <h2>{requestLocale === "es" ? "Cuota de IA y recargas" : "Franquia de IA e recargas"}</h2>
       <p>{requestLocale === "es" ? "Si necesitas más tokens, puedes comprar una recarga." : "Se precisar de mais tokens, você pode comprar uma recarga."}</p>
-      <p className="plan-extra-price">
-        <strong>{money(policy.rechargeCents)}</strong>
-        <span>{requestLocale === "es" ? "por millón de tokens" : "por milhão de tokens"}</span>
-      </p>
     </section>
     <section className="plan-extra plan-extra-institutional">
       <h2>{requestLocale === "es" ? "Residencias y planes institucionales" : "Residências e planos institucionais"}</h2>
