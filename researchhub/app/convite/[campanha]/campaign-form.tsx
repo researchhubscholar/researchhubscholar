@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { campaignPhoneCountries } from "../../../lib/campaigns/phone-countries";
 
 const field = "mt-1.5 w-full rounded-card border border-[var(--campaign-field-line)] bg-[var(--public-paper)] px-3 py-3 text-base text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal";
-const primary = "inline-flex min-h-12 items-center justify-center rounded-card bg-[var(--public-green)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--public-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-60";
+const primary = "inline-flex min-h-12 items-center justify-center rounded-card bg-teal px-4 py-3 text-sm font-semibold text-white hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-60";
 
 export default function CampaignForm({ campaign, available, discountCents }: { campaign: string; available: boolean; discountCents: number }) {
   const endpoint = "/api/convite/" + campaign;
@@ -98,7 +98,7 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
         </p>
         <div className="mt-5 grid gap-3">
           <Link href={`/planos?cupom=${encodeURIComponent(code)}`} className={primary} onClick={() => track("plans")}>Ver planos anuais</Link>
-          <button type="button" className="min-h-11 text-sm font-medium text-[var(--public-green)] underline underline-offset-4" onClick={copyCode}>Copiar cupom</button>
+          <button type="button" className="min-h-11 rounded-card bg-teal-soft px-4 py-2 text-sm font-semibold text-teal hover:bg-teal hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal" onClick={copyCode}>Copiar cupom</button>
         </div>
         <p role="status" className="mt-3 text-sm text-ink">{feedback}</p>
       </> : <>
