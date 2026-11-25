@@ -114,7 +114,10 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
           {code}
         </p>
         {remaining !== null && <div className="text-center text-ink">
-          <strong>Expira em {Math.floor(remaining / 60)}h {String(remaining % 60).padStart(2, "0")}min</strong>
+          <div role="timer" aria-live="off" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-card bg-[#a52232] px-4 py-3 text-white">
+            <span className="font-semibold">Seu cupom expira em</span>
+            <strong className="whitespace-nowrap text-2xl tabular-nums">{Math.floor(remaining / 60)}h {String(remaining % 60).padStart(2, "0")}min</strong>
+          </div>
           <p className="mt-2 text-sm">Use este mesmo e-mail na compra para aplicar o desconto.</p>
         </div>}
         <div className="mt-5 grid gap-3">
