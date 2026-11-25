@@ -11,6 +11,14 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
   const endpoint = "/api/convite/" + campaign;
   const discount = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: discountCents % 100 ? 2 : 0 }).format(discountCents / 100);
   const [code, setCode] = useState("");
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now);
+  const remaining = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 60000));
+  useEffect(() => {
+    if (deadline === null || remaining === 0) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [deadline, remaining]);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
@@ -61,10 +69,16 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
         }),
       });
       const result = await response.json();
+      if (response.ok && result.expired) {
+        setDeadline(0);
+        return;
+      }
       if (!response.ok || typeof result.code !== "string") {
         setError(result.error || "Não foi possível concluir seu cadastro. Tente novamente.");
         return;
       }
+      setNow(Date.now());
+      setDeadline(result.validUntil ? Date.parse(result.validUntil) : null);
       setCode(result.code);
     } catch {
       setError("Não foi possível conectar. Confira sua internet e tente novamente.");
@@ -86,7 +100,10 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
 
   return (
     <section className="min-w-0 rounded-2xl border border-line bg-[var(--campaign-panel)] p-4 sm:p-6" aria-labelledby="campaign-form-title">
-      {code ? <>
+      {remaining === 0 ? <>
+        <h2 id="campaign-form-title" className="font-display text-3xl text-ink">Seu cupom expirou</h2>
+        <Link href="/planos" className={primary}>Ver planos anuais</Link>
+      </> : code ? <>
         <h2 ref={successTitle} tabIndex={-1} id="campaign-form-title" className="font-display text-3xl text-ink">
           Seu desconto está garantido!
         </h2>
@@ -96,6 +113,10 @@ export default function CampaignForm({ campaign, available, discountCents }: { c
         <p className="my-4 break-words rounded-card border border-line bg-[var(--public-sage)] p-4 text-center font-mono text-2xl font-semibold tracking-wider text-ink">
           {code}
         </p>
+        {remaining !== null && <div className="text-center text-ink">
+          <strong>Expira em {Math.floor(remaining / 60)}h {String(remaining % 60).padStart(2, "0")}min</strong>
+          <p className="mt-2 text-sm">Use este mesmo e-mail na compra para aplicar o desconto.</p>
+        </div>}
         <div className="mt-5 grid gap-3">
           <Link href={`/planos?cupom=${encodeURIComponent(code)}`} className={primary} onClick={() => track("plans")}>Ver planos anuais</Link>
           <button type="button" className="min-h-11 rounded-card bg-teal-soft px-4 py-2 text-sm font-semibold text-teal hover:bg-teal hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal" onClick={copyCode}>Copiar cupom</button>

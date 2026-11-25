@@ -51,6 +51,11 @@ export async function POST(request: Request) {
     const purchase = data as Purchase | null;
     if (!purchase || !["requested","approved","payment_pending"].includes(purchase.status))
       return NextResponse.json({ error: "Solicitação não disponível para pagamento." }, { status: 409 });
+    if (purchase.coupon_code === "PESQUISA100") {
+      const { data: eligible, error: claimError } = await session.rpc("scholar_can_use_campaign_coupon");
+      if (claimError) throw claimError;
+      if (!eligible) return NextResponse.json({ error: "Confira se usou o e-mail do resgate e se o cupom ainda está válido." }, { status: 409 });
+    }
     if (production && !generalCheckoutEnabled) {
       // Enable ONLY the previously agreed, single-redemption Essencial test.
       // Every other purchase remains blocked until checkout is explicitly enabled for all.

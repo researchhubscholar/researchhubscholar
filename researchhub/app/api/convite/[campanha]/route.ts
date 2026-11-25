@@ -40,14 +40,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cam
     if (input.website) return errorResponse("Não foi possível registrar o cadastro.", 400);
     const lead = parseLead(input);
     if (typeof lead === "string") return errorResponse(lead, 400);
-    const { data, error } = await db.rpc("scholar_campaign_register", {
+    const { data, error } = await db.rpc("scholar_campaign_claim", {
       p_campaign: campanha, p_visitor: visitor, p_name: lead.name, p_email: lead.email,
       p_phone: lead.phone, p_marketing: lead.marketing, p_utm_source: lead.utmSource,
       p_utm_medium: lead.utmMedium, p_utm_campaign: lead.utmCampaign,
     });
     if (!error && data?.status === "ok" && typeof data.code === "string") {
-      return NextResponse.json({ code: data.code }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ code: data.code, validUntil: data.validUntil }, { headers: { "Cache-Control": "no-store" } });
     }
+    if (data?.status === "expired") return NextResponse.json({ expired: true }, { headers: { "Cache-Control": "no-store" } });
     if (data?.status === "inactive") return errorResponse("Esta campanha está indisponível.", 409);
     if (data?.status === "limited") return errorResponse("Muitos cadastros nesta conexão. Tente novamente em alguns minutos.", 429);
   } catch {
