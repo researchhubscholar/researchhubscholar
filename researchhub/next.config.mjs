@@ -17,6 +17,14 @@ const contentSecurityPolicy = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  async redirects() {
+    return [{
+      source: "/convite/pesquisa100",
+      has: [{ type: "host", value: "researchhubscholar[.]vercel[.]app" }],
+      destination: "https://researchhub.com.br/convite/pesquisa100",
+      permanent: false,
+    }];
+  },
   async headers() {
     return [{
       source: "/(.*)",
