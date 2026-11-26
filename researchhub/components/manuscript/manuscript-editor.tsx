@@ -30,6 +30,7 @@ import { readManuscriptRecovery, type ManuscriptRecovery } from "@/lib/projects/
 import ExcerptHelp from "@/components/ai/excerpt-help";
 import SectionAssistant, { type WritingSource } from "./section-assistant";
 import ManuscriptDraftBeta from "./manuscript-draft-beta";
+import ManuscriptSectionDraftBeta from "./manuscript-section-draft-beta";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
 import { chartData, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
 import { figurePng, figureSvg } from "@/lib/results/figure";
@@ -470,7 +471,19 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
             </> : <p className="mt-3 text-sm">{locale === "es" ? "Vincula artículos al proyecto en la Biblioteca para crear la tabla." : "Vincule artigos ao projeto na Biblioteca para montar a tabela."}</p>}
           </details>}
           {canEdit && section.section_key === "conclusion" && <MethodReview alerts={manuscriptReview(studyType, section.content, sections.find(item => item.section_key === "results")?.content || "", locale)} locale={locale} />}
-          {canEdit && section.section_key === "introduction" && <ManuscriptDraftBeta projectId={project.id} project={project} content={section.content} sources={articles as WritingSource[]} citationIds={citationIds} apply={async (original, proposed, selectedIds) => { const applied = await applySectionSuggestion("introduction", original, proposed); if (applied) setCitationIds(existing => [...existing, ...selectedIds.filter(id => !existing.includes(id))]); return applied; }} />}
+          {canEdit && (section.section_key === "introduction" || section.section_key === "discussion") &&
+            <ManuscriptDraftBeta sectionKey={section.section_key} heading={section.heading}
+              projectId={project.id} project={project} content={section.content}
+              sources={articles as WritingSource[]} citationIds={citationIds}
+              apply={async (original, proposed, selectedIds) => {
+                const applied = await applySectionSuggestion(section.section_key, original, proposed);
+                if (applied) setCitationIds(existing => [...existing,...selectedIds.filter(id=>!existing.includes(id))]);
+                return applied;
+              }} />}
+          {canEdit && ["methods","results","limitations","conclusion","abstract"].includes(section.section_key) &&
+            <ManuscriptSectionDraftBeta sectionKey={section.section_key as "methods" | "results" | "limitations" | "conclusion" | "abstract"}
+              heading={section.heading} projectId={project.id} content={section.content}
+              apply={(original,proposed)=>applySectionSuggestion(section.section_key,original,proposed)} />}
           {canEdit && section.section_key !== "references" && <SectionAssistant sectionKey={section.section_key} heading={section.heading} content={section.content} projectId={project.id} project={project} sources={articles as WritingSource[]} apply={(original, proposed) => applySectionSuggestion(section.section_key, original, proposed)} />}
           <div className="border-t border-line mt-5 pt-4"><button type="button" onClick={() => setActiveReview(current => current === section.section_key ? null : section.section_key)} className="w-full flex items-center justify-between text-left"><span><span className="text-sm font-medium"><InterfaceText message="screen.6280528a838a" /></span><span className="text-xs text-ink-soft ml-2">{sectionComments.length} <InterfaceText message="screen.e66f9a7567ab" /> {sectionOpen} <InterfaceText message="screen.bd0fbdfd15b6" /></span></span><span className="text-teal">{activeReview === section.section_key ? "−" : "+"}</span></button>
             {activeReview === section.section_key && <div className="mt-4 space-y-4">
