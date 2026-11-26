@@ -133,7 +133,7 @@ export function validateManuscriptAuditContent(
       const original=q.origin==="project"?
         source.project[q.field as ManuscriptAuditProtocolField]:
         source.sections[q.field as ManuscriptAuditSection];
-      if(!normalizeExcerpt(original).includes(normalizeExcerpt(q.quote))){
+      if(/\[EXCERPT OMITTED\]/i.test(q.quote) || !normalizeExcerpt(original).includes(normalizeExcerpt(q.quote))){
         throw new Error("Achado "+(index+1)+": a citação não existe na seção ou protocolo declarado.");
       }
       return {origin:q.origin,field:q.field,quote:q.quote.trim()} as AuditEvidence;
