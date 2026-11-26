@@ -12,6 +12,7 @@ export type ManuscriptAuditProtocolField=(typeof manuscriptAuditProtocolFields)[
 export type AuditSource = {
   project: Record<ManuscriptAuditProtocolField, string>;
   sections: Record<ManuscriptAuditSection, string>;
+  truncatedSections: ManuscriptAuditSection[];
 };
 export type AuditEvidence = {
   origin: "project" | "section";
@@ -29,6 +30,13 @@ export type AuditFinding = {
 export type ManuscriptAudit = {overview:string;findings:AuditFinding[]};
 
 const limitText=(value:unknown,limit:number)=>typeof value==="string"?value.trim().slice(0,limit):"";
+/** Read bounded portions of each section to keep audit within the licensed token
+ * envelope. The report clearly discloses sections not scanned in full. */
+export function auditSectionExcerpt(value:unknown,limit=1700):string{
+  const raw=typeof value==="string"?value.trim():"";
+  if(raw.length<=limit)return raw;
+  return raw.slice(0,1000)+"\n[EXCERPT OMITTED]\n"+raw.slice(-(limit-1050));
+}
 const safeFields=(key:string):key is ManuscriptAuditProtocolField=>
   (manuscriptAuditProtocolFields as readonly string[]).includes(key);
 const safeSection=(key:string):key is ManuscriptAuditSection=>
@@ -39,19 +47,22 @@ export function buildManuscriptAuditSource(
   project:Record<string,unknown>,rows:{section_key:string;content:string|null}[]
 ): AuditSource {
   const protocol={} as Record<ManuscriptAuditProtocolField,string>;
-  for(const key of manuscriptAuditProtocolFields)protocol[key]=limitText(project[key],1800);
+  for(const key of manuscriptAuditProtocolFields)protocol[key]=limitText(project[key],400);
   const sections={} as Record<ManuscriptAuditSection,string>;
   for(const key of manuscriptAuditSections)sections[key]="";
+  const truncatedSections:ManuscriptAuditSection[]=[];
   for(const row of rows) if(safeSection(row.section_key)){
-    sections[row.section_key]=limitText(row.content,4000);
+    const length=(row.content||"").trim().length;
+    sections[row.section_key]=auditSectionExcerpt(row.content);
+    if(length>1700)truncatedSections.push(row.section_key);
   }
-  return {project:protocol,sections};
+  return {project:protocol,sections,truncatedSections};
 }
 
 /** Refuse common direct identifiers in saved manuscript content before sending
  * a multi-section snapshot to the model. Not a full PHI detection guarantee. */
 export function assertManuscriptAuditPrivacy(source:AuditSource):void{
-  const combined=Object.values(source.sections).join(" ");
+  const combined=[...Object.values(source.sections),...Object.values(source.project)].join(" ");
   if(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(combined) ||
     /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(combined) ||
     /\b(?:\+?55\s*)?\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}\b/.test(combined)){
@@ -117,12 +128,12 @@ export function validateManuscriptAuditContent(
 }
 
 export function manuscriptAuditPreparation(source:AuditSource):{
-  missing:string[]; provisional:string[]; analyzed:number
+  missing:string[]; provisional:string[]; analyzed:number; truncated:string[]
 }{
   const missing=manuscriptAuditSections.filter(key=>!source.sections[key].trim());
   const provisional=manuscriptAuditSections.filter(key=>
     /\[(?:a preencher|a confirmar|to fill|pending|provis[oó]ri|pendente)[^\]]*\]/i.test(source.sections[key]) ||
     /RESUMO PROVISÓRIO|PROVISIONAL ABSTRACT/i.test(source.sections[key])
   );
-  return {missing,provisional,analyzed:manuscriptAuditSections.length-missing.length};
+  return {missing,provisional,analyzed:manuscriptAuditSections.length-missing.length,truncated:source.truncatedSections};
 }
