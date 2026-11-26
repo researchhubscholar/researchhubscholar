@@ -57,7 +57,7 @@ export async function loadDraftComposition(
       const src = context.sources[i], note = notes[i];
       entries.push({
         id: src.id, label: src.label, title: src.title, pmid: src.pmid, doi: src.doi,
-        evidenceLevel: src.evidenceLevel, relevance: note.relevance,
+        evidenceLevel: src.evidenceLevel, license:src.license, pmcid:src.pmcid, relevance: note.relevance,
         finding: note.finding, quote: note.quote, kind: note.kind
       });
     }
@@ -71,7 +71,7 @@ export async function loadDraftComposition(
     abstract: item.kind === "abstract" ? item.quote : "",
     fullTextExcerpt: item.kind === "fullTextExcerpt" ? item.quote : "",
     evidenceLevel: item.evidenceLevel, finding: item.finding,
-    license: null, pmcid: null
+    license: item.license, pmcid: item.pmcid
   }));
   return { sources, considered: ranked.considered, relevant: ranked.relevant };
 }
