@@ -20,6 +20,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
   const es = locale === "es";
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [largeApproved, setLargeApproved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
@@ -202,8 +203,14 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
       <p className="text-xs text-ink-soft">{es
         ? "Todos los artículos seleccionados se examinan en lotes de 5. Cada lote consume tokens; solo los más pertinentes se citan en la introducción."
         : "Todos os artigos selecionados serão avaliados em lotes de cinco. Cada lote consome tokens; apenas os mais pertinentes precisam aparecer nas citações da introdução."}</p>
+      <p className="text-xs text-ink-soft">{selected.length ? Math.ceil(selected.length/5)+1 : 0} operações de IA previstas ({Math.ceil(selected.length/5)} lotes + síntese final), sujeitas à franquia e aos limites da licença.</p>
+      {selected.length > 25 && <label className="flex items-start gap-2 text-xs text-ink-soft">
+        <input type="checkbox" checked={largeApproved} disabled={busy}
+          onChange={event=>setLargeApproved(event.target.checked)} className="mt-0.5"/>
+        <span>Estou ciente de que analisar muitos artigos exige várias operações de IA e consome tokens a cada lote.</span>
+      </label>}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled={busy || !selected.length}
+        <button type="button" disabled={busy || !selected.length || (selected.length>25 && !largeApproved)}
           onClick={() => void generate()} className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
           {busy ? (es ? "Procesando…" : "Processando…") : (es ? "Analizar y escribir con IA" : "Analisar e escrever com IA")}
         </button>
