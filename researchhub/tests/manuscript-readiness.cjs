@@ -30,7 +30,7 @@ const incomplete=assessManuscriptReadiness({study_type:"review"},[
 assert(incomplete.issues.some(i=>i.id==="research-question"));
 assert(incomplete.issues.some(i=>i.id==="objective"));
 assert(incomplete.issues.some(i=>i.id==="provisional-results"));
-assert(incomplete.issues.some(i=>i.id==="short-results"));
+assert(!incomplete.issues.some(i=>i.id==="short-results")); // Pending placeholder takes precedence.
 assert(!incomplete.canCompare);
 const empty=assessManuscriptReadiness(protocol,[]);
 assert(!empty.canCompare);
