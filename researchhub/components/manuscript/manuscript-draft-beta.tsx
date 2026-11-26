@@ -45,56 +45,85 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
 
   async function generate() {
     if (inFlight.current) return;
-    const chosen = sources.filter(a => selected.includes(a.id)).slice(0, 5).map(a => a.id);
-    if (!chosen.length) { setError(es ? "Selecciona al menos una referencia." : "Selecione ao menos uma referência."); return; }
-    if (content.length > 12000) { setError(es ? "La sección supera el límite de 12.000 caracteres." : "A seção excede o limite de 12.000 caracteres."); return; }
-    inFlight.current = true; setBusy(true); setError(""); setSuggestion(null); setOperationId("");
+    const chosen = sources.filter(article => selected.includes(article.id)).map(article => article.id);
+    if (!chosen.length) { setError(es ? "Selecciona referencias para analizar." : "Selecione artigos para analisar."); return; }
+    if (content.length > 12000) { setError("A introdução atual excede 12.000 caracteres."); return; }
+    inFlight.current = true; stopRequested.current = false; setBusy(true); setError("");
+    setSuggestion(null); setOperationId(""); setProgress({done:0,total:chosen.length});
     const original = content;
     try {
-      // The server does not trust article details received from the browser.
-      // It verifies project ownership and retrieves permitted content by ID.
-      const { data } = await postAI<{ output: unknown; sources?: SourceStatus[]; operationId?: string;
-        usage?: unknown; mode?: string }>("/api/ai/assist", {
-        feature: "writing", projectId,
-        context: { sectionKey: "introduction", heading: "Introdução", task: "draft",
-          original, project, language: language || locale, sourceIds: chosen, sources: [] }
+      let batchIds: string[] = [];
+      try {
+        const checkpoint = JSON.parse(sessionStorage.getItem(checkpointKey) || "null") as
+          {selected?:string[];original?:string;batchIds?:string[]}|null;
+        if (checkpoint && JSON.stringify(checkpoint.selected) === JSON.stringify(chosen)
+          && checkpoint.original === original && Array.isArray(checkpoint.batchIds)) {
+          batchIds = checkpoint.batchIds.filter(id => /^[0-9a-f-]{36}$/i.test(id));
+        }
+      } catch { /* Resume is optional. */ }
+      setProgress({done:Math.min(batchIds.length*5,chosen.length),total:chosen.length});
+      for (let i=batchIds.length*5; i<chosen.length; i+=5) {
+        if (stopRequested.current) {
+          setStage(es ? "Análisis pausado. Puedes reanudar." : "Análise pausada. Você pode retomar.");
+          return;
+        }
+        const batch = chosen.slice(i,i+5);
+        setStage((es ? "Analizando artículos " : "Analisando artigos ") + (i+1) + "–" + (i+batch.length) + " / " + chosen.length);
+        const { data } = await postAI<{operationId?:string; mode?:string; usage?:unknown}>("/api/ai/assist", {
+          feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
+            task:"evidence_batch",original,language:language||locale,sourceIds:batch,sources:[]}
+        });
+        if (data.mode === "simulation") throw new Error("Esta conta está em modo simulado. Use uma licença de IA ativa para analisar os artigos.");
+        if (!data.operationId) throw new Error("O registro da análise não foi confirmado. Confira Minha licença antes de tentar novamente.");
+        batchIds.push(data.operationId);
+        try { sessionStorage.setItem(checkpointKey,JSON.stringify({selected:chosen,original,batchIds})); } catch { /* optional */ }
+        setProgress({done:i+batch.length,total:chosen.length});
+      }
+      if (stopRequested.current) { setStage("Análise pausada; clique novamente para retomar."); return; }
+      setStage(es ? "Redactando introducción fundamentada…" : "Redigindo a introdução com as evidências analisadas…");
+      const {data} = await postAI<{output:unknown;sources?:SourceStatus[];operationId?:string;
+        usage?:unknown;mode?:string;sourceStatistics?:{considered:number;relevant:number;selectedForWriting:number}}>("/api/ai/assist",{
+        feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
+          task:"draft_compose",original,language:language||locale,batchOperationIds:batchIds,sources:[]}
       });
-      setOperationId(data.operationId || "");
+      setOperationId(data.operationId||"");
+      if (data.mode === "simulation") throw new Error("A simulação não produz conteúdo científico para inserção.");
       if (!isAssistantOutput(data.output) || data.output.recommendations.length !== 1
         || data.output.recommendations[0].targetField !== "introduction") {
-        throw new Error(es ? "El borrador no tiene un formato válido." : "O rascunho não retornou em formato válido.");
+        throw new Error("O rascunho retornou em um formato inesperado.");
       }
+      const originalText = data.output.recommendations[0].content;
       const verified = data.sources || [];
-      if (data.mode !== "simulation" && (verified.length !== chosen.length
-        || verified.some((row, i) => row.id !== chosen[i]))) {
-        throw new Error("Não foi possível conferir a proveniência das fontes.");
+      const labels = [...originalText.matchAll(/\[S(\d+)\]/g)].map(match => Number(match[1]));
+      const citedIds = [...new Set(labels.map(index => verified[index-1]?.id).filter((id):id is string=>Boolean(id)))];
+      if (!labels.length || citedIds.length < 1 || labels.some(index=>!verified[index-1])) {
+        throw new Error("O texto não possui citações verificáveis para os artigos selecionados.");
       }
-      const merged = [...citationIds];
-      chosen.forEach(id => { if (!merged.includes(id)) merged.push(id); });
-      let missing = false;
-      const proposed = data.output.recommendations[0].content.replace(/\[S(\d+)\]/g, (_match, number: string) => {
-        const id = chosen[Number(number) - 1];
-        if (!id) { missing = true; return "[A conferir]"; }
-        return `[${merged.indexOf(id) + 1}]`;
+      const merged = [...citationIds,...citedIds.filter(id=>!citationIds.includes(id))];
+      const proposed = originalText.replace(/\[S(\d+)\]/g,(_marker,index:string)=>{
+        const id=verified[Number(index)-1]?.id;
+        if (!id) throw new Error("Não foi possível vincular uma citação à bibliografia.");
+        return "["+(merged.indexOf(id)+1)+"]";
       });
-      if (missing || (data.mode !== "simulation" && proposed === data.output.recommendations[0].content)) {
-        throw new Error("As citações do rascunho não puderam ser vinculadas às referências.");
-      }
-      let anchors: {id: string; quote: string; kind: string}[] = [];
-      if (data.mode !== "simulation") {
+      let anchors: {id:string;quote:string;kind:string}[] = [];
+      try {
         const parsed = JSON.parse(data.output.recommendations[0].source) as {anchors?:unknown};
-        if (!Array.isArray(parsed.anchors)) throw new Error("A resposta não contém as evidências de suporte.");
-        anchors = parsed.anchors.filter((anchor): anchor is {id:string;quote:string;kind:string} =>
-          anchor !== null && typeof anchor === "object" && typeof anchor.id === "string" &&
-          typeof anchor.quote === "string" && typeof anchor.kind === "string");
-        if (anchors.length !== parsed.anchors.length) throw new Error("Não foi possível validar os trechos das fontes.");
-      }
-      setSuggestion({ original, proposed, sourceIds: chosen, sources: verified,
-        anchors, warnings: data.output.warnings, operationId: data.operationId || "", usage: readAIUsage(data.usage), simulated: data.mode === "simulation" });
-    } catch (e) {
-      if (e instanceof AIRequestError) setOperationId(e.operationId);
-      setError(e instanceof Error ? e.message : "Não foi possível preparar o rascunho.");
-    } finally { inFlight.current = false; setBusy(false); }
+        if (!Array.isArray(parsed.anchors)) throw new Error();
+        anchors = parsed.anchors.filter((a):a is {id:string;quote:string;kind:string} =>
+          !!a&&typeof a==="object"&&typeof a.id==="string"&&typeof a.quote==="string"&&typeof a.kind==="string");
+        if (anchors.length !== labels.length) throw new Error();
+      } catch { throw new Error("Os trechos das referências não puderam ser comprovados."); }
+      const stats=data.sourceStatistics;
+      if (!stats || stats.considered !== chosen.length) throw new Error("Nem todos os artigos selecionados foram registrados na análise.");
+      setSuggestion({original,proposed,sourceIds:citedIds,sources:verified.filter(v=>citedIds.includes(v.id)),
+        anchors,warnings:data.output.warnings,operationId:data.operationId||"",
+        usage:readAIUsage(data.usage),simulated:false,considered:stats.considered,relevant:stats.relevant});
+      setStage("");
+    } catch (caught) {
+      if (caught instanceof AIRequestError) setOperationId(caught.operationId);
+      setError(caught instanceof Error ? caught.message : "Não foi possível concluir a análise.");
+      setStage("");
+    } finally {inFlight.current=false;setBusy(false);}
   }
 
   async function accept() {
@@ -169,6 +198,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         <div className="space-y-1">
           <p className="text-sm font-medium">Referências do manuscrito e material consultado</p>
           <p className="text-xs text-ink-soft">Os números refletem a bibliografia já vinculada ao manuscrito; a ordem pode diferir da seleção de artigos acima.</p>
+          <p className="text-xs text-ink-soft">{suggestion.considered} artigos analisados · {suggestion.relevant} com evidências relacionadas · {suggestion.sourceIds.length} citados no rascunho.</p>
           {suggestion.sources.map(s => <p className="text-xs text-ink-soft" key={s.id}>
             [{citationIds.includes(s.id) ? citationIds.indexOf(s.id) + 1 : citationIds.length + suggestion.sourceIds.filter(id => !citationIds.includes(id)).indexOf(s.id) + 1}] · {s.title} {s.pmid && /^\d+$/.test(s.pmid) && <a className="underline text-teal" href={`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`} target="_blank" rel="noopener noreferrer">PMID {s.pmid}</a>} — {s.evidenceLevel === "licensed_full_text" ?
               `trechos do texto completo permitido (${s.license || "licença"})` : "apenas resumo científico"}
