@@ -448,14 +448,11 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
         document.getElementById("section-"+section)?.scrollIntoView({behavior:"smooth",block:"start"});
         const field=editorFields.current[section];
         if(field){
-          const plain=field.value.indexOf(quote);
-          const escaped=quote.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\      onNavigate={section=>{
-        setActiveKey(section);
-        document.getElementById("section-"+section)?.scrollIntoView({behavior:"smooth",block:"start"});
-      }}/>").replace(/\\s+/g,"\\s+");
-          const match=plain>=0?null:new RegExp(escaped).exec(field.value);
-          const start=plain>=0?plain:match?.index??-1;
-          const end=plain>=0?plain+quote.length:match?match.index+match[0].length:-1;
+          const needle=quote.trim();
+          const exact=field.value.indexOf(needle);
+          const fallback=exact<0?field.value.indexOf(needle.slice(0,40)):-1;
+          const start=exact>=0?exact:fallback;
+          const end=start>=0?Math.min(field.value.length,start+needle.length):-1;
           if(start>=0 && end>start){
             field.focus({preventScroll:true});
             field.setSelectionRange(start,end);
