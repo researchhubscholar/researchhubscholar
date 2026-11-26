@@ -40,13 +40,16 @@ export default function ManuscriptCoherenceBeta({
   const [report,setReport]=useState<SavedReport|null>(null);
   const [ack,setAck]=useState(false);
   const [focus,setFocus]=useState<ManuscriptAuditSection | "all">("all");
+  const [regenerateArmed,setRegenerateArmed]=useState(false);
   const [status,setStatus]=useState<Record<number,"reviewed"|"dismissed">>({});
   const [filter,setFilter]=useState<"all"|"critical"|"review"|"improve"|"pending">("all");
   const [notice,setNotice]=useState("");
   const inFlight=useRef(false);
   const signatureRef=useRef(signature);
   signatureRef.current=signature;
-  const stale=!!report && signature!==report.signature;
+  const contentStale=!!report && signature!==report.signature;
+  const scopeStale=!!report && (report.preparation.focus||null)!==(focus==="all"?null:focus);
+  const stale=contentStale||scopeStale;
   const comparable=readiness.comparable;
   const pending=readiness.sections.filter(section=>section.characters<60);
   const provisional=readiness.sections.filter(section=>section.provisional);
@@ -76,7 +79,7 @@ export default function ManuscriptCoherenceBeta({
       setReport({audit:parsed,preparation:data.auditPreparation,
         operationId:data.operationId||"",usage:readAIUsage(data.usage),signature:before,
         rejected:Math.max(0,data.auditRejected||0)});
-      setStatus({});setFilter("all");setNotice("");
+      setStatus({});setFilter("all");setNotice("");setRegenerateArmed(false);
     }catch(cause){
       if(cause instanceof AIRequestError)setErrorOperation(cause.operationId);
       setError(cause instanceof Error?cause.message:"Não foi possível concluir a verificação.");
@@ -93,6 +96,7 @@ export default function ManuscriptCoherenceBeta({
     const lines=[
       "ResearchHub — Verificação de coerência (revisão assistida, não certificação)",
       report.audit.overview,
+      ...(stale?["ATENÇÃO: o relatório se refere a uma versão ou configuração anterior."]:[]),
       "Cobertura: "+report.preparation.analyzed+"/7 seções; trechos extensos podem ser amostrados.",
       "Alertas rejeitados na conferência: "+report.rejected,
       ...allFindings.flatMap(({finding,i})=>[
@@ -188,13 +192,22 @@ export default function ManuscriptCoherenceBeta({
           "Existem alterações em salvamento ou não salvas. Conclua o salvamento antes de executar a verificação."}
       </p>}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={()=>void audit()} disabled={busy||dirty||saving||!ack||comparable<2}
-          className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
-          {busy?(es?"Revisando las secciones…":"Conferindo as seções…"):
-            report?(es?"Verificar de nuevo":"Verificar novamente"):(es?"Analizar coherencia":"Analisar coerência")}
-        </button>
+        {report&&!stale&&!regenerateArmed?
+          <button type="button" disabled={busy||dirty||saving} onClick={()=>setRegenerateArmed(true)}
+            className="rounded-card border border-teal text-teal px-5 py-3 text-sm disabled:opacity-50">
+            Gerar nova análise · consome tokens
+          </button>:
+          <button type="button" onClick={()=>void audit()} disabled={busy||dirty||saving||!ack||comparable<2}
+            className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
+            {busy?(es?"Revisando las secciones…":"Conferindo as seções…"):
+              regenerateArmed?"Confirmar nova análise":report?"Atualizar relatório":"Analisar coerência"}
+          </button>}
+        {regenerateArmed&&report&&!stale&&<button type="button" disabled={busy}
+          onClick={()=>setRegenerateArmed(false)} className="text-sm underline text-teal">
+          Cancelar
+        </button>}
         {report&&<button type="button" className="text-sm underline text-teal" disabled={busy}
-          onClick={()=>{setReport(null);setError("");setStatus({});setNotice("");}}>
+          onClick={()=>{setReport(null);setError("");setStatus({});setNotice("");setRegenerateArmed(false);}}>
           {es?"Limpiar informe":"Limpar relatório"}
         </button>}
       </div>
@@ -207,7 +220,9 @@ export default function ManuscriptCoherenceBeta({
       {notice&&<p role="status" className="text-xs text-teal">{notice}</p>}
       {report&&<div className="space-y-4 pt-3 border-t border-line">
         {stale&&<p role="alert" className="rounded-card bg-amber-50 border border-amber-200 text-sm text-amber-950 p-3">
-          O manuscrito foi modificado após esta verificação. O relatório se refere à versão anterior; faça uma nova análise após salvar.
+          {contentStale
+            ?"O manuscrito foi modificado após esta análise. O relatório se refere à versão anterior; salve o texto e atualize a verificação."
+            :"O foco da análise mudou. O relatório abaixo pertence ao foco anterior; gere outro para esta seleção."}
         </p>}
         <div className="flex flex-wrap gap-2">
           {ordered.map(level=><span key={level} className={"text-xs rounded-full border px-3 py-1 "+kinds[level].klass}>
@@ -287,12 +302,12 @@ export default function ManuscriptCoherenceBeta({
             <p className="text-sm"><strong>Como revisar:</strong> {finding.recommendation}</p>
             <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
               <span className="text-xs text-ink-soft">Sua avaliação:</span>
-              <button type="button" aria-pressed={status[i]==="reviewed"}
+              <button type="button" aria-pressed={status[i]==="reviewed"} disabled={stale||busy}
                 className={"rounded-card border px-3 py-2 text-xs "+(status[i]==="reviewed"?"bg-teal text-white border-teal":"border-line text-teal")}
                 onClick={()=>setStatus(current=>current[i]==="reviewed"
                   ?Object.fromEntries(Object.entries(current).filter(([key])=>key!==String(i))) as typeof current
                   :{...current,[i]:"reviewed"})}>Conferido</button>
-              <button type="button" aria-pressed={status[i]==="dismissed"}
+              <button type="button" aria-pressed={status[i]==="dismissed"} disabled={stale||busy}
                 className={"rounded-card border px-3 py-2 text-xs "+(status[i]==="dismissed"?"bg-ink text-white border-ink":"border-line text-ink")}
                 onClick={()=>setStatus(current=>current[i]==="dismissed"
                   ?Object.fromEntries(Object.entries(current).filter(([key])=>key!==String(i))) as typeof current
