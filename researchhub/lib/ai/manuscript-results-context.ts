@@ -85,7 +85,10 @@ export async function loadScientificResultsContext(
         db.from("evidence_matrix").select("article_id,main_finding,limitation,sample_size")
           .eq("owner_id",ownerId).in("article_id",ids)
       ]);
-      if(articles.error||matrices.error)throw new Error("Não foi possível conferir os estudos incluídos na matriz de evidências.");
+      if(articles.error||matrices.error) {
+        context.warnings.push("Não foi possível consultar a matriz dos estudos incluídos. Não será gerada síntese desses artigos.");
+        return context;
+      }
       const byId=new Map((articles.data||[]).map(a=>[a.id,a]));
       const matrix=new Map((matrices.data||[]).map(a=>[a.article_id,a]));
       context.includedStudies=ids.flatMap(id=>{
