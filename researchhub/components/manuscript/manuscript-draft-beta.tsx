@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { AIRequestError, postAI, readAIUsage, type AIUsage } from "@/lib/ai/client-request";
@@ -9,7 +9,7 @@ import type { WritingSource } from "./section-assistant";
 
 type SourceStatus = { id: string; label: string; title: string; evidenceLevel: "licensed_full_text" | "abstract"; pmcid: string | null; license: string | null; pmid: string | null; doi: string | null };
 type Suggestion = { original: string; proposed: string; sourceIds: string[]; sources: SourceStatus[];
-  operationId: string; usage: AIUsage | null; simulated: boolean; warnings: string[]; anchors: {id: string; quote: string; kind: string}[] };
+  operationId: string; usage: AIUsage | null; simulated: boolean; warnings: string[]; considered: number; relevant: number; anchors: {id: string; quote: string; kind: string}[] };
 
 export default function ManuscriptDraftBeta({ content, project, projectId, sources, citationIds, apply }: {
   content: string; project: unknown; projectId: string; sources: WritingSource[];
@@ -26,6 +26,22 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
   const [operationId, setOperationId] = useState("");
   const [language, setLanguage] = useState("");
   const inFlight = useRef(false);
+  const stopRequested = useRef(false);
+  const [filter, setFilter] = useState("");
+  const [stage, setStage] = useState("");
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const checkpointKey = "rh-draft-beta-batches:" + projectId;
+  useEffect(() => {
+    try {
+      const state = JSON.parse(sessionStorage.getItem(checkpointKey) || "null") as
+        {selected?: string[]; original?: string} | null;
+      if (state?.selected && state.original === content) {
+        const available = new Set(sources.map(s => s.id));
+        setSelected(state.selected.filter(id => available.has(id)));
+      }
+    } catch { /* Storage is optional; draft must still work. */ }
+  }, [checkpointKey, content, sources]);
+  const visible = sources.filter(source => source.title.toLowerCase().includes(filter.toLowerCase()));
 
   async function generate() {
     if (inFlight.current) return;
@@ -111,8 +127,8 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
       <p className="text-sm">{es ? "Selecciona de 1 a 5 artículos vinculados al proyecto:" :
         "Selecione de 1 a 5 artigos vinculados ao projeto:"}</p>
       <div className="grid gap-2">
-        {sources.map(article => <label key={article.id} className="flex items-start gap-2 rounded-card bg-white border border-line p-3 text-sm">
-          <input type="checkbox" className="mt-1" disabled={busy || (!selected.includes(article.id) && selected.length >= 5)}
+        {visible.map(article => <label key={article.id} className="flex items-start gap-2 rounded-card bg-white border border-line p-3 text-sm">
+          <input type="checkbox" className="mt-1" disabled={busy}
             checked={selected.includes(article.id)}
             onChange={() => { setSuggestion(null); setSelected(list => list.includes(article.id)
               ? list.filter(id => id !== article.id) : [...list, article.id]); }} />
