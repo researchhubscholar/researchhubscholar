@@ -11,6 +11,19 @@ type SavedBatch = {
   output_snapshot: { recommendations?: { targetField: string; content: string }[] } | null;
 };
 
+function canonicalSnapshot(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalSnapshot);
+  if (value && typeof value==="object") {
+    return Object.fromEntries(Object.entries(value as Record<string,unknown>)
+      .sort(([a],[b])=>a.localeCompare(b))
+      .map(([key,item])=>[key,canonicalSnapshot(item)]));
+  }
+  return value;
+}
+export function sameDraftSnapshot(first: unknown, second: unknown): boolean {
+  return JSON.stringify(canonicalSnapshot(first))===JSON.stringify(canonicalSnapshot(second));
+}
+
 const uuid = /^[0-9a-f-]{36}$/i;
 export const DRAFT_BATCH_SIZE = 5;
 export const FINAL_EVIDENCE_LIMIT = 24;
@@ -49,9 +62,9 @@ export async function loadDraftComposition(
     const rec = row.output_snapshot?.recommendations?.[0];
     if (row.user_id !== userId || row.prompt_version !== "writing.draft-beta.v3-batch-sources"
       || context?.task !== "evidence_batch" || (context.sectionKey || "introduction") !== sectionKey
-      || (sectionKey === "discussion" && JSON.stringify(context.savedSections || {}) !== JSON.stringify(savedSections))
+      || (sectionKey === "discussion" && !sameDraftSnapshot(context.savedSections || {},savedSections))
       || !context.project || context.project.id !== projectId
-      || JSON.stringify(context.project) !== JSON.stringify(project)
+      || !sameDraftSnapshot(context.project,project)
       || !Array.isArray(context.sources) || context.sources.length > DRAFT_BATCH_SIZE
       || !rec || rec.targetField !== sectionKey) {
       throw new Error("O projeto mudou ou uma análise anterior não pertence a este rascunho. Reinicie a análise.");
