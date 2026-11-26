@@ -50,10 +50,9 @@ const base={type:"object",properties:{recommendations:{type:"array",maxItems:10,
 const schema=manuscriptAuditResponseSchema(base);
 assert.equal(schema.properties.recommendations.maxItems,1);
 assert.deepEqual(schema.properties.recommendations.items.properties.targetField.enum,["coherenceReport"]);
-const pi=buildManuscriptAuditSource(project,[
+assert.throws(()=>buildManuscriptAuditSource(project,[
  {section_key:"results",content:"The participant with identifier 123.456.789-09 was assessed."}
-]);
-assert.throws(()=>assertManuscriptAuditPrivacy(pi),/dados pessoais/);
+]),/dados pessoais/);
 const partial=reviewManuscriptAuditContent(JSON.stringify({
   overview:"O manuscrito necessita de revisão em pontos específicos com suporte verificável.",
   findings:[finding,changed,finding]
