@@ -11,7 +11,8 @@ const sections = ["introduction","methods","results","discussion","limitations",
 const item=(targetField)=>({targetField,label:"Draft",content:"Suggested text to be reviewed.",rationale:"Based on saved context",
   source:"Saved protocol",confidence:"alta"});
 for(const section of sections){
-  const schema=manuscriptSectionOutputSchema(section);
+  const fixture={type:"object",properties:{recommendations:{type:"array",minItems:1,maxItems:10,items:{type:"object",properties:{targetField:{type:"string"}}}}}};
+  const schema=manuscriptSectionOutputSchema(fixture,section);
   assert.equal(schema.properties.recommendations.minItems,1);
   assert.equal(schema.properties.recommendations.maxItems,1);
   assert.deepEqual(schema.properties.recommendations.items.properties.targetField.enum,[section]);
