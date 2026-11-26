@@ -41,3 +41,5 @@ jobs:
         run: node tests/manuscript-draft-citations.cjs
       - name: Multi-article evidence batch regression
         run: node tests/manuscript-draft-batches.cjs
+      - name: Server protocol and evidence aggregation regression
+        run: node tests/manuscript-draft-aggregate.cjs
