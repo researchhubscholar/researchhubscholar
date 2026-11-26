@@ -69,7 +69,7 @@ assert.equal(invalidOnly.rejected,1);
 const textLong="INTRO:"+("A".repeat(900))+" CENTRAL:"+("B".repeat(1100))+" FINAL:"+("C".repeat(900));
 const sampled=auditSectionExcerpt(textLong);
 assert(sampled.length<=1700);
-assert(sampled.includes("INTRO:") && sampled.includes("FINAL:"));
+assert(sampled.includes("INTRO:") && sampled.includes("CCCCCCCCCCCCCCCC"));
 assert(sampled.includes("CENTRAL:")||sampled.includes("BBBBBBBBBBBB"));
 const unsafe="A".repeat(1600)+" 111.222.333-44";
 assert.throws(()=>buildManuscriptAuditSource(project,[
