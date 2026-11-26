@@ -32,7 +32,6 @@ import SectionAssistant, { type WritingSource } from "./section-assistant";
 import ManuscriptDraftBeta from "./manuscript-draft-beta";
 import ManuscriptSectionDraftBeta from "./manuscript-section-draft-beta";
 import ManuscriptCoherenceBeta from "./manuscript-coherence-beta";
-import type { ManuscriptAuditSection } from "@/lib/ai/manuscript-coherence";
 import { assessManuscriptReadiness } from "@/lib/ai/manuscript-readiness";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
 import { chartData, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
