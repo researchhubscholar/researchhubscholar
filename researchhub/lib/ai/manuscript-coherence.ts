@@ -30,12 +30,19 @@ export type AuditFinding = {
 export type ManuscriptAudit = {overview:string;findings:AuditFinding[]};
 
 const limitText=(value:unknown,limit:number)=>typeof value==="string"?value.trim().slice(0,limit):"";
-/** Read bounded portions of each section to keep audit within the licensed token
- * envelope. The report clearly discloses sections not scanned in full. */
+/** Balanced, bounded sampling of long sections. Never claim full coverage.
+ * Start, middle, and end retain scope, central results and closing interpretation. */
 export function auditSectionExcerpt(value:unknown,limit=1700):string{
   const raw=typeof value==="string"?value.trim():"";
   if(raw.length<=limit)return raw;
-  return raw.slice(0,1000)+"\n[EXCERPT OMITTED]\n"+raw.slice(-(limit-1050));
+  if(limit<450) return raw.slice(0,limit);
+  const marker="\n[EXCERPT OMITTED]\n";
+  const budget=Math.floor((limit-marker.length*2)/3);
+  const start=raw.slice(0,budget);
+  const middleStart=Math.max(budget,Math.floor(raw.length/2-budget/2));
+  const middle=raw.slice(middleStart,middleStart+budget);
+  const end=raw.slice(-budget);
+  return start+marker+middle+marker+end;
 }
 const safeFields=(key:string):key is ManuscriptAuditProtocolField=>
   (manuscriptAuditProtocolFields as readonly string[]).includes(key);
@@ -52,22 +59,28 @@ export function buildManuscriptAuditSource(
   for(const key of manuscriptAuditSections)sections[key]="";
   const truncatedSections:ManuscriptAuditSection[]=[];
   for(const row of rows) if(safeSection(row.section_key)){
-    const length=(row.content||"").trim().length;
-    sections[row.section_key]=auditSectionExcerpt(row.content);
-    if(length>1700)truncatedSections.push(row.section_key);
+    const raw=(row.content||"").trim();
+    // Inspect the original text, including segments omitted from the AI prompt.
+    assertNoObviousPersonalIdentifiers(raw);
+    sections[row.section_key]=auditSectionExcerpt(raw);
+    if(raw.length>1700)truncatedSections.push(row.section_key);
   }
   return {project:protocol,sections,truncatedSections};
 }
 
 /** Refuse common direct identifiers in saved manuscript content before sending
  * a multi-section snapshot to the model. Not a full PHI detection guarantee. */
+function assertNoObviousPersonalIdentifiers(text:string):void {
+  if(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) ||
+    /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text) ||
+    /\b(?:\+?55\s*)?\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}\b/.test(text)){
+    throw new Error("Foram identificados possíveis dados pessoais no manuscrito. Remova e salve esses dados antes da auditoria.");
+  }
+}
+
 export function assertManuscriptAuditPrivacy(source:AuditSource):void{
   const combined=[...Object.values(source.sections),...Object.values(source.project)].join(" ");
-  if(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(combined) ||
-    /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(combined) ||
-    /\b(?:\+?55\s*)?\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}\b/.test(combined)){
-    throw new Error("Foram identificados possíveis dados pessoais no manuscrito. Remova e salve essas informações antes da auditoria completa.");
-  }
+  assertNoObviousPersonalIdentifiers(combined);
 }
 
 export function auditSourceHasMaterial(source:AuditSource):boolean {
