@@ -53,7 +53,7 @@ export async function loadDraftComposition(
       || !context.project || context.project.id !== projectId
       || JSON.stringify(context.project) !== JSON.stringify(project)
       || !Array.isArray(context.sources) || context.sources.length > DRAFT_BATCH_SIZE
-      || !rec || rec.targetField !== "introduction") {
+      || !rec || rec.targetField !== sectionKey) {
       throw new Error("O projeto mudou ou uma análise anterior não pertence a este rascunho. Reinicie a análise.");
     }
     const notes = validateDraftEvidenceBatch(rec.content, context.sources);
