@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { AIRequestError, postAI, readAIUsage, type AIUsage } from "@/lib/ai/client-request";
 import { isAssistantOutput } from "@/lib/ai/assist";
+import { shouldRefreshDraftEvidence } from "@/lib/ai/manuscript-draft-recovery";
 import type { WritingSource } from "./section-assistant";
 
 type SourceStatus = { id: string; label: string; title: string; evidenceLevel: "licensed_full_text" | "abstract"; pmcid: string | null; license: string | null; pmid: string | null; doi: string | null };
@@ -32,7 +33,7 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
   const [filter, setFilter] = useState("");
   const [stage, setStage] = useState("");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const checkpointKey = "rh-draft-beta-batches:" + projectId + ":" + sectionKey;
+  const checkpointKey = "rh-draft-beta-batches:v2:" + projectId + ":" + sectionKey;
   useEffect(() => {
     try {
       const state = JSON.parse(sessionStorage.getItem(checkpointKey) || "null") as
@@ -54,12 +55,15 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
     setSuggestion(null); setOperationId(""); setProgress({done:0,total:chosen.length});
     const original = content;
     try {
+      for(let attempt=0;attempt<2;attempt++) {
+        try {
       let batchIds: string[] = [];
       try {
         const checkpoint = JSON.parse(sessionStorage.getItem(checkpointKey) || "null") as
-          {selected?:string[];original?:string;batchIds?:string[]}|null;
+          {selected?:string[];original?:string;batchIds?:string[];language?:string}|null;
         if (checkpoint && JSON.stringify(checkpoint.selected) === JSON.stringify(chosen)
-          && checkpoint.original === original && Array.isArray(checkpoint.batchIds)) {
+          && checkpoint.original === original && checkpoint.language === (language||locale)
+          && Array.isArray(checkpoint.batchIds)) {
           batchIds = checkpoint.batchIds.filter(id => /^[0-9a-f-]{36}$/i.test(id));
         }
       } catch { /* Resume is optional. */ }
@@ -78,7 +82,7 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
         if (data.mode === "simulation") throw new Error("Esta conta está em modo simulado. Use uma licença de IA ativa para analisar os artigos.");
         if (!data.operationId) throw new Error("O registro da análise não foi confirmado. Confira Minha licença antes de tentar novamente.");
         batchIds.push(data.operationId);
-        try { sessionStorage.setItem(checkpointKey,JSON.stringify({selected:chosen,original,batchIds})); } catch { /* optional */ }
+        try { sessionStorage.setItem(checkpointKey,JSON.stringify({selected:chosen,original,batchIds,language:language||locale})); } catch { /* optional */ }
         setProgress({done:i+batch.length,total:chosen.length});
       }
       if (stopRequested.current) { setStage("Análise pausada; clique novamente para retomar."); return; }
@@ -121,6 +125,18 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
         anchors,warnings:data.output.warnings,operationId:data.operationId||"",
         usage:readAIUsage(data.usage),simulated:false,considered:stats.considered,relevant:stats.relevant});
       setStage("");
+      break;
+        } catch(retryError) {
+          if(attempt===0 && shouldRefreshDraftEvidence(retryError) && !stopRequested.current) {
+            try {sessionStorage.removeItem(checkpointKey);} catch { /* Next attempt cannot reuse stale IDs. */ }
+            setStage(es ? "Actualizando los análisis con el proyecto guardado…" :
+              "Atualizando as análises com o projeto salvo…");
+            setProgress({done:0,total:chosen.length});
+            continue;
+          }
+          throw retryError;
+        }
+      }
     } catch (caught) {
       if (caught instanceof AIRequestError) setOperationId(caught.operationId);
       setError(caught instanceof Error ? caught.message : "Não foi possível concluir a análise.");
