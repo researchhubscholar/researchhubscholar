@@ -87,7 +87,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
 }
 if(input.feature==="writing" && input.context && typeof input.context==="object" &&
   "task" in input.context && input.context.task==="coherence_review"){
- const context=input.context as {task:"coherence_review";language?:string};
+ const context=input.context as {task:"coherence_review";language?:string;focus?:import("@/lib/ai/manuscript-coherence").ManuscriptAuditSection|null};
  const {data:project,error:pe}=await client.from("research_projects")
   .select("id,owner_id,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes")
   .eq("id",input.projectId||"").eq("owner_id",user.id).maybeSingle();
@@ -98,10 +98,10 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
  const {data:rows,error:se}=await client.from("scholar_manuscript_sections")
   .select("section_key,content").eq("manuscript_id",manuscript.id);
  if(se)throw new Error("Não foi possível carregar as seções salvas para a auditoria.");
- const source=buildManuscriptAuditSource(project,rows||[]);
+ const source=buildManuscriptAuditSource(project,rows||[],context.focus);
  assertManuscriptAuditPrivacy(source);
  if(!auditSourceHasMaterial(source))throw new Error("Escreva e salve pelo menos duas seções com conteúdo suficiente para uma análise comparativa.");
- input.context={task:"coherence_review",language:context.language,source,
+ input.context={task:"coherence_review",language:context.language,focus:source.focus,source,
   preparation:manuscriptAuditPreparation(source),
   scope:"Review of saved protocol and manuscript only; no article full texts or patient-level records"};
 }
