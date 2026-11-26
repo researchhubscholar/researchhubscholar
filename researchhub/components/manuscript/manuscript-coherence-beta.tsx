@@ -25,9 +25,10 @@ type Preparation={missing:string[];provisional:string[];analyzed:number;truncate
 type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string;rejected:number};
 
 export default function ManuscriptCoherenceBeta({
-  projectId,dirty,saving,signature,onNavigate
+  projectId,dirty,saving,signature,onNavigate,sectionReadiness
 }: {
   projectId:string;dirty:boolean;saving:boolean;signature:string;
+  sectionReadiness:{key:ManuscriptAuditSection;characters:number;provisional:boolean}[];
   onNavigate:(section:ManuscriptAuditSection,quote:string)=>void;
 }) {
   const {locale}=useLanguage(),es=locale==="es";
@@ -44,9 +45,12 @@ export default function ManuscriptCoherenceBeta({
   const signatureRef=useRef(signature);
   signatureRef.current=signature;
   const stale=!!report && signature!==report.signature;
+  const comparable=sectionReadiness.filter(section=>section.characters>=60).length;
+  const pending=sectionReadiness.filter(section=>section.characters<60);
+  const provisional=sectionReadiness.filter(section=>section.provisional);
 
   async function audit() {
-    if(inFlight.current||dirty||saving||!ack)return;
+    if(inFlight.current||dirty||saving||!ack||comparable<2)return;
     inFlight.current=true;setBusy(true);setError("");setErrorOperation("");
     const before=signature;
     try {
@@ -126,6 +130,23 @@ export default function ManuscriptCoherenceBeta({
       <p className="text-xs text-ink-soft">
         {es?"El informe utiliza solamente los apartados y el protocolo guardados, no documentos externos. Es una revisión de apoyo y consume tokens.":"O relatório analisa somente o texto e protocolo salvos, sem conferir artigos externos ou dados individuais. É uma revisão de apoio, consome tokens e não substitui o pesquisador ou orientador."}
       </p>
+      <div className="rounded-card border border-line bg-paper/50 p-4 space-y-2">
+        <p className="text-sm font-medium">Conferência gratuita antes da IA</p>
+        <p className="text-xs text-ink-soft">{comparable} de 7 seções têm texto suficiente para comparação. A auditoria exige pelo menos duas.</p>
+        <div className="flex flex-wrap gap-2">
+          {sectionReadiness.map(section=><span key={section.key}
+            className={"text-xs rounded-full px-2 py-1 border "+(section.characters>=60?"border-teal/30 text-teal":"border-line text-ink-soft")}>
+            {section.characters>=60?"✓ ":"○ "}{names[section.key]||section.key}
+          </span>)}
+        </div>
+        {pending.length>0&&<p className="text-xs text-ink-soft">
+          A desenvolver: {pending.map(section=>names[section.key]).join(", ")}.
+        </p>}
+        {provisional.length>0&&<p className="text-xs text-amber-900">
+          Conteúdo provisório: {provisional.map(section=>names[section.key]).join(", ")}.
+        </p>}
+        <p className="text-xs text-ink-soft">Esta checagem inicial não consome tokens. A análise científica assistida consome a franquia de IA.</p>
+      </div>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={busy} className="mt-1"/>
         <span>{es?"Confirmo que revisé los textos guardados y eliminé datos personales de pacientes.":
@@ -136,7 +157,7 @@ export default function ManuscriptCoherenceBeta({
           "Existem alterações em salvamento ou não salvas. Conclua o salvamento antes de executar a verificação."}
       </p>}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={()=>void audit()} disabled={busy||dirty||saving||!ack}
+        <button type="button" onClick={()=>void audit()} disabled={busy||dirty||saving||!ack||comparable<2}
           className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
           {busy?(es?"Revisando las secciones…":"Conferindo as seções…"):
             report?(es?"Verificar de nuevo":"Verificar novamente"):(es?"Analizar coherencia":"Analisar coerência")}
