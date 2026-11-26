@@ -34,7 +34,7 @@ export function validateDraftEvidenceBatch(content: string, sources: DraftSource
     const quote = record.quote.trim();
     const kind = record.kind as DraftEvidenceNote["kind"];
     if (relevance === 0) {
-      if (kind !== "none" || finding || quote) throw new Error("Fonte irrelevante não deve conter alegação científica.");
+      if (kind !== "none" || quote || finding.length > 180) throw new Error("Fonte irrelevante não deve conter evidência citada.");
     } else {
       if (kind === "none" || finding.length < 25 || quote.length < 22
         || !normalize(kind === "abstract" ? source.abstract : source.fullTextExcerpt).includes(normalize(quote))) {
