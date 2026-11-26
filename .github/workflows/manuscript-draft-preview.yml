@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: researchhub/package-lock.json
       - run: npm ci
       - name: Lint changed beta files
-        run: npx eslint components/manuscript/manuscript-draft-beta.tsx components/manuscript/manuscript-section-draft-beta.tsx components/manuscript/manuscript-editor.tsx lib/literature/manuscript-draft-sources.ts lib/ai/manuscript-section-rules.ts lib/ai/manuscript-results-context.ts lib/ai/manuscript-draft-recovery.ts lib/ai/manuscript-section-output.ts lib/ai/manuscript-draft-aggregate.ts lib/ai/manuscript-draft-batches.ts lib/ai/manuscript-draft-citations.ts lib/ai/assist.ts app/api/ai/assist/route.ts --max-warnings=0
+        run: npx eslint components/manuscript/manuscript-draft-beta.tsx components/manuscript/manuscript-coherence-beta.tsx components/manuscript/manuscript-section-draft-beta.tsx components/manuscript/manuscript-editor.tsx lib/literature/manuscript-draft-sources.ts lib/ai/manuscript-section-rules.ts lib/ai/manuscript-coherence.ts lib/ai/manuscript-results-context.ts lib/ai/manuscript-draft-recovery.ts lib/ai/manuscript-section-output.ts lib/ai/manuscript-draft-aggregate.ts lib/ai/manuscript-draft-batches.ts lib/ai/manuscript-draft-citations.ts lib/ai/assist.ts app/api/ai/assist/route.ts --max-warnings=0
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Scientific source regression
@@ -51,3 +51,5 @@ jobs:
         run: node tests/manuscript-results-context.cjs
       - name: Stale analysis retry regression
         run: node tests/manuscript-draft-recovery.cjs
+      - name: Coherence quote grounding regression
+        run: node tests/manuscript-coherence.cjs
