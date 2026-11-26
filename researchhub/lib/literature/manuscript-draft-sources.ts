@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * signed-in user's project before the text is sent to the AI service. */
 export type DraftSource = {
   id: string; label: string; title: string; pmid: string | null; doi: string | null;
-  abstract: string; fullTextExcerpt: string; evidenceLevel: "licensed_full_text" | "abstract";
+  abstract: string; fullTextExcerpt: string; evidenceLevel: "licensed_full_text" | "abstract" | "unavailable";
   license: string | null; pmcid: string | null;
 };
 type ArticleRow = { id: string; project_id: string | null; title: string; pmid: string | null;
@@ -84,11 +84,8 @@ export async function prepareManuscriptDraftSources(
     const full = records[index];
     return { id, label: `S${index + 1}`, title: article.title.slice(0, 400),
       pmid: article.pmid, doi: article.doi, abstract: String(article.abstract || "").slice(0, 2200),
-      fullTextExcerpt: full.fullTextExcerpt, evidenceLevel: full.fullTextExcerpt ? "licensed_full_text" as const : "abstract" as const,
+      fullTextExcerpt: full.fullTextExcerpt, evidenceLevel: full.fullTextExcerpt ? "licensed_full_text" as const : article.abstract?.trim() ? "abstract" as const : "unavailable" as const,
       license: full.license, pmcid: full.pmcid };
   });
-  if (sources.some(s => !s.abstract.trim() && !s.fullTextExcerpt.trim())) {
-    throw new Error("Um dos artigos não possui resumo nem texto completo reutilizável. Escolha outra referência.");
-  }
   return sources;
 }
