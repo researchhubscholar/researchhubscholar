@@ -13,6 +13,7 @@ export type AuditSource = {
   project: Record<ManuscriptAuditProtocolField, string>;
   sections: Record<ManuscriptAuditSection, string>;
   truncatedSections: ManuscriptAuditSection[];
+  focus: ManuscriptAuditSection | null;
 };
 export type AuditEvidence = {
   origin: "project" | "section";
@@ -51,10 +52,12 @@ const safeSection=(key:string):key is ManuscriptAuditSection=>
 function normalizeExcerpt(value:string):string{return value.replace(/\s+/g," ").trim();}
 
 export function buildManuscriptAuditSource(
-  project:Record<string,unknown>,rows:{section_key:string;content:string|null}[]
+  project:Record<string,unknown>,rows:{section_key:string;content:string|null}[],
+  requestedFocus:ManuscriptAuditSection|null=null
 ): AuditSource {
   const protocol={} as Record<ManuscriptAuditProtocolField,string>;
   for(const key of manuscriptAuditProtocolFields)protocol[key]=limitText(project[key],400);
+  const focus=requestedFocus && safeSection(requestedFocus)?requestedFocus:null;
   const sections={} as Record<ManuscriptAuditSection,string>;
   for(const key of manuscriptAuditSections)sections[key]="";
   const truncatedSections:ManuscriptAuditSection[]=[];
@@ -62,10 +65,11 @@ export function buildManuscriptAuditSource(
     const raw=(row.content||"").trim();
     // Inspect the original text, including segments omitted from the AI prompt.
     assertNoObviousPersonalIdentifiers(raw);
-    sections[row.section_key]=auditSectionExcerpt(raw);
-    if(raw.length>1700)truncatedSections.push(row.section_key);
+    const budget=focus?(row.section_key===focus?4000:700):1700;
+    sections[row.section_key]=auditSectionExcerpt(raw,budget);
+    if(raw.length>budget)truncatedSections.push(row.section_key);
   }
-  return {project:protocol,sections,truncatedSections};
+  return {project:protocol,sections,truncatedSections,focus};
 }
 
 /** Refuse common direct identifiers in saved manuscript content before sending
@@ -187,12 +191,12 @@ export function reviewManuscriptAuditContent(
 }
 
 export function manuscriptAuditPreparation(source:AuditSource):{
-  missing:string[]; provisional:string[]; analyzed:number; truncated:string[]
+  missing:string[]; provisional:string[]; analyzed:number; truncated:string[];focus:string|null
 }{
   const missing=manuscriptAuditSections.filter(key=>!source.sections[key].trim());
   const provisional=manuscriptAuditSections.filter(key=>
     /\[(?:a preencher|a confirmar|to fill|pending|provis[oó]ri|pendente)[^\]]*\]/i.test(source.sections[key]) ||
     /RESUMO PROVISÓRIO|PROVISIONAL ABSTRACT/i.test(source.sections[key])
   );
-  return {missing,provisional,analyzed:manuscriptAuditSections.length-missing.length,truncated:source.truncatedSections};
+  return {missing,provisional,analyzed:manuscriptAuditSections.length-missing.length,truncated:source.truncatedSections,focus:source.focus};
 }
