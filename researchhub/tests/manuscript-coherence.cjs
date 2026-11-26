@@ -4,7 +4,8 @@ require.extensions[".ts"]=(module,file)=>module._compile(ts.transpileModule(fs.r
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
 }).outputText,file);
 const {buildManuscriptAuditSource,auditSourceHasMaterial,assertManuscriptAuditPrivacy,
-  manuscriptAuditResponseSchema,validateManuscriptAuditContent,manuscriptAuditPreparation}=
+  manuscriptAuditResponseSchema,validateManuscriptAuditContent,manuscriptAuditPreparation,
+  reviewManuscriptAuditContent,auditSectionExcerpt}=
   require("../lib/ai/manuscript-coherence.ts");
 const project={research_question:"Which factors predict recurrent injury among adult competitors?",
  objective:"To describe determinants of repeated sport injury among adults",study_type:"cohort",
@@ -53,4 +54,26 @@ const pi=buildManuscriptAuditSource(project,[
  {section_key:"results",content:"The participant with identifier 123.456.789-09 was assessed."}
 ]);
 assert.throws(()=>assertManuscriptAuditPrivacy(pi),/dados pessoais/);
+const partial=reviewManuscriptAuditContent(JSON.stringify({
+  overview:"O manuscrito necessita de revisão em pontos específicos com suporte verificável.",
+  findings:[finding,changed,finding]
+}),source);
+assert.equal(partial.audit.findings.length,1);
+assert.equal(partial.rejected,2);
+assert.equal(partial.received,3);
+const invalidOnly=reviewManuscriptAuditContent(JSON.stringify({
+  overview:"Os apontamentos não puderam ser validados com os trechos registrados.",
+  findings:[changed]
+}),source);
+assert.equal(invalidOnly.audit.findings.length,0);
+assert.equal(invalidOnly.rejected,1);
+const textLong="INTRO:"+("A".repeat(900))+" CENTRAL:"+("B".repeat(1100))+" FINAL:"+("C".repeat(900));
+const sampled=auditSectionExcerpt(textLong);
+assert(sampled.length<=1700);
+assert(sampled.includes("INTRO:") && sampled.includes("FINAL:"));
+assert(sampled.includes("CENTRAL:")||sampled.includes("BBBBBBBBBBBB"));
+const unsafe="A".repeat(1600)+" 111.222.333-44";
+assert.throws(()=>buildManuscriptAuditSource(project,[
+  {section_key:"methods",content:unsafe}
+]),/dados pessoais/);
 console.log("PASS: grounded manuscript coherence findings; no fabricated citations, unauthorized fields or obvious personal identifiers.");
