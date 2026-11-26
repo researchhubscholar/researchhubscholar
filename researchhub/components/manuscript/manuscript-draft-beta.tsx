@@ -153,9 +153,29 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
       </button>
     </div>
     {open && <div className="mt-5 space-y-4">
-      <p className="text-sm">{es ? "Selecciona de 1 a 5 artículos vinculados al proyecto:" :
-        "Selecione de 1 a 5 artigos vinculados ao projeto:"}</p>
-      <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm">{es ? "Selecciona cuantos artículos quieras" : "Selecione quantos artigos quiser"} · <strong>{selected.length} / {sources.length}</strong></p>
+        <div className="flex gap-3">
+          <button type="button" disabled={busy} onClick={() => {setSelected(sources.map(a=>a.id));setSuggestion(null);}}
+            className="text-sm text-teal underline disabled:opacity-50">{es ? "Seleccionar todos" : "Selecionar todos"}</button>
+          <button type="button" disabled={busy} onClick={() => {setSelected([]);setSuggestion(null);}}
+            className="text-sm text-teal underline disabled:opacity-50">{es ? "Limpiar" : "Limpar seleção"}</button>
+        </div>
+      </div>
+      <input aria-label={es ? "Buscar artículo" : "Buscar artigo"} value={filter} onChange={event=>setFilter(event.target.value)}
+        placeholder={es ? "Buscar por título…" : "Buscar artigo pelo título…"}
+        className="w-full rounded-card border border-line p-3 text-sm bg-white" />
+      <details className="rounded-card border border-line bg-white p-3">
+        <summary className="cursor-pointer text-sm text-teal">{es ? "Protocolo que orienta la redacción" : "Protocolo que orienta a redação"}</summary>
+        <div className="mt-3 space-y-2 text-xs text-ink-soft">{(() => {
+          const p=project as {research_question?:string;objective?:string;population?:string;study_type?:string};
+          return <><p><strong>Pergunta:</strong> {p.research_question || "Não definida"}</p>
+            <p><strong>Objetivo:</strong> {p.objective || "Não definido"}</p>
+            <p><strong>População:</strong> {p.population || "Não definida"}</p>
+            <p><strong>Desenho:</strong> {p.study_type || "Não definido"}</p></>;
+        })()}</div>
+      </details>
+      <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
         {visible.map(article => <label key={article.id} className="flex items-start gap-2 rounded-card bg-white border border-line p-3 text-sm">
           <input type="checkbox" className="mt-1" disabled={busy}
             checked={selected.includes(article.id)}
@@ -166,7 +186,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
             {" · "}{article.abstract ? (es ? "Resumen disponible" : "Resumo disponível") : (es ? "Sin resumen" : "Sem resumo")}
           </span></span>
         </label>)}
-        {!sources.length && <p className="text-sm text-ink-soft">{es ? "Primero vincula artículos a este proyecto en la Biblioteca." :
+        {!visible.length && <p className="text-sm text-ink-soft">{es ? "Primero vincula artículos a este proyecto en la Biblioteca." :
           "Vincule artigos a este projeto pela Biblioteca para começar."}</p>}
       </div>
       <label className="block text-sm">{es ? "Idioma" : "Idioma do rascunho"}
@@ -179,11 +199,30 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
       <p className="text-xs text-ink-soft">{es
         ? "El sistema busca texto completo abierto con licencia compatible. Si no está disponible, usa solamente el resumen. Nunca inventa resultados."
         : "O ResearchHub procura texto completo em acesso aberto com licença compatível. Se não encontrar, usa o resumo. Não inventa resultados do seu estudo."}</p>
-      <button type="button" disabled={busy || !selected.length}
-        onClick={() => void generate()} className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
-        {busy ? (es ? "Procesando fuentes y escribiendo…" : "Analisando fontes e escrevendo…") :
-          (es ? "Preparar borrador" : "Preparar rascunho")}
-      </button>
+      <p className="text-xs text-ink-soft">{es
+        ? "Todos los artículos seleccionados se examinan en lotes de 5. Cada lote consume tokens; solo los más pertinentes se citan en la introducción."
+        : "Todos os artigos selecionados serão avaliados em lotes de cinco. Cada lote consome tokens; apenas os mais pertinentes precisam aparecer nas citações da introdução."}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" disabled={busy || !selected.length}
+          onClick={() => void generate()} className="rounded-card bg-ink text-white px-5 py-3 text-sm disabled:opacity-50">
+          {busy ? (es ? "Procesando…" : "Processando…") : (es ? "Analizar y escribir con IA" : "Analisar e escrever com IA")}
+        </button>
+        {busy && stage.includes(es ? "Analizando" : "Analisando") && <button type="button"
+          onClick={() => {stopRequested.current=true;setStage(es ? "Pausa solicitada tras este lote…" : "Pausa solicitada após este lote…");}}
+          className="rounded-card border border-line p-2 text-sm">{es ? "Pausar después del lote" : "Pausar após este lote"}</button>}
+        <button type="button" disabled={busy} onClick={() => {
+            try {sessionStorage.removeItem(checkpointKey);} catch {}
+            setProgress({done:0,total:0});setStage("");setError("");setSuggestion(null);
+          }} className="text-sm text-teal underline disabled:opacity-50">
+          {es ? "Reiniciar análisis" : "Reiniciar análise"}
+        </button>
+      </div>
+      {(busy || stage) && <div role="status" className="rounded-card border border-teal/20 bg-white p-3 space-y-2">
+        <p className="text-sm font-medium text-teal">{stage || (es ? "Procesando…" : "Processando…")}</p>
+        {progress.total > 0 && <><p className="text-xs text-ink-soft">{progress.done} / {progress.total} artigos analisados</p>
+          <div className="h-2 bg-paper rounded-full overflow-hidden"><div className="h-full bg-teal transition-all"
+            style={{width:(Math.min(100,progress.done/progress.total*100))+"%"}} /></div></>}
+      </div>
       {error && <p role="alert" className="text-sm text-red-700">{error}
         {operationId && <Link href={`/geracoes/${operationId}`} className="ml-2 underline">Ver registro</Link>}
       </p>}
@@ -196,7 +235,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
           value={suggestion.proposed} disabled={busy || suggestion.simulated}
           onChange={e => setSuggestion(s => s ? { ...s, proposed: e.target.value } : s)} />
         <div className="space-y-1">
-          <p className="text-sm font-medium">Referências do manuscrito e material consultado</p>
+          <p className="text-sm font-medium">Referências citadas e material consultado</p>
           <p className="text-xs text-ink-soft">Os números refletem a bibliografia já vinculada ao manuscrito; a ordem pode diferir da seleção de artigos acima.</p>
           <p className="text-xs text-ink-soft">{suggestion.considered} artigos analisados · {suggestion.relevant} com evidências relacionadas · {suggestion.sourceIds.length} citados no rascunho.</p>
           {suggestion.sources.map(s => <p className="text-xs text-ink-soft" key={s.id}>
@@ -222,7 +261,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
           })}</div>
         </details>}
         <p className="text-xs text-ink-soft">{suggestion.usage
-          ? `${(suggestion.usage.inputTokens + suggestion.usage.outputTokens).toLocaleString("pt-BR")} tokens consumidos`
+          ? `${(suggestion.usage.inputTokens + suggestion.usage.outputTokens).toLocaleString("pt-BR")} tokens na síntese final; os lotes anteriores são contabilizados separadamente`
           : "Consulte o registro da geração para verificar o consumo."}</p>
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={() => void accept()}
