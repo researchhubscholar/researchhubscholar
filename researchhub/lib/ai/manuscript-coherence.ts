@@ -140,6 +140,47 @@ export function validateManuscriptAuditContent(
   return {overview:report.overview.trim(),findings};
 }
 
+/** Never pass through an ungrounded claim just to avoid a failed generation.
+ * A partially valid report is still useful; rejected findings are disclosed.
+ * Structural failures still reject the entire response. */
+export type ValidatedAuditReview = {
+  audit: ManuscriptAudit;
+  rejected: number;
+  received: number;
+};
+export function reviewManuscriptAuditContent(
+  json:string,source:AuditSource
+):ValidatedAuditReview {
+  let raw:unknown;
+  try { raw=JSON.parse(json); } catch {
+    throw new Error("O relatório gerado não contém JSON válido.");
+  }
+  if(!raw || typeof raw!=="object")throw new Error("A resposta de auditoria está incompleta.");
+  const data=raw as Partial<ManuscriptAudit>;
+  if(typeof data.overview!=="string" || data.overview.length<12 || data.overview.length>700 ||
+    !Array.isArray(data.findings) || data.findings.length>10){
+    throw new Error("O relatório gerado não corresponde ao formato esperado.");
+  }
+  const accepted:AuditFinding[]=[];
+  const seen=new Set<string>();
+  let rejected=0;
+  for(const finding of data.findings){
+    try{
+      const validated=validateManuscriptAuditContent(
+        JSON.stringify({overview:data.overview,findings:[finding]}),source
+      ).findings[0];
+      // Duplicate findings with the same underlying passages offer no new value.
+      const key=validated.evidence.map(e=>e.origin+":"+e.field+":"+e.quote.toLowerCase())
+        .sort().join("|");
+      if(seen.has(key)){rejected++;continue;}
+      seen.add(key);
+      if(accepted.length<5)accepted.push(validated);
+      else rejected++;
+    }catch{rejected++;}
+  }
+  return {audit:{overview:data.overview.trim(),findings:accepted},rejected,received:data.findings.length};
+}
+
 export function manuscriptAuditPreparation(source:AuditSource):{
   missing:string[]; provisional:string[]; analyzed:number; truncated:string[]
 }{
