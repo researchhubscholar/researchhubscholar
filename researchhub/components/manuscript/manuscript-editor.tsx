@@ -443,9 +443,24 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : (locale === "es" ? "Modo tutor" : "Modo orientador")}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? uiText("screen.6424012e691b") : uiText("screen.0b9e5ce314ac")}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? uiText("screen.308caaa0071a") : uiText("screen.e5176e8da85c")}</p></section>
     {canEdit && <ManuscriptCoherenceBeta projectId={project.id} dirty={dirty} saving={saving}
       signature={sections.map(section=>section.section_key+":"+section.content).join("\u241f")}
-      onNavigate={section=>{
+      onNavigate={(section,quote)=>{
         setActiveKey(section);
         document.getElementById("section-"+section)?.scrollIntoView({behavior:"smooth",block:"start"});
+        const field=editorFields.current[section];
+        if(field){
+          const plain=field.value.indexOf(quote);
+          const escaped=quote.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\      onNavigate={section=>{
+        setActiveKey(section);
+        document.getElementById("section-"+section)?.scrollIntoView({behavior:"smooth",block:"start"});
+      }}/>").replace(/\\s+/g,"\\s+");
+          const match=plain>=0?null:new RegExp(escaped).exec(field.value);
+          const start=plain>=0?plain:match?.index??-1;
+          const end=plain>=0?plain+quote.length:match?match.index+match[0].length:-1;
+          if(start>=0 && end>start){
+            field.focus({preventScroll:true});
+            field.setSelectionRange(start,end);
+          }
+        }
       }}/>}
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c9bbe9cc2ae9" /></p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} <InterfaceText message="screen.8f3948a298a3" /></p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.f662cb9a3b0a" /></p><p role="status" aria-live="polite" className="mt-1"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p></div></aside>
 
