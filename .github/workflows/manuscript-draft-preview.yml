@@ -37,3 +37,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Scientific source regression
         run: node tests/manuscript-draft.cjs
+      - name: Citation grounding regression
+        run: node tests/manuscript-draft-citations.cjs
