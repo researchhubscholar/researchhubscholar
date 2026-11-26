@@ -1,12 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DraftSource } from "../literature/manuscript-draft-sources";
+import type { SectionContents } from "./manuscript-section-rules";
 import { rankDraftEvidence, validateDraftEvidenceBatch, type ConsolidatedDraftEvidence } from "./manuscript-draft-batches";
 
 type SavedBatch = {
   usage_id: string;
   user_id: string;
   prompt_version: string | null;
-  input_snapshot: { context?: { task?: string; project?: Record<string, unknown>; sources?: DraftSource[] } } | null;
+  input_snapshot: { context?: { task?: string; sectionKey?: string; project?: Record<string, unknown>; sources?: DraftSource[]; savedSections?: SectionContents } } | null;
   output_snapshot: { recommendations?: { targetField: string; content: string }[] } | null;
 };
 
@@ -24,7 +25,8 @@ export type DraftComposeSource = {
  * database migration or unsigned evidence supplied by the browser is needed. */
 export async function loadDraftComposition(
   db: SupabaseClient, userId: string, projectId: string, batchIds: string[],
-  project: Record<string, unknown>
+  project: Record<string, unknown>, sectionKey: "introduction" | "discussion" = "introduction",
+  savedSections: SectionContents = {}
 ): Promise<{ sources: DraftComposeSource[]; considered: number; relevant: number }> {
   if (!Array.isArray(batchIds) || !batchIds.length || batchIds.length > 500
     || batchIds.some(id => typeof id !== "string" || !uuid.test(id))
@@ -46,7 +48,9 @@ export async function loadDraftComposition(
     const context = row.input_snapshot?.context;
     const rec = row.output_snapshot?.recommendations?.[0];
     if (row.user_id !== userId || row.prompt_version !== "writing.draft-beta.v3-batch-sources"
-      || context?.task !== "evidence_batch" || !context.project || context.project.id !== projectId
+      || context?.task !== "evidence_batch" || (context.sectionKey || "introduction") !== sectionKey
+      || (sectionKey === "discussion" && JSON.stringify(context.savedSections || {}) !== JSON.stringify(savedSections))
+      || !context.project || context.project.id !== projectId
       || JSON.stringify(context.project) !== JSON.stringify(project)
       || !Array.isArray(context.sources) || context.sources.length > DRAFT_BATCH_SIZE
       || !rec || rec.targetField !== "introduction") {
@@ -64,7 +68,7 @@ export async function loadDraftComposition(
   }
   const ranked = rankDraftEvidence(entries, FINAL_EVIDENCE_LIMIT);
   if (!ranked.candidates.length) {
-    throw new Error("Nenhum dos artigos selecionados apresentou trechos suficientes para uma introdução fundamentada.");
+    throw new Error("Os artigos selecionados não apresentaram trechos suficientes para redigir esta seção com citações.");
   }
   const sources = ranked.candidates.map(item => ({
     id: item.id, label: item.label, title: item.title, pmid: item.pmid, doi: item.doi,
