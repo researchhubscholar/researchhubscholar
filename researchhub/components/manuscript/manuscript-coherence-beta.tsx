@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/i18n/language-provider";
 import { AIRequestError, postAI, readAIUsage, type AIUsage } from "@/lib/ai/client-request";
 import { isAssistantOutput } from "@/lib/ai/assist";
 import type { AuditFinding, ManuscriptAudit, ManuscriptAuditSection } from "@/lib/ai/manuscript-coherence";
+import type { ManuscriptReadiness } from "@/lib/ai/manuscript-readiness";
 
 const names:Record<string,string>={
   abstract:"Resumo",introduction:"Introdução",methods:"Métodos",results:"Resultados",
@@ -25,10 +26,10 @@ type Preparation={missing:string[];provisional:string[];analyzed:number;truncate
 type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string;rejected:number};
 
 export default function ManuscriptCoherenceBeta({
-  projectId,dirty,saving,signature,onNavigate,sectionReadiness
+  projectId,dirty,saving,signature,onNavigate,readiness
 }: {
   projectId:string;dirty:boolean;saving:boolean;signature:string;
-  sectionReadiness:{key:ManuscriptAuditSection;characters:number;provisional:boolean}[];
+  readiness:ManuscriptReadiness;
   onNavigate:(section:ManuscriptAuditSection,quote:string)=>void;
 }) {
   const {locale}=useLanguage(),es=locale==="es";
@@ -46,9 +47,9 @@ export default function ManuscriptCoherenceBeta({
   const signatureRef=useRef(signature);
   signatureRef.current=signature;
   const stale=!!report && signature!==report.signature;
-  const comparable=sectionReadiness.filter(section=>section.characters>=60).length;
-  const pending=sectionReadiness.filter(section=>section.characters<60);
-  const provisional=sectionReadiness.filter(section=>section.provisional);
+  const comparable=readiness.comparable;
+  const pending=readiness.sections.filter(section=>section.characters<60);
+  const provisional=readiness.sections.filter(section=>section.provisional);
 
   async function audit() {
     if(inFlight.current||dirty||saving||!ack||comparable<2)return;
@@ -135,7 +136,7 @@ export default function ManuscriptCoherenceBeta({
         <p className="text-sm font-medium">Conferência gratuita antes da IA</p>
         <p className="text-xs text-ink-soft">{comparable} de 7 seções têm texto suficiente para comparação. A auditoria exige pelo menos duas.</p>
         <div className="flex flex-wrap gap-2">
-          {sectionReadiness.map(section=><span key={section.key}
+          {readiness.sections.map(section=><span key={section.key}
             className={"text-xs rounded-full px-2 py-1 border "+(section.characters>=60?"border-teal/30 text-teal":"border-line text-ink-soft")}>
             {section.characters>=60?"✓ ":"○ "}{names[section.key]||section.key}
           </span>)}
@@ -146,14 +147,28 @@ export default function ManuscriptCoherenceBeta({
         {provisional.length>0&&<p className="text-xs text-amber-900">
           Conteúdo provisório: {provisional.map(section=>names[section.key]).join(", ")}.
         </p>}
-        <p className="text-xs text-ink-soft">Esta checagem inicial não consome tokens. A análise científica assistida consome a franquia de IA.</p>
+        {readiness.issues.length>0&&<details className="rounded-card border border-line bg-white p-3">
+          <summary className="cursor-pointer text-sm font-medium text-teal">
+            {readiness.issues.length} pontos de preparação para revisar
+          </summary>
+          <div className="mt-3 space-y-3">
+            {readiness.issues.map(issue=><div key={issue.id} className="text-xs border-b border-line pb-3 last:border-0 last:pb-0">
+              <p className="font-medium">{issue.level==="missing"?"○ ":"! "}{issue.label}</p>
+              <p className="mt-1 text-ink-soft">{issue.explanation}</p>
+              {issue.section&&<button type="button"
+                onClick={()=>onNavigate(issue.section!, "")}
+                className="mt-2 text-teal underline">Abrir {names[issue.section]||issue.section}</button>}
+            </div>)}
+          </div>
+        </details>}
+        <p className="text-xs text-ink-soft">Esta checagem editorial é gratuita e não certifica a qualidade científica. A análise assistida consome tokens.</p>
       </div>
       <label className="block max-w-sm text-sm">
         <span className="block font-medium">Profundidade da revisão</span>
         <select value={focus} disabled={busy} onChange={event=>setFocus(event.target.value as typeof focus)}
           className="mt-2 w-full rounded-card border border-line bg-white px-3 py-2">
           <option value="all">Panorama · todas as seções</option>
-          {sectionReadiness.map(section=><option key={section.key} value={section.key}>
+          {readiness.sections.map(section=><option key={section.key} value={section.key}>
             Foco em {names[section.key]||section.key}
           </option>)}
         </select>
@@ -204,7 +219,7 @@ export default function ManuscriptCoherenceBeta({
         </p>}
         <p className="text-sm leading-relaxed">{report.audit.overview}</p>
         <p className="text-xs text-ink-soft">
-          {report.preparation.analyzed} de 7 seções com texto. A auditoria compara trechos do início e fim das seções longas, não o manuscrito integral. Nenhuma certificação científica automática.
+          {report.preparation.analyzed} de 7 seções com texto. A auditoria usa trechos do início, meio e fim das seções longas, não o manuscrito integral. Nenhuma certificação científica automática.
         </p>
         {!!report.preparation.truncated?.length&&<p role="status" className="rounded-card border border-line bg-paper p-3 text-xs text-ink-soft">
           Trechos amostrados por limite de tokens: {report.preparation.truncated.map(key=>names[key]||key).join(", ")}.
