@@ -1,0 +1,39 @@
+name: Manuscript draft beta checks
+on:
+  pull_request:
+    paths:
+      - "researchhub/components/manuscript/**"
+      - "researchhub/lib/literature/manuscript-draft-sources.ts"
+      - "researchhub/lib/ai/assist.ts"
+      - "researchhub/app/api/ai/assist/route.ts"
+      - "researchhub/tests/manuscript-draft.cjs"
+      - ".github/workflows/manuscript-draft-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: researchhub
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-build-key
+      NEXT_PUBLIC_SITE_URL: https://researchhubscholar.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: researchhub/package-lock.json
+      - run: npm ci
+      - name: Lint changed beta files
+        run: npx eslint components/manuscript/manuscript-draft-beta.tsx components/manuscript/manuscript-editor.tsx lib/literature/manuscript-draft-sources.ts lib/ai/assist.ts app/api/ai/assist/route.ts --max-warnings=0
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Scientific source regression
+        run: node tests/manuscript-draft.cjs
