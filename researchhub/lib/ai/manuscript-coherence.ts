@@ -174,7 +174,12 @@ export function reviewManuscriptAuditContent(
         .sort().join("|");
       if(seen.has(key)){rejected++;continue;}
       seen.add(key);
-      if(accepted.length<5)accepted.push(validated);
+      // "Important" requires an observable cross-field discrepancy.
+      // One well-formed quotation alone is not proof of inconsistency.
+      const distinct=new Set(validated.evidence.map(q=>q.origin+":"+q.field));
+      const calibrated=validated.level==="critical" && distinct.size<2
+        ? {...validated,level:"review" as const} : validated;
+      if(accepted.length<5)accepted.push(calibrated);
       else rejected++;
     }catch{rejected++;}
   }
