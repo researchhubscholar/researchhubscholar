@@ -18,7 +18,8 @@ import { prepareManuscriptDraftSources } from "@/lib/literature/manuscript-draft
 import { verifyDraftCitationAnchors } from "@/lib/ai/manuscript-draft-citations";
 import { validateDraftEvidenceBatch } from "@/lib/ai/manuscript-draft-batches";
 import { loadDraftComposition } from "@/lib/ai/manuscript-draft-aggregate";
-import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSections, validateProseDraft, type BetaSection } from "@/lib/ai/manuscript-section-rules";
+import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSections, validateProseDraft, missingAbstractSections, markProvisionalAbstract, type BetaSection } from "@/lib/ai/manuscript-section-rules";
+import { loadScientificResultsContext, resultsContextFacts, resultsContextHasEvidence, type ResearchResultsContext } from "@/lib/ai/manuscript-results-context";
 import { manuscriptWritingSectionSchema, manuscriptSectionKeys, verifyManuscriptSectionOutput } from "@/lib/ai/manuscript-section-output";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -57,9 +58,18 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
  }
  if(draftContext.task==="section_draft" || sectionKey==="discussion") savedSections=relevantSavedDraftSections(sectionKey,savedSections);
  if(draftContext.task==="section_draft"){
+  const resultsMode=draftContext.resultsMode==="outline"?"outline":"data";
+  let resultsEvidence:ResearchResultsContext|null=null;
+  if(sectionKey==="results" && resultsMode==="data"){
+   resultsEvidence=await loadScientificResultsContext(client,user.id,input.projectId!,project.study_type);
+  }
+  const missing=sectionKey==="abstract"?missingAbstractSections(savedSections):[];
   input.context={sectionKey,task:"section_draft",
     heading:typeof draftContext.heading==="string"?draftContext.heading.slice(0,80):sectionKey,
-    original:draftContext.original,language:draftContext.language,project,savedSections,sources:[]};
+    original:draftContext.original,language:draftContext.language,project,savedSections,
+    resultsMode,resultsEvidence,
+    abstractMissing:missing,
+    sources:[]};
  }else if(draftContext.task==="draft_compose"){
   const composition=await loadDraftComposition(supabaseAdmin(),user.id,input.projectId!,
    draftContext.batchOperationIds as string[],project,sectionKey as "introduction"|"discussion",savedSections);
@@ -93,9 +103,23 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
    validateDraftEvidenceBatch(rec.content,writingContext.sources as import("@/lib/literature/manuscript-draft-sources").DraftSource[]);
  }
  if(writingContext.task==="section_draft"){
-  const section=input.context as unknown as {sectionKey:BetaSection;project:Record<string,unknown>;savedSections:import("@/lib/ai/manuscript-section-rules").SectionContents};
+  const section=input.context as unknown as {
+    sectionKey:BetaSection;project:Record<string,unknown>;
+    savedSections:import("@/lib/ai/manuscript-section-rules").SectionContents;
+    resultsMode?:"data"|"outline";resultsEvidence?:ResearchResultsContext|null;abstractMissing?:BetaSection[]
+  };
   if(!rec || rec.targetField!==section.sectionKey)throw new Error("A sugestão de escrita não corresponde à seção solicitada.");
-  validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project);
+  if(section.sectionKey==="abstract" && section.abstractMissing?.length){
+    rec.content=markProvisionalAbstract(rec.content,section.abstractMissing,language);
+    output.warnings=[...output.warnings, "Resumo provisório: algumas seções ainda precisam ser concluídas e revisadas."].slice(0,8);
+  }
+  if(section.sectionKey==="results" && section.resultsEvidence){
+    output.warnings=[...output.warnings,...section.resultsEvidence.warnings].slice(0,8);
+  }
+  validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project,
+    section.sectionKey==="results" && section.resultsMode!=="outline"
+      && resultsContextHasEvidence(section.resultsEvidence||null) ? resultsContextFacts(section.resultsEvidence||null) : "",
+    section.resultsMode||"data");
  }
  if(writingContext.task==="draft" || writingContext.task==="draft_compose"){
   if(!rec || rec.targetField!==(input.context as unknown as {sectionKey:string}).sectionKey)throw new Error("A IA não devolveu a seção solicitada.");
@@ -138,6 +162,6 @@ if(input.feature==="guide")output=safeGuideActions(output,!input.projectId&&(inp
   }
   output=partial;
  }
-}if(i+o>scholarAI.reservedTokens)throw new Error("A resposta excedeu o limite de consumo da operação.");const cost=estimatedCost(i,o,usedModel.id);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:i,p_output:o,p_cost:cost,p_failed:false,p_provider_id:providerResponseId});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"live",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):input.feature==="writing"&&["draft","draft_compose"].includes((input.context as {task?:string}).task||"")?((input.context as {sources?:{id:string;label:string;title:string;evidenceLevel:string;pmcid:string|null;license:string|null;pmid:string|null;doi:string|null}[]}).sources||[]).map(s=>({id:s.id,label:s.label,title:s.title,evidenceLevel:s.evidenceLevel,pmcid:s.pmcid,license:s.license,pmid:s.pmid,doi:s.doi})):[],output,sourceStatistics:input.feature==="writing"&&(input.context as {task?:string}).task==="draft_compose"?(input.context as {sourceStatistics?:unknown}).sourceStatistics:null,usage:{inputTokens:i,outputTokens:o,costUsd:cost}});
+}if(i+o>scholarAI.reservedTokens)throw new Error("A resposta excedeu o limite de consumo da operação.");const cost=estimatedCost(i,o,usedModel.id);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:i,p_output:o,p_cost:cost,p_failed:false,p_provider_id:providerResponseId});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"live",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):input.feature==="writing"&&["draft","draft_compose"].includes((input.context as {task?:string}).task||"")?((input.context as {sources?:{id:string;label:string;title:string;evidenceLevel:string;pmcid:string|null;license:string|null;pmid:string|null;doi:string|null}[]}).sources||[]).map(s=>({id:s.id,label:s.label,title:s.title,evidenceLevel:s.evidenceLevel,pmcid:s.pmcid,license:s.license,pmid:s.pmid,doi:s.doi})):[],output,sourceStatistics:input.feature==="writing"&&(input.context as {task?:string}).task==="draft_compose"?(input.context as {sourceStatistics?:unknown}).sourceStatistics:null,resultsEvidenceStatus:input.feature==="writing"&&(input.context as {task?:string}).task==="section_draft"?((input.context as {resultsEvidence?:ResearchResultsContext|null}).resultsEvidence?.status||"none"):null,usage:{inputTokens:i,outputTokens:o,costUsd:cost}});
 }catch(e){const timedOut=generationTimedOut(e);console.error("[scholar-ai:assist] generation failed",{operationId,model:scholarAI.model,timedOut,error:providerErrorDiagnostic(e)});const reservation = operationId&&reserved ? await settleFailedReservation(operationId,timedOut?"GENERATION_TIMEOUT":"GENERATION_FAILED",metering||providerMetering(e)) : null;
 return reply(request,{error:reservation==="completed"?reservationNotice(reservation):[safeMessage(e),reservation?reservationNotice(reservation):""].filter(Boolean).join(" "),operationId,reservation},{status:reservation==="pending"?503:timedOut?504:400});}}
