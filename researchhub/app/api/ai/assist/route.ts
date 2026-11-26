@@ -85,12 +85,12 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
    validateDraftEvidenceBatch(rec.content,writingContext.sources as import("@/lib/literature/manuscript-draft-sources").DraftSource[]);
  }
  if(writingContext.task==="section_draft"){
-  const section=input.context as {sectionKey:BetaSection;project:Record<string,unknown>;savedSections:import("@/lib/ai/manuscript-section-rules").SectionContents};
+  const section=input.context as unknown as {sectionKey:BetaSection;project:Record<string,unknown>;savedSections:import("@/lib/ai/manuscript-section-rules").SectionContents};
   if(!rec || rec.targetField!==section.sectionKey)throw new Error("A sugestão de escrita não corresponde à seção solicitada.");
   validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project);
  }
  if(writingContext.task==="draft" || writingContext.task==="draft_compose"){
-  if(!rec || rec.targetField!==(input.context as {sectionKey:string}).sectionKey)throw new Error("A IA não devolveu a seção solicitada.");
+  if(!rec || rec.targetField!==(input.context as unknown as {sectionKey:string}).sectionKey)throw new Error("A IA não devolveu a seção solicitada.");
   verifyDraftCitationAnchors(rec.content,rec.source,writingContext.sources||[]);
  }
 }
