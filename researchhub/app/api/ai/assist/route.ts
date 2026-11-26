@@ -18,7 +18,7 @@ import { prepareManuscriptDraftSources } from "@/lib/literature/manuscript-draft
 import { verifyDraftCitationAnchors } from "@/lib/ai/manuscript-draft-citations";
 import { validateDraftEvidenceBatch } from "@/lib/ai/manuscript-draft-batches";
 import { loadDraftComposition } from "@/lib/ai/manuscript-draft-aggregate";
-import { cleanSavedDraftSections, sectionDraftRequirements, validateProseDraft, type BetaSection } from "@/lib/ai/manuscript-section-rules";
+import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSections, validateProseDraft, type BetaSection } from "@/lib/ai/manuscript-section-rules";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -54,6 +54,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   const problems=sectionDraftRequirements(sectionKey,project,savedSections);
   if(problems.length)throw new Error(problems.join(" "));
  }
+ if(draftContext.task==="section_draft" || sectionKey==="discussion") savedSections=relevantSavedDraftSections(sectionKey,savedSections);
  if(draftContext.task==="section_draft"){
   input.context={sectionKey,task:"section_draft",
     heading:typeof draftContext.heading==="string"?draftContext.heading.slice(0,80):sectionKey,
