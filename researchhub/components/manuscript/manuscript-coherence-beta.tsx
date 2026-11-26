@@ -21,7 +21,7 @@ const kinds:Record<AuditFinding["level"],{text:string;klass:string}>={
   improve:{text:"Oportunidade de melhoria",klass:"bg-paper border-line text-ink"}
 };
 const ordered:AuditFinding["level"][]=["critical","review","improve"];
-type Preparation={missing:string[];provisional:string[];analyzed:number;truncated?:string[]};
+type Preparation={missing:string[];provisional:string[];analyzed:number;truncated?:string[];focus?:string|null};
 type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string;rejected:number};
 
 export default function ManuscriptCoherenceBeta({
@@ -38,6 +38,7 @@ export default function ManuscriptCoherenceBeta({
   const [errorOperation,setErrorOperation]=useState("");
   const [report,setReport]=useState<SavedReport|null>(null);
   const [ack,setAck]=useState(false);
+  const [focus,setFocus]=useState<ManuscriptAuditSection | "all">("all");
   const [status,setStatus]=useState<Record<number,"reviewed"|"dismissed">>({});
   const [filter,setFilter]=useState<"all"|"critical"|"review"|"improve"|"pending">("all");
   const [notice,setNotice]=useState("");
@@ -56,7 +57,7 @@ export default function ManuscriptCoherenceBeta({
     try {
       const {data}=await postAI<{output:unknown;operationId?:string;usage?:unknown;mode?:string;
         auditPreparation?:Preparation;auditRejected?:number}>("/api/ai/assist",{
-          feature:"writing",projectId,context:{task:"coherence_review",language:locale}
+          feature:"writing",projectId,context:{task:"coherence_review",language:locale,focus:focus==="all"?null:focus}
         });
       if(data.mode==="simulation")throw new Error("O relatório científico requer uma licença de IA ativa.");
       if(!isAssistantOutput(data.output)||data.output.recommendations.length!==1||
@@ -147,6 +148,21 @@ export default function ManuscriptCoherenceBeta({
         </p>}
         <p className="text-xs text-ink-soft">Esta checagem inicial não consome tokens. A análise científica assistida consome a franquia de IA.</p>
       </div>
+      <label className="block max-w-sm text-sm">
+        <span className="block font-medium">Profundidade da revisão</span>
+        <select value={focus} disabled={busy} onChange={event=>setFocus(event.target.value as typeof focus)}
+          className="mt-2 w-full rounded-card border border-line bg-white px-3 py-2">
+          <option value="all">Panorama · todas as seções</option>
+          {sectionReadiness.map(section=><option key={section.key} value={section.key}>
+            Foco em {names[section.key]||section.key}
+          </option>)}
+        </select>
+        <span className="block mt-2 text-xs text-ink-soft">
+          {focus==="all"
+            ?"Compara amostras do início, meio e fim das seções longas, buscando inconsistências gerais."
+            :"Dedica mais contexto à seção escolhida, mantendo trechos das demais para comparação. A cobertura continua parcial quando o texto é extenso."}
+        </span>
+      </label>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={busy} className="mt-1"/>
         <span>{es?"Confirmo que revisé los textos guardados y eliminé datos personales de pacientes.":
@@ -183,6 +199,9 @@ export default function ManuscriptCoherenceBeta({
             {counts?.[level]||0} · {kinds[level].text}
           </span>)}
         </div>
+        {report.preparation.focus&&<p className="text-xs font-medium text-teal">
+          Revisão focada em {names[report.preparation.focus]||report.preparation.focus}
+        </p>}
         <p className="text-sm leading-relaxed">{report.audit.overview}</p>
         <p className="text-xs text-ink-soft">
           {report.preparation.analyzed} de 7 seções com texto. A auditoria compara trechos do início e fim das seções longas, não o manuscrito integral. Nenhuma certificação científica automática.
