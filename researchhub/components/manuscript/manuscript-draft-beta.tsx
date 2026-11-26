@@ -26,7 +26,6 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
   const [operationId, setOperationId] = useState("");
   const [language, setLanguage] = useState("");
   const inFlight = useRef(false);
-  const existingIds = sources.map(a => a.id);
 
   async function generate() {
     if (inFlight.current) return;
