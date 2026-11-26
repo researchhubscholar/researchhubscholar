@@ -70,4 +70,15 @@ jobs:
       - name: Free manuscript readiness regression
         run: node tests/manuscript-readiness.cjs
       - name: Scientific quality synthetic benchmark
-        run: node tests/manuscript-scientific-benchmark.cjs
+        run: |
+          set -o pipefail
+          node tests/manuscript-scientific-benchmark.cjs | tee scientific-beta-benchmark.log
+          {
+            echo '### ResearchHub · Scientific Beta offline benchmark'
+            echo ''
+            echo 'Synthetic fixtures only. Citation validation and deterministic readiness; live LLM detection and semantic correctness were not tested.'
+            echo ''
+            echo '\`\`\`text'
+            cat scientific-beta-benchmark.log
+            echo '\`\`\`'
+          } >> "$GITHUB_STEP_SUMMARY"
