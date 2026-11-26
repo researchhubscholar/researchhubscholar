@@ -22,7 +22,7 @@ const kinds:Record<AuditFinding["level"],{text:string;klass:string}>={
 };
 const ordered:AuditFinding["level"][]=["critical","review","improve"];
 type Preparation={missing:string[];provisional:string[];analyzed:number;truncated?:string[]};
-type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string};
+type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string;rejected:number};
 
 export default function ManuscriptCoherenceBeta({
   projectId,dirty,saving,signature,onNavigate
@@ -37,6 +37,9 @@ export default function ManuscriptCoherenceBeta({
   const [errorOperation,setErrorOperation]=useState("");
   const [report,setReport]=useState<SavedReport|null>(null);
   const [ack,setAck]=useState(false);
+  const [status,setStatus]=useState<Record<number,"reviewed"|"dismissed">>({});
+  const [filter,setFilter]=useState<"all"|"critical"|"review"|"improve"|"pending">("all");
+  const [notice,setNotice]=useState("");
   const inFlight=useRef(false);
   const signatureRef=useRef(signature);
   signatureRef.current=signature;
@@ -48,7 +51,7 @@ export default function ManuscriptCoherenceBeta({
     const before=signature;
     try {
       const {data}=await postAI<{output:unknown;operationId?:string;usage?:unknown;mode?:string;
-        auditPreparation?:Preparation}>("/api/ai/assist",{
+        auditPreparation?:Preparation;auditRejected?:number}>("/api/ai/assist",{
           feature:"writing",projectId,context:{task:"coherence_review",language:locale}
         });
       if(data.mode==="simulation")throw new Error("O relatório científico requer uma licença de IA ativa.");
@@ -65,7 +68,9 @@ export default function ManuscriptCoherenceBeta({
         throw new Error("O texto mudou durante a análise. Salve as alterações e execute uma nova verificação.");
       }
       setReport({audit:parsed,preparation:data.auditPreparation,
-        operationId:data.operationId||"",usage:readAIUsage(data.usage),signature:before});
+        operationId:data.operationId||"",usage:readAIUsage(data.usage),signature:before,
+        rejected:Math.max(0,data.auditRejected||0)});
+      setStatus({});setFilter("all");setNotice("");
     }catch(cause){
       if(cause instanceof AIRequestError)setErrorOperation(cause.operationId);
       setError(cause instanceof Error?cause.message:"Não foi possível concluir a verificação.");
@@ -73,6 +78,32 @@ export default function ManuscriptCoherenceBeta({
   }
   const counts=report?Object.fromEntries(ordered.map(level=>
     [level,report.audit.findings.filter(item=>item.level===level).length])) as Record<string,number>:null;
+  const allFindings=report?.audit.findings.map((finding,i)=>({finding,i}))||[];
+  const shown=allFindings.filter(({finding,i})=>
+    filter==="all"||(filter==="pending"?!status[i]:finding.level===filter));
+  const checkedCount=allFindings.filter(({i})=>!!status[i]).length;
+  async function copyReport(){
+    if(!report)return;
+    const lines=[
+      "ResearchHub — Verificação de coerência (revisão assistida, não certificação)",
+      report.audit.overview,
+      "Cobertura: "+report.preparation.analyzed+"/7 seções; trechos extensos podem ser amostrados.",
+      "Alertas rejeitados na conferência: "+report.rejected,
+      ...allFindings.flatMap(({finding,i})=>[
+        "",
+        (i+1)+". ["+kinds[finding.level].text+"] "+finding.title+
+          " — "+(status[i]==="reviewed"?"Revisado":status[i]==="dismissed"?"Não aplicável":"Pendente"),
+        finding.explanation,
+        "Como revisar: "+finding.recommendation,
+        ...finding.evidence.map(q=>(q.origin==="project"?"Protocolo":"Seção")+
+          " / "+(names[q.field]||q.field)+": “"+q.quote+"”")
+      ])
+    ];
+    try{
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setNotice("Relatório copiado. Confira antes de compartilhar informações acadêmicas.");
+    }catch{setNotice("Não foi possível copiar automaticamente neste navegador.");}
+  }
 
   return <section id="manuscript-coherence-beta" className="xl:col-span-3 rounded-2xl border border-teal/30 bg-white p-5 md:p-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -111,13 +142,17 @@ export default function ManuscriptCoherenceBeta({
             report?(es?"Verificar de nuevo":"Verificar novamente"):(es?"Analizar coherencia":"Analisar coerência")}
         </button>
         {report&&<button type="button" className="text-sm underline text-teal" disabled={busy}
-          onClick={()=>{setReport(null);setError("");}}>
+          onClick={()=>{setReport(null);setError("");setStatus({});setNotice("");}}>
           {es?"Limpiar informe":"Limpar relatório"}
         </button>}
       </div>
       {error&&<p role="alert" className="text-sm text-red-700">{error}
         {errorOperation&&<Link href={"/geracoes/"+errorOperation} className="underline ml-2">Ver geração</Link>}
       </p>}
+      {busy&&<p role="status" className="text-sm text-ink-soft">
+        O ResearchHub está comparando o protocolo às seções salvas e conferindo trechos de apoio. Nenhuma alteração será feita no texto.
+      </p>}
+      {notice&&<p role="status" className="text-xs text-teal">{notice}</p>}
       {report&&<div className="space-y-4 pt-3 border-t border-line">
         {stale&&<p role="alert" className="rounded-card bg-amber-50 border border-amber-200 text-sm text-amber-950 p-3">
           O manuscrito foi modificado após esta verificação. O relatório se refere à versão anterior; faça uma nova análise após salvar.
@@ -145,10 +180,35 @@ export default function ManuscriptCoherenceBeta({
               Seções com campos provisórios: {report.preparation.provisional.map(key=>names[key]||key).join(", ")}.
             </p>}
           </div>}
+        {report.rejected>0&&<div role="status" className="rounded-card border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm text-amber-950"><strong>{report.rejected} alerta(s) descartado(s)</strong> porque não passaram pela conferência de trechos ou eram repetidos. Não foram mostrados como fatos científicos.</p>
+        </div>}
         {!report.audit.findings.length&&<p className="text-sm bg-paper rounded-card p-4">
-          Nenhuma incoerência específica com evidência textual foi identificada nesta análise. Isso não comprova a validade metodológica nem a veracidade das fontes ou resultados.
+          {report.rejected>0
+            ?"A IA não devolveu alertas que passassem pela verificação de fontes nesta tentativa. Isso não significa que o manuscrito esteja coerente; faça uma nova análise ou confira manualmente."
+            :"Nenhuma incoerência específica com evidência textual foi identificada nesta análise. Isso não comprova a validade metodológica nem a veracidade das fontes ou resultados."}
         </p>}
-        {ordered.flatMap(level=>report.audit.findings.filter(f=>f.level===level)).map((finding,i)=>
+        {allFindings.length>0&&<div className="flex flex-wrap justify-between gap-3 items-center border border-line rounded-card p-3">
+          <div>
+            <p className="text-sm font-medium">Revisão dos apontamentos</p>
+            <p className="text-xs text-ink-soft">{checkedCount} de {allFindings.length} classificados por você · status local desta página</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs" htmlFor="coherence-filter">Mostrar</label>
+            <select id="coherence-filter" value={filter}
+              onChange={e=>setFilter(e.target.value as typeof filter)}
+              className="rounded-card border border-line bg-white p-2 text-xs">
+              <option value="all">Todos</option><option value="pending">Pendentes</option>
+              <option value="critical">Importantes</option><option value="review">Conferência</option>
+              <option value="improve">Melhorias</option>
+            </select>
+            <button type="button" onClick={()=>void copyReport()}
+              className="rounded-card border border-teal/30 text-teal p-2 text-xs">
+              Copiar relatório
+            </button>
+          </div>
+        </div>}
+        {shown.map(({finding,i})=>
           <article key={i} className="rounded-card border border-line p-4 space-y-3">
             <div className="flex items-start justify-between flex-wrap gap-2">
               <h3 className="font-medium text-base">{finding.title}</h3>
@@ -170,6 +230,19 @@ export default function ManuscriptCoherenceBeta({
               </div>)}
             </div>
             <p className="text-sm"><strong>Como revisar:</strong> {finding.recommendation}</p>
+            <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+              <span className="text-xs text-ink-soft">Sua avaliação:</span>
+              <button type="button" aria-pressed={status[i]==="reviewed"}
+                className={"rounded-card border px-3 py-2 text-xs "+(status[i]==="reviewed"?"bg-teal text-white border-teal":"border-line text-teal")}
+                onClick={()=>setStatus(current=>current[i]==="reviewed"
+                  ?Object.fromEntries(Object.entries(current).filter(([key])=>key!==String(i))) as typeof current
+                  :{...current,[i]:"reviewed"})}>Conferido</button>
+              <button type="button" aria-pressed={status[i]==="dismissed"}
+                className={"rounded-card border px-3 py-2 text-xs "+(status[i]==="dismissed"?"bg-ink text-white border-ink":"border-line text-ink")}
+                onClick={()=>setStatus(current=>current[i]==="dismissed"
+                  ?Object.fromEntries(Object.entries(current).filter(([key])=>key!==String(i))) as typeof current
+                  :{...current,[i]:"dismissed"})}>Não se aplica</button>
+            </div>
           </article>)}
         <div className="flex flex-wrap justify-between gap-3 border-t border-line pt-3">
           <p className="text-xs text-ink-soft">{report.usage?
