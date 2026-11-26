@@ -14,7 +14,7 @@ function harness(order){
  const box={exports:{},URL,Date,console,window:{location:{href:'https://researchhub.com.br/contratacao?pedido='+purchase+'&pagamento=retorno',assign:u=>redirects.push(u)}},setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},fetch:async(url,init)=>{http.push({url,body:JSON.parse(init.body)});return Response.json({url:'https://asaas.com/checkoutSession/show?id=checkout-valid'})},require(name){
   if(name==='react')return react;if(name==='react/jsx-runtime')return {jsx:fixture.jsx,jsxs:fixture.jsx};if(name==='next/link')return {default:'Link'};
   if(name==='@/lib/supabase/browser')return {supabaseBrowser:()=>client};
-  if(name==='@/lib/access/commerce')return require('../lib/access/commerce.ts');if(name==='@/lib/access/plans')return require('../lib/access/plans.ts');
+  if(name==='@/lib/access/commerce')return require('../lib/access/commerce.ts');if(name==='@/lib/access/plans')return require('../lib/access/plans.ts');if(name==='@/lib/access/purchase-journey')return require('../lib/access/purchase-journey.ts');
   if(name==='@/lib/i18n/public-design-copy')return require('../lib/i18n/public-design-copy.ts');if(name==='@/lib/i18n/advisor-copy')return require('../lib/i18n/advisor-copy.ts');
   const d=fixture.dependency(name);if(d)return d;throw Error(name);
  }};

@@ -29,6 +29,10 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { readManuscriptRecovery, type ManuscriptRecovery } from "@/lib/projects/manuscript-recovery";
 import ExcerptHelp from "@/components/ai/excerpt-help";
 import SectionAssistant, { type WritingSource } from "./section-assistant";
+import ManuscriptDraftBeta from "./manuscript-draft-beta";
+import ManuscriptSectionDraftBeta from "./manuscript-section-draft-beta";
+import ManuscriptCoherenceBeta from "./manuscript-coherence-beta";
+import { assessManuscriptReadiness } from "@/lib/ai/manuscript-readiness";
 import { manuscriptPlan, applyManuscriptPlan, type ManuscriptProject } from "@/lib/projects/manuscript-plan";
 import { chartData, validWorkspace, type ResultsWorkspace } from "@/lib/results/data";
 import { figurePng, figureSvg } from "@/lib/results/figure";
@@ -438,6 +442,25 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
 
     {canEdit && <section className="xl:col-span-3 bg-white border border-line rounded-2xl p-5"><div className="flex flex-wrap justify-between gap-4 items-center"><div><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.e97e75d4b4f4" /></p><h2 className="font-display text-2xl mt-2"><InterfaceText message="screen.e88db8b5d621" /></h2><p className="text-sm text-ink-soft mt-2"><InterfaceText message="screen.6b37e7a78ed5" /></p></div><button type="button" onClick={() => setShowPlan(value => !value)} className="border border-teal/30 text-teal rounded-card px-4 py-2">{showPlan ? uiText("screen.1a1151248951") : (locale === "es" ? "Preparar la estructura del artículo" : "Preparar estrutura do artigo")}</button></div>{showPlan && <div className="mt-5 space-y-4">{Object.entries(plan).map(([key, content]) => { const occupied = Boolean(sections.find(section => section.section_key === key)?.content.trim()); return <details key={key} className="border border-line rounded-card p-4"><summary className="cursor-pointer flex gap-3 items-center"><input aria-label={`Incluir ${sectionTemplates.find(section => section.section_key === key)?.heading}`} type="checkbox" disabled={occupied} checked={!occupied && planSelection.includes(key)} onClick={event => event.stopPropagation()} onChange={() => setPlanSelection(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])}/><span>{sectionTemplates.find(section => section.section_key === key)?.heading}{occupied ? " · texto existente preservado" : uiText("screen.c5781a1f48c5")}</span></summary><p className="mt-3 whitespace-pre-wrap text-sm text-ink-soft">{content}</p></details>; })}<p className="text-xs text-ink-soft"><InterfaceText message="screen.81070dd9a18c" /></p><button type="button" disabled={saving || !planSelection.some(key => !sections.find(section => section.section_key === key)?.content.trim())} onClick={() => { setSections(current => applyManuscriptPlan(current, plan, planSelection)); setDirty(true); setShowPlan(false); setMessage("Estrutura aplicada às seções vazias. Revise e desenvolva o texto; o salvamento automático está ativo."); }} className="bg-teal text-white rounded-card px-4 py-3 disabled:opacity-50"><InterfaceText message="screen.91530fb65b3d" /></button></div>}</section>}
     <section className={`xl:col-span-3 rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${canEdit ? "bg-teal-soft border-teal/20" : "bg-white border-line"}`}><div><p className="text-xs uppercase tracking-widest text-teal">{canEdit ? "Modo autor" : (locale === "es" ? "Modo tutor" : "Modo orientador")}</p><p className="text-sm text-ink-soft mt-1">{canEdit ? uiText("screen.6424012e691b") : uiText("screen.0b9e5ce314ac")}</p></div><p className="text-sm"><strong className="text-ink">{openComments.length}</strong> {openComments.length === 1 ? uiText("screen.308caaa0071a") : uiText("screen.e5176e8da85c")}</p></section>
+    {canEdit && <ManuscriptCoherenceBeta projectId={project.id} dirty={dirty} saving={saving}
+      readiness={assessManuscriptReadiness(project as unknown as Record<string,unknown>,sections)}
+      signature={sections.map(section=>section.section_key+":"+section.content).join("\u241f")}
+      onNavigate={(section,quote)=>{
+        setActiveKey(section);
+        document.getElementById("section-"+section)?.scrollIntoView({behavior:"smooth",block:"start"});
+        const field=editorFields.current[section];
+        if(field){
+          const needle=quote.trim();
+          const exact=field.value.indexOf(needle);
+          const fallback=exact<0?field.value.indexOf(needle.slice(0,40)):-1;
+          const start=exact>=0?exact:fallback;
+          const end=start>=0?Math.min(field.value.length,start+needle.length):-1;
+          if(start>=0 && end>start){
+            field.focus({preventScroll:true});
+            field.setSelectionRange(start,end);
+          }
+        }
+      }}/>}
     <aside className="bg-white border border-line rounded-2xl p-4 xl:sticky xl:top-24"><p className="text-xs uppercase tracking-widest text-teal"><InterfaceText message="screen.c9bbe9cc2ae9" /></p><div className="mt-4 h-2 bg-line rounded-full overflow-hidden"><div className="h-full bg-teal" style={{ width: `${progress}%` }} /></div><p className="text-xs text-ink-soft mt-2">{completed} de {sections.length} <InterfaceText message="screen.8f3948a298a3" /></p><nav className="mt-4 space-y-1">{sections.map(section => <button key={section.section_key} onClick={() => { setActiveKey(section.section_key); document.getElementById(`section-${section.section_key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`w-full text-left rounded-card p-2 text-sm ${activeKey === section.section_key ? "bg-teal-soft text-teal" : "hover:bg-paper"}`}><span className="inline-block w-6 text-xs">{wordCount(section.content) ? "✓" : "○"}</span>{section.heading}</button>)}</nav><div className="border-t border-line mt-4 pt-4 text-xs text-ink-soft"><p>{totalWords.toLocaleString(intlLocale(formatLocale))} <InterfaceText message="screen.f662cb9a3b0a" /></p><p role="status" aria-live="polite" className="mt-1"><AuthoredText text={message} />{message.includes("outra aba") && <a href={`/manuscrito?projeto=${project.id}`} target="_blank" rel="noopener noreferrer" className="block mt-2 text-teal underline"><InterfaceText message="screen.9ba83d0a162f" /></a>}</p></div></aside>
 
     <div className="min-w-0 space-y-5">{canEdit && articles.some(article => article.abstract?.trim()) && <details id="evidencias" open={Boolean(initialReviewArticle)} className="scroll-mt-28 rounded-2xl border border-line bg-white p-5">
@@ -469,6 +492,19 @@ export default function ManuscriptEditor({ currentUserId, ownerId, canEdit, comm
             </> : <p className="mt-3 text-sm">{locale === "es" ? "Vincula artículos al proyecto en la Biblioteca para crear la tabla." : "Vincule artigos ao projeto na Biblioteca para montar a tabela."}</p>}
           </details>}
           {canEdit && section.section_key === "conclusion" && <MethodReview alerts={manuscriptReview(studyType, section.content, sections.find(item => item.section_key === "results")?.content || "", locale)} locale={locale} />}
+          {canEdit && (section.section_key === "introduction" || section.section_key === "discussion") &&
+            <ManuscriptDraftBeta sectionKey={section.section_key} heading={section.heading}
+              projectId={project.id} project={project} content={section.content}
+              sources={articles as WritingSource[]} citationIds={citationIds}
+              apply={async (original, proposed, selectedIds) => {
+                const applied = await applySectionSuggestion(section.section_key, original, proposed);
+                if (applied) setCitationIds(existing => [...existing,...selectedIds.filter(id=>!existing.includes(id))]);
+                return applied;
+              }} />}
+          {canEdit && ["methods","results","limitations","conclusion","abstract"].includes(section.section_key) &&
+            <ManuscriptSectionDraftBeta sectionKey={section.section_key as "methods" | "results" | "limitations" | "conclusion" | "abstract"}
+              heading={section.heading} projectId={project.id} content={section.content}
+              apply={(original,proposed)=>applySectionSuggestion(section.section_key,original,proposed)} />}
           {canEdit && section.section_key !== "references" && <SectionAssistant sectionKey={section.section_key} heading={section.heading} content={section.content} projectId={project.id} project={project} sources={articles as WritingSource[]} apply={(original, proposed) => applySectionSuggestion(section.section_key, original, proposed)} />}
           <div className="border-t border-line mt-5 pt-4"><button type="button" onClick={() => setActiveReview(current => current === section.section_key ? null : section.section_key)} className="w-full flex items-center justify-between text-left"><span><span className="text-sm font-medium"><InterfaceText message="screen.6280528a838a" /></span><span className="text-xs text-ink-soft ml-2">{sectionComments.length} <InterfaceText message="screen.e66f9a7567ab" /> {sectionOpen} <InterfaceText message="screen.bd0fbdfd15b6" /></span></span><span className="text-teal">{activeReview === section.section_key ? "−" : "+"}</span></button>
             {activeReview === section.section_key && <div className="mt-4 space-y-4">

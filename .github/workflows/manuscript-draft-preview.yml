@@ -1,0 +1,84 @@
+name: Manuscript draft beta checks
+on:
+  push:
+    branches:
+      - "feat/manuscript-draft-beta-p0-p1-20261126"
+    paths:
+      - "researchhub/components/manuscript/**"
+      - "researchhub/lib/ai/manuscript-*.ts"
+      - "researchhub/lib/literature/manuscript-draft-sources.ts"
+      - "researchhub/lib/ai/assist.ts"
+      - "researchhub/app/api/ai/assist/route.ts"
+      - "researchhub/tests/manuscript-*.cjs"
+      - "researchhub/package.json"
+      - ".github/workflows/manuscript-draft-preview.yml"
+  pull_request:
+    paths:
+      - "researchhub/components/manuscript/**"
+      - "researchhub/lib/literature/manuscript-draft-sources.ts"
+      - "researchhub/lib/ai/assist.ts"
+      - "researchhub/app/api/ai/assist/route.ts"
+      - "researchhub/tests/manuscript-*.cjs"
+      - "researchhub/lib/ai/manuscript-*.ts"
+      - "researchhub/package.json"
+      - ".github/workflows/manuscript-draft-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: researchhub
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-build-key
+      NEXT_PUBLIC_SITE_URL: https://researchhubscholar.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: researchhub/package-lock.json
+      - run: npm ci
+      - name: Lint changed beta files
+        run: npx eslint components/manuscript/manuscript-draft-beta.tsx components/manuscript/manuscript-coherence-beta.tsx components/manuscript/manuscript-section-draft-beta.tsx components/manuscript/manuscript-editor.tsx lib/literature/manuscript-draft-sources.ts lib/ai/manuscript-section-rules.ts lib/ai/manuscript-coherence.ts lib/ai/manuscript-readiness.ts lib/ai/manuscript-results-context.ts lib/ai/manuscript-draft-recovery.ts lib/ai/manuscript-section-output.ts lib/ai/manuscript-draft-aggregate.ts lib/ai/manuscript-draft-batches.ts lib/ai/manuscript-draft-citations.ts lib/ai/assist.ts app/api/ai/assist/route.ts --max-warnings=0
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Scientific source regression
+        run: node tests/manuscript-draft.cjs
+      - name: Citation grounding regression
+        run: node tests/manuscript-draft-citations.cjs
+      - name: Multi-article evidence batch regression
+        run: node tests/manuscript-draft-batches.cjs
+      - name: Server protocol and evidence aggregation regression
+        run: node tests/manuscript-draft-aggregate.cjs
+      - name: Manuscript section safety regression
+        run: node tests/manuscript-section-drafts.cjs
+      - name: Exact manuscript section output regression
+        run: node tests/manuscript-section-output.cjs
+      - name: Results source integrity regression
+        run: node tests/manuscript-results-context.cjs
+      - name: Stale analysis retry regression
+        run: node tests/manuscript-draft-recovery.cjs
+      - name: Coherence quote grounding regression
+        run: node tests/manuscript-coherence.cjs
+      - name: Free manuscript readiness regression
+        run: node tests/manuscript-readiness.cjs
+      - name: Scientific quality synthetic benchmark
+        run: |
+          set -o pipefail
+          node tests/manuscript-scientific-benchmark.cjs | tee scientific-beta-benchmark.log
+          {
+            echo '### ResearchHub · Scientific Beta offline benchmark'
+            echo ''
+            echo 'Synthetic fixtures only. Citation validation and deterministic readiness; live LLM detection and semantic correctness were not tested.'
+            echo ''
+            echo '```text'
+            cat scientific-beta-benchmark.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
