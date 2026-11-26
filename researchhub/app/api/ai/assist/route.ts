@@ -22,7 +22,7 @@ import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSe
 import { loadScientificResultsContext, resultsContextFacts, resultsContextHasEvidence, type ResearchResultsContext } from "@/lib/ai/manuscript-results-context";
 import { manuscriptWritingSectionSchema, manuscriptSectionKeys, verifyManuscriptSectionOutput } from "@/lib/ai/manuscript-section-output";
 import { assertManuscriptAuditPrivacy, auditSourceHasMaterial, buildManuscriptAuditSource,
- manuscriptAuditPreparation, manuscriptAuditResponseSchema, validateManuscriptAuditContent } from "@/lib/ai/manuscript-coherence";
+ manuscriptAuditPreparation, manuscriptAuditResponseSchema, reviewManuscriptAuditContent } from "@/lib/ai/manuscript-coherence";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -128,8 +128,16 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   throw new Error("A IA não entregou o relatório de coerência solicitado.");
  }
  const source=(input.context as unknown as {source:import("@/lib/ai/manuscript-coherence").AuditSource}).source;
- const result=validateManuscriptAuditContent(rec.content,source);
- rec.content=JSON.stringify(result);
+ const checked=reviewManuscriptAuditContent(rec.content,source);
+ rec.content=JSON.stringify(checked.audit);
+ if(checked.rejected>0){
+  output.warnings=[
+    ...output.warnings,
+    checked.rejected+" alerta(s) descartado(s): ausência de trecho verificável, dados incorretos ou repetição."
+  ].slice(0,8);
+ }
+ // Returned separately to distinguish no issues from invalid rejected findings.
+ (input.context as unknown as {auditRejected?:number}).auditRejected=checked.rejected;
 }
 if(input.feature==="writing" && input.context && typeof input.context==="object" && "task" in input.context) {
  const writingContext=input.context as {task?:string;sources?:{label:string;abstract:string;fullTextExcerpt:string}[]};
@@ -197,6 +205,7 @@ if(input.feature==="guide")output=safeGuideActions(output,!input.projectId&&(inp
   }
   output=partial;
  }
-}if(i+o>scholarAI.reservedTokens)throw new Error("A resposta excedeu o limite de consumo da operação.");const cost=estimatedCost(i,o,usedModel.id);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:i,p_output:o,p_cost:cost,p_failed:false,p_provider_id:providerResponseId});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"live",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):input.feature==="writing"&&["draft","draft_compose"].includes((input.context as {task?:string}).task||"")?((input.context as {sources?:{id:string;label:string;title:string;evidenceLevel:string;pmcid:string|null;license:string|null;pmid:string|null;doi:string|null}[]}).sources||[]).map(s=>({id:s.id,label:s.label,title:s.title,evidenceLevel:s.evidenceLevel,pmcid:s.pmcid,license:s.license,pmid:s.pmid,doi:s.doi})):[],output,auditPreparation:input.feature==="writing"&&(input.context as {task?:string}).task==="coherence_review"?(input.context as {preparation?:unknown}).preparation:null,sourceStatistics:input.feature==="writing"&&(input.context as {task?:string}).task==="draft_compose"?(input.context as {sourceStatistics?:unknown}).sourceStatistics:null,resultsEvidenceStatus:input.feature==="writing"&&(input.context as {task?:string}).task==="section_draft"?((input.context as {resultsEvidence?:ResearchResultsContext|null}).resultsEvidence?.status||"none"):null,usage:{inputTokens:i,outputTokens:o,costUsd:cost}});
+}if(i+o>scholarAI.reservedTokens)throw new Error("A resposta excedeu o limite de consumo da operação.");const cost=estimatedCost(i,o,usedModel.id);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:i,p_output:o,p_cost:cost,p_failed:false,p_provider_id:providerResponseId});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"live",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):input.feature==="writing"&&["draft","draft_compose"].includes((input.context as {task?:string}).task||"")?((input.context as {sources?:{id:string;label:string;title:string;evidenceLevel:string;pmcid:string|null;license:string|null;pmid:string|null;doi:string|null}[]}).sources||[]).map(s=>({id:s.id,label:s.label,title:s.title,evidenceLevel:s.evidenceLevel,pmcid:s.pmcid,license:s.license,pmid:s.pmid,doi:s.doi})):[],output,auditRejected:input.feature==="writing"&&(input.context as {task?:string}).task==="coherence_review"?
+ ((input.context as {auditRejected?:number}).auditRejected||0):0,auditPreparation:input.feature==="writing"&&(input.context as {task?:string}).task==="coherence_review"?(input.context as {preparation?:unknown}).preparation:null,sourceStatistics:input.feature==="writing"&&(input.context as {task?:string}).task==="draft_compose"?(input.context as {sourceStatistics?:unknown}).sourceStatistics:null,resultsEvidenceStatus:input.feature==="writing"&&(input.context as {task?:string}).task==="section_draft"?((input.context as {resultsEvidence?:ResearchResultsContext|null}).resultsEvidence?.status||"none"):null,usage:{inputTokens:i,outputTokens:o,costUsd:cost}});
 }catch(e){const timedOut=generationTimedOut(e);console.error("[scholar-ai:assist] generation failed",{operationId,model:scholarAI.model,timedOut,error:providerErrorDiagnostic(e)});const reservation = operationId&&reserved ? await settleFailedReservation(operationId,timedOut?"GENERATION_TIMEOUT":"GENERATION_FAILED",metering||providerMetering(e)) : null;
 return reply(request,{error:reservation==="completed"?reservationNotice(reservation):[safeMessage(e),reservation?reservationNotice(reservation):""].filter(Boolean).join(" "),operationId,reservation},{status:reservation==="pending"?503:timedOut?504:400});}}
