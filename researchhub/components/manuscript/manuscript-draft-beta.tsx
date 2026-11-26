@@ -9,7 +9,7 @@ import type { WritingSource } from "./section-assistant";
 
 type SourceStatus = { id: string; label: string; title: string; evidenceLevel: "licensed_full_text" | "abstract"; pmcid: string | null; license: string | null; pmid: string | null; doi: string | null };
 type Suggestion = { original: string; proposed: string; sourceIds: string[]; sources: SourceStatus[];
-  operationId: string; usage: AIUsage | null; simulated: boolean; anchors: {id: string; quote: string; kind: string}[] };
+  operationId: string; usage: AIUsage | null; simulated: boolean; warnings: string[]; anchors: {id: string; quote: string; kind: string}[] };
 
 export default function ManuscriptDraftBeta({ content, project, projectId, sources, citationIds, apply }: {
   content: string; project: unknown; projectId: string; sources: WritingSource[];
@@ -74,7 +74,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         if (anchors.length !== parsed.anchors.length) throw new Error("Não foi possível validar os trechos das fontes.");
       }
       setSuggestion({ original, proposed, sourceIds: chosen, sources: verified,
-        anchors, operationId: data.operationId || "", usage: readAIUsage(data.usage), simulated: data.mode === "simulation" });
+        anchors, warnings: data.output.warnings, operationId: data.operationId || "", usage: readAIUsage(data.usage), simulated: data.mode === "simulation" });
     } catch (e) {
       if (e instanceof AIRequestError) setOperationId(e.operationId);
       setError(e instanceof Error ? e.message : "Não foi possível preparar o rascunho.");
@@ -151,12 +151,19 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
           value={suggestion.proposed} disabled={busy || suggestion.simulated}
           onChange={e => setSuggestion(s => s ? { ...s, proposed: e.target.value } : s)} />
         <div className="space-y-1">
-          <p className="text-sm font-medium">Fontes verificadas</p>
+          <p className="text-sm font-medium">Referências do manuscrito e material consultado</p>
+          <p className="text-xs text-ink-soft">Os números refletem a bibliografia já vinculada ao manuscrito; a ordem pode diferir da seleção de artigos acima.</p>
           {suggestion.sources.map(s => <p className="text-xs text-ink-soft" key={s.id}>
             [{citationIds.includes(s.id) ? citationIds.indexOf(s.id) + 1 : citationIds.length + suggestion.sourceIds.filter(id => !citationIds.includes(id)).indexOf(s.id) + 1}] · {s.title} {s.pmid && /^\d+$/.test(s.pmid) && <a className="underline text-teal" href={`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`} target="_blank" rel="noopener noreferrer">PMID {s.pmid}</a>} — {s.evidenceLevel === "licensed_full_text" ?
               `trechos do texto completo permitido (${s.license || "licença"})` : "apenas resumo científico"}
           </p>)}
         </div>
+        {suggestion.warnings.length > 0 && <div className="rounded-card border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-medium text-amber-900">{es ? "Aspectos que requieren revisión" : "Pontos para confirmar antes de utilizar"}</p>
+          <ul className="list-disc pl-5 text-xs text-amber-950 mt-2 space-y-1">
+            {suggestion.warnings.map((warning, index) => <li key={index}>{warning}</li>)}
+          </ul>
+        </div>}
         {suggestion.anchors.length > 0 && <details className="rounded-card border border-line p-3">
           <summary className="text-sm cursor-pointer text-teal">Ver trechos que sustentam cada citação</summary>
           <p className="mt-2 text-xs text-ink-soft">Os trechos foram conferidos literalmente na fonte. A interpretação de cada afirmação ainda precisa de revisão científica.</p>
