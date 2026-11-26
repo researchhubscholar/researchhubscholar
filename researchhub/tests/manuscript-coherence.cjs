@@ -83,6 +83,15 @@ assert(focused.sections.discussion.length<=700);
 assert(focused.truncatedSections.includes("results"));
 assert(focused.truncatedSections.includes("discussion"));
 assert.equal(manuscriptAuditPreparation(focused).focus,"results");
+const omittedSource=buildManuscriptAuditSource(project,[{
+ section_key:"methods",content:"Beginning of methods "+("A".repeat(2700))+" last methods facts "+("Z".repeat(900))
+}]);
+const fakeEvidence=structuredClone(finding);
+fakeEvidence.evidence=[{origin:"section",field:"methods",quote:"[EXCERPT OMITTED]"}];
+assert.equal(reviewManuscriptAuditContent(JSON.stringify({
+ overview:"O trecho selecionado não representa evidência científica retirada da pesquisa.",
+ findings:[fakeEvidence]
+}),omittedSource).rejected,1);
 const unsafe="A".repeat(1600)+" 111.222.333-44";
 assert.throws(()=>buildManuscriptAuditSource(project,[
   {section_key:"methods",content:unsafe}
