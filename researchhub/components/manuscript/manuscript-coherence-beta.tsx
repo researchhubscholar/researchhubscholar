@@ -21,7 +21,7 @@ const kinds:Record<AuditFinding["level"],{text:string;klass:string}>={
   improve:{text:"Oportunidade de melhoria",klass:"bg-paper border-line text-ink"}
 };
 const ordered:AuditFinding["level"][]=["critical","review","improve"];
-type Preparation={missing:string[];provisional:string[];analyzed:number};
+type Preparation={missing:string[];provisional:string[];analyzed:number;truncated?:string[]};
 type SavedReport={audit:ManuscriptAudit;preparation:Preparation;operationId:string;usage:AIUsage|null;signature:string};
 
 export default function ManuscriptCoherenceBeta({
@@ -129,8 +129,12 @@ export default function ManuscriptCoherenceBeta({
         </div>
         <p className="text-sm leading-relaxed">{report.audit.overview}</p>
         <p className="text-xs text-ink-soft">
-          {report.preparation.analyzed} de 7 seções com texto. Trechos limitados para análise; nenhuma conclusão de validade científica automática.
+          {report.preparation.analyzed} de 7 seções com texto. A auditoria compara trechos do início e fim das seções longas, não o manuscrito integral. Nenhuma certificação científica automática.
         </p>
+        {!!report.preparation.truncated?.length&&<p role="status" className="rounded-card border border-line bg-paper p-3 text-xs text-ink-soft">
+          Trechos amostrados por limite de tokens: {report.preparation.truncated.map(key=>names[key]||key).join(", ")}.
+          Para uma revisão exaustiva, confira as seções completas.
+        </p>}
         {(report.preparation.missing.length>0||report.preparation.provisional.length>0)&&
           <div className="rounded-card border border-amber-200 bg-amber-50 p-3 space-y-2">
             <p className="text-sm font-medium text-amber-950">Pendências de preenchimento identificadas automaticamente</p>
