@@ -57,7 +57,8 @@ function articleXml() {
     assert.equal(calls.length, 1, "no full text should be downloaded without a compatible licence");
 
     await assert.rejects(prepareManuscriptDraftSources(database({linked:false}),owner,projectId,[articleId]),/não pertencem/);
-    await assert.rejects(prepareManuscriptDraftSources(database({abstract:null}),owner,projectId,[articleId]),/não possui resumo/);
+    const unavailable = await prepareManuscriptDraftSources(database({abstract:null}),owner,projectId,[articleId]);
+    assert.equal(unavailable[0].evidenceLevel, "unavailable", "do not silently exclude selected sources without content");
     await assert.rejects(prepareManuscriptDraftSources(database(),owner,projectId,[articleId,articleId]),/diferentes/);
     console.log("PASS: manuscript draft sources preserve ownership, verify license, and safely fall back to abstracts.");
   } finally { global.fetch = priorFetch; }
