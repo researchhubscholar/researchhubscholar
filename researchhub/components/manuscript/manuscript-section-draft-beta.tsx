@@ -31,6 +31,8 @@ export default function ManuscriptSectionDraftBeta({
   const [busy,setBusy] = useState(false);
   const [language,setLanguage] = useState("");
   const [acknowledged,setAcknowledged] = useState(false);
+  const [resultsMode,setResultsMode] = useState<"data" | "outline">("data");
+  const [resultsEvidenceStatus,setResultsEvidenceStatus] = useState<"none"|"available"|null>(null);
   const [error,setError] = useState("");
   const [operationId,setOperationId] = useState("");
   const [suggestion,setSuggestion] = useState<Suggestion|null>(null);
@@ -46,11 +48,12 @@ export default function ManuscriptSectionDraftBeta({
     inFlight.current=true;setBusy(true);setError("");setSuggestion(null);setOperationId("");
     const original=content;
     try {
-      const {data} = await postAI<{output:unknown;operationId?:string;usage?:unknown;mode?:string}>("/api/ai/assist", {
+      const {data} = await postAI<{output:unknown;operationId?:string;usage?:unknown;mode?:string;resultsEvidenceStatus?:string}>("/api/ai/assist", {
         feature:"writing",projectId,context:{sectionKey,heading,task:"section_draft",
-          original,language:language||locale,sources:[]}
+          original,language:language||locale,resultsMode,sources:[]}
       });
       setOperationId(data.operationId||"");
+      setResultsEvidenceStatus(data.resultsEvidenceStatus==="available"?"available":"none");
       if (data.mode === "simulation") throw new Error("Uma licença de IA ativa é necessária para preparar o rascunho científico.");
       if (!isAssistantOutput(data.output) || data.output.recommendations.length!==1
         || data.output.recommendations[0].targetField!==sectionKey) {
@@ -97,6 +100,26 @@ export default function ManuscriptSectionDraftBeta({
       {["discussion","conclusion","abstract"].includes(sectionKey) && <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-card p-3">
         Salve as seções anteriores antes de gerar este texto. O ResearchHub usa o conteúdo salvo, não alterações ainda em edição.
       </p>}
+      {sectionKey==="results" && <div className="rounded-card border border-line bg-white p-3 space-y-3">
+        <p className="text-sm font-medium">{es?"Cómo preparar los resultados":"Como preparar os Resultados"}</p>
+        <label className="flex items-start gap-2 text-xs">
+          <input type="radio" name={"results-mode-"+projectId} value="data" checked={resultsMode==="data"}
+            disabled={busy} onChange={()=>setResultsMode("data")} className="mt-0.5" />
+          <span><strong>Redigir a partir dos dados registrados.</strong> Considera o texto salvo no manuscrito, estatísticas agregadas e, para revisões, a triagem e a matriz de estudos incluídos.</span>
+        </label>
+        <label className="flex items-start gap-2 text-xs">
+          <input type="radio" name={"results-mode-"+projectId} value="outline" checked={resultsMode==="outline"}
+            disabled={busy} onChange={()=>setResultsMode("outline")} className="mt-0.5" />
+          <span><strong>Criar apenas uma estrutura guiada.</strong> Campos para preencher, sem dados ou achados inventados.</span>
+        </label>
+        <p className="text-xs text-ink-soft">A IA nunca deve analisar registros identificáveis de pacientes, presumir estudos elegíveis ou inventar testes estatísticos.</p>
+        <Link href={"/resultados?projeto="+encodeURIComponent(projectId)} className="text-xs text-teal underline">
+          Conferir dados e triagem no módulo Resultados
+        </Link>
+      </div>}
+      {sectionKey==="abstract" && <p className="rounded-card bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950">
+        Se a Discussão ou a Conclusão estiverem pendentes, o ResearchHub preparará um <strong>Resumo provisório</strong>, com os pontos não concluídos identificados. Não estará pronto para submissão.
+      </p>}
       <label className="block text-sm">{es?"Idioma":"Idioma do texto"}
         <select value={language} onChange={e=>setLanguage(e.target.value)}
           disabled={busy} className="block mt-1 rounded-card border border-line bg-white p-2">
@@ -118,6 +141,14 @@ export default function ManuscriptSectionDraftBeta({
       </p>}
       {suggestion && <div className="rounded-card border border-line bg-white p-4 space-y-3">
         <p className="text-sm font-medium">{es?"Vista previa revisable":"Prévia para revisão"}</p>
+        {sectionKey==="results" && <p className="text-xs text-ink-soft">
+          {resultsMode==="outline"?"Estrutura guiada, sem inventar achados.":resultsEvidenceStatus==="available"
+            ?"Fontes utilizadas: texto salvo e indicadores agregados do módulo Resultados; confira os números e as matrizes antes de aplicar."
+            :"Fontes utilizadas: texto já salvo no manuscrito; para incluir estatísticas e estudos incluídos, registre-os no módulo Resultados."}
+        </p>}
+        {sectionKey==="abstract" && suggestion.proposed.includes("PROVIS") && <p className="text-xs text-amber-900">
+          Este rascunho contém seções pendentes. Revise e finalize antes de utilizar em trabalhos acadêmicos.
+        </p>}
         <textarea rows={12} value={suggestion.proposed} disabled={busy}
           onChange={e=>setSuggestion(v=>v?{...v,proposed:e.target.value}:v)}
           className="w-full rounded-card border border-line p-3 text-sm leading-relaxed" />
