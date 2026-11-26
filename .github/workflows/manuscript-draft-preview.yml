@@ -69,3 +69,5 @@ jobs:
         run: node tests/manuscript-coherence.cjs
       - name: Free manuscript readiness regression
         run: node tests/manuscript-readiness.cjs
+      - name: Scientific quality synthetic benchmark
+        run: node tests/manuscript-scientific-benchmark.cjs
