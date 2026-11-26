@@ -72,7 +72,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         setStage((es ? "Analizando artículos " : "Analisando artigos ") + (i+1) + "–" + (i+batch.length) + " / " + chosen.length);
         const { data } = await postAI<{operationId?:string; mode?:string; usage?:unknown}>("/api/ai/assist", {
           feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
-            task:"evidence_batch",original,language:language||locale,sourceIds:batch,sources:[]}
+            task:"evidence_batch",original:"",language:language||locale,sourceIds:batch,sources:[]}
         });
         if (data.mode === "simulation") throw new Error("Esta conta está em modo simulado. Use uma licença de IA ativa para analisar os artigos.");
         if (!data.operationId) throw new Error("O registro da análise não foi confirmado. Confira Minha licença antes de tentar novamente.");
