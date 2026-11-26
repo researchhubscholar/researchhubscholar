@@ -1,4 +1,4 @@
-import type { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "ai";
 import { assistantJsonSchema, type AssistantOutput } from "./assist";
 import type { BetaSection } from "./manuscript-section-rules";
 
