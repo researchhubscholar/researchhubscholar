@@ -1,5 +1,17 @@
 name: Manuscript draft beta checks
 on:
+  push:
+    branches:
+      - "feat/manuscript-draft-beta-p0-p1-20261126"
+    paths:
+      - "researchhub/components/manuscript/**"
+      - "researchhub/lib/ai/manuscript-*.ts"
+      - "researchhub/lib/literature/manuscript-draft-sources.ts"
+      - "researchhub/lib/ai/assist.ts"
+      - "researchhub/app/api/ai/assist/route.ts"
+      - "researchhub/tests/manuscript-*.cjs"
+      - "researchhub/package.json"
+      - ".github/workflows/manuscript-draft-preview.yml"
   pull_request:
     paths:
       - "researchhub/components/manuscript/**"
