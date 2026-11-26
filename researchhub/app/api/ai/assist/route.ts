@@ -18,6 +18,7 @@ import { prepareManuscriptDraftSources } from "@/lib/literature/manuscript-draft
 import { verifyDraftCitationAnchors } from "@/lib/ai/manuscript-draft-citations";
 import { validateDraftEvidenceBatch } from "@/lib/ai/manuscript-draft-batches";
 import { loadDraftComposition } from "@/lib/ai/manuscript-draft-aggregate";
+import { cleanSavedDraftSections, sectionDraftRequirements, validateProseDraft, type BetaSection } from "@/lib/ai/manuscript-section-rules";
 import { outputBudget } from "@/lib/ai/structured-output";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -32,13 +33,30 @@ function safeMessage(e:unknown){const admissionReason=providerErrorDiagnostic(e)
 function reply(request:Request,payload:Record<string,unknown>,init?:ResponseInit){return NextResponse.json(typeof payload.error==="string"?{...payload,error:localizeAIError(request,payload.error)}:payload,init);}
 export async function POST(request:Request){if(!scholarAIReady)return reply(request,{error:"A IA de teste ainda não está conectada ao provedor de IA neste ambiente."},{status:503});const client=await supabaseServer();const {data:{user}}=await client.auth.getUser();if(!user)return reply(request,{error:"Entre na sua conta para usar a assistência."},{status:401});let operationId:string|null=null,reserved=false;let metering:ProviderMetering|null=null;try{const input=validateAssistRequest(await request.json());
 if(input.feature==="writing" && input.context && typeof input.context==="object" && "task" in input.context
-  && ["draft","evidence_batch","draft_compose"].includes(String(input.context.task))) {
+  && ["draft","evidence_batch","draft_compose","section_draft"].includes(String(input.context.task))) {
  const draftContext=input.context as Record<string,unknown>;
  const {data:project,error:pe}=await client.from("research_projects")
   .select("id,owner_id,title,theme,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes")
   .eq("id",input.projectId||"").eq("owner_id",user.id).maybeSingle();
  if(pe||!project)throw new Error("O protocolo do projeto não foi encontrado ou não pertence a esta conta.");
- if(draftContext.task==="draft_compose"){
+ let savedSections: import("@/lib/ai/manuscript-section-rules").SectionContents={};
+ if(draftContext.task==="section_draft"){
+  const {data:manuscript,error:me}=await client.from("scholar_manuscripts")
+    .select("id").eq("project_id",input.projectId||"").eq("owner_id",user.id).maybeSingle();
+  if(me)throw new Error("Não foi possível verificar o manuscrito deste projeto.");
+  if(manuscript){
+   const {data:sections,error:se}=await client.from("scholar_manuscript_sections")
+      .select("section_key,content").eq("manuscript_id",manuscript.id);
+   if(se)throw new Error("Não foi possível verificar as seções salvas do manuscrito.");
+   savedSections=cleanSavedDraftSections(sections||[]);
+  }
+  const section=draftContext.sectionKey as BetaSection;
+  const problems=sectionDraftRequirements(section,project,savedSections);
+  if(problems.length)throw new Error(problems.join(" "));
+  input.context={sectionKey:section,task:"section_draft",
+    heading:typeof draftContext.heading==="string"?draftContext.heading.slice(0,80):section,
+    original:draftContext.original,language:draftContext.language,project,savedSections,sources:[]};
+ }else if(draftContext.task==="draft_compose"){
   const composition=await loadDraftComposition(supabaseAdmin(),user.id,input.projectId!,draftContext.batchOperationIds as string[],project);
   input.context={...draftContext,project,sources:composition.sources,sourceStatistics:{
     considered:composition.considered,relevant:composition.relevant,selectedForWriting:composition.sources.length
@@ -50,7 +68,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   input.context={...draftContext,project,sources};
  }
 }
-const language=requestOutputLanguage(request,input.feature==="writing"?(input.context as {language?:unknown}).language:input.translationLanguage??input.guideLanguage);if(input.feature==="guide")input.context=await prepareGuideContext(client,user.id,input.projectId,input.context as GuideInput);const {wallet,license}=await activeWallet(user.id, requestedWallet(request, user.id));await verifyFinancialEnvelope(license.mode);const admin=supabaseAdmin();operationId=crypto.randomUUID();const model=license.mode==="simulation"?"simulation":scholarAI.model;const {error:re}=await admin.rpc("scholar_reserve",{p_request:operationId,p_wallet:wallet.id,p_user:user.id,p_feature:ledgerFeature[input.feature],p_model:model,p_tokens:scholarAI.reservedTokens,p_project:input.projectId});if(re)throw re;reserved=true;const promptVersion=input.feature === "writing" ? ((input.context as {task?:string}).task==="evidence_batch"?"writing.draft-beta.v3-batch-sources":(input.context as {task?:string}).task==="draft_compose"?"writing.draft-beta.v3-compose-cited":(input.context as {task?:string}).task==="draft"?"writing.draft-beta.v2-citation-anchors":"writing.v3-bilingual-sources") : input.feature === "guide" ? guidePolicyVersion : `${input.feature}.v1`;const {error:ae}=await admin.from("scholar_generation_artifacts").insert({usage_id:operationId,user_id:user.id,prompt_version:promptVersion,input_snapshot:{feature:input.feature,context:input.feature==="reading"&&input.context&&typeof input.context==="object"&&"pdfPages" in input.context?{source:"pdf",title:(input.context as {title?:string}).title}:input.context,language}});if(ae)throw ae;
+const language=requestOutputLanguage(request,input.feature==="writing"?(input.context as {language?:unknown}).language:input.translationLanguage??input.guideLanguage);if(input.feature==="guide")input.context=await prepareGuideContext(client,user.id,input.projectId,input.context as GuideInput);const {wallet,license}=await activeWallet(user.id, requestedWallet(request, user.id));await verifyFinancialEnvelope(license.mode);const admin=supabaseAdmin();operationId=crypto.randomUUID();const model=license.mode==="simulation"?"simulation":scholarAI.model;const {error:re}=await admin.rpc("scholar_reserve",{p_request:operationId,p_wallet:wallet.id,p_user:user.id,p_feature:ledgerFeature[input.feature],p_model:model,p_tokens:scholarAI.reservedTokens,p_project:input.projectId});if(re)throw re;reserved=true;const promptVersion=input.feature === "writing" ? ((input.context as {task?:string}).task==="section_draft"?"writing.draft-beta.v4-protocol-sections":(input.context as {task?:string}).task==="evidence_batch"?"writing.draft-beta.v3-batch-sources":(input.context as {task?:string}).task==="draft_compose"?"writing.draft-beta.v3-compose-cited":(input.context as {task?:string}).task==="draft"?"writing.draft-beta.v2-citation-anchors":"writing.v3-bilingual-sources") : input.feature === "guide" ? guidePolicyVersion : `${input.feature}.v1`;const {error:ae}=await admin.from("scholar_generation_artifacts").insert({usage_id:operationId,user_id:user.id,prompt_version:promptVersion,input_snapshot:{feature:input.feature,context:input.feature==="reading"&&input.context&&typeof input.context==="object"&&"pdfPages" in input.context?{source:"pdf",title:(input.context as {title?:string}).title}:input.context,language}});if(ae)throw ae;
 if(license.mode==="simulation"){const output=simulatedOutput(input.feature,language);const {error:ue}=await admin.from("scholar_generation_artifacts").update({output_snapshot:output}).eq("usage_id",operationId);if(ue)throw ue;const {error:se}=await admin.rpc("scholar_settle",{p_request:operationId,p_input:0,p_output:1,p_cost:0,p_failed:false,p_provider_id:"simulation"});if(se)throw se;reserved=false;return reply(request,{operationId,language,mode:"simulation",sources:input.feature==="guide"?sourceManifest((input.context as {sources?:GuideSource[]}).sources||[]):[],output,usage:{inputTokens:0,outputTokens:1,costUsd:0}});}
 const revisingExcerpt=input.feature==="guide"&&(input.context as {excerpt?:{intent?:string}}).excerpt?.intent==="improve";const comparisonSources=input.feature==="guide"?(input.context as {sources?:GuideSource[]}).sources||[]:[];
 const citationIndex=comparisonSources.map(source=>({id:source.label,...Object.fromEntries((["abstract","notes"] as const).map(kind=>[kind,guideSourceExcerpts(source,kind).map((text,i)=>({excerpt:i+1,text}))]))}));
@@ -62,6 +80,11 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
  const rec=output.recommendations[0];
  if(writingContext.task==="evidence_batch"){
    validateDraftEvidenceBatch(rec.content,writingContext.sources as import("@/lib/literature/manuscript-draft-sources").DraftSource[]);
+ }
+ if(writingContext.task==="section_draft"){
+  const section=input.context as {sectionKey:BetaSection;project:Record<string,unknown>;savedSections:import("@/lib/ai/manuscript-section-rules").SectionContents};
+  if(!rec || rec.targetField!==section.sectionKey)throw new Error("A sugestão de escrita não corresponde à seção solicitada.");
+  validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project);
  }
  if(writingContext.task==="draft" || writingContext.task==="draft_compose"){
   if(!rec || rec.targetField!=="introduction")throw new Error("A IA não devolveu a introdução solicitada.");
