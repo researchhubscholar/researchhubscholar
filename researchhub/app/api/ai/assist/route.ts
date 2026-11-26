@@ -127,7 +127,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
  if(output.recommendations.length!==1 || !rec || rec.targetField!=="coherenceReport"){
   throw new Error("A IA não entregou o relatório de coerência solicitado.");
  }
- const source=(input.context as {source:import("@/lib/ai/manuscript-coherence").AuditSource}).source;
+ const source=(input.context as unknown as {source:import("@/lib/ai/manuscript-coherence").AuditSource}).source;
  const result=validateManuscriptAuditContent(rec.content,source);
  rec.content=JSON.stringify(result);
 }
