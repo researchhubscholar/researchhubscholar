@@ -67,13 +67,14 @@ function numbersIn(value: string): Set<string> {
 /** This only detects invented numeric values. It does not certify the validity
  * of an author-reported result or the model's scientific reasoning. */
 export function validateProseDraft(
-  section: BetaSection, content: string, saved: SectionContents, project: Record<string, unknown>
+  section: BetaSection, content: string, saved: SectionContents, project: Record<string, unknown>,
+  trustedFacts = "", resultsMode: "data" | "outline" = "data"
 ): void {
   if (!content.trim() || content.length > 6000) {
     throw new Error("O rascunho retornado está vazio ou excedeu o limite da seção.");
   }
   if (/\[S\d+\]/.test(content)) throw new Error("O texto contém citações sem fontes verificadas.");
-  if (section === "results" && trimmed(saved.results).length < 100) {
+  if (section === "results" && (resultsMode === "outline" || (trimmed(saved.results).length < 100 && !trustedFacts.trim()))) {
     // No data were provided. The result must explicitly be a fill-in template.
     if (!/\[(?:a preencher|inserir|informar|preencher|pendente|to fill|pending|por completar|completar|dato pendiente)[^\]]*\]/i.test(content)) {
       throw new Error("Sem resultados salvos, a IA só pode preparar um roteiro com campos a preencher.");
@@ -86,7 +87,8 @@ export function validateProseDraft(
       saved.discussion || "",
       saved.conclusion || "",
       trimmed(project.research_question),
-      trimmed(project.objective)
+      trimmed(project.objective),
+      trustedFacts
     ].join("\n");
     const existing = numbersIn(trusted);
     const invented = [...numbersIn(content)].filter(number => !existing.has(number));
