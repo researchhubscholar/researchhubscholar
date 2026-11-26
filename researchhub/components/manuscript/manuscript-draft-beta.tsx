@@ -222,7 +222,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         {progress.total > 0 && <><p className="text-xs text-ink-soft">{progress.done} / {progress.total} artigos analisados</p>
           <div className="h-2 bg-paper rounded-full overflow-hidden"><div className="h-full bg-teal transition-all"
             style={{width:(Math.min(100,progress.done/progress.total*100))+"%"}} /></div></>}
-      </div>
+      </div>}
       {error && <p role="alert" className="text-sm text-red-700">{error}
         {operationId && <Link href={`/geracoes/${operationId}`} className="ml-2 underline">Ver registro</Link>}
       </p>}
