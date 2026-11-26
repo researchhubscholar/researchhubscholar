@@ -94,7 +94,7 @@ export function validateManuscriptAuditContent(
       })||!Array.isArray(entry.evidence)||!entry.evidence.length||entry.evidence.length>2){
       throw new Error("Achado "+(index+1)+": classificação ou justificativa inválida.");
     }
-    const evidence=entry.evidence.map((q,n)=>{
+    const evidence=entry.evidence.map(q=>{
       if(!q||typeof q!=="object"||!["project","section"].includes(q.origin)||
         typeof q.field!=="string"||typeof q.quote!=="string"||q.quote.length<15||q.quote.length>250){
         throw new Error("Achado "+(index+1)+": trecho de apoio inválido.");
