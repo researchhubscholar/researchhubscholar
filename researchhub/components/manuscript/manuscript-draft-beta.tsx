@@ -237,7 +237,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         <div className="space-y-1">
           <p className="text-sm font-medium">Referências citadas e material consultado</p>
           <p className="text-xs text-ink-soft">Os números refletem a bibliografia já vinculada ao manuscrito; a ordem pode diferir da seleção de artigos acima.</p>
-          <p className="text-xs text-ink-soft">{suggestion.considered} artigos analisados · {suggestion.relevant} com evidências relacionadas · {suggestion.sourceIds.length} citados no rascunho.</p>
+          <p className="text-xs text-ink-soft">{suggestion.considered} artigos avaliados · {suggestion.relevant} com evidências relacionadas · {suggestion.sourceIds.length} citados no rascunho.</p>
           {suggestion.sources.map(s => <p className="text-xs text-ink-soft" key={s.id}>
             [{citationIds.includes(s.id) ? citationIds.indexOf(s.id) + 1 : citationIds.length + suggestion.sourceIds.filter(id => !citationIds.includes(id)).indexOf(s.id) + 1}] · {s.title} {s.pmid && /^\d+$/.test(s.pmid) && <a className="underline text-teal" href={`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`} target="_blank" rel="noopener noreferrer">PMID {s.pmid}</a>} — {s.evidenceLevel === "licensed_full_text" ?
               `trechos do texto completo permitido (${s.license || "licença"})` : "apenas resumo científico"}
