@@ -1,11 +1,10 @@
 import type { JSONSchema7 } from "ai";
-import { assistantJsonSchema, type AssistantOutput } from "./assist";
+import type { AssistantOutput } from "./assist";
 import type { BetaSection } from "./manuscript-section-rules";
 
 /** Constrain the returned targetField at generation time rather than asking
  * a model to remember to copy an unconstrained string exactly. */
-export function manuscriptSectionOutputSchema(section: BetaSection): JSONSchema7 {
-  const base = assistantJsonSchema;
+export function manuscriptSectionOutputSchema(base: JSONSchema7, section: BetaSection): JSONSchema7 {
   const recommendations = base.properties?.recommendations as JSONSchema7;
   const item = recommendations.items as JSONSchema7;
   return {
