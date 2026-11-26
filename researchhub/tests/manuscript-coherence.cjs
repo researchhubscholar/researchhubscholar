@@ -71,6 +71,18 @@ const sampled=auditSectionExcerpt(textLong);
 assert(sampled.length<=1700);
 assert(sampled.includes("INTRO:") && sampled.includes("CCCCCCCCCCCCCCCC"));
 assert(sampled.includes("CENTRAL:")||sampled.includes("BBBBBBBBBBBB"));
+const focusRows=[
+ {section_key:"results",content:"RESULTS:"+("R".repeat(5000))},
+ {section_key:"discussion",content:"DISCUSSION:"+("D".repeat(1600))}
+];
+const focused=buildManuscriptAuditSource(project,focusRows,"results");
+assert.equal(focused.focus,"results");
+assert(focused.sections.results.length<=4000);
+assert(focused.sections.results.length>1700);
+assert(focused.sections.discussion.length<=700);
+assert(focused.truncatedSections.includes("results"));
+assert(focused.truncatedSections.includes("discussion"));
+assert.equal(manuscriptAuditPreparation(focused).focus,"results");
 const unsafe="A".repeat(1600)+" 111.222.333-44";
 assert.throws(()=>buildManuscriptAuditSource(project,[
   {section_key:"methods",content:unsafe}
