@@ -28,7 +28,7 @@ export default function ManuscriptCoherenceBeta({
   projectId,dirty,saving,signature,onNavigate
 }: {
   projectId:string;dirty:boolean;saving:boolean;signature:string;
-  onNavigate:(section:ManuscriptAuditSection)=>void;
+  onNavigate:(section:ManuscriptAuditSection,quote:string)=>void;
 }) {
   const {locale}=useLanguage(),es=locale==="es";
   const [open,setOpen]=useState(false);
@@ -224,7 +224,7 @@ export default function ManuscriptCoherenceBeta({
                 </p>
                 <p className="mt-2 text-xs text-ink-soft whitespace-pre-wrap">“{source.quote}”</p>
                 {source.origin==="section"&&<button type="button" className="mt-2 text-xs text-teal underline"
-                  onClick={()=>onNavigate(source.field as ManuscriptAuditSection)}>
+                  onClick={()=>onNavigate(source.field as ManuscriptAuditSection,source.quote)}>
                   {es?"Ir a la sección":"Ir para a seção"}
                 </button>}
               </div>)}
