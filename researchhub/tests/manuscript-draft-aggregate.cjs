@@ -5,7 +5,7 @@ require.extensions[".ts"] = (module, file) => module._compile(
   ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText, file);
-const {loadDraftComposition} = require("../lib/ai/manuscript-draft-aggregate.ts");
+const {loadDraftComposition,sameDraftSnapshot} = require("../lib/ai/manuscript-draft-aggregate.ts");
 const uid = "11111111-1111-4111-8111-111111111111";
 const pid = "22222222-2222-4222-8222-222222222222";
 const opA = "33333333-3333-4333-8333-333333333333";
@@ -33,6 +33,15 @@ const client={from(table){
   return x;
 }};
 (async()=>{
+  assert(sameDraftSnapshot({title:"x",details:{a:1,b:2}},{details:{b:2,a:1},title:"x"}));
+  assert(!sameDraftSnapshot({objective:"A"},{objective:"B"}));
+  const reorder=(record)=>{
+    const entries=Object.entries(record);
+    return Object.fromEntries(entries.reverse());
+  };
+  // Postgres JSONB may reorder project and saved sections in stored generation snapshots.
+  records[0].input_snapshot.context.project=reorder(project);
+  records[1].input_snapshot.context.project=reorder(project);
   const res=await loadDraftComposition(client,uid,pid,[opA,opB],project);
   assert.equal(res.considered,2);
   assert.equal(res.relevant,2);
@@ -47,7 +56,7 @@ const client={from(table){
   const discussionSections={results:"The saved author results summarize recurrent injury within the recorded cohort.",methods:"The study follows recorded athlete injuries and documented outcomes."};
   const discussionRow=row(discussionId,[second],[two]);
   discussionRow.input_snapshot.context.sectionKey="discussion";
-  discussionRow.input_snapshot.context.savedSections=discussionSections;
+  discussionRow.input_snapshot.context.savedSections=Object.fromEntries(Object.entries(discussionSections).reverse());
   discussionRow.output_snapshot.recommendations[0].targetField="discussion";
   records.push(discussionRow);
   const discussion=await loadDraftComposition(client,uid,pid,[discussionId],project,"discussion",discussionSections);
