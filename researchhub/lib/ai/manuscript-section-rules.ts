@@ -83,3 +83,26 @@ export function cleanSavedDraftSections(
   }
   return result;
 }
+
+
+/** Minimize long manuscripts and avoid sending unrelated sections to the AI.
+ * Requirements are checked against the full saved versions before trimming. */
+export function relevantSavedDraftSections(
+  section: BetaSection, saved: SectionContents
+): SectionContents {
+  const scope: Record<BetaSection, BetaSection[]> = {
+    introduction: [],
+    methods: [],
+    results: ["results"],
+    discussion: ["methods","results"],
+    limitations: ["methods","results","discussion"],
+    conclusion: ["methods","results"],
+    abstract: ["introduction","methods","results","discussion","conclusion"]
+  };
+  const selected: SectionContents = {};
+  for (const key of scope[section]) {
+    const limit = key==="results" ? 6000 : 3500;
+    selected[key]=(saved[key] || "").slice(0,limit);
+  }
+  return selected;
+}
