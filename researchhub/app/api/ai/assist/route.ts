@@ -39,8 +39,9 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   .select("id,owner_id,title,theme,research_question,objective,study_type,population,inclusion_criteria,exclusion_criteria,primary_outcome,variables,methods,analysis_plan,ethics_notes")
   .eq("id",input.projectId||"").eq("owner_id",user.id).maybeSingle();
  if(pe||!project)throw new Error("O protocolo do projeto não foi encontrado ou não pertence a esta conta.");
+ const sectionKey=(draftContext.sectionKey==="discussion"?"discussion":draftContext.sectionKey==="introduction"?"introduction":draftContext.sectionKey) as BetaSection;
  let savedSections: import("@/lib/ai/manuscript-section-rules").SectionContents={};
- if(draftContext.task==="section_draft"){
+ if(draftContext.task==="section_draft" || sectionKey==="discussion"){
   const {data:manuscript,error:me}=await client.from("scholar_manuscripts")
     .select("id").eq("project_id",input.projectId||"").eq("owner_id",user.id).maybeSingle();
   if(me)throw new Error("Não foi possível verificar o manuscrito deste projeto.");
@@ -50,22 +51,24 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
    if(se)throw new Error("Não foi possível verificar as seções salvas do manuscrito.");
    savedSections=cleanSavedDraftSections(sections||[]);
   }
-  const section=draftContext.sectionKey as BetaSection;
-  const problems=sectionDraftRequirements(section,project,savedSections);
+  const problems=sectionDraftRequirements(sectionKey,project,savedSections);
   if(problems.length)throw new Error(problems.join(" "));
-  input.context={sectionKey:section,task:"section_draft",
-    heading:typeof draftContext.heading==="string"?draftContext.heading.slice(0,80):section,
+ }
+ if(draftContext.task==="section_draft"){
+  input.context={sectionKey,task:"section_draft",
+    heading:typeof draftContext.heading==="string"?draftContext.heading.slice(0,80):sectionKey,
     original:draftContext.original,language:draftContext.language,project,savedSections,sources:[]};
  }else if(draftContext.task==="draft_compose"){
-  const composition=await loadDraftComposition(supabaseAdmin(),user.id,input.projectId!,draftContext.batchOperationIds as string[],project);
-  input.context={...draftContext,project,sources:composition.sources,sourceStatistics:{
+  const composition=await loadDraftComposition(supabaseAdmin(),user.id,input.projectId!,
+   draftContext.batchOperationIds as string[],project,sectionKey as "introduction"|"discussion",savedSections);
+  input.context={...draftContext,project,savedSections,sources:composition.sources,sourceStatistics:{
     considered:composition.considered,relevant:composition.relevant,selectedForWriting:composition.sources.length
   }};
  }else {
   const sources=await prepareManuscriptDraftSources(client,user.id,input.projectId,draftContext.sourceIds as string[]);
   if(draftContext.task==="draft" && sources.every(source=>source.evidenceLevel==="unavailable"))
    throw new Error("Os artigos selecionados não possuem conteúdo científico acessível para esta introdução.");
-  input.context={...draftContext,project,sources};
+  input.context={...draftContext,project,savedSections,sources};
  }
 }
 const language=requestOutputLanguage(request,input.feature==="writing"?(input.context as {language?:unknown}).language:input.translationLanguage??input.guideLanguage);if(input.feature==="guide")input.context=await prepareGuideContext(client,user.id,input.projectId,input.context as GuideInput);const {wallet,license}=await activeWallet(user.id, requestedWallet(request, user.id));await verifyFinancialEnvelope(license.mode);const admin=supabaseAdmin();operationId=crypto.randomUUID();const model=license.mode==="simulation"?"simulation":scholarAI.model;const {error:re}=await admin.rpc("scholar_reserve",{p_request:operationId,p_wallet:wallet.id,p_user:user.id,p_feature:ledgerFeature[input.feature],p_model:model,p_tokens:scholarAI.reservedTokens,p_project:input.projectId});if(re)throw re;reserved=true;const promptVersion=input.feature === "writing" ? ((input.context as {task?:string}).task==="section_draft"?"writing.draft-beta.v4-protocol-sections":(input.context as {task?:string}).task==="evidence_batch"?"writing.draft-beta.v3-batch-sources":(input.context as {task?:string}).task==="draft_compose"?"writing.draft-beta.v3-compose-cited":(input.context as {task?:string}).task==="draft"?"writing.draft-beta.v2-citation-anchors":"writing.v3-bilingual-sources") : input.feature === "guide" ? guidePolicyVersion : `${input.feature}.v1`;const {error:ae}=await admin.from("scholar_generation_artifacts").insert({usage_id:operationId,user_id:user.id,prompt_version:promptVersion,input_snapshot:{feature:input.feature,context:input.feature==="reading"&&input.context&&typeof input.context==="object"&&"pdfPages" in input.context?{source:"pdf",title:(input.context as {title?:string}).title}:input.context,language}});if(ae)throw ae;
@@ -87,7 +90,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project);
  }
  if(writingContext.task==="draft" || writingContext.task==="draft_compose"){
-  if(!rec || rec.targetField!=="introduction")throw new Error("A IA não devolveu a introdução solicitada.");
+  if(!rec || rec.targetField!==(input.context as {sectionKey:string}).sectionKey)throw new Error("A IA não devolveu a seção solicitada.");
   verifyDraftCitationAnchors(rec.content,rec.source,writingContext.sources||[]);
  }
 }
