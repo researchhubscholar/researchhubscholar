@@ -43,5 +43,16 @@ const client={from(table){
   await assert.rejects(loadDraftComposition(client,uid,pid,[opA,opA],project),/histórico/);
   await assert.rejects(loadDraftComposition(client,uid,pid,[opA,
     "55555555-5555-4555-8555-555555555555"],project),/não foi encontrada/);
+  const discussionId="55555555-5555-4555-8555-555555555555";
+  const discussionSections={results:"The saved author results summarize recurrent injury within the recorded cohort.",methods:"The study follows recorded athlete injuries and documented outcomes."};
+  const discussionRow=row(discussionId,[second],[two]);
+  discussionRow.input_snapshot.context.sectionKey="discussion";
+  discussionRow.input_snapshot.context.savedSections=discussionSections;
+  discussionRow.output_snapshot.recommendations[0].targetField="discussion";
+  records.push(discussionRow);
+  const discussion=await loadDraftComposition(client,uid,pid,[discussionId],project,"discussion",discussionSections);
+  assert.equal(discussion.sources[0].title,"Recurrence cohort");
+  await assert.rejects(loadDraftComposition(client,uid,pid,[discussionId],project,"discussion",
+    {...discussionSections,results:"The revised author results differ."}),/projeto mudou/);
   console.log("PASS: all evidence batches remain account/project bound; protocol changes invalidate stale analyses.");
 })().catch(e=>{console.error(e);process.exitCode=1});
