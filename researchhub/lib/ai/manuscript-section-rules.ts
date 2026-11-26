@@ -83,6 +83,7 @@ export function validateProseDraft(
   if (["results", "discussion", "conclusion", "abstract"].includes(section)) {
     const trusted = [
       saved.results || "",
+      saved.introduction || "",
       saved.methods || "",
       saved.discussion || "",
       saved.conclusion || "",
