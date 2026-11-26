@@ -66,7 +66,11 @@ export async function loadScientificResultsContext(
 ): Promise<ResearchResultsContext> {
   const {data,error}=await db.from("scholar_project_results")
     .select("workspace").eq("project_id",projectId).eq("owner_id",ownerId).maybeSingle();
-  if(error) throw new Error("Não foi possível verificar os resultados registrados no projeto.");
+  if(error) {
+    const unavailable=summarizeResearchResults(null,studyType);
+    unavailable.warnings.push("O módulo Resultados não pôde ser consultado. O texto do manuscrito, quando disponível, continua sendo a única base para a redação.");
+    return unavailable;
+  }
   const workspace=data?.workspace;
   const context=summarizeResearchResults(validWorkspace(workspace)?workspace:null,studyType);
   if(context.category==="review" && validWorkspace(workspace)) {
