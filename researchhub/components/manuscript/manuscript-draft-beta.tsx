@@ -11,7 +11,8 @@ type SourceStatus = { id: string; label: string; title: string; evidenceLevel: "
 type Suggestion = { original: string; proposed: string; sourceIds: string[]; sources: SourceStatus[];
   operationId: string; usage: AIUsage | null; simulated: boolean; warnings: string[]; considered: number; relevant: number; anchors: {id: string; quote: string; kind: string}[] };
 
-export default function ManuscriptDraftBeta({ content, project, projectId, sources, citationIds, apply }: {
+export default function ManuscriptDraftBeta({ sectionKey, heading, content, project, projectId, sources, citationIds, apply }: {
+  sectionKey: "introduction" | "discussion"; heading: string;
   content: string; project: unknown; projectId: string; sources: WritingSource[];
   citationIds: string[];
   apply: (original: string, proposed: string, sourceIds: string[]) => Promise<boolean>;
@@ -31,7 +32,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
   const [filter, setFilter] = useState("");
   const [stage, setStage] = useState("");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const checkpointKey = "rh-draft-beta-batches:" + projectId;
+  const checkpointKey = "rh-draft-beta-batches:" + projectId + ":" + sectionKey;
   useEffect(() => {
     try {
       const state = JSON.parse(sessionStorage.getItem(checkpointKey) || "null") as
@@ -72,7 +73,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         setStage((es ? "Analizando artículos " : "Analisando artigos ") + (i+1) + "–" + (i+batch.length) + " / " + chosen.length);
         const { data } = await postAI<{operationId?:string; mode?:string; usage?:unknown}>("/api/ai/assist", {
           feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
-            task:"evidence_batch",original:"",language:language||locale,sourceIds:batch,sources:[]}
+            task:"evidence_batch",original:"",language:language||locale,sourceIds:batch,sources:[],sectionKey,heading}
         });
         if (data.mode === "simulation") throw new Error("Esta conta está em modo simulado. Use uma licença de IA ativa para analisar os artigos.");
         if (!data.operationId) throw new Error("O registro da análise não foi confirmado. Confira Minha licença antes de tentar novamente.");
@@ -81,16 +82,16 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         setProgress({done:i+batch.length,total:chosen.length});
       }
       if (stopRequested.current) { setStage("Análise pausada; clique novamente para retomar."); return; }
-      setStage(es ? "Redactando introducción fundamentada…" : "Redigindo a introdução com as evidências analisadas…");
+      setStage(es ? "Redactando introducción fundamentada…" : "Redigindo a seção com as evidências analisadas…");
       const {data} = await postAI<{output:unknown;sources?:SourceStatus[];operationId?:string;
         usage?:unknown;mode?:string;sourceStatistics?:{considered:number;relevant:number;selectedForWriting:number}}>("/api/ai/assist",{
         feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
-          task:"draft_compose",original,language:language||locale,batchOperationIds:batchIds,sources:[]}
+          task:"draft_compose",original,language:language||locale,batchOperationIds:batchIds,sources:[],sectionKey,heading}
       });
       setOperationId(data.operationId||"");
       if (data.mode === "simulation") throw new Error("A simulação não produz conteúdo científico para inserção.");
       if (!isAssistantOutput(data.output) || data.output.recommendations.length !== 1
-        || data.output.recommendations[0].targetField !== "introduction") {
+        || data.output.recommendations[0].targetField !== sectionKey) {
         throw new Error("O rascunho retornou em um formato inesperado.");
       }
       const originalText = data.output.recommendations[0].content;
@@ -129,7 +130,7 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
 
   async function accept() {
     if (!suggestion || inFlight.current || suggestion.simulated) return;
-    if (content !== suggestion.original) { setError("A introdução mudou. Gere uma nova prévia antes de inserir."); return; }
+    if (content !== suggestion.original) { setError("A seção mudou. Gere uma nova prévia antes de inserir."); return; }
     inFlight.current = true; setBusy(true); setError("");
     try {
       if (!await apply(suggestion.original, suggestion.proposed, suggestion.sourceIds))
@@ -144,9 +145,9 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="text-xs uppercase tracking-wide text-teal">ResearchHub · Beta</p>
-        <h3 className="text-base font-medium mt-1">{es ? "Redactar introducción con IA" : "Escrever introdução com IA"}</h3>
-        <p className="text-xs text-ink-soft mt-1">{es ? "Borrador basado en referencias verificadas, siempre sujeto a revisión." :
-          "Primeira versão fundamentada em artigos do projeto. Revisão humana obrigatória."}</p>
+        <h3 className="text-base font-medium mt-1">{es ? "Escribir con IA · {heading}" : "Escrever com IA · {heading}"}</h3>
+        <p className="text-xs text-ink-soft mt-1">{es ? "Borrador basado en fuentes verificadas. {sectionKey === "discussion" ? "Guarda primero los resultados. " : ""}Revisión humana necesaria." :
+          "Rascunho fundamentado nos artigos do projeto. {sectionKey === "discussion" ? "Os resultados devem estar salvos. " : ""}Revisão humana obrigatória."}</p>
       </div>
       <button type="button" onClick={() => setOpen(x => !x)}
         className="rounded-card bg-teal text-white px-4 py-2 text-sm">
@@ -201,8 +202,8 @@ export default function ManuscriptDraftBeta({ content, project, projectId, sourc
         ? "El sistema busca texto completo abierto con licencia compatible. Si no está disponible, usa solamente el resumen. Nunca inventa resultados."
         : "O ResearchHub procura texto completo em acesso aberto com licença compatível. Se não encontrar, usa o resumo. Não inventa resultados do seu estudo."}</p>
       <p className="text-xs text-ink-soft">{es
-        ? "Todos los artículos seleccionados se examinan en lotes de 5. Cada lote consume tokens; solo los más pertinentes se citan en la introducción."
-        : "Todos os artigos selecionados serão avaliados em lotes de cinco. Cada lote consome tokens; apenas os mais pertinentes precisam aparecer nas citações da introdução."}</p>
+        ? "Todos los artículos seleccionados se examinan en lotes de 5. Cada lote consume tokens; solo los más pertinentes se citan en la sección."
+        : "Todos os artigos selecionados serão avaliados em lotes de cinco. Cada lote consome tokens; apenas os mais pertinentes precisam aparecer nas citações da seção."}</p>
       <p className="text-xs text-ink-soft">{selected.length ? Math.ceil(selected.length/5)+1 : 0} operações de IA previstas ({Math.ceil(selected.length/5)} lotes + síntese final), sujeitas à franquia e aos limites da licença.</p>
       {selected.length > 25 && <label className="flex items-start gap-2 text-xs text-ink-soft">
         <input type="checkbox" checked={largeApproved} disabled={busy}
