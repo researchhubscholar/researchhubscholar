@@ -78,6 +78,28 @@ export function assessManuscriptReadiness(
         "Complete os marcadores editoriais e confira as informações antes de tratar esta seção como final.", section.key);
     }
   }
+  // Cautious deterministic cross-check: a percentage in the conclusion that
+  // cannot be located in Results deserves a manual check, not a diagnosis.
+  const percentages = (value: string) =>
+    new Set([...value.matchAll(/\b\d+(?:[.,]\d+)?\s*%/g)]
+      .map(match => match[0].replace(/\s/g, "").replace(",", ".")));
+  const resultsText = byKey.get("results") || "";
+  const conclusionText = byKey.get("conclusion") || "";
+  if (resultsText.length >= 60 && conclusionText.length >= 60) {
+    const reported = percentages(resultsText);
+    const untraced = [...percentages(conclusionText)].filter(value => !reported.has(value));
+    if (untraced.length) {
+      add("conclusion-percentages", "review", "Conferir percentuais da Conclusão",
+        "Estes percentuais não foram localizados literalmente em Resultados: " +
+        untraced.slice(0, 3).join(", ") +
+        ". Podem ter outra origem ou formatação; confirme os dados antes de utilizá-los.", "conclusion");
+    }
+  }
+  if (conclusionText.length >= 60 && !resultsText.trim()) {
+    add("conclusion-without-results", "review", "Conclusão sem Resultados registrados",
+      "A conclusão já possui texto, mas a seção Resultados está vazia. Confira se as afirmações têm dados de suporte.", "conclusion");
+  }
+
   const comparable = sections.filter(item => item.characters >= 60).length;
   return { sections, issues, comparable, canCompare: comparable >= 2 };
 }
