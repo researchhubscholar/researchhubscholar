@@ -24,7 +24,9 @@ export function sectionDraftRequirements(
     problems.push("Salve também a seção Métodos para contextualizar corretamente os resultados.");
   }
   if (section === "abstract") {
-    const required: BetaSection[] = ["introduction", "methods", "results", "discussion", "conclusion"];
+    // A provisional abstract is allowed before Discussion / Conclusion have been
+    // authored, but cannot misrepresent their findings as completed.
+    const required: BetaSection[] = ["introduction", "methods", "results"];
     for (const part of required) {
       if (trimmed(saved[part]).length < 80) {
         problems.push("Para preparar o Resumo, complete e salve antes a seção " +
@@ -33,6 +35,28 @@ export function sectionDraftRequirements(
     }
   }
   return problems;
+}
+
+export function missingAbstractSections(saved: SectionContents): BetaSection[] {
+  const key: BetaSection[] = ["introduction", "methods", "results", "discussion", "conclusion"];
+  return key.filter(section => trimmed(saved[section]).length < 80);
+}
+
+export function markProvisionalAbstract(content: string, missing: BetaSection[], language = "pt-BR"): string {
+  if (!missing.length) return content.trim();
+  const es = language === "es", en = language.startsWith("en");
+  const header = en ? "PROVISIONAL ABSTRACT — not ready for submission" :
+    es ? "RESUMEN PROVISIONAL — no listo para envío" : "RESUMO PROVISÓRIO — não pronto para submissão";
+  const names: Record<string,string> = en ? {
+    introduction:"Introduction",methods:"Methods",results:"Results",discussion:"Discussion",conclusion:"Conclusion"
+  } : es ? {
+    introduction:"Introducción",methods:"Métodos",results:"Resultados",discussion:"Discusión",conclusion:"Conclusión"
+  } : {
+    introduction:"Introdução",methods:"Métodos",results:"Resultados",discussion:"Discussão",conclusion:"Conclusão"
+  };
+  const placeholder = (section: BetaSection) => en ? "[" + names[section] + " pending]" :
+    es ? "[" + names[section] + " pendiente]" : "[" + names[section] + " pendente]";
+  return header + "\n\n" + content.trim() + "\n\n" + missing.map(placeholder).join("\n");
 }
 
 function numbersIn(value: string): Set<string> {
