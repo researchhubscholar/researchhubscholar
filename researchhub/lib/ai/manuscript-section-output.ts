@@ -4,6 +4,21 @@ import type { BetaSection } from "./manuscript-section-rules";
 
 /** Constrain the returned targetField at generation time rather than asking
  * a model to remember to copy an unconstrained string exactly. */
+export const manuscriptSectionKeys: BetaSection[] = [
+  "abstract", "introduction", "methods", "results", "discussion", "limitations", "conclusion"
+];
+
+/** Both Escrever com IA and Trabalhar com IA must return the selected section. */
+export function manuscriptWritingSectionSchema(
+  base: JSONSchema7, feature: string, context: unknown
+): JSONSchema7 {
+  if (feature !== "writing" || !context || typeof context !== "object" || !("sectionKey" in context)) return base;
+  const section = (context as { sectionKey: unknown }).sectionKey;
+  return typeof section === "string" && manuscriptSectionKeys.includes(section as BetaSection)
+    ? manuscriptSectionOutputSchema(base, section as BetaSection)
+    : base;
+}
+
 export function manuscriptSectionOutputSchema(base: JSONSchema7, section: BetaSection): JSONSchema7 {
   const recommendations = base.properties?.recommendations as JSONSchema7;
   const item = recommendations.items as JSONSchema7;
