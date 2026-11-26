@@ -72,8 +72,8 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
         const batch = chosen.slice(i,i+5);
         setStage((es ? "Analizando artículos " : "Analisando artigos ") + (i+1) + "–" + (i+batch.length) + " / " + chosen.length);
         const { data } = await postAI<{operationId?:string; mode?:string; usage?:unknown}>("/api/ai/assist", {
-          feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
-            task:"evidence_batch",original:"",language:language||locale,sourceIds:batch,sources:[],sectionKey,heading}
+          feature:"writing",projectId,context:{sectionKey,heading,
+            task:"evidence_batch",original:"",language:language||locale,sourceIds:batch,sources:[]}
         });
         if (data.mode === "simulation") throw new Error("Esta conta está em modo simulado. Use uma licença de IA ativa para analisar os artigos.");
         if (!data.operationId) throw new Error("O registro da análise não foi confirmado. Confira Minha licença antes de tentar novamente.");
@@ -85,8 +85,8 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
       setStage(es ? "Redactando introducción fundamentada…" : "Redigindo a seção com as evidências analisadas…");
       const {data} = await postAI<{output:unknown;sources?:SourceStatus[];operationId?:string;
         usage?:unknown;mode?:string;sourceStatistics?:{considered:number;relevant:number;selectedForWriting:number}}>("/api/ai/assist",{
-        feature:"writing",projectId,context:{sectionKey:"introduction",heading:"Introdução",
-          task:"draft_compose",original,language:language||locale,batchOperationIds:batchIds,sources:[],sectionKey,heading}
+        feature:"writing",projectId,context:{sectionKey,heading,
+          task:"draft_compose",original,language:language||locale,batchOperationIds:batchIds,sources:[]}
       });
       setOperationId(data.operationId||"");
       if (data.mode === "simulation") throw new Error("A simulação não produz conteúdo científico para inserção.");
@@ -145,9 +145,11 @@ export default function ManuscriptDraftBeta({ sectionKey, heading, content, proj
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="text-xs uppercase tracking-wide text-teal">ResearchHub · Beta</p>
-        <h3 className="text-base font-medium mt-1">{es ? "Escribir con IA · {heading}" : "Escrever com IA · {heading}"}</h3>
-        <p className="text-xs text-ink-soft mt-1">{es ? "Borrador basado en fuentes verificadas. {sectionKey === "discussion" ? "Guarda primero los resultados. " : ""}Revisión humana necesaria." :
-          "Rascunho fundamentado nos artigos do projeto. {sectionKey === "discussion" ? "Os resultados devem estar salvos. " : ""}Revisão humana obrigatória."}</p>
+        <h3 className="text-base font-medium mt-1">{(es ? "Escribir con IA · " : "Escrever com IA · ") + heading}</h3>
+        <p className="text-xs text-ink-soft mt-1">{(es ? "Borrador basado en fuentes verificadas. " :
+          "Rascunho fundamentado nos artigos do projeto. ") +
+          (sectionKey === "discussion" ? (es ? "Guarda primero los resultados. " : "Os resultados devem estar salvos. ") : "") +
+          (es ? "Revisión humana necesaria." : "Revisão humana obrigatória.")}</p>
       </div>
       <button type="button" onClick={() => setOpen(x => !x)}
         className="rounded-card bg-teal text-white px-4 py-2 text-sm">
