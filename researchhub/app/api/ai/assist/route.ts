@@ -44,7 +44,7 @@ if(input.feature === "writing" && input.context && typeof input.context === "obj
 if(input.feature==="writing" && input.context && typeof input.context==="object" && "task" in input.context && input.context.task==="draft") {
  const sources=(input.context as {sources?:{label:string}[]}).sources||[];
  const text=output.recommendations[0]?.content||"";
- const matches=[...text.matchAll(/\\[S(\\d+)\\]/g)];
+ const matches=[...text.matchAll(/\[S(\d+)\]/g)];
  if(!matches.length || matches.some(match=>Number(match[1])<1 || Number(match[1])>sources.length)) throw new Error("A introdução não apresentou citações rastreáveis aos artigos selecionados. Nada foi aplicado.");
 }
 const validatedOutput: unknown = input.feature === "radar" ? normalizeRadarOutput(output, language) : output;
