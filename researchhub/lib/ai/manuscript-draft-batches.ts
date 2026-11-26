@@ -52,6 +52,8 @@ export type ConsolidatedDraftEvidence = {
   pmid: string | null;
   doi: string | null;
   evidenceLevel: DraftSource["evidenceLevel"];
+  license: string | null;
+  pmcid: string | null;
   relevance: 0 | 1 | 2 | 3;
   finding: string;
   kind: DraftEvidenceNote["kind"];
