@@ -3,14 +3,14 @@ export function publicDesignCopy(locale: Locale) {
   const es=locale==="es";
   return {
     eyebrow: es?"INVESTIGA CON MÁS CLARIDAD":"PESQUISE COM MAIS CLAREZA",
-    homeTitle: es?"De la duda clínica al trabajo científico.":"Da dúvida clínica ao trabalho científico.",
-    homeDescription: es?"Organiza ideas, encuentra literatura y desarrolla tu proyecto en un solo lugar.":"Organize ideias, encontre literatura e desenvolva seu projeto em um só lugar.",
+    homeTitle: es?"De la pregunta al trabajo científico en salud.":"Da pergunta ao trabalho científico em saúde.",
+    homeDescription: es?"Para estudiantes, residentes y profesionales de todas las áreas de la salud. Organiza ideas, encuentra literatura y desarrolla tu proyecto en un solo lugar.":"Para estudantes, residentes e profissionais de todas as áreas da saúde. Organize ideias, encontre literatura e desenvolva seu projeto em um só lugar.",
     start: es?"Comenzar mi proyecto":"Começar meu projeto",
     radar: es?"Conocer el Radar":"Conhecer o Radar",
     next: es?"Tu próximo paso":"Seu próximo passo",
     example: es?"Vista ilustrativa":"Prévia ilustrativa",
     question: es?"Pregunta de investigación":"Pergunta de pesquisa",
-    questionExample: es?"¿Cómo se relaciona la calidad del sueño con el bienestar de los residentes?":"Como a qualidade do sono se relaciona ao bem-estar dos residentes?",
+    questionExample: es?"¿Qué barreras dificultan el acceso a la rehabilitación en atención primaria?":"Quais barreiras dificultam o acesso à reabilitação na atenção primária?",
     literature: es?"Literatura relacionada":"Literatura relacionada",
     previewRows: es?["Artículos y referencias verificables","Lectura crítica y notas","Estructura del proyecto"]:["Artigos e referências verificáveis","Leitura crítica e anotações","Estrutura do projeto"],
     steps: es?[

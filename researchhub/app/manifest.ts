@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "ResearchHub",
     short_name: "ResearchHub",
-    description: "Pesquisa científica guiada para estudantes de medicina e residentes.",
+    description: "Pesquisa científica guiada para estudantes, residentes e profissionais de todas as áreas da saúde.",
     start_url: "/",
     display: "standalone",
     background_color: "#FAFAF7",

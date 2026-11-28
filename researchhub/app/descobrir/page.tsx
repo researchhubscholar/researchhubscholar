@@ -442,10 +442,13 @@ function DiscoverContent() {
 
       {!result && !loading && (
         <section className="radar-examples mt-6"><h2 className="font-display text-xl">{formatLocale==="es"?"Prueba una búsqueda":"Experimente uma busca"}</h2><div className="radar-example-chips">
-          {["qualidade do sono em residentes de medicina", "adesão ao tratamento da hipertensão", "burnout em estudantes de medicina", formatLocale === "es" ? "Kawasaki en niños menores de 5 años" : "Kawasaki em crianças menores de 5 anos"].map((example, index) => (
+          {(formatLocale === "es"
+            ? ["seguridad del paciente en enfermería", "acceso a la rehabilitación en atención primaria", "adherencia a medicamentos en adultos mayores", "salud bucal en escolares"]
+            : ["segurança do paciente em enfermagem", "acesso à reabilitação na atenção primária", "adesão a medicamentos em idosos", "saúde bucal em escolares"]
+          ).map(example => (
             <button key={example} onClick={() => setTopic(example)} className="text-left bg-white border border-line rounded-card p-4 hover:border-teal transition-colors">
               <svg className="radar-tool-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>
-              <span>{(formatLocale==="es"?["Sueño en residentes","Adherencia en hipertensión","Burnout en estudiantes","Kawasaki en menores de 5 años"]:["Sono em residentes","Adesão na hipertensão","Burnout em estudantes","Kawasaki em menores de 5 anos"])[index]}</span>
+              <span>{example}</span>
             </button>
           ))}
         </div></section>

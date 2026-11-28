@@ -20,20 +20,20 @@ import ProductTelemetry from "@/components/product-telemetry";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://researchhubscholar.vercel.app"),
   title: "ResearchHub — Pesquisa científica guiada",
-  description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
+  description: "Pesquisa científica guiada para estudantes, residentes e profissionais de todas as áreas da saúde.",
   applicationName: "ResearchHub",
   openGraph: {
     type: "website",
     locale: "pt_BR",
     title: "ResearchHub — Pesquisa científica guiada",
-    description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
+    description: "Pesquisa científica guiada para estudantes, residentes e profissionais de todas as áreas da saúde.",
     url: "/",
     siteName: "ResearchHub",
   },
   twitter: {
     card: "summary",
     title: "ResearchHub — Pesquisa científica guiada",
-    description: "Da ideia ao trabalho científico para estudantes de medicina e residentes.",
+    description: "Pesquisa científica guiada para estudantes, residentes e profissionais de todas as áreas da saúde.",
   },
 };
 
