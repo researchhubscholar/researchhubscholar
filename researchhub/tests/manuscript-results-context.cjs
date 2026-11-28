@@ -55,3 +55,14 @@ const database={from(table){
   assert(safe.warnings.some(t=>t.includes("não pôde ser consultado")));
   console.log("PASS: Result summaries omit row-level identifiers, use curated screening, and fail safely.");
 })().catch(e=>{console.error(e);process.exitCode=1});
+const grouped = {
+  ...workspace,
+  dataset: { columns: ["Grupo", "tempo"], rows: [["0","0"], ["1","4"], ["1","8"], ["",""]] },
+  flow: [{label:"Prontuários incluídos",count:3}],
+};
+const groupedResult = summarizeResearchResults(grouped, "estudo transversal");
+assert.deepEqual(groupedResult.groupCounts, [{column:"Grupo",missing:1,counts:[{code:"0",count:1},{code:"1",count:2}]}]);
+assert.deepEqual(groupedResult.summaries.map(row=>row.column), ["tempo"]);
+assert.equal(groupedResult.summaries[0].mean, 4);
+assert.equal(groupedResult.reportedFlow[0].label, "registros incluídos");
+assert.equal(summarizeResearchResults(grouped,"retrospective cohort",true).reportedFlow[0].label,"Prontuários incluídos");

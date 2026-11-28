@@ -76,7 +76,7 @@ export function validateProseDraft(
   if (/\[S\d+\]/.test(content)) throw new Error("O texto contém citações sem fontes verificadas.");
   if (section === "results" && (resultsMode === "outline" || (trimmed(saved.results).length < 100 && !trustedFacts.trim()))) {
     // No data were provided. The result must explicitly be a fill-in template.
-    if (!/\[(?:a preencher|inserir|informar|preencher|pendente|to fill|pending|por completar|completar|dato pendiente)[^\]]*\]/i.test(content)) {
+    if (!/\[(?:a preencher|inserir|informar|preencher|pendente|to fill|to be completed|pending|por completar|completar|dato pendiente)[^\]]*\]/i.test(content)) {
       throw new Error("Sem resultados salvos, a IA só pode preparar um roteiro com campos a preencher.");
     }
   }
@@ -132,4 +132,14 @@ export function relevantSavedDraftSections(
     selected[key]=(saved[key] || "").slice(0,limit);
   }
   return selected;
+}
+
+
+export function manuscriptPlaceholder(language: string) {
+  return language === "en" ? "To be completed" : language === "es" ? "Por completar" : "A preencher";
+}
+
+export function localizeManuscriptPlaceholders(content: string, language: string) {
+  return content.replace(/\[(?:A preencher|To be completed|Por completar)(?=\s*[:\]])/gi,
+    "[" + manuscriptPlaceholder(language));
 }

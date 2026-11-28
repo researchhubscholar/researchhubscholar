@@ -36,3 +36,7 @@ const cleaned=cleanSavedDraftSections([{section_key:"results",content:"observaç
 assert.equal(cleaned.results,"observações");
 assert.equal(cleaned.secret,undefined);
 console.log("PASS: section gates, results skeleton and evidence-number guardrails.");
+const {localizeManuscriptPlaceholders} = require("../lib/ai/manuscript-section-rules.ts");
+assert.equal(localizeManuscriptPlaceholders("[A preencher: Sample size]", "en"), "[To be completed: Sample size]");
+assert.equal(localizeManuscriptPlaceholders("[A preencher]", "es"), "[Por completar]");
+assert.equal(localizeManuscriptPlaceholders("[To be completed]", "pt-BR"), "[A preencher]");

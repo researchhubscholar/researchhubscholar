@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, validWorkspace, type ResultsWorkspace } from "../results/data";
-import { identifierHeader } from "../clinical/collection";
+import { identifierHeader, normalize } from "../clinical/collection";
 
 /** Aggregate records before using AI; never send patient-level dataset rows. */
 export type ResearchResultsContext = {
@@ -11,6 +11,7 @@ export type ResearchResultsContext = {
   screening: {pending:number;included:number;excluded:number} | null;
   reportedFlow: {label:string;count:number}[];
   summaries: {column:string;n:number;missing:number;mean:number|null;median:number|null;sd:number|null;min:number|null;max:number|null}[];
+  groupCounts: {column:string;missing:number;counts:{code:string;count:number}[]}[];
   includedStudies: {articleId:string;title:string;pmid:string|null;doi:string|null;year:number|null;sampleSize:string;finding:string;limitations:string}[];
   warnings: string[];
 };
@@ -23,18 +24,42 @@ export function resultStudyCategory(value: unknown): ResearchResultsContext["cat
 }
 
 export function summarizeResearchResults(
-  workspace: ResultsWorkspace | null, studyType: unknown
+  workspace: ResultsWorkspace | null, studyType: unknown, clinicalRecords = false
 ): ResearchResultsContext {
   const category = resultStudyCategory(studyType);
   const out: ResearchResultsContext = {
     status: "none", category, source:"Dados agregados do módulo Resultados (não são observações individuais)",
-    datasetRows:0,screening:null,reportedFlow:[],summaries:[],includedStudies:[],warnings:[]
+    datasetRows:0,screening:null,reportedFlow:[],summaries:[],groupCounts:[],includedStudies:[],warnings:[]
   };
   if (!workspace || !validWorkspace(workspace)) return out;
   if (workspace.dataset.rows.length) {
     out.datasetRows=workspace.dataset.rows.length;
-    out.summaries=describe(workspace.dataset)
-      .filter(row=>row.type==="Numérica"&&!identifierHeader(row.column)&&row.n>=3)
+    const configuredCategories = new Set(
+      (workspace.collection?.fields ?? []).filter(field => field.kind === "category").map(field => field.label)
+    );
+    if (workspace.analysis?.kind === "welch") configuredCategories.add(workspace.analysis.y);
+    if (workspace.analysis?.kind === "chi2") {
+      configuredCategories.add(workspace.analysis.x);
+      configuredCategories.add(workspace.analysis.y);
+    }
+    const groupColumn = (column: string) => configuredCategories.has(column) ||
+      /^(?:(?:codigo|code) (?:do |de )?)?(?:grupo|group|braço|braco|arm|cohort|coorte)(?: (?:code|codigo|id))?$/.test(normalize(column));
+    const descriptors = describe(workspace.dataset);
+    out.groupCounts = descriptors.flatMap((row, index) => {
+      if (!groupColumn(row.column) || identifierHeader(row.column) || row.type !== "Numérica"
+        || row.n < 3 || row.unique > 12) return [];
+      const counts = new Map<string, number>();
+      for (const record of workspace.dataset.rows) {
+        const code = record[index].trim().replace(/^[+]/, "");
+        if (/^-?\d{1,3}$/.test(code)) counts.set(code, (counts.get(code) ?? 0) + 1);
+      }
+      return [...counts.values()].reduce((total, count) => total + count, 0) === row.n
+        ? [{ column: row.column.slice(0, 85), missing: row.missing,
+          counts: [...counts].map(([code, count]) => ({ code, count })) }]
+        : [];
+    }).slice(0, 8);
+    out.summaries=descriptors
+      .filter(row=>row.type==="Numérica"&&!groupColumn(row.column)&&!identifierHeader(row.column)&&row.n>=3)
       .slice(0,16)
       .map(row=>({column:row.column.slice(0,85),n:row.n,missing:row.missing,
         mean:row.mean===null?null:Number(row.mean.toFixed(4)),
@@ -50,7 +75,8 @@ export function summarizeResearchResults(
     };
   }
   out.reportedFlow=workspace.flow.filter(f=>f.count>0).slice(0,12)
-    .map(f=>({label:f.label.slice(0,85),count:f.count}));
+    .map(f=>({label:(clinicalRecords ? f.label : f.label.replace(/\bprontuários?\b/gi,
+      label => label.toLowerCase().endsWith("s") ? "registros" : "registro")).slice(0,85),count:f.count}));
   out.status=(out.datasetRows>0||Boolean(out.screening)||out.reportedFlow.length>0)?"available":"none";
   if(category==="review" && out.reportedFlow.length && !out.screening) {
     out.warnings.push("Os números do fluxograma são declarados pelo pesquisador e precisam ser conferidos com a triagem.");
@@ -62,7 +88,7 @@ export function summarizeResearchResults(
 }
 
 export async function loadScientificResultsContext(
-  db: SupabaseClient, ownerId: string, projectId: string, studyType: unknown
+  db: SupabaseClient, ownerId: string, projectId: string, studyType: unknown, clinicalRecords = false
 ): Promise<ResearchResultsContext> {
   const {data,error}=await db.from("scholar_project_results")
     .select("workspace").eq("project_id",projectId).eq("owner_id",ownerId).maybeSingle();
@@ -72,7 +98,7 @@ export async function loadScientificResultsContext(
     return unavailable;
   }
   const workspace=data?.workspace;
-  const context=summarizeResearchResults(validWorkspace(workspace)?workspace:null,studyType);
+  const context=summarizeResearchResults(validWorkspace(workspace)?workspace:null,studyType,clinicalRecords);
   if(context.category==="review" && validWorkspace(workspace)) {
     const included=(workspace.reviewScreening||[]).filter(row=>row.status==="included").map(row=>row.articleId);
     if(included.length) {
@@ -121,7 +147,7 @@ export function resultsContextFacts(value: ResearchResultsContext | null): strin
   if(!value) return "";
   return JSON.stringify({
     datasetRows:value.datasetRows,screening:value.screening,reportedFlow:value.reportedFlow,
-    summaries:value.summaries,includedStudies:value.includedStudies.map(s=>({
+    summaries:value.summaries,groupCounts:value.groupCounts,includedStudies:value.includedStudies.map(s=>({
       year:s.year,sampleSize:s.sampleSize,finding:s.finding
     }))
   });

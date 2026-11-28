@@ -18,7 +18,7 @@ import { prepareManuscriptDraftSources } from "@/lib/literature/manuscript-draft
 import { verifyDraftCitationAnchors } from "@/lib/ai/manuscript-draft-citations";
 import { validateDraftEvidenceBatch } from "@/lib/ai/manuscript-draft-batches";
 import { loadDraftComposition } from "@/lib/ai/manuscript-draft-aggregate";
-import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSections, validateProseDraft, missingAbstractSections, markProvisionalAbstract, type BetaSection } from "@/lib/ai/manuscript-section-rules";
+import { cleanSavedDraftSections, sectionDraftRequirements, relevantSavedDraftSections, validateProseDraft, missingAbstractSections, markProvisionalAbstract, localizeManuscriptPlaceholders, type BetaSection } from "@/lib/ai/manuscript-section-rules";
 import { loadScientificResultsContext, resultsContextFacts, resultsContextHasEvidence, type ResearchResultsContext } from "@/lib/ai/manuscript-results-context";
 import { manuscriptWritingSectionSchema, manuscriptSectionKeys, verifyManuscriptSectionOutput } from "@/lib/ai/manuscript-section-output";
 import { assertManuscriptAuditPrivacy, auditSourceHasMaterial, buildManuscriptAuditSource,
@@ -64,7 +64,9 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   const resultsMode=draftContext.resultsMode==="outline"?"outline":"data";
   let resultsEvidence:ResearchResultsContext|null=null;
   if(sectionKey==="results" && resultsMode==="data"){
-   resultsEvidence=await loadScientificResultsContext(client,user.id,input.projectId!,project.study_type);
+   resultsEvidence=await loadScientificResultsContext(client,user.id,input.projectId!,project.study_type,
+     /\b(?:prontu[aá]rios?|medical records?|historias cl[ií]nicas?)\b/i.test(project.methods || "") &&
+     !/fict[ií]ci|synthetic|simulad/i.test([project.title,project.methods,project.population].join(" ")));
   }
   const missing=sectionKey==="abstract"?missingAbstractSections(savedSections):[];
   input.context={sectionKey,task:"section_draft",
@@ -162,6 +164,7 @@ if(input.feature==="writing" && input.context && typeof input.context==="object"
   if(section.sectionKey==="results" && section.resultsEvidence){
     output.warnings=[...output.warnings,...section.resultsEvidence.warnings].slice(0,8);
   }
+  rec.content=localizeManuscriptPlaceholders(rec.content,language);
   validateProseDraft(section.sectionKey,rec.content,section.savedSections,section.project,
     section.sectionKey==="results" && section.resultsMode!=="outline"
       && resultsContextHasEvidence(section.resultsEvidence||null) ? resultsContextFacts(section.resultsEvidence||null) : "",
