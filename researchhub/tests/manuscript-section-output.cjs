@@ -30,3 +30,31 @@ const base={type:"object",properties:{recommendations:{type:"array",items:{type:
 assert.strictEqual(manuscriptWritingSectionSchema(base,"radar",{sectionKey:"methods"}),base);
 assert.strictEqual(manuscriptWritingSectionSchema(base,"writing",{sectionKey:"references"}),base);
 console.log("PASS: seven sections and six writing actions require exactly one correctly targeted recommendation.");
+
+const { manuscriptNativeOutputSchema, normalizeManuscriptNativeOutput, usesManuscriptNativeOutput } =
+  require("../lib/ai/manuscript-native-output.ts");
+const { verifyDraftCitationAnchors } = require("../lib/ai/manuscript-draft-citations.ts");
+const manifest = { anchors: [{ id: "S1", kind: "abstract", quote: "Follow-up data were available." }] };
+const schemas = [
+  ["draft_compose", "source", "object", manifest],
+  ["evidence_batch", "content", "array", [{ label: "S1", relevance: 0, finding: "", kind: "none", quote: "" }]],
+  ["coherence_review", "content", "object", { overview: "Review the saved protocol.", findings: [] }],
+];
+for (const [task, field, type, value] of schemas) {
+  const schema = manuscriptNativeOutputSchema(manuscriptSectionOutputSchema(base, "discussion"), task);
+  assert.equal(schema.properties.recommendations.items.properties[field].type, type);
+  assert.deepEqual(schema.properties.recommendations.items.properties.targetField.enum, ["discussion"]);
+  const output = normalizeManuscriptNativeOutput({ recommendations: [{ ...item("discussion"), [field]: value }] }, task);
+  assert.deepEqual(JSON.parse(output.recommendations[0][field]), value);
+}
+const draft = normalizeManuscriptNativeOutput({ recommendations: [{ ...item("discussion"), source: manifest }] }, "draft_compose");
+assert.doesNotThrow(() => verifyDraftCitationAnchors("Follow-up was reported [S1].", draft.recommendations[0].source, [
+  { label: "S1", abstract: "Follow-up data were available.", fullTextExcerpt: "" },
+]));
+assert.throws(() => verifyDraftCitationAnchors("Follow-up was reported [S1].", draft.recommendations[0].source, [
+  { label: "S1", abstract: "No follow-up was reported.", fullTextExcerpt: "" },
+]), /não consta da fonte/);
+assert.equal(usesManuscriptNativeOutput("section_draft"), true);
+assert.equal(usesManuscriptNativeOutput("revise"), false);
+assert.strictEqual(manuscriptNativeOutputSchema(base, "revise"), base);
+console.log("PASS: native manuscript schemas preserve target fields and citation checks.");

@@ -21,12 +21,17 @@ export default function ActiveProjectPicker({ currentId, options, area }: {
     <form action={`/${area}`} method="get" className={`workspace-project-picker ${isManuscript ? "manuscript" : "documents"}-project-picker`}
       onSubmit={event => { if (!changingProject) event.preventDefault(); }}>
       <label>
-        <InterfaceText message="screen.91aec26f5cfe" />
+        {isManuscript
+          ? (locale === "es" ? "Seleccionar manuscrito" : "Selecionar manuscrito")
+          : <InterfaceText message="screen.91aec26f5cfe" />}
         <select name="projeto" value={selectedId} onChange={event => setSelectedId(event.target.value)}
           className="block w-full border border-line rounded-card p-2 mt-2 bg-paper">
           {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
         </select>
       </label>
+      {isManuscript && changingProject && <p className="mt-2 text-sm text-ink-soft" role="status">
+        {locale === "es" ? "El editor sigue mostrando el manuscrito abierto. Confirma el cambio para continuar." : "O editor ainda mostra o manuscrito aberto. Confirme a troca para continuar."}
+      </p>}
       {changingProject && <button type="submit" className="workspace-project-picker-action">
         {actionLabel} →
       </button>}
